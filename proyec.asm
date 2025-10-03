@@ -7,9 +7,17 @@
 ; Constantes generales del modo gráfico
 SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
 SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
-BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
-PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
-PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
+SCREEN_BYTES_PER_SCAN EQU 80      ; Bytes por scanline en VRAM (640/8)
+VIEWPORT_WIDTH    EQU 160         ; Ancho del viewport en píxeles
+VIEWPORT_HEIGHT   EQU 100         ; Alto del viewport en píxeles
+BYTES_PER_SCAN    EQU 20          ; Bytes por scanline en el viewport (160/8)
+VIEWPORT_LINE_SKIP EQU (SCREEN_BYTES_PER_SCAN - BYTES_PER_SCAN)
+VIEWPORT_MAX_X    EQU (VIEWPORT_WIDTH - 1)
+VIEWPORT_MAX_Y    EQU (VIEWPORT_HEIGHT - 1)
+PLANE_SIZE        EQU (BYTES_PER_SCAN * VIEWPORT_HEIGHT)
+PLANE_PARAGRAPHS  EQU 128         ; 128 párrafos (8 KB) para reserva segura
+PLAYER_LINE_LENGTH EQU 20         ; Longitud de la línea del jugador en píxeles
+PLAYER_MAX_X      EQU (VIEWPORT_WIDTH - PLAYER_LINE_LENGTH)
 
 .DATA                             ; Segmento de datos
 Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
@@ -17,14 +25,14 @@ Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
-viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
-viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
+viewport_x_offset dw 30           ; Desfase horizontal (centrado 160 px en 640)
+viewport_y_offset dw 10000        ; Desfase vertical (125 scans * 80 bytes)
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
 crlf             db 13,10,'$'
-player_x        dw 80            ; Fase 3: Input movimiento línea - posición X inicial
-player_y        dw 50            ; Fase 3: Input movimiento línea - posición Y inicial
+player_x        dw 80            ; Posición X inicial de la línea del jugador
+player_y        dw 50            ; Posición Y inicial de la línea del jugador
 
 .CODE                             ; Segmento de código
 
@@ -400,12 +408,12 @@ DrawPixel PROC
     push di
     push es
 
-    cmp bx, 159                    ; Fix: Limit viewport 160x100
+    cmp bx, VIEWPORT_MAX_X         ; Limitar al ancho del viewport
     jbe @CheckYBounds
     jmp NEAR PTR @exit_pixel
 
 @CheckYBounds:
-    cmp cx, 99                     ; Fix: Limit viewport 160x100
+    cmp cx, VIEWPORT_MAX_Y         ; Limitar al alto del viewport
     jbe @PixelWithinBounds
     jmp NEAR PTR @exit_pixel
 
@@ -517,7 +525,7 @@ DrawPlayerLine PROC
     mov bx, player_x
     mov cx, player_y
     mov dl, 4
-    mov si, 20
+    mov si, PLAYER_LINE_LENGTH
 
 @loop_player:
     call DrawPixel
@@ -600,9 +608,9 @@ HandleInput PROC
     mov word ptr player_x, 0
 
 @clamp_x_high:
-    cmp word ptr player_x, 140
+    cmp word ptr player_x, PLAYER_MAX_X
     jle @clamp_y_low
-    mov word ptr player_x, 140
+    mov word ptr player_x, PLAYER_MAX_X
 
 @clamp_y_low:
     cmp word ptr player_y, 0
@@ -610,9 +618,9 @@ HandleInput PROC
     mov word ptr player_y, 0
 
 @clamp_y_high:
-    cmp word ptr player_y, 99
+    cmp word ptr player_y, VIEWPORT_MAX_Y
     jle @redraw
-    mov word ptr player_y, 99
+    mov word ptr player_y, VIEWPORT_MAX_Y
 
 @redraw:
     call ClearOffScreenBuffer
@@ -640,6 +648,7 @@ BlitBufferToScreen PROC
     push dx
     push si
     push di
+    push bp
     push ds
     push es
 
@@ -650,84 +659,104 @@ BlitBufferToScreen PROC
     mov ax, Plane0Segment          ; Plano 0 ------------------------------------------------
     or ax, ax
     jz @SkipCopy0
-    mov bx, ax                     ; Fix: Preservar segmento del plano
+    mov bx, ax                     ; Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 1                      ; Fix: Máscara decimal para plano 0
+    mov al, 1                      ; Máscara para plano 0
     out dx, al
     dec dx
-    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    push ds                        ; Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Offset vertical base en VRAM
     mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, bx                     ; Fix: Usar segmento preservado del plano
+    add di, viewport_x_offset      ; Desplazar viewport centrado
+    mov ds, bx                     ; DS = plano actual
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bp, VIEWPORT_HEIGHT
+@CopyPlane0:
+    mov cx, BYTES_PER_SCAN
     rep movsb
+    add di, VIEWPORT_LINE_SKIP
+    dec bp
+    jnz @CopyPlane0
     pop ds
 @SkipCopy0:
 
     mov ax, Plane1Segment          ; Plano 1 ------------------------------------------------
     or ax, ax
     jz @SkipCopy1
-    mov bx, ax                     ; Fix: Preservar segmento del plano
+    mov bx, ax                     ; Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 2                      ; Fix: Máscara decimal para plano 1
+    mov al, 2                      ; Máscara para plano 1
     out dx, al
     dec dx
-    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    push ds                        ; Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Offset vertical base en VRAM
     mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, bx                     ; Fix: Usar segmento preservado del plano
+    add di, viewport_x_offset      ; Desplazar viewport centrado
+    mov ds, bx                     ; DS = plano actual
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bp, VIEWPORT_HEIGHT
+@CopyPlane1:
+    mov cx, BYTES_PER_SCAN
     rep movsb
+    add di, VIEWPORT_LINE_SKIP
+    dec bp
+    jnz @CopyPlane1
     pop ds
 @SkipCopy1:
 
     mov ax, Plane2Segment          ; Plano 2 ------------------------------------------------
     or ax, ax
     jz @SkipCopy2
-    mov bx, ax                     ; Fix: Preservar segmento del plano
+    mov bx, ax                     ; Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 4                      ; Fix: Máscara decimal para plano 2
+    mov al, 4                      ; Máscara para plano 2
     out dx, al
     dec dx
-    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    push ds                        ; Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Offset vertical base en VRAM
     mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, bx                     ; Fix: Usar segmento preservado del plano
+    add di, viewport_x_offset      ; Desplazar viewport centrado
+    mov ds, bx                     ; DS = plano actual
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bp, VIEWPORT_HEIGHT
+@CopyPlane2:
+    mov cx, BYTES_PER_SCAN
     rep movsb
+    add di, VIEWPORT_LINE_SKIP
+    dec bp
+    jnz @CopyPlane2
     pop ds
 @SkipCopy2:
 
     mov ax, Plane3Segment          ; Plano 3 ------------------------------------------------
     or ax, ax
     jz @SkipCopy3
-    mov bx, ax                     ; Fix: Preservar segmento del plano
+    mov bx, ax                     ; Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 8                      ; Fix: Máscara decimal para plano 3
+    mov al, 8                      ; Máscara para plano 3
     out dx, al
     dec dx
-    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    push ds                        ; Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Offset vertical base en VRAM
     mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, bx                     ; Fix: Usar segmento preservado del plano
+    add di, viewport_x_offset      ; Desplazar viewport centrado
+    mov ds, bx                     ; DS = plano actual
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bp, VIEWPORT_HEIGHT
+@CopyPlane3:
+    mov cx, BYTES_PER_SCAN
     rep movsb
+    add di, VIEWPORT_LINE_SKIP
+    dec bp
+    jnz @CopyPlane3
     pop ds
 @SkipCopy3:
 
@@ -739,6 +768,7 @@ BlitBufferToScreen PROC
 
     pop es                         ; Restaurar registros
     pop ds
+    pop bp
     pop di
     pop si
     pop dx
@@ -829,30 +859,7 @@ main PROC
     call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
     call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
 
-    call DirectDrawTest            ; Test directo en VRAM sin buffer
-
-    ; call ClearOffScreenBuffer   ; Temporal: deshabilitado durante prueba directa
-
-    ; mov bx, 0                   ; Temporal: código de raster en buffer deshabilitado
-    ; mov cx, 50
-    ; mov dl, 15
-;LineLoop:
-    ; call DrawPixel
-
-    ; inc bx
-    ; cmp bx, 160
-    ; jle LineLoop
-
-    ; mov dl, 15
-    ; mov bx, 80
-    ; mov cx, 0
-;VertLoop:
-    ; call DrawPixel
-    ; inc cx
-    ; cmp cx, 100
-    ; jle VertLoop
-
-    ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
+    ; call DirectDrawTest         ; Prueba opcional de dibujo directo (deshabilitada)
 
     call HandleInput               ; Fase 3: Input movimiento línea - control interactivo
 
