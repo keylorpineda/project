@@ -25,8 +25,8 @@ Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
-viewport_x_offset dw 30           ; Desfase horizontal (centrado 160 px en 640)
-viewport_y_offset dw 10000        ; Desfase vertical (125 scans * 80 bytes)
+viewport_x_offset dw 0            ; Desfase horizontal (debug: inicio sin desplazamiento)
+viewport_y_offset dw 0            ; Desfase vertical (debug: inicio sin desplazamiento)
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
@@ -553,86 +553,109 @@ HandleInput PROC
     push cx
     push dx
 
+@frame_loop:
     call ClearOffScreenBuffer
     call DrawPlayerLine
     call BlitBufferToScreen
 
-@keyloop:
-    xor ah, ah
+    mov ah, 11h                    ; Comprobar si hay tecla disponible (no bloqueante)
     int 16h
-    cmp al, 27
-    jne @check_special_keys
-    jmp @exit_input
+    jz @frame_loop                 ; Sin tecla: seguir redibujando
 
-@check_special_keys:
-    cmp ah, 48h
+    mov ah, 10h                    ; Leer tecla extendida disponible
+    int 16h
+
+    cmp al, 27                     ; ESC -> salir del modo gráfico
+    je @exit_input
+
+    mov bh, ah                     ; Guardar scan code
+    mov bl, al                     ; Guardar ASCII
+
+    cmp bh, 48h                    ; Flecha arriba
     je @move_up
-    cmp ah, 50h
+    cmp bh, 50h                    ; Flecha abajo
     je @move_down
-    cmp ah, 4Bh
+    cmp bh, 4Bh                    ; Flecha izquierda
     je @move_left
-    cmp ah, 4Dh
+    cmp bh, 4Dh                    ; Flecha derecha
     je @move_right
 
-    cmp al, 'w'
+    cmp bl, 'w'                    ; WASD minúsculas
     je @move_up
-    cmp al, 'W'
+    cmp bl, 'W'
     je @move_up
-    cmp al, 's'
+    cmp bl, 's'
     je @move_down
-    cmp al, 'S'
+    cmp bl, 'S'
     je @move_down
-    cmp al, 'a'
+    cmp bl, 'a'
     je @move_left
-    cmp al, 'A'
+    cmp bl, 'A'
     je @move_left
-    cmp al, 'd'
+    cmp bl, 'd'
     je @move_right
-    cmp al, 'D'
+    cmp bl, 'D'
     je @move_right
 
-    jmp @keyloop
+    jmp short @frame_loop          ; Tecla no válida: continuar
 
 @move_up:
-    dec word ptr player_y
-    jmp @apply_clamp
+    mov ax, player_y
+    or ax, ax
+    jz @apply_clamp
+    dec ax
+    mov player_y, ax
+    jmp short @apply_clamp
 
 @move_down:
-    inc word ptr player_y
-    jmp @apply_clamp
+    mov ax, player_y
+    cmp ax, VIEWPORT_MAX_Y
+    jae @apply_clamp
+    inc ax
+    mov player_y, ax
+    jmp short @apply_clamp
 
 @move_left:
-    dec word ptr player_x
-    jmp @apply_clamp
+    mov ax, player_x
+    or ax, ax
+    jz @apply_clamp
+    dec ax
+    mov player_x, ax
+    jmp short @apply_clamp
 
 @move_right:
-    inc word ptr player_x
+    mov ax, player_x
+    cmp ax, PLAYER_MAX_X
+    jae @apply_clamp
+    inc ax
+    mov player_x, ax
 
 @apply_clamp:
-    cmp word ptr player_x, 0
+    mov ax, player_x
+    cmp ax, 0
     jge @clamp_x_high
-    mov word ptr player_x, 0
+    xor ax, ax
+    mov player_x, ax
 
 @clamp_x_high:
-    cmp word ptr player_x, PLAYER_MAX_X
-    jle @clamp_y_low
-    mov word ptr player_x, PLAYER_MAX_X
+    cmp ax, PLAYER_MAX_X
+    jbe @clamp_y_low
+    mov ax, PLAYER_MAX_X
+    mov player_x, ax
 
 @clamp_y_low:
-    cmp word ptr player_y, 0
+    mov ax, player_y
+    cmp ax, 0
     jge @clamp_y_high
-    mov word ptr player_y, 0
+    xor ax, ax
+    mov player_y, ax
 
 @clamp_y_high:
-    cmp word ptr player_y, VIEWPORT_MAX_Y
-    jle @redraw
-    mov word ptr player_y, VIEWPORT_MAX_Y
-
-@redraw:
-    call ClearOffScreenBuffer
-    call DrawPlayerLine
-    call BlitBufferToScreen
-    jmp @keyloop
+    cmp ax, VIEWPORT_MAX_Y
+    jbe @frame_loop
+    mov ax, VIEWPORT_MAX_Y
+    mov player_y, ax
+    jmp short @frame_loop
 
 @exit_input:
     pop dx
