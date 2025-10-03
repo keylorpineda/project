@@ -431,21 +431,14 @@ PollKeyboard ENDP
 ; ----------------------------------------------------------------------------
 SetPaletteRed PROC
     push ax                        ; Conservar registros usados
-    push dx
+    push bx
 
-    mov dx, 03C8h                  ; Puerto de índice de la DAC
-    mov al, 4
-    out dx, al                     ; Seleccionar color 4
-    inc dx                         ; DX = 03C9h (datos de la DAC)
+    mov ax, 1000h                  ; INT 10h/AH=10h, AL=00h -> set single EGA palette register
+    mov bx, LINE_COLOR             ; BL = registro de paleta que usaremos para la línea
+    mov bh, 30h                    ; BH = valor de color (R=3, G=0, B=0 -> rojo intenso en EGA)
+    int 10h
 
-    mov al, 63
-    out dx, al                     ; Fix: EGA 6-bit DAC, 3 bytes/color (R=63 G=0 B=0 para rojo puro)
-    mov al, 0
-    out dx, al
-    mov al, 0
-    out dx, al
-
-    pop dx                         ; Restaurar registros
+    pop bx                         ; Restaurar registros
     pop ax
     ret
 SetPaletteRed ENDP
@@ -457,21 +450,14 @@ SetPaletteRed ENDP
 ; ----------------------------------------------------------------------------
 SetPaletteWhite PROC
     push ax
-    push dx
+    push bx
 
-    mov dx, 03C8h
-    mov al, 15
-    out dx, al
-    inc dx
+    mov ax, 1000h                  ; INT 10h/AH=10h, AL=00h -> set single palette register
+    mov bx, 15                     ; BL = registro 15 (blanco por defecto)
+    mov bh, 3Fh                    ; BH = color completo (R=3, G=3, B=3 -> blanco máximo EGA)
+    int 10h
 
-    mov al, 63
-    out dx, al                     ; Test: Blanco full para línea visible
-    mov al, 63
-    out dx, al
-    mov al, 63
-    out dx, al
-
-    pop dx
+    pop bx
     pop ax
     ret
 SetPaletteWhite ENDP
