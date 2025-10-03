@@ -22,6 +22,11 @@ msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
 crlf             db 13,10,'$'
+msg_alloc_ok     db 'Alloc OK - Buffer listo.$'          ; Fix: Debug prints para trazar crash parpadeo
+msg_draw_ok      db 'Draw OK - Línea lista.$'            ; Fix: Debug prints para trazar crash parpadeo
+msg_blit_ok      db 'Blit OK - Renderizado.$'            ; Fix: Debug prints para trazar crash parpadeo
+msg_wait         db 'Presiona tecla para salir.$'        ; Fix: Debug prints para trazar crash parpadeo
+msg_error        db 'Error en [lugar]: $'                ; Fix: Debug prints para trazar crash parpadeo
 
 .CODE                             ; Segmento de código
 
@@ -109,6 +114,9 @@ InitOffScreenBuffer PROC
     ret
 
 @AllocFail:
+    mov dx, OFFSET msg_error       ; Fix: Debug prints para trazar crash parpadeo
+    mov ah, 09h
+    int 21h
     push ax
     call ReleaseOffScreenBuffer
     pop ax
@@ -586,7 +594,18 @@ main PROC
 
     call InitOffScreenBuffer       ; Reservar memoria para el buffer off-screen
     cmp ax, 0
-    jne @Exit
+    je @alloc_ok
+    mov dx, OFFSET msg_error       ; Fix: Debug prints para trazar crash parpadeo
+    mov ah, 09h
+    int 21h
+    mov al, 1                      ; Fix: Debug prints para trazar crash parpadeo
+    mov ah, 4Ch
+    int 21h
+
+@alloc_ok:
+    mov dx, OFFSET msg_alloc_ok    ; Fix: Debug prints para trazar crash parpadeo
+    mov ah, 09h
+    int 21h
 
     call ClearOffScreenBuffer      ; Preparar buffer off-screen en RAM dinámica
 
@@ -599,6 +618,10 @@ LineLoop:
     cmp bx, 160
     jb LineLoop
 
+    mov dx, OFFSET msg_draw_ok     ; Fix: Debug prints para trazar crash parpadeo
+    mov ah, 09h
+    int 21h
+
     mov bx, 80                     ; Fix: Línea vertical roja en X=80
     mov cx, 0                      ; Fix: Inicio de línea vertical en Y=0
     mov dl, 4                      ; Fix: Color rojo índice 4
@@ -610,7 +633,14 @@ VertLoop:
 
     call BlitBufferToScreen        ; Copiar buffer a la pantalla
 
-    xor ah, ah                     ; Esperar tecla
+    mov dx, OFFSET msg_blit_ok     ; Fix: Debug prints para trazar crash parpadeo
+    mov ah, 09h
+    int 21h
+
+    mov dx, OFFSET msg_wait        ; Fix: Debug prints para trazar crash parpadeo
+    mov ah, 09h
+    int 21h
+    xor ah, ah                     ; Fix: Debug prints para trazar crash parpadeo
     int 16h
 
 @Exit:
