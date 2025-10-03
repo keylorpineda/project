@@ -61,9 +61,10 @@ ShrinkProgramMemory PROC
     jmp @exit
 
 @shrink_fail:
-    mov dx, offset msg_shrink_fail
-    mov ah, 09h
-    int 21h
+    ; Fix: Quitar mensaje shrink para evitar basura en salida
+    ; mov dx, offset msg_shrink_fail
+    ; mov ah, 09h
+    ; int 21h
     mov ax, 1                       ; Fix: AX=1 indica shrink no disponible
 
 @exit:
@@ -273,6 +274,40 @@ SetPaletteRed PROC
     ret
 SetPaletteRed ENDP
 
+; Fix: Limpia full A000h para eliminar garbage de modo anterior
+ClearScreen PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push di
+    push es
+
+    mov ax, 0A000h
+    mov es, ax
+
+    mov dx, 03C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    dec dx
+
+    xor di, di
+    mov al, 0
+    mov cx, 28000                ; Fix: 350*80 bytes totales modo 10h
+    rep stosb
+
+    pop es
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+ClearScreen ENDP
+
 ; ----------------------------------------------------------------------------
 ; Rutina: DrawPixel
 ; Dibuja un píxel en el buffer off-screen usando coordenadas (X,Y) y color C.
@@ -417,6 +452,7 @@ BlitBufferToScreen PROC
     mov ax, Plane0Segment          ; Plano 0 ------------------------------------------------
     or ax, ax
     jz @SkipCopy0
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
@@ -424,9 +460,10 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov di, viewport_y_offset
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    mov di, ax
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, ax
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
@@ -436,6 +473,7 @@ BlitBufferToScreen PROC
     mov ax, Plane1Segment          ; Plano 1 ------------------------------------------------
     or ax, ax
     jz @SkipCopy1
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
@@ -443,9 +481,10 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov di, viewport_y_offset
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    mov di, ax
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, ax
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
@@ -455,6 +494,7 @@ BlitBufferToScreen PROC
     mov ax, Plane2Segment          ; Plano 2 ------------------------------------------------
     or ax, ax
     jz @SkipCopy2
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
@@ -462,9 +502,10 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov di, viewport_y_offset
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    mov di, ax
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, ax
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
@@ -474,6 +515,7 @@ BlitBufferToScreen PROC
     mov ax, Plane3Segment          ; Plano 3 ------------------------------------------------
     or ax, ax
     jz @SkipCopy3
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
@@ -481,9 +523,10 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov di, viewport_y_offset
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    mov di, ax
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, ax
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
@@ -584,19 +627,28 @@ main PROC
     mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
 
+    call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
     call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
 
     call ClearOffScreenBuffer      ; Limpiar el buffer off-screen
 
-    mov bx, 50                     ; Fix: X centrado dentro del viewport
+    mov bx, 40                     ; Fix: Inicio horizontal ampliado para visibilidad
     mov cx, 50                     ; Fix: Y centrado dentro del viewport
     mov dl, 4                      ; Fix: Color rojo (bit 2)
 LineLoop:
     call DrawPixel                 ; Fix: Usar BX=X, CX=Y, DL=color
 
     inc bx                         ; Siguiente X
-    cmp bx, 101                    ; ¿Llegamos al final (ancho ≈ 50 px)?
-    jle LineLoop                   ; Repetir mientras BX <= 101
+    cmp bx, 120                    ; Fix: Extender la línea horizontal
+    jle LineLoop                   ; Repetir mientras BX <= 120
+
+    mov bx, 75                     ; Fix: X central para la línea vertical
+    mov cx, 40                     ; Fix: Inicio superior de la cruz
+VertLoop:
+    call DrawPixel                 ; Fix: Dibujo vertical del cruce
+    inc cx
+    cmp cx, 60                     ; Fix: Hacer línea vertical visible
+    jle VertLoop
 
     call BlitBufferToScreen        ; Copiar buffer a la pantalla
 
