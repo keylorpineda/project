@@ -54,7 +54,8 @@ ShrinkProgramMemory PROC
     mov psp_seg, bx
 
 @have_psp:
-    mov es, psp_seg
+    mov ax, psp_seg
+    mov es, ax
     mov ax, es:[2]
     shr ax, 1
 
