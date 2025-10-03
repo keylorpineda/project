@@ -420,24 +420,23 @@ main PROC
     mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
 
-    call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
-    call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
+    ; call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
     call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
 
     call ClearOffScreenBuffer      ; Preparar buffer off-screen
 
-    mov bx, 0                      ; X inicial para línea horizontal
-    mov cx, 50                     ; Y fijo (fila 50)
-    mov dl, 4                      ; Color rojo
+    mov cx, 0                      ; Fix: Línea top-left blanca para test buffer fijo (Y=0)
+    mov bx, 0                      ; Fix: Línea top-left blanca para test buffer fijo (X inicial 0)
+    mov dl, 15                     ; Fix: Línea top-left blanca para test buffer fijo (color blanco)
 LineLoop:
     call DrawPixel
     inc bx
     cmp bx, 160
     jle LineLoop
 
-    mov dl, 4                      ; Reusar rojo para línea vertical
-    mov bx, 80                     ; X fijo (columna 80)
-    mov cx, 0                      ; Y inicial
+    mov bx, 0                      ; Fix: Línea top-left blanca para test buffer fijo (X=0)
+    mov cx, 0                      ; Fix: Línea top-left blanca para test buffer fijo (Y inicial 0)
+    mov dl, 15                     ; Fix: Línea top-left blanca para test buffer fijo (color blanco)
 VertLoop:
     call DrawPixel
     inc cx
