@@ -288,11 +288,16 @@ SetPaletteRed PROC
     push bx
     push dx
 
-    mov ax, 1000h                  ; AH=10h AL=00h -> establecer registro de paleta
-    mov bh, 0                      ; Página 0
-    mov bl, 4                      ; Registro de color 4
-    mov dl, 4                      ; Valor de color rojo estándar
-    int 10h
+    mov dx, 03C8h                  ; Puerto VGA DAC: seleccionar índice
+    mov al, 4                      ; Color 4 -> rojo
+    out dx, al
+
+    mov dx, 03C9h                  ; Puerto de datos del DAC
+    mov al, 63                     ; R = 63 (máximo brillo)
+    out dx, al
+    xor al, al                     ; G = 0
+    out dx, al
+    out dx, al                     ; B = 0
 
     pop dx                         ; Restaurar registros
     pop bx
@@ -310,11 +315,17 @@ SetPaletteWhite PROC
     push bx
     push dx
 
-    mov ax, 1000h                  ; AH=10h AL=00h -> establecer registro de paleta
-    mov bh, 0
-    mov bl, 15                     ; Registro 15 -> blanco
-    mov dl, 15                     ; Valor de color blanco (alto)
-    int 10h
+    mov dx, 03C8h                  ; Seleccionar índice del DAC
+    mov al, 15                     ; Color 15 -> blanco
+    out dx, al
+
+    mov dx, 03C9h                  ; Escribir valores RGB (6 bits)
+    mov al, 63                     ; R = 63
+    out dx, al
+    mov al, 63                     ; G = 63
+    out dx, al
+    mov al, 63                     ; B = 63
+    out dx, al
 
     pop dx
     pop bx
@@ -611,10 +622,9 @@ HandleInput PROC
     call DrawPlayerLine
     call BlitBufferToScreen
 
-    mov ah, 11h                    ; Comprobar si hay tecla disponible (no bloqueante)
+    mov ah, 01h                    ; Comprobar si hay tecla disponible (no bloqueante)
     int 16h
-    jc @frame_loop                 ; CF=1 si no hay tecla
-    jz @frame_loop                 ; ZF=1 también indica ausencia de tecla
+    jz @frame_loop                 ; ZF=1 indica ausencia de tecla
 
     mov ah, 10h                    ; Leer tecla extendida disponible
     int 16h
