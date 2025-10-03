@@ -547,8 +547,10 @@ HandleInput PROC
     xor ah, ah
     int 16h
     cmp al, 27
-    je @exit_input
+    jne @check_special_keys
+    jmp @exit_input
 
+@check_special_keys:
     cmp ah, 48h
     je @move_up
     cmp ah, 50h
