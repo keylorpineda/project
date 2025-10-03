@@ -7,11 +7,15 @@
 ; Constantes generales del modo gráfico
 SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
 SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
+SCREEN_BYTES_PER_LINE EQU (SCREEN_WIDTH / 8) ; 80 bytes por scanline en modo 640x350
 BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
 PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
 PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
+SCREEN_STRIDE_SKIP EQU (SCREEN_BYTES_PER_LINE - BYTES_PER_SCAN) ; 60 bytes a saltar por línea
 VIEWPORT_WIDTH    EQU 160         ; Ancho lógico del viewport off-screen
 VIEWPORT_HEIGHT   EQU 100         ; Alto lógico del viewport off-screen
+VIEWPORT_X_OFFSET_BYTES EQU ((SCREEN_WIDTH - VIEWPORT_WIDTH) / 16)
+VIEWPORT_Y_OFFSET_BYTES EQU (((SCREEN_HEIGHT - VIEWPORT_HEIGHT) / 2) * SCREEN_BYTES_PER_LINE)
 PLAYER_LENGTH     EQU 20          ; Longitud de la línea roja controlada por el jugador
 PLAYER_MIN_X      EQU 0           ; Límite izquierdo permitido
 PLAYER_MAX_X      EQU 140         ; Límite derecho permitido (160-20)
@@ -30,8 +34,8 @@ Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
-viewport_x_offset dw 0            ; Offset horizontal del viewport (top-left)
-viewport_y_offset dw 0            ; Offset vertical del viewport (top-left)
+viewport_x_offset dw VIEWPORT_X_OFFSET_BYTES ; Offset horizontal centrado (30 bytes)
+viewport_y_offset dw VIEWPORT_Y_OFFSET_BYTES ; Offset vertical centrado (125 scans * 80 bytes)
 player_x         dw PLAYER_START_X ; Posición X inicial del jugador (columna 0)
 player_y         dw PLAYER_START_Y ; Posición Y inicial del jugador (fila 50 visible)
 exit_requested   db 0             ; Bandera para salir del bucle principal
@@ -671,6 +675,7 @@ BlitBufferToScreen PROC
     push dx
     push si
     push di
+    push bp
     push ds
     push es
 
@@ -695,9 +700,15 @@ BlitBufferToScreen PROC
     mov di, ax
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
+    mov bx, SCREEN_STRIDE_SKIP     ; Fix: Salto entre líneas visibles
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bp, VIEWPORT_HEIGHT        ; Fix: Número de filas visibles en el viewport
+@CopyRow0:
+    mov cx, BYTES_PER_SCAN         ; Fix: Copiar 20 bytes por fila
     rep movsb
+    add di, bx                     ; Fix: Avanzar al inicio de la siguiente fila
+    dec bp
+    jnz @CopyRow0
     pop ds
 @SkipCopy0:
 
@@ -716,9 +727,15 @@ BlitBufferToScreen PROC
     mov di, ax
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
+    mov bx, SCREEN_STRIDE_SKIP     ; Fix: Salto entre líneas visibles
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bp, VIEWPORT_HEIGHT        ; Fix: Número de filas visibles en el viewport
+@CopyRow1:
+    mov cx, BYTES_PER_SCAN         ; Fix: Copiar 20 bytes por fila
     rep movsb
+    add di, bx                     ; Fix: Avanzar al inicio de la siguiente fila
+    dec bp
+    jnz @CopyRow1
     pop ds
 @SkipCopy1:
 
@@ -737,9 +754,15 @@ BlitBufferToScreen PROC
     mov di, ax
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
+    mov bx, SCREEN_STRIDE_SKIP     ; Fix: Salto entre líneas visibles
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bp, VIEWPORT_HEIGHT        ; Fix: Número de filas visibles en el viewport
+@CopyRow2:
+    mov cx, BYTES_PER_SCAN         ; Fix: Copiar 20 bytes por fila
     rep movsb
+    add di, bx                     ; Fix: Avanzar al inicio de la siguiente fila
+    dec bp
+    jnz @CopyRow2
     pop ds
 @SkipCopy2:
 
@@ -758,9 +781,15 @@ BlitBufferToScreen PROC
     mov di, ax
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
+    mov bx, SCREEN_STRIDE_SKIP     ; Fix: Salto entre líneas visibles
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bp, VIEWPORT_HEIGHT        ; Fix: Número de filas visibles en el viewport
+@CopyRow3:
+    mov cx, BYTES_PER_SCAN         ; Fix: Copiar 20 bytes por fila
     rep movsb
+    add di, bx                     ; Fix: Avanzar al inicio de la siguiente fila
+    dec bp
+    jnz @CopyRow3
     pop ds
 @SkipCopy3:
 
@@ -772,6 +801,7 @@ BlitBufferToScreen PROC
 
     pop es                         ; Restaurar registros
     pop ds
+    pop bp
     pop di
     pop si
     pop dx
