@@ -4,6 +4,10 @@
 .MODEL SMALL                      ; Usar modelo de memoria small (código y datos < 64K)
 .STACK 100h                       ; Reservar 256 bytes para la pila
 
+STACK_SIZE            EQU 100h
+STACK_PARAGRAPHS      EQU (STACK_SIZE + 15) / 16
+SHRINK_MARGIN_PARAS   EQU 16
+
 ; Constantes generales del modo gráfico
 SCREEN_WIDTH          EQU 640
 SCREEN_HEIGHT         EQU 350
@@ -17,6 +21,10 @@ BYTES_PER_SCAN        EQU VIEWPORT_WIDTH / 8          ; 160 / 8 = 20 bytes por s
 PLANE_SIZE            EQU BYTES_PER_SCAN * VIEWPORT_HEIGHT
 PLANE_PARAGRAPHS      EQU 128                         ; 8 KB por plano para reserva segura
 ROW_STRIDE_DIFF       EQU SCREEN_BYTES_PER_SCAN - BYTES_PER_SCAN
+VIEWPORT_MARGIN_X     EQU (SCREEN_WIDTH - VIEWPORT_WIDTH) / 2
+VIEWPORT_MARGIN_Y     EQU (SCREEN_HEIGHT - VIEWPORT_HEIGHT) / 2
+VIEWPORT_X_OFFSET     EQU VIEWPORT_MARGIN_X / 8
+VIEWPORT_Y_OFFSET     EQU VIEWPORT_MARGIN_Y * SCREEN_BYTES_PER_SCAN
 
 ; Constantes de la línea controlable
 LINE_LENGTH           EQU 120
@@ -33,14 +41,15 @@ Plane1Segment        dw 0         ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment        dw 0         ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment        dw 0         ; Segmento del plano 3 (bit de peso 8)
 psp_seg              dw 0         ; Segmento del PSP para shrink
-viewport_x_offset    dw 30        ; Desfase horizontal (240 px / 8)
-viewport_y_offset    dw 10000     ; Desfase vertical (125 líneas * 80 bytes)
+viewport_x_offset    dw VIEWPORT_X_OFFSET
+viewport_y_offset    dw VIEWPORT_Y_OFFSET
 line_pos_x           dw (VIEWPORT_WIDTH - LINE_LENGTH) / 2
 line_pos_y           dw VIEWPORT_HEIGHT / 2
 msg_err              db 'ERROR: Alloc fallo. Codigo: $'
 msg_free             db ' (free block: $'
 msg_shrink_fail      db 'Shrink fail',13,10,'$'
 crlf                 db 13,10,'$'
+DataEnd              LABEL BYTE
 
 .CODE                             ; Segmento de código
 
@@ -55,6 +64,9 @@ ShrinkProgramMemory PROC
     push bx
     push cx
     push dx
+    push si
+    push di
+    push bp
     push es
 
     mov ax, psp_seg
@@ -66,12 +78,53 @@ ShrinkProgramMemory PROC
     mov psp_seg, bx
 
 @have_psp:
-    mov es, psp_seg
-    mov ax, es:[2]                  ; Párrafos originales
-    shr ax, 1                       ; Reducir estimado propio
+    mov ax, psp_seg
+    mov es, ax
+    mov dx, es:[2]                  ; Tamaño actual del bloque en párrafos
 
+    mov ax, cs
+    sub ax, psp_seg
+    mov bx, ax
+    mov ax, OFFSET CodeEnd
+    add ax, 15
+    shr ax, 4
+    add bx, ax
+    mov si, bx                      ; Párrafos necesarios para el código
+
+    mov ax, ds
+    sub ax, psp_seg
+    mov bx, ax
+    mov ax, OFFSET DataEnd
+    add ax, 15
+    shr ax, 4
+    add bx, ax
+    mov di, bx                      ; Párrafos necesarios para datos
+
+    mov ax, ss
+    sub ax, psp_seg
+    mov bx, ax
+    mov ax, STACK_PARAGRAPHS
+    add bx, ax
+    mov bp, bx                      ; Párrafos necesarios para la pila
+
+    mov ax, si
+    cmp di, ax
+    jbe @check_stack
+    mov ax, di
+@check_stack:
+    cmp bp, ax
+    jbe @add_margin
+    mov ax, bp
+@add_margin:
+    add ax, SHRINK_MARGIN_PARAS
+    cmp ax, dx
+    jbe @have_size
+    mov ax, dx
+@have_size:
+    mov bx, ax
     mov ah, 4Ah                     ; Función DOS para encoger bloque
-    mov bx, 100                     ; Conservar ~100 párrafos para código/pila
+    mov ax, psp_seg
+    mov es, ax
     int 21h
     jc @shrink_fail
 
@@ -83,6 +136,9 @@ ShrinkProgramMemory PROC
 
 @exit:
     pop es
+    pop bp
+    pop di
+    pop si
     pop dx
     pop cx
     pop bx
@@ -791,8 +847,9 @@ MainLoop:
     mov ah, 00h
     int 16h
     cmp al, 1Bh
-    jne @NotEscape
-    jmp ExitGraphics
+    je ExitGraphics
+    cmp ah, 01h
+    je ExitGraphics
 
 @NotEscape:
     mov bh, ah
@@ -891,5 +948,7 @@ ExitGraphics:
     mov ax, 4C00h
     int 21h
 main ENDP
+
+CodeEnd LABEL BYTE
 
 END main
