@@ -431,12 +431,12 @@ DrawPixel PROC
 
     cmp bx, VIEWPORT_MAX_X         ; Limitar al ancho del viewport
     jbe @CheckYBounds
-    jmp short @exit_pixel
+    jmp @exit_pixel
 
 @CheckYBounds:
     cmp cx, VIEWPORT_MAX_Y         ; Limitar al alto del viewport
     jbe @PixelWithinBounds
-    jmp short @exit_pixel
+    jmp @exit_pixel
 
 @PixelWithinBounds:
 
@@ -602,7 +602,7 @@ HandleInput PROC
 
     cmp al, 27                     ; ESC (ASCII 27)
     jne @not_escape
-    jmp short @exit_input
+    jmp @exit_input
 
 @not_escape:
 
@@ -636,7 +636,7 @@ HandleInput PROC
     cmp bl, 'D'
     je @move_right
 
-    jmp short @frame_loop          ; Tecla ignorada
+    jmp @frame_loop                ; Tecla ignorada
 
 @move_up:
     mov ax, player_y
@@ -710,11 +710,11 @@ HandleInput PROC
 @maybe_redraw:
     or dl, dl                      ; ¿Hubo movimiento real?
     jnz @do_redraw
-    jmp short @frame_loop
+    jmp @frame_loop
 
 @do_redraw:
     call RedrawViewport            ; Actualizar pantalla solo tras mover
-    jmp short @frame_loop
+    jmp @frame_loop
 
 @exit_input:
     pop dx
@@ -889,7 +889,7 @@ PrintHexAX PROC
     cmp dl, 9
     jbe @digit
     add dl, 'A' - 10
-    jmp short @emit
+    jmp @emit
 
 @digit:
     add dl, '0'
