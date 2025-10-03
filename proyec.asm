@@ -10,6 +10,10 @@ SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
 BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
 PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
 PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
+LINE_LENGTH      EQU 40           ; Largo de la línea roja controlada por teclado
+LINE_COLOR       EQU 4            ; Color rojo en la paleta ajustada
+MAX_LINE_X       EQU (160 - LINE_LENGTH)
+MAX_LINE_Y       EQU 99
 
 .DATA                             ; Segmento de datos
 Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
@@ -19,6 +23,9 @@ Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
 viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
 viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
+line_pos_x       dw 60            ; Posición inicial X de la línea roja
+line_pos_y       dw 50            ; Posición inicial Y de la línea roja
+exit_requested   db 0             ; Indicador para salir del bucle principal
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
@@ -241,6 +248,149 @@ ClearOffScreenBuffer PROC
     pop ax
     ret
 ClearOffScreenBuffer ENDP
+
+; ----------------------------------------------------------------------------
+; Rutina: DrawRedLine
+; Dibuja una línea horizontal roja en el buffer off-screen usando la posición
+; global almacenada en line_pos_x / line_pos_y.
+; ----------------------------------------------------------------------------
+DrawRedLine PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+
+    mov bx, line_pos_x
+    mov cx, line_pos_y
+    mov si, LINE_LENGTH
+    mov dl, LINE_COLOR
+
+@draw_loop:
+    call DrawPixel
+    inc bx
+    dec si
+    jnz @draw_loop
+
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+DrawRedLine ENDP
+
+; ----------------------------------------------------------------------------
+; Rutinas de movimiento de la línea roja controlada por teclado.
+; ----------------------------------------------------------------------------
+LineMoveRight PROC
+    push ax
+    mov ax, line_pos_x
+    cmp ax, MAX_LINE_X
+    jge @skip
+    inc ax
+    mov line_pos_x, ax
+@skip:
+    pop ax
+    ret
+LineMoveRight ENDP
+
+LineMoveLeft PROC
+    push ax
+    mov ax, line_pos_x
+    or ax, ax
+    jz @skip
+    dec ax
+    mov line_pos_x, ax
+@skip:
+    pop ax
+    ret
+LineMoveLeft ENDP
+
+LineMoveDown PROC
+    push ax
+    mov ax, line_pos_y
+    cmp ax, MAX_LINE_Y
+    jge @skip
+    inc ax
+    mov line_pos_y, ax
+@skip:
+    pop ax
+    ret
+LineMoveDown ENDP
+
+LineMoveUp PROC
+    push ax
+    mov ax, line_pos_y
+    or ax, ax
+    jz @skip
+    dec ax
+    mov line_pos_y, ax
+@skip:
+    pop ax
+    ret
+LineMoveUp ENDP
+
+; ----------------------------------------------------------------------------
+; Rutina: PollKeyboard
+; Lee el teclado sin bloqueo y actualiza la posición de la línea roja.
+; Esc = salir del bucle principal.
+; ----------------------------------------------------------------------------
+PollKeyboard PROC
+    push ax
+    push bx
+
+    mov ah, 01h
+    int 16h
+    jz @no_key
+
+    mov ah, 00h
+    int 16h
+
+    cmp al, 27
+    je @escape
+    cmp al, 'd'
+    je @move_right
+    cmp al, 'D'
+    je @move_right
+    cmp al, 'a'
+    je @move_left
+    cmp al, 'A'
+    je @move_left
+    cmp al, 's'
+    je @move_down
+    cmp al, 'S'
+    je @move_down
+    cmp al, 'w'
+    je @move_up
+    cmp al, 'W'
+    je @move_up
+    jmp @no_key
+
+@move_right:
+    call LineMoveRight
+    jmp @no_key
+
+@move_left:
+    call LineMoveLeft
+    jmp @no_key
+
+@move_down:
+    call LineMoveDown
+    jmp @no_key
+
+@move_up:
+    call LineMoveUp
+    jmp @no_key
+
+@escape:
+    mov BYTE PTR exit_requested, 1
+
+@no_key:
+    pop bx
+    pop ax
+    ret
+PollKeyboard ENDP
 
 ; ----------------------------------------------------------------------------
 ; Rutina: SetPaletteRed
@@ -704,33 +854,17 @@ main PROC
     call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
     call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
 
-    call DirectDrawTest            ; Test directo en VRAM sin buffer
+    mov WORD PTR line_pos_x, 60     ; Reestablecer posición inicial en cada ejecución
+    mov WORD PTR line_pos_y, 50
+    mov BYTE PTR exit_requested, 0
 
-    ; call ClearOffScreenBuffer   ; Temporal: deshabilitado durante prueba directa
-
-    ; mov bx, 0                   ; Temporal: código de raster en buffer deshabilitado
-    ; mov cx, 50
-    ; mov dl, 15
-;LineLoop:
-    ; call DrawPixel
-
-    ; inc bx
-    ; cmp bx, 160
-    ; jle LineLoop
-
-    ; mov dl, 15
-    ; mov bx, 80
-    ; mov cx, 0
-;VertLoop:
-    ; call DrawPixel
-    ; inc cx
-    ; cmp cx, 100
-    ; jle VertLoop
-
-    ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
-
-    xor ah, ah                     ; Esperar tecla
-    int 16h
+MainLoop:
+    call ClearOffScreenBuffer
+    call DrawRedLine
+    call BlitBufferToScreen
+    call PollKeyboard
+    cmp BYTE PTR exit_requested, 0
+    je MainLoop
 
     mov ax, 0003h                  ; Volver a modo texto 80x25
     int 10h
