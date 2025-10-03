@@ -619,9 +619,9 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
-    mov ax, [viewport_y_offset]
+    mov ax, viewport_y_offset
     mov di, ax
-    mov ax, [viewport_x_offset]
+    mov ax, viewport_x_offset
     add di, ax
     mov ds, bx
     xor si, si
@@ -651,9 +651,9 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
-    mov ax, [viewport_y_offset]
+    mov ax, viewport_y_offset
     mov di, ax
-    mov ax, [viewport_x_offset]
+    mov ax, viewport_x_offset
     add di, ax
     mov ds, bx
     xor si, si
@@ -683,9 +683,9 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
-    mov ax, [viewport_y_offset]
+    mov ax, viewport_y_offset
     mov di, ax
-    mov ax, [viewport_x_offset]
+    mov ax, viewport_x_offset
     add di, ax
     mov ds, bx
     xor si, si
@@ -715,9 +715,9 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
-    mov ax, [viewport_y_offset]
+    mov ax, viewport_y_offset
     mov di, ax
-    mov ax, [viewport_x_offset]
+    mov ax, viewport_x_offset
     add di, ax
     mov ds, bx
     xor si, si
@@ -856,32 +856,65 @@ MainLoop:
     mov bl, al
 
     cmp bh, 48h
-    je MoveLineUp
+    jne @CheckKeyWLower
+    jmp MoveLineUp
+
+@CheckKeyWLower:
     cmp bl, 'w'
-    je MoveLineUp
+    jne @CheckKeyWUpper
+    jmp MoveLineUp
+
+@CheckKeyWUpper:
     cmp bl, 'W'
-    je MoveLineUp
+    jne @CheckKeyDownArrow
+    jmp MoveLineUp
 
+@CheckKeyDownArrow:
     cmp bh, 50h
-    je MoveLineDown
+    jne @CheckKeySLower
+    jmp MoveLineDown
+
+@CheckKeySLower:
     cmp bl, 's'
-    je MoveLineDown
+    jne @CheckKeySUpper
+    jmp MoveLineDown
+
+@CheckKeySUpper:
     cmp bl, 'S'
-    je MoveLineDown
+    jne @CheckKeyLeftArrow
+    jmp MoveLineDown
 
+@CheckKeyLeftArrow:
     cmp bh, 4Bh
-    je MoveLineLeft
-    cmp bl, 'a'
-    je MoveLineLeft
-    cmp bl, 'A'
-    je MoveLineLeft
+    jne @CheckKeyALower
+    jmp MoveLineLeft
 
+@CheckKeyALower:
+    cmp bl, 'a'
+    jne @CheckKeyAUpper
+    jmp MoveLineLeft
+
+@CheckKeyAUpper:
+    cmp bl, 'A'
+    jne @CheckKeyRightArrow
+    jmp MoveLineLeft
+
+@CheckKeyRightArrow:
     cmp bh, 4Dh
-    je MoveLineRight
+    jne @CheckKeyDLower
+    jmp MoveLineRight
+
+@CheckKeyDLower:
     cmp bl, 'd'
-    je MoveLineRight
+    jne @CheckKeyDUpper
+    jmp MoveLineRight
+
+@CheckKeyDUpper:
     cmp bl, 'D'
-    je MoveLineRight
+    jne @NoMovementKey
+    jmp MoveLineRight
+
+@NoMovementKey:
 
     jmp RenderFrame
 
