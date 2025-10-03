@@ -17,6 +17,8 @@ Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 
+.CODE                             ; Segmento de código
+
 ; -------------------------------------------------------------------------
 ; Rutina: InitOffScreenBuffer
 ; Reserva memoria convencional (mediante INT 21h, función 48h) para los
@@ -125,8 +127,6 @@ ReleaseOffScreenBuffer PROC
     pop ax
     ret
 ReleaseOffScreenBuffer ENDP
-
-.CODE                             ; Segmento de código
 
 ; ----------------------------------------------------------------------------
 ; Rutina: ClearOffScreenBuffer
