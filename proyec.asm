@@ -791,12 +791,18 @@ MainLoop:
 
     mov ah, 01h
     int 16h
-    jz RenderFrame
+    jnz @KeyPressed
+    jmp RenderFrame
+
+@KeyPressed:
 
     mov ah, 00h
     int 16h
     cmp al, 1Bh
-    je ExitGraphics
+    jne @NotEscape
+    jmp ExitGraphics
+
+@NotEscape:
 
     mov bh, ah
     mov bl, al
