@@ -13,7 +13,7 @@ BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
 VRAM_BYTES_PER_SCAN EQU (SCREEN_WIDTH / 8) ; Bytes reales por scanline en VRAM
 VRAM_ROW_STRIDE   EQU (VRAM_BYTES_PER_SCAN - BYTES_PER_SCAN)
 PLANE_SIZE        EQU (BYTES_PER_SCAN * VIEWPORT_HEIGHT) ; Tamaño del plano reducido
-PLANE_PARAGRAPHS  EQU 64          ; Fix: 64 párrafos (4 KB) para reserva segura
+PLANE_PARAGRAPHS  EQU ((PLANE_SIZE + 15) / 16) ; Ajuste dinámico a tamaño del plano (2000 -> 125 párrafos)
 LINE_LENGTH      EQU 40           ; Largo de la línea roja controlada por teclado
 LINE_COLOR       EQU 4            ; Color rojo en la paleta ajustada
 MAX_LINE_X       EQU (160 - LINE_LENGTH)
@@ -25,8 +25,8 @@ Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
-viewport_x_offset dw 0            ; Fix: Desfase horizontal (centrado 160 px en 640)
-viewport_y_offset dw 0            ; Fix: Desfase vertical (125 scans * 80 bytes)
+viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
+viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
 line_pos_x       dw 60            ; Posición inicial X de la línea roja
 line_pos_y       dw 50            ; Posición inicial Y de la línea roja
 exit_requested   db 0             ; Indicador para salir del bucle principal
@@ -231,6 +231,8 @@ ClearOffScreenBuffer PROC
     push cx
     push di
     push es
+
+    cld                             ; Asegurar direccionamiento ascendente para rep stosb
 
     mov ax, Plane0Segment          ; Borrar plano 0
     or ax, ax
@@ -483,6 +485,8 @@ DirectDrawTest PROC
     push di
     push es
 
+    cld                             ; Asegurar DF=0 antes de usar rep instrucciones
+
     mov ax, 0A000h
     mov es, ax
 
@@ -705,6 +709,8 @@ BlitBufferToScreen PROC
     push di
     push ds
     push es
+
+    cld                             ; Asegurar copia ascendente en todas las filas
 
     mov ax, 0A000h                 ; Fix: Cargar segmento de video en ES
     mov es, ax
