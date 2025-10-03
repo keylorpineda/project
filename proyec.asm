@@ -9,25 +9,20 @@ SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
 SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
 BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
 PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
-PLANE_PARAGRAPHS  EQU (PLANE_SIZE / 16) ; Fix: 2000 bytes = 125 párrafos para INT 21h/48h
+PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
 
 .DATA                             ; Segmento de datos
-plane0Segment    dw 0             ; Segmento asignado dinámicamente para plano 0
-plane1Segment    dw 0             ; Segmento asignado dinámicamente para plano 1
-plane2Segment    dw 0             ; Segmento asignado dinámicamente para plano 2
-plane3Segment    dw 0             ; Segmento asignado dinámicamente para plano 3
-psp_seg          dw 0             ; Fix: Merge viejo working alloc/clear + debug trace crash
+Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
+Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
+Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
+Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
+psp_seg          dw 0             ; Fix: Para PSP segment
 viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
 viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
 crlf             db 13,10,'$'
-msg_mode_ok      db 'Mode EGA OK.$'                      ; Fix: Merge viejo working alloc/clear + debug trace crash
-msg_alloc_ok     db 'Alloc OK.$'                         ; Fix: Merge viejo working alloc/clear + debug trace crash
-msg_draw_ok      db 'Draw OK.$'                          ; Fix: Merge viejo working alloc/clear + debug trace crash
-msg_blit_ok      db 'Blit OK.$'                          ; Fix: Merge viejo working alloc/clear + debug trace crash
-msg_wait         db 'Wait key.$'                         ; Fix: Merge viejo working alloc/clear + debug trace crash
 
 .CODE                             ; Segmento de código
 
@@ -38,7 +33,6 @@ msg_wait         db 'Wait key.$'                         ; Fix: Merge viejo work
 ; cargador asigna al .EXE al iniciarse.
 ; -------------------------------------------------------------------------
 ShrinkProgramMemory PROC
-    ; Fix: Merge viejo working alloc/clear + debug trace crash
     push ax
     push bx
     push cx
@@ -47,28 +41,31 @@ ShrinkProgramMemory PROC
 
     mov ax, psp_seg
     or ax, ax
-    jnz SHORT @have_psp
+    jnz @have_psp
 
-    mov ah, 51h
+    mov ah, 51h                     ; Fix: Obtener segmento del PSP actual
     int 21h
     mov psp_seg, bx
 
 @have_psp:
-    mov ax, psp_seg
-    mov es, ax
-    mov ax, es:[2]
-    shr ax, 1
+    mov es, psp_seg                 ; PSP segment para INT 21h/4Ah
+    mov ax, es:[2]                  ; AX = párrafos originales
+    shr ax, 1                       ; Fix: Estimar tamaño de código propio
 
-    mov ah, 4Ah
-    mov bx, 100
+    mov ah, 4Ah                     ; Función DOS para encoger bloque
+    mov bx, 100                     ; Fix: Shrink programa a 100 paragraphs para liberar mem para alloc
     int 21h
-    jc SHORT @shrink_fail
+    jc @shrink_fail
 
-    xor ax, ax
-    jmp SHORT @exit
+    xor ax, ax                      ; Fix: AX=0 indica shrink exitoso
+    jmp @exit
 
 @shrink_fail:
-    mov ax, 1
+    ; Fix: Quitar mensaje shrink para evitar basura en salida
+    ; mov dx, offset msg_shrink_fail
+    ; mov ah, 09h
+    ; int 21h
+    mov ax, 1                       ; Fix: AX=1 indica shrink no disponible
 
 @exit:
     pop es
@@ -86,74 +83,52 @@ ShrinkProgramMemory ENDP
 ; éxito; en caso contrario, AX contiene el código de error devuelto por DOS.
 ; -------------------------------------------------------------------------
 InitOffScreenBuffer PROC
-    ; Fix: Merge viejo working alloc/clear + debug trace crash
     push bx
     push cx
     push dx
-    push di
     push es
 
-    xor ax, ax
-    mov plane0Segment, ax
-    mov plane1Segment, ax
-    mov plane2Segment, ax
-    mov plane3Segment, ax
+    ; Asegurarse de que los segmentos están en cero antes de reservar.
+    mov Plane0Segment, 0
+    mov Plane1Segment, 0
+    mov Plane2Segment, 0
+    mov Plane3Segment, 0
 
-    mov bx, PLANE_PARAGRAPHS
-    mov ah, 48h
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reserva 8 KB por plano reducido
+
+    mov ah, 48h                    ; Reservar memoria para el plano 0
     int 21h
-    jc SHORT @AllocFail
-    mov plane0Segment, ax
-    mov es, ax
-    xor di, di
-    xor ax, ax
-    mov cx, PLANE_SIZE
-    rep stosb
+    jc @AllocationFailed
+    mov Plane0Segment, ax
 
-    mov bx, PLANE_PARAGRAPHS
-    mov ah, 48h
+    mov ah, 48h                    ; Reservar memoria para el plano 1
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reaplicar tamaño reducido
     int 21h
-    jc SHORT @AllocFail
-    mov plane1Segment, ax
-    mov es, ax
-    xor di, di
-    xor ax, ax
-    mov cx, PLANE_SIZE
-    rep stosb
+    jc @AllocationFailed
+    mov Plane1Segment, ax
 
-    mov bx, PLANE_PARAGRAPHS
-    mov ah, 48h
+    mov ah, 48h                    ; Reservar memoria para el plano 2
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reaplicar tamaño reducido
     int 21h
-    jc SHORT @AllocFail
-    mov plane2Segment, ax
-    mov es, ax
-    xor di, di
-    xor ax, ax
-    mov cx, PLANE_SIZE
-    rep stosb
+    jc @AllocationFailed
+    mov Plane2Segment, ax
 
-    mov bx, PLANE_PARAGRAPHS
-    mov ah, 48h
+    mov ah, 48h                    ; Reservar memoria para el plano 3
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reaplicar tamaño reducido
     int 21h
-    jc SHORT @AllocFail
-    mov plane3Segment, ax
-    mov es, ax
-    xor di, di
-    xor ax, ax
-    mov cx, PLANE_SIZE
-    rep stosb
+    jc @AllocationFailed
+    mov Plane3Segment, ax
 
-    xor ax, ax
-    jmp SHORT @InitExit
+    xor ax, ax                     ; AX=0 indica éxito
+    jmp @InitExit
 
-@AllocFail:
-    push ax
-    call ReleaseOffScreenBuffer
-    pop ax
+@AllocationFailed:
+    push ax                        ; Guardar código de error
+    call ReleaseOffScreenBuffer    ; Liberar cualquier bloque ya reservado
+    pop ax                         ; Recuperar el código de error original
 
 @InitExit:
     pop es
-    pop di
     pop dx
     pop cx
     pop bx
@@ -166,44 +141,43 @@ InitOffScreenBuffer ENDP
 ; off-screen (INT 21h, función 49h).
 ; -------------------------------------------------------------------------
 ReleaseOffScreenBuffer PROC
-    ; Fix: Merge viejo working alloc/clear + debug trace crash
     push ax
     push es
 
-    mov ax, plane0Segment
+    mov ax, Plane0Segment
     or ax, ax
-    jz SHORT @SkipFree0
+    jz @SkipFree0
     mov es, ax
     mov ah, 49h
     int 21h
-    mov plane0Segment, 0
+    mov Plane0Segment, 0
 @SkipFree0:
 
-    mov ax, plane1Segment
+    mov ax, Plane1Segment
     or ax, ax
-    jz SHORT @SkipFree1
+    jz @SkipFree1
     mov es, ax
     mov ah, 49h
     int 21h
-    mov plane1Segment, 0
+    mov Plane1Segment, 0
 @SkipFree1:
 
-    mov ax, plane2Segment
+    mov ax, Plane2Segment
     or ax, ax
-    jz SHORT @SkipFree2
+    jz @SkipFree2
     mov es, ax
     mov ah, 49h
     int 21h
-    mov plane2Segment, 0
+    mov Plane2Segment, 0
 @SkipFree2:
 
-    mov ax, plane3Segment
+    mov ax, Plane3Segment
     or ax, ax
-    jz SHORT @SkipFree3
+    jz @SkipFree3
     mov es, ax
     mov ah, 49h
     int 21h
-    mov plane3Segment, 0
+    mov Plane3Segment, 0
 @SkipFree3:
 
     pop es
@@ -221,43 +195,45 @@ ClearOffScreenBuffer PROC
     push di
     push es
 
-    mov al, 0
-
-    mov ax, plane0Segment
+    mov ax, Plane0Segment          ; Borrar plano 0
     or ax, ax
-    jz SHORT @skip0                ; Fix: Labels únicos y SHORT jumps para TASM range
+    jz @SkipPlane0
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
-@skip0:
+@SkipPlane0:
 
-    mov ax, plane1Segment
+    mov ax, Plane1Segment          ; Borrar plano 1
     or ax, ax
-    jz SHORT @skip1                ; Fix: Labels únicos y SHORT jumps para TASM range
+    jz @SkipPlane1
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
-@skip1:
+@SkipPlane1:
 
-    mov ax, plane2Segment
+    mov ax, Plane2Segment          ; Borrar plano 2
     or ax, ax
-    jz SHORT @skip2                ; Fix: Labels únicos y SHORT jumps para TASM range
+    jz @SkipPlane2
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
-@skip2:
+@SkipPlane2:
 
-    mov ax, plane3Segment
+    mov ax, Plane3Segment          ; Borrar plano 3
     or ax, ax
-    jz SHORT @skip3                ; Fix: Labels únicos y SHORT jumps para TASM range
+    jz @SkipPlane3
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
-@skip3:
+@SkipPlane3:
 
     pop es                         ; Restaurar registros
     pop di
@@ -291,6 +267,85 @@ SetPaletteRed PROC
     pop ax
     ret
 SetPaletteRed ENDP
+
+; ----------------------------------------------------------------------------
+; Rutina: SetPaletteWhite
+; Ajusta el color 15 de la paleta EGA a blanco completo (R=63, G=63, B=63)
+; para mejorar la visibilidad de los elementos de prueba.
+; ----------------------------------------------------------------------------
+SetPaletteWhite PROC
+    push ax
+    push dx
+
+    mov dx, 03C8h
+    mov al, 15
+    out dx, al
+    inc dx
+
+    mov al, 63
+    out dx, al                     ; Test: Blanco full para línea visible
+    mov al, 63
+    out dx, al
+    mov al, 63
+    out dx, al
+
+    pop dx
+    pop ax
+    ret
+SetPaletteWhite ENDP
+
+; Test: Direct draw cruz blanca/roja top-left sin buffer
+DirectDrawTest PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push di
+    push es
+
+    mov ax, 0A000h
+    mov es, ax
+
+    mov dx, 03C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+    dec dx
+
+    xor di, di
+    mov al, 4
+    mov cx, 160
+    rep stosb
+
+    xor di, di
+    mov cx, 100
+@vert:
+    mov BYTE PTR es:[di], 4
+    add di, 80
+    loop @vert
+
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    dec dx
+
+    xor di, di
+    mov al, 15
+    mov cx, 160
+    rep stosb
+
+    pop es
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+DirectDrawTest ENDP
 
 ; Fix: Limpia full A000h para eliminar garbage de modo anterior
 ClearScreen PROC
@@ -377,72 +432,68 @@ DrawPixel PROC
 
     mov si, di                     ; Fix: Guardar offset para reutilizar en cada plano
 
-    mov ax, plane0Segment
+    mov ax, Plane0Segment          ; Plano 0 (bit 0)
     or ax, ax
-    jz SHORT @plane0_skip          ; Fix: Labels únicos y SHORT jumps para TASM range
+    jz @NextPlane0
     mov es, ax
     mov di, si
     test dh, 1
-    jz SHORT @plane0_clear
+    jz @ClearPlane0
     mov al, bl
-    or BYTE PTR es:[di], al
-    jmp SHORT @plane0_next
-@plane0_clear:
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
+    jmp @NextPlane0
+@ClearPlane0:
     mov al, bh
-    and BYTE PTR es:[di], al
-@plane0_next:
-@plane0_skip:
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
+@NextPlane0:
 
-    mov ax, plane1Segment
+    mov ax, Plane1Segment          ; Plano 1 (bit 1)
     or ax, ax
-    jz SHORT @plane1_skip          ; Fix: Labels únicos y SHORT jumps para TASM range
+    jz @NextPlane1
     mov es, ax
     mov di, si
     test dh, 2
-    jz SHORT @plane1_clear
+    jz @ClearPlane1
     mov al, bl
-    or BYTE PTR es:[di], al
-    jmp SHORT @plane1_next
-@plane1_clear:
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
+    jmp @NextPlane1
+@ClearPlane1:
     mov al, bh
-    and BYTE PTR es:[di], al
-@plane1_next:
-@plane1_skip:
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
+@NextPlane1:
 
-    mov ax, plane2Segment
+    mov ax, Plane2Segment          ; Plano 2 (bit 2)
     or ax, ax
-    jz SHORT @plane2_skip          ; Fix: Labels únicos y SHORT jumps para TASM range
+    jz @NextPlane2
     mov es, ax
     mov di, si
     test dh, 4
-    jz SHORT @plane2_clear
+    jz @ClearPlane2
     mov al, bl
-    or BYTE PTR es:[di], al
-    jmp SHORT @plane2_next
-@plane2_clear:
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
+    jmp @NextPlane2
+@ClearPlane2:
     mov al, bh
-    and BYTE PTR es:[di], al
-@plane2_next:
-@plane2_skip:
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
+@NextPlane2:
 
-    mov ax, plane3Segment
+    mov ax, Plane3Segment          ; Plano 3 (bit 3)
     or ax, ax
-    jz SHORT @plane3_skip          ; Fix: Labels únicos y SHORT jumps para TASM range
+    jz @NextPlane3
     mov es, ax
     mov di, si
     test dh, 8
-    jz SHORT @plane3_clear
+    jz @ClearPlane3
     mov al, bl
-    or BYTE PTR es:[di], al
-    jmp SHORT @plane3_next
-@plane3_clear:
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
+    jmp @NextPlane3
+@ClearPlane3:
     mov al, bh
-    and BYTE PTR es:[di], al
-@plane3_next:
-@plane3_skip:
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
+@NextPlane3:
 
 @exit_pixel:
-    pop es
+    pop es                         ; Restaurar registros
     pop di
     pop si
     pop dx
@@ -458,7 +509,6 @@ DrawPixel ENDP
 ; Usa el registro de máscara del mapa (sequencer) para seleccionar cada plano.
 ; ----------------------------------------------------------------------------
 BlitBufferToScreen PROC
-    ; Fix: Merge viejo working alloc/clear + debug trace crash
     push ax                        ; Guardar registros usados
     push bx
     push cx
@@ -468,94 +518,99 @@ BlitBufferToScreen PROC
     push ds
     push es
 
-    mov ax, 0A000h
-    mov es, ax                     ; Blit fijo DS=@data to ES top-left
-    mov dx, 03C4h
+    mov ax, 0A000h                 ; Fix: Cargar segmento de video en ES
+    mov es, ax
+    mov dx, 03C4h                  ; Fix: Puerto base del sequencer
 
+    mov ax, Plane0Segment          ; Plano 0 ------------------------------------------------
+    or ax, ax
+    jz @SkipCopy0
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 1
+    mov al, 1                      ; Fix: Máscara decimal para plano 0
     out dx, al
     dec dx
-    mov ax, @data
-    mov ds, ax
-    mov bx, plane0Segment
-    or bx, bx
-    jz SHORT @skipcopy0            ; Fix: Labels únicos y SHORT jumps para TASM range
-    mov ds, bx
-    xor di, di
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    mov di, ax
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
-@skipcopy0:
+    pop ds
+@SkipCopy0:
 
-    mov ax, @data
-    mov ds, ax
-
+    mov ax, Plane1Segment          ; Plano 1 ------------------------------------------------
+    or ax, ax
+    jz @SkipCopy1
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 2
+    mov al, 2                      ; Fix: Máscara decimal para plano 1
     out dx, al
     dec dx
-    mov bx, plane1Segment
-    or bx, bx
-    jz SHORT @skipcopy1            ; Fix: Labels únicos y SHORT jumps para TASM range
-    mov ds, bx
-    xor di, di
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    mov di, ax
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
-@skipcopy1:
+    pop ds
+@SkipCopy1:
 
-    mov ax, @data
-    mov ds, ax
-
+    mov ax, Plane2Segment          ; Plano 2 ------------------------------------------------
+    or ax, ax
+    jz @SkipCopy2
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 4
+    mov al, 4                      ; Fix: Máscara decimal para plano 2
     out dx, al
     dec dx
-    mov bx, plane2Segment
-    or bx, bx
-    jz SHORT @skipcopy2            ; Fix: Labels únicos y SHORT jumps para TASM range
-    mov ds, bx
-    xor di, di
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    mov di, ax
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
-@skipcopy2:
+    pop ds
+@SkipCopy2:
 
-    mov ax, @data
-    mov ds, ax
-
+    mov ax, Plane3Segment          ; Plano 3 ------------------------------------------------
+    or ax, ax
+    jz @SkipCopy3
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 8
+    mov al, 8                      ; Fix: Máscara decimal para plano 3
     out dx, al
     dec dx
-    mov bx, plane3Segment
-    or bx, bx
-    jz SHORT @skipcopy3            ; Fix: Labels únicos y SHORT jumps para TASM range
-    mov ds, bx
-    xor di, di
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    mov di, ax
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
-@skipcopy3:
+    pop ds
+@SkipCopy3:
 
-    mov ax, @data
-    mov ds, ax
-
-    mov al, 02h
+    mov al, 02h                    ; Fix: Restaurar índice del registro de máscara
     out dx, al
     inc dx
-    mov al, 0Fh
+    mov al, 0Fh                    ; Fix: Habilitar los cuatro planos
     out dx, al
-    dec dx
 
     pop es                         ; Restaurar registros
     pop ds
@@ -610,90 +665,79 @@ PrintHexAX PROC
 PrintHexAX ENDP                     ; Fix: Hex correcto, MSB first, A-F
 
 main PROC
-    ; Fix: Merge viejo working alloc/clear + debug trace crash
-    mov ax, @data
+    mov ax, @data                  ; Inicializar el segmento de datos
     mov ds, ax
 
-    call ShrinkProgramMemory
+    call ShrinkProgramMemory       ; Fix: Liberar memoria prestada antes de reservar planos
 
-    mov ax, 0010h
-    int 10h
+    call InitOffScreenBuffer       ; Reservar memoria para el buffer off-screen
+    cmp ax, 0
+    je @ok_print
 
-    mov dx, OFFSET msg_mode_ok
-    mov ah, 09h
-    int 21h
-
-    call ClearScreen
-    call SetPaletteRed
-
-    call InitOffScreenBuffer
-    or ax, ax
-    jz SHORT @alloc_ok
-
-    mov si, ax
-    mov dx, OFFSET msg_err
+    mov si, ax                     ; Fix: Preservar código de error
+    mov dx, offset msg_err         ; Fix: Mensaje de error
     mov ah, 09h
     int 21h
     mov ax, si
+    push ax                        ; Fix: Guardar error para depuración
     call PrintHexAX
-    mov dx, OFFSET msg_free
+    mov dx, offset msg_free        ; Fix: Mostrar bloque libre más grande
     mov ah, 09h
     int 21h
+    pop ax                         ; Fix: Limpiar pila tras imprimir error
     mov ax, bx
     call PrintHexAX
-    mov dx, OFFSET crlf
+    mov dx, offset crlf
     mov ah, 09h
     int 21h
-    mov ax, 4C01h
+    mov ah, 4Ch                    ; Fix: Salir con código de error genérico 8
+    mov al, 8
     int 21h
 
-@alloc_ok:
-    mov dx, OFFSET msg_alloc_ok
-    mov ah, 09h
-    int 21h
+@ok_print:
+@BuffersReady:
 
-    call ClearOffScreenBuffer
-
-    mov cx, 0
-    mov bx, 0
-    mov dl, 4
-@LineLoop:
-    call DrawPixel
-    inc bx
-    cmp bx, 160
-    jb SHORT @LineLoop
-
-    mov dx, OFFSET msg_draw_ok
-    mov ah, 09h
-    int 21h
-
-    mov bx, 0
-    mov cx, 0
-    mov dl, 4
-@VertLoop:
-    call DrawPixel
-    inc cx
-    cmp cx, 100
-    jb SHORT @VertLoop
-
-    call BlitBufferToScreen
-
-    mov dx, OFFSET msg_blit_ok
-    mov ah, 09h
-    int 21h
-
-    mov dx, OFFSET msg_wait
-    mov ah, 09h
-    int 21h
-    xor ah, ah
-    int 16h
-
-    call ReleaseOffScreenBuffer
-
-    mov ax, 0003h
+    mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
 
-    mov ax, 4C00h
+    call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
+    call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
+    call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
+
+    call DirectDrawTest            ; Test directo en VRAM sin buffer
+
+    ; call ClearOffScreenBuffer   ; Temporal: deshabilitado durante prueba directa
+
+    ; mov bx, 0                   ; Temporal: código de raster en buffer deshabilitado
+    ; mov cx, 50
+    ; mov dl, 15
+;LineLoop:
+    ; call DrawPixel
+
+    ; inc bx
+    ; cmp bx, 160
+    ; jle LineLoop
+
+    ; mov dl, 15
+    ; mov bx, 80
+    ; mov cx, 0
+;VertLoop:
+    ; call DrawPixel
+    ; inc cx
+    ; cmp cx, 100
+    ; jle VertLoop
+
+    ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
+
+    xor ah, ah                     ; Esperar tecla
+    int 16h
+
+    mov ax, 0003h                  ; Volver a modo texto 80x25
+    int 10h
+
+    call ReleaseOffScreenBuffer    ; Liberar memoria reservada
+
+    mov ax, 4C00h                  ; Terminar programa
     int 21h
 main ENDP
 
