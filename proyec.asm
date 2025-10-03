@@ -287,10 +287,10 @@ LineMoveRight PROC
     push ax
     mov ax, line_pos_x
     cmp ax, MAX_LINE_X
-    jge @skip
+    jge @skip_right
     inc ax
     mov line_pos_x, ax
-@skip:
+@skip_right:
     pop ax
     ret
 LineMoveRight ENDP
@@ -299,10 +299,10 @@ LineMoveLeft PROC
     push ax
     mov ax, line_pos_x
     or ax, ax
-    jz @skip
+    jz @skip_left
     dec ax
     mov line_pos_x, ax
-@skip:
+@skip_left:
     pop ax
     ret
 LineMoveLeft ENDP
@@ -311,10 +311,10 @@ LineMoveDown PROC
     push ax
     mov ax, line_pos_y
     cmp ax, MAX_LINE_Y
-    jge @skip
+    jge @skip_down
     inc ax
     mov line_pos_y, ax
-@skip:
+@skip_down:
     pop ax
     ret
 LineMoveDown ENDP
@@ -323,10 +323,10 @@ LineMoveUp PROC
     push ax
     mov ax, line_pos_y
     or ax, ax
-    jz @skip
+    jz @skip_up
     dec ax
     mov line_pos_y, ax
-@skip:
+@skip_up:
     pop ax
     ret
 LineMoveUp ENDP
