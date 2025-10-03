@@ -7,17 +7,9 @@
 ; Constantes generales del modo gráfico
 SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
 SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
-VIEWPORT_WIDTH    EQU 160         ; Ancho del viewport lógico
-VIEWPORT_HEIGHT   EQU 100         ; Alto del viewport lógico
 BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
-VRAM_BYTES_PER_SCAN EQU (SCREEN_WIDTH / 8) ; Bytes reales por scanline en VRAM
-VRAM_ROW_STRIDE   EQU (VRAM_BYTES_PER_SCAN - BYTES_PER_SCAN)
-PLANE_SIZE        EQU (BYTES_PER_SCAN * VIEWPORT_HEIGHT) ; Tamaño del plano reducido
-PLANE_PARAGRAPHS  EQU ((PLANE_SIZE + 15) / 16) ; Ajuste dinámico a tamaño del plano (2000 -> 125 párrafos)
-LINE_LENGTH      EQU 40           ; Largo de la línea roja controlada por teclado
-LINE_COLOR       EQU 4            ; Color rojo en la paleta ajustada
-MAX_LINE_X       EQU (160 - LINE_LENGTH)
-MAX_LINE_Y       EQU 99
+PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
+PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
 
 .DATA                             ; Segmento de datos
 Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
@@ -27,9 +19,6 @@ Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
 viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
 viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
-line_pos_x       dw 60            ; Posición inicial X de la línea roja
-line_pos_y       dw 50            ; Posición inicial Y de la línea roja
-exit_requested   db 0             ; Indicador para salir del bucle principal
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
@@ -135,32 +124,6 @@ InitOffScreenBuffer PROC
 
 @AllocationFailed:
     push ax                        ; Guardar código de error
-    push bx                        ; Guardar tamaño de bloque libre reportado por DOS
-
-    mov dx, offset msg_err
-    mov ah, 09h
-    int 21h
-
-    pop bx                         ; BX = mayor bloque libre
-    pop cx                         ; CX = código de error
-    push cx                        ; Conservar código de error para el retorno
-
-    mov ax, cx
-    call PrintHexAX
-
-    mov dx, offset msg_free
-    mov ah, 09h
-    int 21h
-
-    mov ax, bx
-    call PrintHexAX
-
-    mov dx, offset crlf
-    mov ah, 09h
-    int 21h
-
-    pop ax                         ; Restaurar código de error original
-    push ax                        ; Conservar AX mientras liberamos memoria
     call ReleaseOffScreenBuffer    ; Liberar cualquier bloque ya reservado
     pop ax                         ; Recuperar el código de error original
 
@@ -232,8 +195,6 @@ ClearOffScreenBuffer PROC
     push di
     push es
 
-    cld                             ; Asegurar direccionamiento ascendente para rep stosb
-
     mov ax, Plane0Segment          ; Borrar plano 0
     or ax, ax
     jz @SkipPlane0
@@ -282,163 +243,27 @@ ClearOffScreenBuffer PROC
 ClearOffScreenBuffer ENDP
 
 ; ----------------------------------------------------------------------------
-; Rutina: DrawRedLine
-; Dibuja una línea horizontal roja en el buffer off-screen usando la posición
-; global almacenada en line_pos_x / line_pos_y.
-; ----------------------------------------------------------------------------
-DrawRedLine PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-
-    mov bx, line_pos_x
-    mov cx, line_pos_y
-    mov si, LINE_LENGTH
-    mov dl, LINE_COLOR
-
-@draw_loop:
-    call DrawPixel
-    inc bx
-    dec si
-    jnz @draw_loop
-
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-DrawRedLine ENDP
-
-; ----------------------------------------------------------------------------
-; Rutinas de movimiento de la línea roja controlada por teclado.
-; ----------------------------------------------------------------------------
-LineMoveRight PROC
-    push ax
-    mov ax, line_pos_x
-    cmp ax, MAX_LINE_X
-    jge @skip_right
-    inc ax
-    mov line_pos_x, ax
-@skip_right:
-    pop ax
-    ret
-LineMoveRight ENDP
-
-LineMoveLeft PROC
-    push ax
-    mov ax, line_pos_x
-    or ax, ax
-    jz @skip_left
-    dec ax
-    mov line_pos_x, ax
-@skip_left:
-    pop ax
-    ret
-LineMoveLeft ENDP
-
-LineMoveDown PROC
-    push ax
-    mov ax, line_pos_y
-    cmp ax, MAX_LINE_Y
-    jge @skip_down
-    inc ax
-    mov line_pos_y, ax
-@skip_down:
-    pop ax
-    ret
-LineMoveDown ENDP
-
-LineMoveUp PROC
-    push ax
-    mov ax, line_pos_y
-    or ax, ax
-    jz @skip_up
-    dec ax
-    mov line_pos_y, ax
-@skip_up:
-    pop ax
-    ret
-LineMoveUp ENDP
-
-; ----------------------------------------------------------------------------
-; Rutina: PollKeyboard
-; Lee el teclado sin bloqueo y actualiza la posición de la línea roja.
-; Esc = salir del bucle principal.
-; ----------------------------------------------------------------------------
-PollKeyboard PROC
-    push ax
-    push bx
-
-    mov ah, 01h
-    int 16h
-    jz @no_key
-
-    mov ah, 00h
-    int 16h
-
-    cmp al, 27
-    je @escape
-    cmp al, 'd'
-    je @move_right
-    cmp al, 'D'
-    je @move_right
-    cmp al, 'a'
-    je @move_left
-    cmp al, 'A'
-    je @move_left
-    cmp al, 's'
-    je @move_down
-    cmp al, 'S'
-    je @move_down
-    cmp al, 'w'
-    je @move_up
-    cmp al, 'W'
-    je @move_up
-    jmp @no_key
-
-@move_right:
-    call LineMoveRight
-    jmp @no_key
-
-@move_left:
-    call LineMoveLeft
-    jmp @no_key
-
-@move_down:
-    call LineMoveDown
-    jmp @no_key
-
-@move_up:
-    call LineMoveUp
-    jmp @no_key
-
-@escape:
-    mov BYTE PTR exit_requested, 1
-
-@no_key:
-    pop bx
-    pop ax
-    ret
-PollKeyboard ENDP
-
-; ----------------------------------------------------------------------------
 ; Rutina: SetPaletteRed
 ; Ajusta el color 4 de la paleta EGA a rojo brillante (R=63, G=0, B=0).
 ; Esto mejora la visibilidad de los elementos renderizados en el viewport.
 ; ----------------------------------------------------------------------------
 SetPaletteRed PROC
     push ax                        ; Conservar registros usados
-    push bx
+    push dx
 
-    mov ax, 1000h                  ; INT 10h/AH=10h, AL=00h -> set single EGA palette register
-    mov bx, LINE_COLOR             ; BL = registro de paleta que usaremos para la línea
-    mov bh, 30h                    ; BH = valor de color (R=3, G=0, B=0 -> rojo intenso en EGA)
-    int 10h
+    mov dx, 03C8h                  ; Puerto de índice de la DAC
+    mov al, 4
+    out dx, al                     ; Seleccionar color 4
+    inc dx                         ; DX = 03C9h (datos de la DAC)
 
-    pop bx                         ; Restaurar registros
+    mov al, 63
+    out dx, al                     ; Fix: EGA 6-bit DAC, 3 bytes/color (R=63 G=0 B=0 para rojo puro)
+    mov al, 0
+    out dx, al
+    mov al, 0
+    out dx, al
+
+    pop dx                         ; Restaurar registros
     pop ax
     ret
 SetPaletteRed ENDP
@@ -450,14 +275,21 @@ SetPaletteRed ENDP
 ; ----------------------------------------------------------------------------
 SetPaletteWhite PROC
     push ax
-    push bx
+    push dx
 
-    mov ax, 1000h                  ; INT 10h/AH=10h, AL=00h -> set single palette register
-    mov bx, 15                     ; BL = registro 15 (blanco por defecto)
-    mov bh, 3Fh                    ; BH = color completo (R=3, G=3, B=3 -> blanco máximo EGA)
-    int 10h
+    mov dx, 03C8h
+    mov al, 15
+    out dx, al
+    inc dx
 
-    pop bx
+    mov al, 63
+    out dx, al                     ; Test: Blanco full para línea visible
+    mov al, 63
+    out dx, al
+    mov al, 63
+    out dx, al
+
+    pop dx
     pop ax
     ret
 SetPaletteWhite ENDP
@@ -471,8 +303,6 @@ DirectDrawTest PROC
     push di
     push es
 
-    cld                             ; Asegurar DF=0 antes de usar rep instrucciones
-
     mov ax, 0A000h
     mov es, ax
 
@@ -480,7 +310,7 @@ DirectDrawTest PROC
     mov al, 2
     out dx, al
     inc dx
-    mov al, 0Fh
+    mov al, 4
     out dx, al
     dec dx
 
@@ -488,13 +318,6 @@ DirectDrawTest PROC
     mov al, 4
     mov cx, 160
     rep stosb
-
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    dec dx
 
     xor di, di
     mov cx, 100
@@ -547,7 +370,6 @@ ClearScreen PROC
     xor di, di
     mov al, 0
     mov cx, 28000                ; Fix: 350*80 bytes totales modo 10h
-    cld
     rep stosb
 
     pop es
@@ -696,8 +518,6 @@ BlitBufferToScreen PROC
     push ds
     push es
 
-    cld                             ; Asegurar copia ascendente en todas las filas
-
     mov ax, 0A000h                 ; Fix: Cargar segmento de video en ES
     mov es, ax
     mov dx, 03C4h                  ; Fix: Puerto base del sequencer
@@ -718,13 +538,8 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov bx, VIEWPORT_HEIGHT       ; Fix: Copiar fila a fila respetando stride de VRAM
-@RowCopy0:
-    mov cx, BYTES_PER_SCAN
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
-    add di, VRAM_ROW_STRIDE
-    dec bx
-    jnz @RowCopy0
     pop ds
 @SkipCopy0:
 
@@ -744,13 +559,8 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov bx, VIEWPORT_HEIGHT       ; Fix: Copiar fila a fila respetando stride de VRAM
-@RowCopy1:
-    mov cx, BYTES_PER_SCAN
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
-    add di, VRAM_ROW_STRIDE
-    dec bx
-    jnz @RowCopy1
     pop ds
 @SkipCopy1:
 
@@ -770,13 +580,8 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov bx, VIEWPORT_HEIGHT       ; Fix: Copiar fila a fila respetando stride de VRAM
-@RowCopy2:
-    mov cx, BYTES_PER_SCAN
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
-    add di, VRAM_ROW_STRIDE
-    dec bx
-    jnz @RowCopy2
     pop ds
 @SkipCopy2:
 
@@ -796,13 +601,8 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov bx, VIEWPORT_HEIGHT       ; Fix: Copiar fila a fila respetando stride de VRAM
-@RowCopy3:
-    mov cx, BYTES_PER_SCAN
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
-    add di, VRAM_ROW_STRIDE
-    dec bx
-    jnz @RowCopy3
     pop ds
 @SkipCopy3:
 
@@ -904,24 +704,33 @@ main PROC
     call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
     call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
 
-    call ClearOffScreenBuffer
-    xor bx, bx
-    xor cx, cx
-    mov dl, 4
-    call DrawPixel
-    call BlitBufferToScreen
+    call DirectDrawTest            ; Test directo en VRAM sin buffer
 
-    mov WORD PTR line_pos_x, 60     ; Reestablecer posición inicial en cada ejecución
-    mov WORD PTR line_pos_y, 50
-    mov BYTE PTR exit_requested, 0
+    ; call ClearOffScreenBuffer   ; Temporal: deshabilitado durante prueba directa
 
-MainLoop:
-    call ClearOffScreenBuffer
-    call DrawRedLine
-    call BlitBufferToScreen
-    call PollKeyboard
-    cmp BYTE PTR exit_requested, 0
-    je MainLoop
+    ; mov bx, 0                   ; Temporal: código de raster en buffer deshabilitado
+    ; mov cx, 50
+    ; mov dl, 15
+;LineLoop:
+    ; call DrawPixel
+
+    ; inc bx
+    ; cmp bx, 160
+    ; jle LineLoop
+
+    ; mov dl, 15
+    ; mov bx, 80
+    ; mov cx, 0
+;VertLoop:
+    ; call DrawPixel
+    ; inc cx
+    ; cmp cx, 100
+    ; jle VertLoop
+
+    ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
+
+    xor ah, ah                     ; Esperar tecla
+    int 16h
 
     mov ax, 0003h                  ; Volver a modo texto 80x25
     int 10h
