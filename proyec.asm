@@ -7,8 +7,12 @@
 ; Constantes generales del modo gráfico
 SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
 SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
+VIEWPORT_WIDTH    EQU 160         ; Ancho del viewport lógico
+VIEWPORT_HEIGHT   EQU 100         ; Alto del viewport lógico
 BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
-PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
+VRAM_BYTES_PER_SCAN EQU (SCREEN_WIDTH / 8) ; Bytes reales por scanline en VRAM
+VRAM_ROW_STRIDE   EQU (VRAM_BYTES_PER_SCAN - BYTES_PER_SCAN)
+PLANE_SIZE        EQU (BYTES_PER_SCAN * VIEWPORT_HEIGHT) ; Tamaño del plano reducido
 PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
 LINE_LENGTH      EQU 40           ; Largo de la línea roja controlada por teclado
 LINE_COLOR       EQU 4            ; Color rojo en la paleta ajustada
@@ -688,8 +692,13 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bx, VIEWPORT_HEIGHT       ; Fix: Copiar fila a fila respetando stride de VRAM
+@RowCopy0:
+    mov cx, BYTES_PER_SCAN
     rep movsb
+    add di, VRAM_ROW_STRIDE
+    dec bx
+    jnz @RowCopy0
     pop ds
 @SkipCopy0:
 
@@ -709,8 +718,13 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bx, VIEWPORT_HEIGHT       ; Fix: Copiar fila a fila respetando stride de VRAM
+@RowCopy1:
+    mov cx, BYTES_PER_SCAN
     rep movsb
+    add di, VRAM_ROW_STRIDE
+    dec bx
+    jnz @RowCopy1
     pop ds
 @SkipCopy1:
 
@@ -730,8 +744,13 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bx, VIEWPORT_HEIGHT       ; Fix: Copiar fila a fila respetando stride de VRAM
+@RowCopy2:
+    mov cx, BYTES_PER_SCAN
     rep movsb
+    add di, VRAM_ROW_STRIDE
+    dec bx
+    jnz @RowCopy2
     pop ds
 @SkipCopy2:
 
@@ -751,8 +770,13 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    mov bx, VIEWPORT_HEIGHT       ; Fix: Copiar fila a fila respetando stride de VRAM
+@RowCopy3:
+    mov cx, BYTES_PER_SCAN
     rep movsb
+    add di, VRAM_ROW_STRIDE
+    dec bx
+    jnz @RowCopy3
     pop ds
 @SkipCopy3:
 
