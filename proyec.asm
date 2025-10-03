@@ -566,7 +566,10 @@ HandleInput PROC
     int 16h
 
     cmp al, 27                     ; ESC -> salir del modo gráfico
-    je @exit_input
+    jne @not_escape
+    jmp NEAR PTR @exit_input
+
+@not_escape:
 
     mov bh, ah                     ; Guardar scan code
     mov bl, al                     ; Guardar ASCII
