@@ -652,10 +652,13 @@ HandleInput PROC
 
 @clamp_y_high:
     cmp ax, VIEWPORT_MAX_Y
-    jbe @frame_loop
+    ja @limit_y_high
+    jmp NEAR PTR @frame_loop
+
+@limit_y_high:
     mov ax, VIEWPORT_MAX_Y
     mov player_y, ax
-    jmp @frame_loop
+    jmp NEAR PTR @frame_loop
 
 @exit_input:
     pop dx
