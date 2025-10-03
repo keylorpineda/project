@@ -547,7 +547,10 @@ HandleInput PROC
     xor ah, ah
     int 16h
     cmp al, 27
-    je @exit_input
+    jne @continue_input
+    jmp NEAR PTR @exit_input        ; Fix: Salto cercano para evitar overflow de salto corto
+
+@continue_input:
 
     cmp ah, 48h
     jne @check_down
