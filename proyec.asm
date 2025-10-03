@@ -7,9 +7,9 @@
 ; Constantes generales del modo gráfico
 SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
 SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
-BYTES_PER_SCAN    EQU 80          ; Fix: Valor literal para evitar overflow (640/8)
-PLANE_SIZE        EQU 28000       ; Fix: Valor literal para tamaño de plano
-PLANE_PARAGRAPHS  EQU 1750        ; Fix: Valor literal para número de párrafos por plano
+BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
+PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
+PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
 
 .DATA                             ; Segmento de datos
 Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
@@ -18,6 +18,7 @@ Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 msg_ok           db 'Memoria OK - Entrando grafico. Presiona tecla para salir.$'
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
+msg_free         db ' (free block: $'
 buffer_err       db 10 dup(0)
 crlf             db 13,10,'$'
 
@@ -41,7 +42,7 @@ InitOffScreenBuffer PROC
     mov Plane2Segment, 0
     mov Plane3Segment, 0
 
-    mov bx, 1750                  ; Fix: Valor fijo de párrafos por plano
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reserva 8 KB por plano reducido
 
     mov ah, 48h                    ; Reservar memoria para el plano 0
     int 21h
@@ -49,19 +50,19 @@ InitOffScreenBuffer PROC
     mov Plane0Segment, ax
 
     mov ah, 48h                    ; Reservar memoria para el plano 1
-    mov bx, 1750                  ; Fix: Reaplicar valor fijo antes de reservar
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reaplicar tamaño reducido
     int 21h
     jc @AllocationFailed
     mov Plane1Segment, ax
 
     mov ah, 48h                    ; Reservar memoria para el plano 2
-    mov bx, 1750                  ; Fix: Reaplicar valor fijo antes de reservar
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reaplicar tamaño reducido
     int 21h
     jc @AllocationFailed
     mov Plane2Segment, ax
 
     mov ah, 48h                    ; Reservar memoria para el plano 3
-    mov bx, 1750                  ; Fix: Reaplicar valor fijo antes de reservar
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reaplicar tamaño reducido
     int 21h
     jc @AllocationFailed
     mov Plane3Segment, ax
@@ -148,7 +149,7 @@ ClearOffScreenBuffer PROC
     mov es, ax
     xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, 28000                 ; Fix: Conteo literal de bytes por plano
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
 @SkipPlane0:
 
@@ -158,7 +159,7 @@ ClearOffScreenBuffer PROC
     mov es, ax
     xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, 28000                 ; Fix: Conteo literal de bytes por plano
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
 @SkipPlane1:
 
@@ -168,7 +169,7 @@ ClearOffScreenBuffer PROC
     mov es, ax
     xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, 28000                 ; Fix: Conteo literal de bytes por plano
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
 @SkipPlane2:
 
@@ -178,7 +179,7 @@ ClearOffScreenBuffer PROC
     mov es, ax
     xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, 28000                 ; Fix: Conteo literal de bytes por plano
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
 @SkipPlane3:
 
@@ -206,11 +207,16 @@ DrawPixel PROC
     push di
     push es
 
+    cmp bx, 159                    ; Fix: Limit viewport 160x100
+    ja @exit_pixel
+    cmp cx, 99                     ; Fix: Limit viewport 160x100
+    ja @exit_pixel
+
     mov dh, dl                     ; Fix: Conservar el color completo en DH
 
-    mov ax, BYTES_PER_SCAN         ; Fix: AX=80 para multiplicar Y
-    mul cx                         ; DX:AX = Y * 80 (sin overflow para 350 líneas)
-    mov di, ax                     ; DI = Y * 80
+    mov ax, BYTES_PER_SCAN         ; Fix: AX=20 para multiplicar Y en viewport
+    mul cx                         ; DX:AX = Y * 20 (sin overflow para 100 líneas)
+    mov di, ax                     ; DI = Y * 20
 
     mov si, bx                     ; Fix: Guardar X original en SI
     mov ax, si
@@ -289,6 +295,7 @@ DrawPixel PROC
     and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
 @NextPlane3:
 
+@exit_pixel:
     pop es                         ; Restaurar registros
     pop di
     pop si
@@ -330,8 +337,8 @@ BlitBufferToScreen PROC
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
     mov ds, ax
     xor si, si
-    xor di, di
-    mov cx, 28000                 ; Fix: Conteo literal para copiar bytes
+    xor di, di                    ; Fix: Copiar viewport desde offset 0
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
 @SkipCopy0:
@@ -348,8 +355,8 @@ BlitBufferToScreen PROC
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
     mov ds, ax
     xor si, si
-    xor di, di
-    mov cx, 28000                 ; Fix: Conteo literal para copiar bytes
+    xor di, di                    ; Fix: Copiar viewport desde offset 0
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
 @SkipCopy1:
@@ -366,8 +373,8 @@ BlitBufferToScreen PROC
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
     mov ds, ax
     xor si, si
-    xor di, di
-    mov cx, 28000                 ; Fix: Conteo literal para copiar bytes
+    xor di, di                    ; Fix: Copiar viewport desde offset 0
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
 @SkipCopy2:
@@ -384,8 +391,8 @@ BlitBufferToScreen PROC
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
     mov ds, ax
     xor si, si
-    xor di, di
-    mov cx, 28000                 ; Fix: Conteo literal para copiar bytes
+    xor di, di                    ; Fix: Copiar viewport desde offset 0
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
 @SkipCopy3:
@@ -413,16 +420,19 @@ PrintHexAX PROC
     push cx
     push dx
     mov cx, 4
-@loop:
-    rol ax, 4
     mov bx, ax
-    and bx, 0Fh
+@loop:
+    mov al, bh
+    and al, 0F0h
+    shr al, 4
+    shl bx, 4
     mov dl, '0'
-    add dl, bl
-    cmp bl, 9
-    jbe @dig
-    add dl, 7
-@dig:
+    cmp al, 9
+    jbe @num
+    mov dl, 'A'
+    sub al, 10
+@num:
+    add dl, al
     mov ah, 02h
     int 21h
     loop @loop
@@ -431,7 +441,7 @@ PrintHexAX PROC
     pop bx
     pop ax
     ret
-PrintHexAX ENDP
+PrintHexAX ENDP                     ; Fix: Hex correcto, MSB first, A-F
 
 main PROC
     mov ax, @data                  ; Inicializar el segmento de datos
@@ -441,18 +451,25 @@ main PROC
     cmp ax, 0
     je @ok_print
 
-    mov dl, al                     ; Debug para fix alloc fail en DOSBox
-    mov dx, offset msg_err         ; Imprimir mensaje de error
+    mov si, ax                     ; Fix: Preservar código de error
+    mov dx, offset msg_err         ; Fix: Mensaje de error
     mov ah, 09h
     int 21h
-    mov ax, bx                     ; BX contiene el tamaño del bloque libre más grande
+    mov ax, si
+    push ax                        ; Fix: Guardar error para depuración
+    call PrintHexAX
+    mov dx, offset msg_free        ; Fix: Mostrar bloque libre más grande
+    mov ah, 09h
+    int 21h
+    pop ax                         ; Fix: Limpiar pila tras imprimir error
+    mov ax, bx
     call PrintHexAX
     mov dx, offset crlf
     mov ah, 09h
     int 21h
-    mov ah, 4Ch
-    mov al, dl
-    jmp @exit_error
+    mov ah, 4Ch                    ; Fix: Salir con código de error genérico 8
+    mov al, 8
+    int 21h
 
 @ok_print:
     mov dx, offset msg_ok
@@ -468,14 +485,14 @@ main PROC
     call ClearOffScreenBuffer      ; Limpiar el buffer off-screen
 
     mov bx, 0                      ; Fix: X inicial de la línea
-    mov cx, 100                    ; Fix: Y constante para la línea
+    mov cx, 50                     ; Fix: Y constante para la línea
     mov dl, 4                      ; Fix: Color rojo (bit 2)
 LineLoop:
     call DrawPixel                 ; Fix: Usar BX=X, CX=Y, DL=color
 
     inc bx                         ; Siguiente X
-    cmp bx, 101                    ; ¿Llegamos al final (X = 100)?
-    jle LineLoop                   ; Repetir mientras BX <= 101
+    cmp bx, 51                     ; ¿Llegamos al final (X = 50)?
+    jle LineLoop                   ; Repetir mientras BX <= 51
 
     call BlitBufferToScreen        ; Copiar buffer a la pantalla
 
@@ -488,8 +505,6 @@ LineLoop:
     call ReleaseOffScreenBuffer    ; Liberar memoria reservada
 
     mov ax, 4C00h                  ; Terminar programa
-
-@exit_error:
     int 21h
 main ENDP
 
