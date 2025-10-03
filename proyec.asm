@@ -7,9 +7,18 @@
 ; Constantes generales del modo gráfico
 SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
 SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
-BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
-PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
-PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
+BYTES_PER_SCAN    EQU SCREEN_WIDTH / 8  ; 640 / 8 = 80 bytes por scanline
+PLANE_SIZE        EQU BYTES_PER_SCAN * SCREEN_HEIGHT ; 80 * 350 = 28000 bytes por plano
+PLANE_SIZE_WORDS  EQU PLANE_SIZE / 2
+PLANE_PARAGRAPHS  EQU (PLANE_SIZE + 15) / 16 ; 1750 párrafos por plano
+
+LINE_LENGTH       EQU 120
+LINE_STEP         EQU 4
+LINE_COLOR        EQU 4
+MAX_PIXEL_X       EQU SCREEN_WIDTH - 1
+MAX_PIXEL_Y       EQU SCREEN_HEIGHT - 1
+MAX_LINE_X        EQU SCREEN_WIDTH - LINE_LENGTH
+MAX_LINE_Y        EQU SCREEN_HEIGHT - 1
 
 .DATA                             ; Segmento de datos
 Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
@@ -17,8 +26,10 @@ Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
-viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
-viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
+viewport_x_offset dw 0            ; Desfase horizontal nulo para copiar pantalla completa
+viewport_y_offset dw 0            ; Desfase vertical nulo para copiar pantalla completa
+line_pos_x       dw (SCREEN_WIDTH - LINE_LENGTH) / 2
+line_pos_y       dw SCREEN_HEIGHT / 2
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
@@ -195,44 +206,46 @@ ClearOffScreenBuffer PROC
     push di
     push es
 
+    cld
+
     mov ax, Plane0Segment          ; Borrar plano 0
     or ax, ax
     jz @SkipPlane0
     mov es, ax
-    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
-    rep stosb
+    xor ax, ax
+    mov cx, PLANE_SIZE_WORDS
+    rep stosw
 @SkipPlane0:
 
     mov ax, Plane1Segment          ; Borrar plano 1
     or ax, ax
     jz @SkipPlane1
     mov es, ax
-    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
-    rep stosb
+    xor ax, ax
+    mov cx, PLANE_SIZE_WORDS
+    rep stosw
 @SkipPlane1:
 
     mov ax, Plane2Segment          ; Borrar plano 2
     or ax, ax
     jz @SkipPlane2
     mov es, ax
-    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
-    rep stosb
+    xor ax, ax
+    mov cx, PLANE_SIZE_WORDS
+    rep stosw
 @SkipPlane2:
 
     mov ax, Plane3Segment          ; Borrar plano 3
     or ax, ax
     jz @SkipPlane3
     mov es, ax
-    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
-    rep stosb
+    xor ax, ax
+    mov cx, PLANE_SIZE_WORDS
+    rep stosw
 @SkipPlane3:
 
     pop es                         ; Restaurar registros
@@ -241,6 +254,31 @@ ClearOffScreenBuffer PROC
     pop ax
     ret
 ClearOffScreenBuffer ENDP
+
+; ----------------------------------------------------------------------------
+; Rutina: WaitVerticalRetrace
+; Sincroniza con el inicio del barrido vertical de la EGA para evitar tearing.
+; ----------------------------------------------------------------------------
+WaitVerticalRetrace PROC
+    push ax
+    push dx
+
+    mov dx, 03DAh
+
+@WaitNotRetrace:
+    in al, dx
+    test al, 08h
+    jnz @WaitNotRetrace
+
+@WaitRetrace:
+    in al, dx
+    test al, 08h
+    jz @WaitRetrace
+
+    pop dx
+    pop ax
+    ret
+WaitVerticalRetrace ENDP
 
 ; ----------------------------------------------------------------------------
 ; Rutina: SetPaletteRed
@@ -369,7 +407,7 @@ ClearScreen PROC
 
     xor di, di
     mov al, 0
-    mov cx, 28000                ; Fix: 350*80 bytes totales modo 10h
+    mov cx, PLANE_SIZE           ; 350*80 bytes totales modo 10h
     rep stosb
 
     pop es
@@ -398,12 +436,12 @@ DrawPixel PROC
     push di
     push es
 
-    cmp bx, 159                    ; Fix: Limit viewport 160x100
+    cmp bx, MAX_PIXEL_X
     jbe @CheckYBounds
     jmp NEAR PTR @exit_pixel
 
 @CheckYBounds:
-    cmp cx, 99                     ; Fix: Limit viewport 160x100
+    cmp cx, MAX_PIXEL_Y
     jbe @PixelWithinBounds
     jmp NEAR PTR @exit_pixel
 
@@ -504,6 +542,47 @@ DrawPixel PROC
 DrawPixel ENDP
 
 ; ----------------------------------------------------------------------------
+; Rutina: DrawHorizontalLine
+; Dibuja una línea horizontal en el buffer off-screen.
+;  Entradas:
+;       BX = coordenada X inicial
+;       CX = coordenada Y
+;       SI = longitud en píxeles
+;       DL = color (0..15)
+; ----------------------------------------------------------------------------
+DrawHorizontalLine PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov di, si
+    mov si, bx
+    mov ax, cx
+    or di, di
+    jz @ExitLine
+
+@NextPixel:
+    mov bx, si
+    mov cx, ax
+    call DrawPixel
+    inc si
+    dec di
+    jnz @NextPixel
+
+@ExitLine:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+DrawHorizontalLine ENDP
+
+; ----------------------------------------------------------------------------
 ; Rutina: BlitBufferToScreen
 ; Copia el contenido del buffer off-screen a la memoria de video A000h.
 ; Usa el registro de máscara del mapa (sequencer) para seleccionar cada plano.
@@ -517,6 +596,8 @@ BlitBufferToScreen PROC
     push di
     push ds
     push es
+
+    cld
 
     mov ax, 0A000h                 ; Fix: Cargar segmento de video en ES
     mov es, ax
@@ -538,8 +619,8 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
-    rep movsb
+    mov cx, PLANE_SIZE_WORDS
+    rep movsw
     pop ds
 @SkipCopy0:
 
@@ -559,8 +640,8 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
-    rep movsb
+    mov cx, PLANE_SIZE_WORDS
+    rep movsw
     pop ds
 @SkipCopy1:
 
@@ -580,8 +661,8 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
-    rep movsb
+    mov cx, PLANE_SIZE_WORDS
+    rep movsw
     pop ds
 @SkipCopy2:
 
@@ -601,8 +682,8 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
-    rep movsb
+    mov cx, PLANE_SIZE_WORDS
+    rep movsw
     pop ds
 @SkipCopy3:
 
@@ -700,38 +781,111 @@ main PROC
     mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
 
-    call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
-    call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
-    call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
+    call ClearScreen              ; Limpiar VRAM y evitar basura previa
+    call SetPaletteRed             ; Color 4 = rojo brillante (R=63)
 
-    call DirectDrawTest            ; Test directo en VRAM sin buffer
+    jmp RenderFrame
 
-    ; call ClearOffScreenBuffer   ; Temporal: deshabilitado durante prueba directa
+MainLoop:
+    call WaitVerticalRetrace
 
-    ; mov bx, 0                   ; Temporal: código de raster en buffer deshabilitado
-    ; mov cx, 50
-    ; mov dl, 15
-;LineLoop:
-    ; call DrawPixel
-
-    ; inc bx
-    ; cmp bx, 160
-    ; jle LineLoop
-
-    ; mov dl, 15
-    ; mov bx, 80
-    ; mov cx, 0
-;VertLoop:
-    ; call DrawPixel
-    ; inc cx
-    ; cmp cx, 100
-    ; jle VertLoop
-
-    ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
-
-    xor ah, ah                     ; Esperar tecla
+    mov ah, 01h
     int 16h
+    jz RenderFrame
 
+    mov ah, 00h
+    int 16h
+    cmp al, 1Bh
+    je ExitGraphics
+
+    mov bh, ah
+    mov bl, al
+
+    cmp bh, 48h                    ; Flecha arriba
+    je MoveLineUp
+    cmp bl, 'w'
+    je MoveLineUp
+    cmp bl, 'W'
+    je MoveLineUp
+
+    cmp bh, 50h                    ; Flecha abajo
+    je MoveLineDown
+    cmp bl, 's'
+    je MoveLineDown
+    cmp bl, 'S'
+    je MoveLineDown
+
+    cmp bh, 4Bh                    ; Flecha izquierda
+    je MoveLineLeft
+    cmp bl, 'a'
+    je MoveLineLeft
+    cmp bl, 'A'
+    je MoveLineLeft
+
+    cmp bh, 4Dh                    ; Flecha derecha
+    je MoveLineRight
+    cmp bl, 'd'
+    je MoveLineRight
+    cmp bl, 'D'
+    je MoveLineRight
+
+    jmp RenderFrame
+
+MoveLineUp:
+    mov ax, line_pos_y
+    cmp ax, LINE_STEP
+    jb @ClampTop
+    sub ax, LINE_STEP
+    jmp @StoreUp
+@ClampTop:
+    xor ax, ax
+@StoreUp:
+    mov line_pos_y, ax
+    jmp RenderFrame
+
+MoveLineDown:
+    mov ax, line_pos_y
+    add ax, LINE_STEP
+    cmp ax, MAX_LINE_Y
+    jbe @StoreDown
+    mov ax, MAX_LINE_Y
+@StoreDown:
+    mov line_pos_y, ax
+    jmp RenderFrame
+
+MoveLineLeft:
+    mov ax, line_pos_x
+    cmp ax, LINE_STEP
+    jb @ClampLeft
+    sub ax, LINE_STEP
+    jmp @StoreLeft
+@ClampLeft:
+    xor ax, ax
+@StoreLeft:
+    mov line_pos_x, ax
+    jmp RenderFrame
+
+MoveLineRight:
+    mov ax, line_pos_x
+    add ax, LINE_STEP
+    cmp ax, MAX_LINE_X
+    jbe @StoreRight
+    mov ax, MAX_LINE_X
+@StoreRight:
+    mov line_pos_x, ax
+    jmp RenderFrame
+
+RenderFrame:
+    call ClearOffScreenBuffer
+    mov bx, line_pos_x
+    mov cx, line_pos_y
+    mov si, LINE_LENGTH
+    mov dl, LINE_COLOR
+    call DrawHorizontalLine
+    call BlitBufferToScreen
+    jmp MainLoop
+
+ExitGraphics:
     mov ax, 0003h                  ; Volver a modo texto 80x25
     int 10h
 
