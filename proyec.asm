@@ -205,6 +205,8 @@ ClearOffScreenBuffer PROC
     push di
     push es
 
+    cld                            ; Asegurar dirección hacia adelante para stosb
+
     mov ax, Plane0Segment          ; Borrar plano 0
     or ax, ax
     jz @SkipPlane0
@@ -324,6 +326,8 @@ DirectDrawTest PROC
     out dx, al
     dec dx
 
+    cld                            ; Forzar incremento en las operaciones rep stosb
+
     xor di, di
     mov al, 4
     mov cx, 160
@@ -376,6 +380,8 @@ ClearScreen PROC
     mov al, 0Fh
     out dx, al
     dec dx
+
+    cld                            ; Asegurar dirección correcta antes de stosb
 
     xor di, di
     mov al, 0
@@ -655,6 +661,8 @@ BlitBufferToScreen PROC
     mov ax, 0A000h                 ; Fix: Cargar segmento de video en ES
     mov es, ax
     mov dx, 03C4h                  ; Fix: Puerto base del sequencer
+
+    cld                            ; Asegurar copias hacia adelante en los rep movsb
 
     mov ax, Plane0Segment          ; Plano 0 ------------------------------------------------
     or ax, ax
