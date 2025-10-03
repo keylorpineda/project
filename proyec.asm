@@ -9,13 +9,13 @@ SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
 SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
 BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
 PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
+PLANE_PARAGRAPHS  EQU (PLANE_SIZE / 16) ; Fix: 2000 bytes = 125 párrafos para INT 21h/48h
 
 .DATA                             ; Segmento de datos
-; Fix: Buffer fijo .DATA para Fase 2 sin bugs DOSBox
-plane0           db 2000 dup(0)    ; Buffer fijo planar 2000 bytes/plano
-plane1           db 2000 dup(0)
-plane2           db 2000 dup(0)
-plane3           db 2000 dup(0)
+plane0Segment    dw 0             ; Segmento asignado dinámicamente para plano 0
+plane1Segment    dw 0             ; Segmento asignado dinámicamente para plano 1
+plane2Segment    dw 0             ; Segmento asignado dinámicamente para plano 2
+plane3Segment    dw 0             ; Segmento asignado dinámicamente para plano 3
 viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
 viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
@@ -44,8 +44,79 @@ ShrinkProgramMemory ENDP
 ; éxito; en caso contrario, AX contiene el código de error devuelto por DOS.
 ; -------------------------------------------------------------------------
 InitOffScreenBuffer PROC
-    ; Fix: Buffer fijo .DATA para Fase 2 sin bugs DOSBox
+    push bx
+    push cx
+    push dx
+    push di
+    push es
+
     xor ax, ax
+    mov plane0Segment, ax
+    mov plane1Segment, ax
+    mov plane2Segment, ax
+    mov plane3Segment, ax
+
+    mov bx, PLANE_PARAGRAPHS
+    mov ah, 48h
+    int 21h
+    jc @AllocFail
+    mov plane0Segment, ax
+    mov es, ax
+    xor di, di
+    mov al, 0
+    mov cx, PLANE_SIZE
+    rep stosb                     ; Fix: Clear inmediato post-alloc para evitar basura en buffer
+
+    mov bx, PLANE_PARAGRAPHS
+    mov ah, 48h
+    int 21h
+    jc @AllocFail
+    mov plane1Segment, ax
+    mov es, ax
+    xor di, di
+    mov al, 0
+    mov cx, PLANE_SIZE
+    rep stosb                     ; Fix: Clear inmediato post-alloc para evitar basura en buffer
+
+    mov bx, PLANE_PARAGRAPHS
+    mov ah, 48h
+    int 21h
+    jc @AllocFail
+    mov plane2Segment, ax
+    mov es, ax
+    xor di, di
+    mov al, 0
+    mov cx, PLANE_SIZE
+    rep stosb                     ; Fix: Clear inmediato post-alloc para evitar basura en buffer
+
+    mov bx, PLANE_PARAGRAPHS
+    mov ah, 48h
+    int 21h
+    jc @AllocFail
+    mov plane3Segment, ax
+    mov es, ax
+    xor di, di
+    mov al, 0
+    mov cx, PLANE_SIZE
+    rep stosb                     ; Fix: Clear inmediato post-alloc para evitar basura en buffer
+
+    xor ax, ax
+    pop es
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    ret
+
+@AllocFail:
+    push ax
+    call ReleaseOffScreenBuffer
+    pop ax
+    pop es
+    pop di
+    pop dx
+    pop cx
+    pop bx
     ret
 InitOffScreenBuffer ENDP
 
@@ -55,7 +126,53 @@ InitOffScreenBuffer ENDP
 ; off-screen (INT 21h, función 49h).
 ; -------------------------------------------------------------------------
 ReleaseOffScreenBuffer PROC
-    ; Fix: Buffer fijo .DATA para Fase 2 sin bugs DOSBox
+    push ax
+    push dx
+    push es
+
+    mov ax, plane3Segment
+    or ax, ax
+    jz @SkipPlane3
+    mov es, ax
+    mov ah, 49h
+    int 21h
+    xor ax, ax
+    mov plane3Segment, ax
+@SkipPlane3:
+
+    mov ax, plane2Segment
+    or ax, ax
+    jz @SkipPlane2
+    mov es, ax
+    mov ah, 49h
+    int 21h
+    xor ax, ax
+    mov plane2Segment, ax
+@SkipPlane2:
+
+    mov ax, plane1Segment
+    or ax, ax
+    jz @SkipPlane1
+    mov es, ax
+    mov ah, 49h
+    int 21h
+    xor ax, ax
+    mov plane1Segment, ax
+@SkipPlane1:
+
+    mov ax, plane0Segment
+    or ax, ax
+    jz @SkipPlane0
+    mov es, ax
+    mov ah, 49h
+    int 21h
+    xor ax, ax
+    mov plane0Segment, ax
+@SkipPlane0:
+
+    pop es
+    pop dx
+    pop ax
     ret
 ReleaseOffScreenBuffer ENDP
 
@@ -69,25 +186,43 @@ ClearOffScreenBuffer PROC
     push di
     push es
 
-    mov ax, @data
-    mov es, ax                     ; Clear fijo en ES=@data
-
-    mov di, OFFSET plane0
     mov al, 0
-    mov cx, 2000
-    rep stosb
 
-    mov di, OFFSET plane1
-    mov cx, 2000
+    mov ax, plane0Segment
+    or ax, ax
+    jz @SkipPlane0
+    mov es, ax
+    xor di, di
+    mov cx, PLANE_SIZE
     rep stosb
+@SkipPlane0:
 
-    mov di, OFFSET plane2
-    mov cx, 2000
+    mov ax, plane1Segment
+    or ax, ax
+    jz @SkipPlane1
+    mov es, ax
+    xor di, di
+    mov cx, PLANE_SIZE
     rep stosb
+@SkipPlane1:
 
-    mov di, OFFSET plane3
-    mov cx, 2000
+    mov ax, plane2Segment
+    or ax, ax
+    jz @SkipPlane2
+    mov es, ax
+    xor di, di
+    mov cx, PLANE_SIZE
     rep stosb
+@SkipPlane2:
+
+    mov ax, plane3Segment
+    or ax, ax
+    jz @SkipPlane3
+    mov es, ax
+    xor di, di
+    mov cx, PLANE_SIZE
+    rep stosb
+@SkipPlane3:
 
     pop es                         ; Restaurar registros
     pop di
@@ -121,32 +256,6 @@ SetPaletteRed PROC
     pop ax
     ret
 SetPaletteRed ENDP
-
-; ----------------------------------------------------------------------------
-; Rutina: SetPaletteWhite
-; Ajusta el color 15 de la paleta EGA a blanco completo (R=63, G=63, B=63)
-; para mejorar la visibilidad de los elementos de prueba.
-; ----------------------------------------------------------------------------
-SetPaletteWhite PROC
-    push ax
-    push dx
-
-    mov dx, 03C8h
-    mov al, 15
-    out dx, al
-    inc dx
-
-    mov al, 63
-    out dx, al                     ; Test: Blanco full para línea visible
-    mov al, 63
-    out dx, al
-    mov al, 63
-    out dx, al
-
-    pop dx
-    pop ax
-    ret
-SetPaletteWhite ENDP
 
 ; Fix: Limpia full A000h para eliminar garbage de modo anterior
 ClearScreen PROC
@@ -197,6 +306,7 @@ DrawPixel PROC
     push dx
     push si
     push di
+    push es
 
     cmp bx, 159                    ; Fix: Limit viewport 160x100
     jbe @CheckYBounds
@@ -232,54 +342,72 @@ DrawPixel PROC
 
     mov si, di                     ; Fix: Guardar offset para reutilizar en cada plano
 
-    mov ax, @data
+    mov ax, plane0Segment
+    or ax, ax
+    jz @SkipPlane0
     mov es, ax
-
     mov di, si
     test dh, 1
     jz @ClearPlane0
     mov al, bl
-    or BYTE PTR es:[OFFSET plane0 + di], al    ; Fix: Buffer fijo .DATA para Fase 2 sin bugs DOSBox
+    or BYTE PTR es:[di], al
     jmp @NextPlane0
 @ClearPlane0:
     mov al, bh
-    and BYTE PTR es:[OFFSET plane0 + di], al
+    and BYTE PTR es:[di], al
 @NextPlane0:
+@SkipPlane0:
 
+    mov ax, plane1Segment
+    or ax, ax
+    jz @SkipPlane1
+    mov es, ax
     mov di, si
     test dh, 2
     jz @ClearPlane1
     mov al, bl
-    or BYTE PTR es:[OFFSET plane1 + di], al
+    or BYTE PTR es:[di], al
     jmp @NextPlane1
 @ClearPlane1:
     mov al, bh
-    and BYTE PTR es:[OFFSET plane1 + di], al
+    and BYTE PTR es:[di], al
 @NextPlane1:
+@SkipPlane1:
 
+    mov ax, plane2Segment
+    or ax, ax
+    jz @SkipPlane2
+    mov es, ax
     mov di, si
     test dh, 4
     jz @ClearPlane2
     mov al, bl
-    or BYTE PTR es:[OFFSET plane2 + di], al
+    or BYTE PTR es:[di], al
     jmp @NextPlane2
 @ClearPlane2:
     mov al, bh
-    and BYTE PTR es:[OFFSET plane2 + di], al
+    and BYTE PTR es:[di], al
 @NextPlane2:
+@SkipPlane2:
 
+    mov ax, plane3Segment
+    or ax, ax
+    jz @SkipPlane3
+    mov es, ax
     mov di, si
     test dh, 8
     jz @ClearPlane3
     mov al, bl
-    or BYTE PTR es:[OFFSET plane3 + di], al
+    or BYTE PTR es:[di], al
     jmp @NextPlane3
 @ClearPlane3:
     mov al, bh
-    and BYTE PTR es:[OFFSET plane3 + di], al
+    and BYTE PTR es:[di], al
 @NextPlane3:
+@SkipPlane3:
 
 @exit_pixel:
+    pop es
     pop di
     pop si
     pop dx
@@ -304,8 +432,6 @@ BlitBufferToScreen PROC
     push ds
     push es
 
-    mov ax, @data
-    mov ds, ax
     mov ax, 0A000h
     mov es, ax                     ; Blit fijo DS=@data to ES top-left
     mov dx, 03C4h
@@ -316,10 +442,20 @@ BlitBufferToScreen PROC
     mov al, 1
     out dx, al
     dec dx
-    mov si, OFFSET plane0
+    mov ax, @data
+    mov ds, ax
+    mov bx, plane0Segment
+    or bx, bx
+    jz @SkipCopy0
+    mov ds, bx
     xor di, di
-    mov cx, 2000
+    xor si, si
+    mov cx, PLANE_SIZE
     rep movsb
+@SkipCopy0:
+
+    mov ax, @data
+    mov ds, ax
 
     mov al, 02h
     out dx, al
@@ -327,10 +463,18 @@ BlitBufferToScreen PROC
     mov al, 2
     out dx, al
     dec dx
-    mov si, OFFSET plane1
+    mov bx, plane1Segment
+    or bx, bx
+    jz @SkipCopy1
+    mov ds, bx
     xor di, di
-    mov cx, 2000
+    xor si, si
+    mov cx, PLANE_SIZE
     rep movsb
+@SkipCopy1:
+
+    mov ax, @data
+    mov ds, ax
 
     mov al, 02h
     out dx, al
@@ -338,10 +482,18 @@ BlitBufferToScreen PROC
     mov al, 4
     out dx, al
     dec dx
-    mov si, OFFSET plane2
+    mov bx, plane2Segment
+    or bx, bx
+    jz @SkipCopy2
+    mov ds, bx
     xor di, di
-    mov cx, 2000
+    xor si, si
+    mov cx, PLANE_SIZE
     rep movsb
+@SkipCopy2:
+
+    mov ax, @data
+    mov ds, ax
 
     mov al, 02h
     out dx, al
@@ -349,10 +501,18 @@ BlitBufferToScreen PROC
     mov al, 8
     out dx, al
     dec dx
-    mov si, OFFSET plane3
+    mov bx, plane3Segment
+    or bx, bx
+    jz @SkipCopy3
+    mov ds, bx
     xor di, di
-    mov cx, 2000
+    xor si, si
+    mov cx, PLANE_SIZE
     rep movsb
+@SkipCopy3:
+
+    mov ax, @data
+    mov ds, ax
 
     mov al, 02h
     out dx, al
@@ -420,33 +580,41 @@ main PROC
     mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
 
-    ; call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
-    call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
+    call ClearScreen               ; Fix: Fondo negro completo para evitar artefactos previos
 
-    call ClearOffScreenBuffer      ; Preparar buffer off-screen
+    call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
 
-    mov cx, 0                      ; Fix: Línea top-left blanca para test buffer fijo (Y=0)
-    mov bx, 0                      ; Fix: Línea top-left blanca para test buffer fijo (X inicial 0)
-    mov dl, 15                     ; Fix: Línea top-left blanca para test buffer fijo (color blanco)
+    call InitOffScreenBuffer       ; Reservar memoria para el buffer off-screen
+    cmp ax, 0
+    jne @Exit
+
+    call ClearOffScreenBuffer      ; Preparar buffer off-screen en RAM dinámica
+
+    mov cx, 50                     ; Fix: Línea horizontal roja en Y=50
+    mov bx, 0                      ; Fix: Inicio de línea horizontal en X=0
+    mov dl, 4                      ; Fix: Color rojo índice 4
 LineLoop:
     call DrawPixel
     inc bx
     cmp bx, 160
-    jle LineLoop
+    jb LineLoop
 
-    mov bx, 0                      ; Fix: Línea top-left blanca para test buffer fijo (X=0)
-    mov cx, 0                      ; Fix: Línea top-left blanca para test buffer fijo (Y inicial 0)
-    mov dl, 15                     ; Fix: Línea top-left blanca para test buffer fijo (color blanco)
+    mov bx, 80                     ; Fix: Línea vertical roja en X=80
+    mov cx, 0                      ; Fix: Inicio de línea vertical en Y=0
+    mov dl, 4                      ; Fix: Color rojo índice 4
 VertLoop:
     call DrawPixel
     inc cx
     cmp cx, 100
-    jle VertLoop
+    jb VertLoop
 
     call BlitBufferToScreen        ; Copiar buffer a la pantalla
 
     xor ah, ah                     ; Esperar tecla
     int 16h
+
+@Exit:
+    call ReleaseOffScreenBuffer    ; Liberar memoria dinámica reservada
 
     mov ax, 0003h                  ; Volver a modo texto 80x25
     int 10h
