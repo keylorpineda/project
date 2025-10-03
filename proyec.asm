@@ -563,10 +563,12 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
+    mov ax, [viewport_y_offset]
+    mov di, ax
+    mov ax, [viewport_x_offset]
+    add di, ax
     mov ds, bx
     xor si, si
-    mov di, viewport_y_offset
-    add di, viewport_x_offset
     mov bp, VIEWPORT_HEIGHT
 @RowCopy0:
     mov cx, BYTES_PER_SCAN
@@ -588,10 +590,12 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
+    mov ax, [viewport_y_offset]
+    mov di, ax
+    mov ax, [viewport_x_offset]
+    add di, ax
     mov ds, bx
     xor si, si
-    mov di, viewport_y_offset
-    add di, viewport_x_offset
     mov bp, VIEWPORT_HEIGHT
 @RowCopy1:
     mov cx, BYTES_PER_SCAN
@@ -613,10 +617,12 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
+    mov ax, [viewport_y_offset]
+    mov di, ax
+    mov ax, [viewport_x_offset]
+    add di, ax
     mov ds, bx
     xor si, si
-    mov di, viewport_y_offset
-    add di, viewport_x_offset
     mov bp, VIEWPORT_HEIGHT
 @RowCopy2:
     mov cx, BYTES_PER_SCAN
@@ -638,10 +644,12 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
+    mov ax, [viewport_y_offset]
+    mov di, ax
+    mov ax, [viewport_x_offset]
+    add di, ax
     mov ds, bx
     xor si, si
-    mov di, viewport_y_offset
-    add di, viewport_x_offset
     mov bp, VIEWPORT_HEIGHT
 @RowCopy3:
     mov cx, BYTES_PER_SCAN
