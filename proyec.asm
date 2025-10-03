@@ -572,7 +572,12 @@ BlitBufferToScreen PROC
     mov bp, VIEWPORT_HEIGHT
 @RowCopy0:
     mov cx, BYTES_PER_SCAN
-    rep movsb
+@RowCopy0Bytes:
+    mov al, [ds:si]
+    mov [es:di], al
+    inc si
+    inc di
+    loop @RowCopy0Bytes
     add di, ROW_STRIDE_DIFF
     dec bp
     jnz @RowCopy0
@@ -599,7 +604,12 @@ BlitBufferToScreen PROC
     mov bp, VIEWPORT_HEIGHT
 @RowCopy1:
     mov cx, BYTES_PER_SCAN
-    rep movsb
+@RowCopy1Bytes:
+    mov al, [ds:si]
+    mov [es:di], al
+    inc si
+    inc di
+    loop @RowCopy1Bytes
     add di, ROW_STRIDE_DIFF
     dec bp
     jnz @RowCopy1
@@ -626,7 +636,12 @@ BlitBufferToScreen PROC
     mov bp, VIEWPORT_HEIGHT
 @RowCopy2:
     mov cx, BYTES_PER_SCAN
-    rep movsb
+@RowCopy2Bytes:
+    mov al, [ds:si]
+    mov [es:di], al
+    inc si
+    inc di
+    loop @RowCopy2Bytes
     add di, ROW_STRIDE_DIFF
     dec bp
     jnz @RowCopy2
@@ -653,7 +668,12 @@ BlitBufferToScreen PROC
     mov bp, VIEWPORT_HEIGHT
 @RowCopy3:
     mov cx, BYTES_PER_SCAN
-    rep movsb
+@RowCopy3Bytes:
+    mov al, [ds:si]
+    mov [es:di], al
+    inc si
+    inc di
+    loop @RowCopy3Bytes
     add di, ROW_STRIDE_DIFF
     dec bp
     jnz @RowCopy3
