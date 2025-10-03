@@ -573,8 +573,8 @@ BlitBufferToScreen PROC
 @RowCopy0:
     mov cx, BYTES_PER_SCAN
 @RowCopy0Bytes:
-    mov al, [ds:si]
-    mov [es:di], al
+    mov al, ds:[si]
+    mov es:[di], al
     inc si
     inc di
     loop @RowCopy0Bytes
@@ -605,8 +605,8 @@ BlitBufferToScreen PROC
 @RowCopy1:
     mov cx, BYTES_PER_SCAN
 @RowCopy1Bytes:
-    mov al, [ds:si]
-    mov [es:di], al
+    mov al, ds:[si]
+    mov es:[di], al
     inc si
     inc di
     loop @RowCopy1Bytes
@@ -637,8 +637,8 @@ BlitBufferToScreen PROC
 @RowCopy2:
     mov cx, BYTES_PER_SCAN
 @RowCopy2Bytes:
-    mov al, [ds:si]
-    mov [es:di], al
+    mov al, ds:[si]
+    mov es:[di], al
     inc si
     inc di
     loop @RowCopy2Bytes
@@ -669,8 +669,8 @@ BlitBufferToScreen PROC
 @RowCopy3:
     mov cx, BYTES_PER_SCAN
 @RowCopy3Bytes:
-    mov al, [ds:si]
-    mov [es:di], al
+    mov al, ds:[si]
+    mov es:[di], al
     inc si
     inc di
     loop @RowCopy3Bytes
