@@ -17,10 +17,10 @@ Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
-msg_ok           db 'Memoria OK - Entrando grafico. Presiona tecla para salir.$'
+viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
+viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
-msg_shrink       db 'Shrink OK$',13,10,'$'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
 crlf             db 13,10,'$'
 
@@ -57,9 +57,6 @@ ShrinkProgramMemory PROC
     int 21h
     jc @shrink_fail
 
-    mov dx, offset msg_shrink
-    mov ah, 09h
-    int 21h
     xor ax, ax                      ; Fix: AX=0 indica shrink exitoso
     jmp @exit
 
@@ -245,6 +242,38 @@ ClearOffScreenBuffer PROC
 ClearOffScreenBuffer ENDP
 
 ; ----------------------------------------------------------------------------
+; Rutina: SetPaletteRed
+; Ajusta el color 4 de la paleta EGA a rojo brillante (R=63, G=0, B=0).
+; Esto mejora la visibilidad de los elementos renderizados en el viewport.
+; ----------------------------------------------------------------------------
+SetPaletteRed PROC
+    push ax                        ; Conservar registros usados
+    push dx
+
+    mov dx, 03C8h                  ; Puerto de índice de la DAC
+    mov al, 4
+    out dx, al                     ; Seleccionar color 4
+    inc dx                         ; DX = 03C9h (datos de la DAC)
+
+    mov al, 3
+    out dx, al                     ; R bajo = 3 (valor 63 = 3*16 + 15)
+    mov al, 15
+    out dx, al                     ; R alto = 15
+    mov al, 0
+    out dx, al                     ; G bajo = 0
+    mov al, 0
+    out dx, al                     ; G alto = 0
+    mov al, 0
+    out dx, al                     ; B bajo = 0
+    mov al, 0
+    out dx, al                     ; B alto = 0
+
+    pop dx                         ; Restaurar registros
+    pop ax
+    ret
+SetPaletteRed ENDP
+
+; ----------------------------------------------------------------------------
 ; Rutina: DrawPixel
 ; Dibuja un píxel en el buffer off-screen usando coordenadas (X,Y) y color C.
 ;  Entradas:
@@ -395,9 +424,10 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov di, viewport_y_offset
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, ax
     xor si, si
-    xor di, di                    ; Fix: Mantener viewport en origen (centrado pendiente)
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
@@ -413,9 +443,10 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov di, viewport_y_offset
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, ax
     xor si, si
-    xor di, di                    ; Fix: Mantener viewport en origen (centrado pendiente)
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
@@ -431,9 +462,10 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov di, viewport_y_offset
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, ax
     xor si, si
-    xor di, di                    ; Fix: Mantener viewport en origen (centrado pendiente)
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
@@ -449,9 +481,10 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov di, viewport_y_offset
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, ax
     xor si, si
-    xor di, di                    ; Fix: Mantener viewport en origen (centrado pendiente)
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
@@ -546,27 +579,24 @@ main PROC
     int 21h
 
 @ok_print:
-    mov dx, offset msg_ok
-    mov ah, 09h
-    int 21h
-    jmp @BuffersReady
-
 @BuffersReady:
 
     mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
 
+    call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
+
     call ClearOffScreenBuffer      ; Limpiar el buffer off-screen
 
-    mov bx, 0                      ; Fix: X inicial de la línea
-    mov cx, 50                     ; Fix: Y constante para la línea
+    mov bx, 50                     ; Fix: X centrado dentro del viewport
+    mov cx, 50                     ; Fix: Y centrado dentro del viewport
     mov dl, 4                      ; Fix: Color rojo (bit 2)
 LineLoop:
     call DrawPixel                 ; Fix: Usar BX=X, CX=Y, DL=color
 
     inc bx                         ; Siguiente X
-    cmp bx, 51                     ; ¿Llegamos al final (X = 50)?
-    jle LineLoop                   ; Repetir mientras BX <= 51
+    cmp bx, 101                    ; ¿Llegamos al final (ancho ≈ 50 px)?
+    jle LineLoop                   ; Repetir mientras BX <= 101
 
     call BlitBufferToScreen        ; Copiar buffer a la pantalla
 
