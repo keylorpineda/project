@@ -13,7 +13,7 @@ BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
 VRAM_BYTES_PER_SCAN EQU (SCREEN_WIDTH / 8) ; Bytes reales por scanline en VRAM
 VRAM_ROW_STRIDE   EQU (VRAM_BYTES_PER_SCAN - BYTES_PER_SCAN)
 PLANE_SIZE        EQU (BYTES_PER_SCAN * VIEWPORT_HEIGHT) ; Tamaño del plano reducido
-PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
+PLANE_PARAGRAPHS  EQU 64          ; Fix: 64 párrafos (4 KB) para reserva segura
 LINE_LENGTH      EQU 40           ; Largo de la línea roja controlada por teclado
 LINE_COLOR       EQU 4            ; Color rojo en la paleta ajustada
 MAX_LINE_X       EQU (160 - LINE_LENGTH)
@@ -25,8 +25,8 @@ Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
-viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
-viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
+viewport_x_offset dw 0            ; Fix: Desfase horizontal (centrado 160 px en 640)
+viewport_y_offset dw 0            ; Fix: Desfase vertical (125 scans * 80 bytes)
 line_pos_x       dw 60            ; Posición inicial X de la línea roja
 line_pos_y       dw 50            ; Posición inicial Y de la línea roja
 exit_requested   db 0             ; Indicador para salir del bucle principal
@@ -135,6 +135,32 @@ InitOffScreenBuffer PROC
 
 @AllocationFailed:
     push ax                        ; Guardar código de error
+    push bx                        ; Guardar tamaño de bloque libre reportado por DOS
+
+    mov dx, offset msg_err
+    mov ah, 09h
+    int 21h
+
+    pop bx                         ; BX = mayor bloque libre
+    pop cx                         ; CX = código de error
+    push cx                        ; Conservar código de error para el retorno
+
+    mov ax, cx
+    call PrintHexAX
+
+    mov dx, offset msg_free
+    mov ah, 09h
+    int 21h
+
+    mov ax, bx
+    call PrintHexAX
+
+    mov dx, offset crlf
+    mov ah, 09h
+    int 21h
+
+    pop ax                         ; Restaurar código de error original
+    push ax                        ; Conservar AX mientras liberamos memoria
     call ReleaseOffScreenBuffer    ; Liberar cualquier bloque ya reservado
     pop ax                         ; Recuperar el código de error original
 
@@ -464,7 +490,7 @@ DirectDrawTest PROC
     mov al, 2
     out dx, al
     inc dx
-    mov al, 4
+    mov al, 0Fh
     out dx, al
     dec dx
 
@@ -472,6 +498,13 @@ DirectDrawTest PROC
     mov al, 4
     mov cx, 160
     rep stosb
+
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+    dec dx
 
     xor di, di
     mov cx, 100
@@ -524,6 +557,7 @@ ClearScreen PROC
     xor di, di
     mov al, 0
     mov cx, 28000                ; Fix: 350*80 bytes totales modo 10h
+    cld
     rep stosb
 
     pop es
@@ -877,6 +911,13 @@ main PROC
     call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
     call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
     call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
+
+    call ClearOffScreenBuffer
+    xor bx, bx
+    xor cx, cx
+    mov dl, 4
+    call DrawPixel
+    call BlitBufferToScreen
 
     mov WORD PTR line_pos_x, 60     ; Reestablecer posición inicial en cada ejecución
     mov WORD PTR line_pos_y, 50
