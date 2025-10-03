@@ -1,5 +1,6 @@
 ; Programa para modo gráfico EGA 640x350 16 colores con doble buffer
 ; Ensamblador 8086/8088 - Sintaxis TASM
+; Recomendado para DOSBox: machine=ega, cycles=3000, [sdl] output=surface
 
 .MODEL SMALL                      ; Usar modelo de memoria small (código y datos < 64K)
 .STACK 100h                       ; Reservar 256 bytes para la pila
@@ -36,7 +37,7 @@ msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
 crlf             db 13,10,'$'
-player_x        dw 80            ; Posición X inicial de la línea del jugador
+player_x        dw 0             ; Posición X inicial (esquina superior izquierda)
 player_y        dw 50            ; Posición Y inicial de la línea del jugador
 largest_block   dw 0             ; Último tamaño de bloque libre reportado por DOS
 HeapEnd LABEL BYTE               ; Marca fin de datos para cálculo del shrink
@@ -69,15 +70,18 @@ ShrinkProgramMemory PROC
     mov es, psp_seg                 ; ES -> PSP
     mov si, es:[2]                  ; SI = tamaño actual del bloque en párrafos
 
-    mov dx, psp_seg                 ; DX = PSP segment para cálculos posteriores
-
     mov bx, seg HeapEnd             ; Diferencia en párrafos entre PSP y DGROUP
-    sub bx, dx
+    sub bx, psp_seg
 
     mov ax, OFFSET HeapEnd          ; Convertir offset a párrafos (redondeo hacia arriba)
-    add ax, 15
+    mov dx, ax
+    and dx, 0Fh
     mov cl, 4
     shr ax, cl
+    cmp dx, 0
+    je @NoExtraParagraph
+    inc ax
+@NoExtraParagraph:
     add bx, ax                      ; BX = párrafos necesarios para el programa
 
     mov ax, si
@@ -333,61 +337,6 @@ SetPaletteWhite PROC
     ret
 SetPaletteWhite ENDP
 
-; Test: Direct draw cruz blanca/roja top-left sin buffer
-DirectDrawTest PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push di
-    push es
-
-    mov ax, 0A000h
-    mov es, ax
-
-    mov dx, 03C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    dec dx
-
-    cld                            ; Forzar incremento en las operaciones rep stosb
-
-    xor di, di
-    mov al, 4
-    mov cx, 160
-    rep stosb
-
-    xor di, di
-    mov cx, 100
-@vert:
-    mov BYTE PTR es:[di], 4
-    add di, 80
-    loop @vert
-
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 0Fh
-    out dx, al
-    dec dx
-
-    xor di, di
-    mov al, 15
-    mov cx, 160
-    rep stosb
-
-    pop es
-    pop di
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-DirectDrawTest ENDP
-
 ; Fix: Limpia full A000h para eliminar garbage de modo anterior
 ClearScreen PROC
     push ax
@@ -425,33 +374,43 @@ ClearScreen PROC
 ClearScreen ENDP
 
 ; ----------------------------------------------------------------------------
-; Rutina: ComputeViewportStart
-; Calcula el offset inicial en bytes dentro de VRAM (segmento A000h) a partir
-; del desplazamiento en píxeles definido para el viewport. El valor resultante
-; se almacena en la variable `viewport_start_offset`.
+; Rutina: DirectPixelTest
+; Escribe un píxel rojo en la posición (0,0) directamente en VRAM para
+; confirmar que el modo gráfico está activo y que la paleta responde.
 ; ----------------------------------------------------------------------------
-ComputeViewportStart PROC
+DirectPixelTest PROC
     push ax
-    push bx
     push dx
+    push di
+    push es
 
-    mov ax, viewport_y_pixels      ; Convertir filas a bytes: Y * 80
-    mov bx, SCREEN_BYTES_PER_SCAN
-    mul bx                         ; DX:AX = Y * 80 (DX=0 para 0..349)
+    mov dx, 03C4h                  ; Registro de máscara del mapa
+    mov al, 02h
+    out dx, al
+    inc dx
+    mov al, 04h                    ; Habilitar únicamente el plano 2 (bit de color 4)
+    out dx, al
+    dec dx
 
-    mov dx, viewport_x_pixels      ; Convertir X en bytes (alineado a 8 píxeles)
-    mov bx, dx
-    shr bx, 1
-    shr bx, 1
-    shr bx, 1                      ; BX = X / 8
-    add ax, bx
-    mov viewport_start_offset, ax
+    mov ax, 0A000h                 ; Acceder a VRAM
+    mov es, ax
+    xor di, di
+    mov al, 80h                    ; Bit más significativo del primer byte (x=0)
+    mov es:[di], al
 
+    mov al, 02h                    ; Restaurar máscara -> habilitar 4 planos
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    dec dx
+
+    pop es
+    pop di
     pop dx
-    pop bx
     pop ax
     ret
-ComputeViewportStart ENDP
+DirectPixelTest ENDP
 
 ; ----------------------------------------------------------------------------
 ; Rutina: DrawPixel
@@ -610,6 +569,17 @@ DrawPlayerLine PROC
     ret
 DrawPlayerLine ENDP
 
+; ----------------------------------------------------------------------------
+; Rutina: RedrawViewport
+; Limpia el buffer off-screen, dibuja la línea roja y la transfiere a VRAM.
+; ----------------------------------------------------------------------------
+RedrawViewport PROC
+    call ClearOffScreenBuffer
+    call DrawPlayerLine
+    call BlitBufferToScreen
+    ret
+RedrawViewport ENDP
+
 ; Fase 3: Input movimiento línea - Lee tecla, mueve player, redraw loop
 HandleInput PROC
     push ax
@@ -617,26 +587,22 @@ HandleInput PROC
     push cx
     push dx
 
-@frame_loop:
-    call ClearOffScreenBuffer
-    call DrawPlayerLine
-    call BlitBufferToScreen
+    call RedrawViewport            ; Dibujar estado inicial
 
+@frame_loop:
     mov ah, 01h                    ; Comprobar si hay tecla disponible (no bloqueante)
     int 16h
-    jz @frame_loop                 ; ZF=1 indica ausencia de tecla
+    jz @frame_loop                 ; Continuar esperando sin redibujar
 
-    mov ah, 10h                    ; Leer tecla extendida disponible
+    mov ah, 00h                    ; Leer tecla (ASCII en AL, scan en AH)
     int 16h
 
-    cmp al, 27                     ; ESC -> salir del modo gráfico
-    jne @not_escape
-    jmp NEAR PTR @exit_input
+    cmp al, 27                     ; ESC (ASCII 27)
+    je @exit_input
 
-@not_escape:
-
-    mov bh, ah                     ; Guardar scan code
-    mov bl, al                     ; Guardar ASCII
+    mov bh, ah                     ; Scan code
+    mov bl, al                     ; ASCII
+    xor dl, dl                     ; DL = 0 -> sin movimiento todavía
 
     cmp bh, 48h                    ; Flecha arriba
     je @move_up
@@ -647,7 +613,7 @@ HandleInput PROC
     cmp bh, 4Dh                    ; Flecha derecha
     je @move_right
 
-    cmp bl, 'w'                    ; WASD minúsculas
+    cmp bl, 'w'                    ; WASD
     je @move_up
     cmp bl, 'W'
     je @move_up
@@ -664,41 +630,45 @@ HandleInput PROC
     cmp bl, 'D'
     je @move_right
 
-    jmp @frame_loop                ; Tecla no válida: continuar
+    jmp @frame_loop                ; Tecla ignorada
 
 @move_up:
     mov ax, player_y
     or ax, ax
-    jz @apply_clamp
+    jz @after_move
     dec ax
     mov player_y, ax
-    jmp @apply_clamp
+    mov dl, 1
+    jmp @after_move
 
 @move_down:
     mov ax, player_y
     cmp ax, VIEWPORT_MAX_Y
-    jae @apply_clamp
+    jae @after_move
     inc ax
     mov player_y, ax
-    jmp @apply_clamp
+    mov dl, 1
+    jmp @after_move
 
 @move_left:
     mov ax, player_x
     or ax, ax
-    jz @apply_clamp
+    jz @after_move
     dec ax
     mov player_x, ax
-    jmp @apply_clamp
+    mov dl, 1
+    jmp @after_move
 
 @move_right:
     mov ax, player_x
     cmp ax, PLAYER_MAX_X
-    jae @apply_clamp
+    jae @after_move
     inc ax
     mov player_x, ax
+    mov dl, 1
 
-@apply_clamp:
-    mov ax, player_x
+@after_move:
+    mov ax, player_x               ; Clamp X inferior
     cmp ax, 0
     jge @clamp_x_high
     xor ax, ax
@@ -719,13 +689,16 @@ HandleInput PROC
 
 @clamp_y_high:
     cmp ax, VIEWPORT_MAX_Y
-    ja @limit_y_high
-    jmp NEAR PTR @frame_loop
-
-@limit_y_high:
+    jbe @maybe_redraw
     mov ax, VIEWPORT_MAX_Y
     mov player_y, ax
-    jmp NEAR PTR @frame_loop
+
+@maybe_redraw:
+    or dl, dl                      ; ¿Hubo movimiento real?
+    jz @frame_loop
+
+    call RedrawViewport            ; Actualizar pantalla solo tras mover
+    jmp @frame_loop
 
 @exit_input:
     pop dx
@@ -923,8 +896,6 @@ main PROC
     mov ds, ax
     cld                            ; Asegurar DF=0 para operaciones con cadenas
 
-    call ComputeViewportStart      ; Calcular offset inicial del viewport
-
     call ShrinkProgramMemory       ; Fix: Liberar memoria prestada antes de reservar planos
 
     call InitOffScreenBuffer       ; Reservar memoria para el buffer off-screen
@@ -958,8 +929,7 @@ main PROC
     call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
     call SetPaletteRed             ; Ajustar color 4 a rojo brillante
     call SetPaletteWhite           ; Ajustar color 15 a blanco
-
-    ; call DirectDrawTest         ; Prueba opcional de dibujo directo (deshabilitada)
+    call DirectPixelTest           ; Verificación rápida de escritura directa
 
     call HandleInput               ; Fase 3: Input movimiento línea - control interactivo
 
