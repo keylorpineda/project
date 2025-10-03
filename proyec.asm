@@ -208,9 +208,15 @@ DrawPixel PROC
     push es
 
     cmp bx, 159                    ; Fix: Limit viewport 160x100
-    ja @exit_pixel
+    jbe @CheckYBounds
+    jmp NEAR PTR @exit_pixel
+
+@CheckYBounds:
     cmp cx, 99                     ; Fix: Limit viewport 160x100
-    ja @exit_pixel
+    jbe @PixelWithinBounds
+    jmp NEAR PTR @exit_pixel
+
+@PixelWithinBounds:
 
     mov dh, dl                     ; Fix: Conservar el color completo en DH
 
