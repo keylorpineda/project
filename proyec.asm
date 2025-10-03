@@ -635,7 +635,9 @@ HandleInput PROC
 @move_up:
     mov ax, player_y
     or ax, ax
-    jz @after_move
+    jnz @move_up_adjust
+    jmp @after_move
+@move_up_adjust:
     dec ax
     mov player_y, ax
     mov dl, 1
@@ -644,7 +646,9 @@ HandleInput PROC
 @move_down:
     mov ax, player_y
     cmp ax, VIEWPORT_MAX_Y
-    jae @after_move
+    jb @move_down_adjust
+    jmp @after_move
+@move_down_adjust:
     inc ax
     mov player_y, ax
     mov dl, 1
@@ -653,7 +657,9 @@ HandleInput PROC
 @move_left:
     mov ax, player_x
     or ax, ax
-    jz @after_move
+    jnz @move_left_adjust
+    jmp @after_move
+@move_left_adjust:
     dec ax
     mov player_x, ax
     mov dl, 1
@@ -662,7 +668,9 @@ HandleInput PROC
 @move_right:
     mov ax, player_x
     cmp ax, PLAYER_MAX_X
-    jae @after_move
+    jb @move_right_adjust
+    jmp @after_move
+@move_right_adjust:
     inc ax
     mov player_x, ax
     mov dl, 1
@@ -695,8 +703,10 @@ HandleInput PROC
 
 @maybe_redraw:
     or dl, dl                      ; ¿Hubo movimiento real?
-    jz @frame_loop
+    jnz @do_redraw
+    jmp @frame_loop
 
+@do_redraw:
     call RedrawViewport            ; Actualizar pantalla solo tras mover
     jmp @frame_loop
 
