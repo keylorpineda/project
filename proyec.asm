@@ -460,8 +460,10 @@ DrawPixel PROC
     add di, ax                     ; Offset final dentro del plano
 
     cmp di, PLANE_SIZE             ; Prevenir accesos fuera del buffer
-    jae @exit_pixel
+    jb @pixel_in_range
+    jmp @exit_pixel
 
+@pixel_in_range:
     mov ax, si
     and ax, 7                      ; AX = X mod 8
     mov cl, 7
