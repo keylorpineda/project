@@ -595,7 +595,10 @@ HandleInput PROC
 @frame_loop:
     mov ah, 01h                    ; Comprobar si hay tecla disponible (no bloqueante)
     int 16h
-    jz @frame_loop                 ; Continuar esperando sin redibujar
+    jnz @key_available             ; Continuar si hay una tecla lista
+    jmp @frame_loop                ; Reintentar hasta que se presione algo
+
+@key_available:
 
     mov ah, 00h                    ; Leer tecla (ASCII en AL, scan en AH)
     int 16h
