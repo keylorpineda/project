@@ -431,12 +431,12 @@ DrawPixel PROC
 
     cmp bx, VIEWPORT_MAX_X         ; Limitar al ancho del viewport
     jbe @CheckYBounds
-    jmp NEAR PTR @exit_pixel
+    jmp short @exit_pixel
 
 @CheckYBounds:
     cmp cx, VIEWPORT_MAX_Y         ; Limitar al alto del viewport
     jbe @PixelWithinBounds
-    jmp NEAR PTR @exit_pixel
+    jmp short @exit_pixel
 
 @PixelWithinBounds:
 
@@ -458,6 +458,9 @@ DrawPixel PROC
     shr ax, 1
     shr ax, 1                      ; AX = X / 8
     add di, ax                     ; Offset final dentro del plano
+
+    cmp di, PLANE_SIZE             ; Prevenir accesos fuera del buffer
+    jae @exit_pixel
 
     mov ax, si
     and ax, 7                      ; AX = X mod 8
@@ -599,7 +602,7 @@ HandleInput PROC
 
     cmp al, 27                     ; ESC (ASCII 27)
     jne @not_escape
-    jmp NEAR PTR @exit_input
+    jmp short @exit_input
 
 @not_escape:
 
@@ -633,7 +636,7 @@ HandleInput PROC
     cmp bl, 'D'
     je @move_right
 
-    jmp NEAR PTR @frame_loop       ; Tecla ignorada
+    jmp short @frame_loop          ; Tecla ignorada
 
 @move_up:
     mov ax, player_y
@@ -707,11 +710,11 @@ HandleInput PROC
 @maybe_redraw:
     or dl, dl                      ; ¿Hubo movimiento real?
     jnz @do_redraw
-    jmp NEAR PTR @frame_loop
+    jmp short @frame_loop
 
 @do_redraw:
     call RedrawViewport            ; Actualizar pantalla solo tras mover
-    jmp NEAR PTR @frame_loop
+    jmp short @frame_loop
 
 @exit_input:
     pop dx
@@ -740,6 +743,13 @@ BlitBufferToScreen PROC
     mov ax, 0A000h                 ; Fix: Cargar segmento de video en ES
     mov es, ax
     mov dx, 03C4h                  ; Fix: Puerto base del sequencer
+
+    mov al, 02h                    ; Preparar máscara a los cuatro planos
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    dec dx
 
     cld                            ; Asegurar copias hacia adelante en los rep movsb
 
@@ -936,7 +946,28 @@ main PROC
 @ok_print:
 @BuffersReady:
 
+    ; Calcular el offset base del viewport dentro de VRAM (160x100 -> esquina superior izquierda)
+    mov ax, viewport_y_pixels
+    mov bx, ax
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1                       ; AX = y * 16
+    shl bx, 1
+    shl bx, 1                       ; BX = y * 4
+    add ax, bx                      ; AX = y * 20
+    mov bx, viewport_x_pixels
+    shr bx, 1
+    shr bx, 1
+    shr bx, 1                       ; BX = x / 8
+    add ax, bx
+    mov viewport_start_offset, ax
+
     mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
+    int 10h
+
+    xor bh, bh                     ; Asegurar que la página activa es la 0
+    mov ah, 05h
     int 10h
 
     call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
