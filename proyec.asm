@@ -16,6 +16,10 @@ Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
 Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
+msg_ok           db 'Memoria OK - Entrando grafico. Presiona tecla para salir.$'
+msg_err          db 'ERROR: Alloc fallo. Codigo: $'
+buffer_err       db 10 dup(0)
+crlf             db 13,10,'$'
 
 .CODE                             ; Segmento de código
 
@@ -403,18 +407,58 @@ BlitBufferToScreen PROC
     ret
 BlitBufferToScreen ENDP
 
+PrintHexAX PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    mov cx, 4
+@loop:
+    rol ax, 4
+    mov bx, ax
+    and bx, 0Fh
+    mov dl, '0'
+    add dl, bl
+    cmp bl, 9
+    jbe @dig
+    add dl, 7
+@dig:
+    mov ah, 02h
+    int 21h
+    loop @loop
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+PrintHexAX ENDP
+
 main PROC
     mov ax, @data                  ; Inicializar el segmento de datos
     mov ds, ax
 
     call InitOffScreenBuffer       ; Reservar memoria para el buffer off-screen
     cmp ax, 0
-    je @BuffersReady
+    je @ok_print
 
-    mov dl, al                     ; Guardar código de error
-    mov ah, 4Ch                    ; Error en la reserva -> finalizar con código en AL
-    mov al, dl
+    mov dl, al                     ; Debug para fix alloc fail en DOSBox
+    mov dx, offset msg_err         ; Imprimir mensaje de error
+    mov ah, 09h
     int 21h
+    mov ax, bx                     ; BX contiene el tamaño del bloque libre más grande
+    call PrintHexAX
+    mov dx, offset crlf
+    mov ah, 09h
+    int 21h
+    mov ah, 4Ch
+    mov al, dl
+    jmp @exit_error
+
+@ok_print:
+    mov dx, offset msg_ok
+    mov ah, 09h
+    int 21h
+    jmp @BuffersReady
 
 @BuffersReady:
 
@@ -444,6 +488,8 @@ LineLoop:
     call ReleaseOffScreenBuffer    ; Liberar memoria reservada
 
     mov ax, 4C00h                  ; Terminar programa
+
+@exit_error:
     int 21h
 main ENDP
 
