@@ -598,7 +598,10 @@ HandleInput PROC
     int 16h
 
     cmp al, 27                     ; ESC (ASCII 27)
-    je @exit_input
+    jne @not_escape
+    jmp NEAR PTR @exit_input
+
+@not_escape:
 
     mov bh, ah                     ; Scan code
     mov bl, al                     ; ASCII
@@ -630,7 +633,7 @@ HandleInput PROC
     cmp bl, 'D'
     je @move_right
 
-    jmp @frame_loop                ; Tecla ignorada
+    jmp NEAR PTR @frame_loop       ; Tecla ignorada
 
 @move_up:
     mov ax, player_y
@@ -704,11 +707,11 @@ HandleInput PROC
 @maybe_redraw:
     or dl, dl                      ; ¿Hubo movimiento real?
     jnz @do_redraw
-    jmp @frame_loop
+    jmp NEAR PTR @frame_loop
 
 @do_redraw:
     call RedrawViewport            ; Actualizar pantalla solo tras mover
-    jmp @frame_loop
+    jmp NEAR PTR @frame_loop
 
 @exit_input:
     pop dx
