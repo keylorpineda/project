@@ -132,43 +132,43 @@ ReleaseOffScreenBuffer PROC
 
     mov ax, plane3Segment
     or ax, ax
-    jz @SkipPlane3
+    jz SHORT @relSkip3            ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     mov ah, 49h
     int 21h
     xor ax, ax
     mov plane3Segment, ax
-@SkipPlane3:
+@relSkip3:
 
     mov ax, plane2Segment
     or ax, ax
-    jz @SkipPlane2
+    jz SHORT @relSkip2            ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     mov ah, 49h
     int 21h
     xor ax, ax
     mov plane2Segment, ax
-@SkipPlane2:
+@relSkip2:
 
     mov ax, plane1Segment
     or ax, ax
-    jz @SkipPlane1
+    jz SHORT @relSkip1            ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     mov ah, 49h
     int 21h
     xor ax, ax
     mov plane1Segment, ax
-@SkipPlane1:
+@relSkip1:
 
     mov ax, plane0Segment
     or ax, ax
-    jz @SkipPlane0
+    jz SHORT @relSkip0            ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     mov ah, 49h
     int 21h
     xor ax, ax
     mov plane0Segment, ax
-@SkipPlane0:
+@relSkip0:
 
     pop es
     pop dx
@@ -190,39 +190,39 @@ ClearOffScreenBuffer PROC
 
     mov ax, plane0Segment
     or ax, ax
-    jz @SkipPlane0
+    jz SHORT @skip0                ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     xor di, di
     mov cx, PLANE_SIZE
     rep stosb
-@SkipPlane0:
+@skip0:
 
     mov ax, plane1Segment
     or ax, ax
-    jz @SkipPlane1
+    jz SHORT @skip1                ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     xor di, di
     mov cx, PLANE_SIZE
     rep stosb
-@SkipPlane1:
+@skip1:
 
     mov ax, plane2Segment
     or ax, ax
-    jz @SkipPlane2
+    jz SHORT @skip2                ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     xor di, di
     mov cx, PLANE_SIZE
     rep stosb
-@SkipPlane2:
+@skip2:
 
     mov ax, plane3Segment
     or ax, ax
-    jz @SkipPlane3
+    jz SHORT @skip3                ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     xor di, di
     mov cx, PLANE_SIZE
     rep stosb
-@SkipPlane3:
+@skip3:
 
     pop es                         ; Restaurar registros
     pop di
@@ -344,67 +344,67 @@ DrawPixel PROC
 
     mov ax, plane0Segment
     or ax, ax
-    jz @SkipPlane0
+    jz SHORT @plane0_skip          ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     mov di, si
     test dh, 1
-    jz @ClearPlane0
+    jz SHORT @plane0_clear
     mov al, bl
     or BYTE PTR es:[di], al
-    jmp @NextPlane0
-@ClearPlane0:
+    jmp SHORT @plane0_next
+@plane0_clear:
     mov al, bh
     and BYTE PTR es:[di], al
-@NextPlane0:
-@SkipPlane0:
+@plane0_next:
+@plane0_skip:
 
     mov ax, plane1Segment
     or ax, ax
-    jz @SkipPlane1
+    jz SHORT @plane1_skip          ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     mov di, si
     test dh, 2
-    jz @ClearPlane1
+    jz SHORT @plane1_clear
     mov al, bl
     or BYTE PTR es:[di], al
-    jmp @NextPlane1
-@ClearPlane1:
+    jmp SHORT @plane1_next
+@plane1_clear:
     mov al, bh
     and BYTE PTR es:[di], al
-@NextPlane1:
-@SkipPlane1:
+@plane1_next:
+@plane1_skip:
 
     mov ax, plane2Segment
     or ax, ax
-    jz @SkipPlane2
+    jz SHORT @plane2_skip          ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     mov di, si
     test dh, 4
-    jz @ClearPlane2
+    jz SHORT @plane2_clear
     mov al, bl
     or BYTE PTR es:[di], al
-    jmp @NextPlane2
-@ClearPlane2:
+    jmp SHORT @plane2_next
+@plane2_clear:
     mov al, bh
     and BYTE PTR es:[di], al
-@NextPlane2:
-@SkipPlane2:
+@plane2_next:
+@plane2_skip:
 
     mov ax, plane3Segment
     or ax, ax
-    jz @SkipPlane3
+    jz SHORT @plane3_skip          ; Fix: Labels únicos y SHORT jumps para TASM range
     mov es, ax
     mov di, si
     test dh, 8
-    jz @ClearPlane3
+    jz SHORT @plane3_clear
     mov al, bl
     or BYTE PTR es:[di], al
-    jmp @NextPlane3
-@ClearPlane3:
+    jmp SHORT @plane3_next
+@plane3_clear:
     mov al, bh
     and BYTE PTR es:[di], al
-@NextPlane3:
-@SkipPlane3:
+@plane3_next:
+@plane3_skip:
 
 @exit_pixel:
     pop es
@@ -446,13 +446,13 @@ BlitBufferToScreen PROC
     mov ds, ax
     mov bx, plane0Segment
     or bx, bx
-    jz @SkipCopy0
+    jz SHORT @skipcopy0            ; Fix: Labels únicos y SHORT jumps para TASM range
     mov ds, bx
     xor di, di
     xor si, si
     mov cx, PLANE_SIZE
     rep movsb
-@SkipCopy0:
+@skipcopy0:
 
     mov ax, @data
     mov ds, ax
@@ -465,13 +465,13 @@ BlitBufferToScreen PROC
     dec dx
     mov bx, plane1Segment
     or bx, bx
-    jz @SkipCopy1
+    jz SHORT @skipcopy1            ; Fix: Labels únicos y SHORT jumps para TASM range
     mov ds, bx
     xor di, di
     xor si, si
     mov cx, PLANE_SIZE
     rep movsb
-@SkipCopy1:
+@skipcopy1:
 
     mov ax, @data
     mov ds, ax
@@ -484,13 +484,13 @@ BlitBufferToScreen PROC
     dec dx
     mov bx, plane2Segment
     or bx, bx
-    jz @SkipCopy2
+    jz SHORT @skipcopy2            ; Fix: Labels únicos y SHORT jumps para TASM range
     mov ds, bx
     xor di, di
     xor si, si
     mov cx, PLANE_SIZE
     rep movsb
-@SkipCopy2:
+@skipcopy2:
 
     mov ax, @data
     mov ds, ax
@@ -503,13 +503,13 @@ BlitBufferToScreen PROC
     dec dx
     mov bx, plane3Segment
     or bx, bx
-    jz @SkipCopy3
+    jz SHORT @skipcopy3            ; Fix: Labels únicos y SHORT jumps para TASM range
     mov ds, bx
     xor di, di
     xor si, si
     mov cx, PLANE_SIZE
     rep movsb
-@SkipCopy3:
+@skipcopy3:
 
     mov ax, @data
     mov ds, ax
