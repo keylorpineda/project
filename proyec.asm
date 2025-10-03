@@ -533,9 +533,11 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
-    mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    xor di, di                     ; Fix: Top-left sin offset para el blit
+    ; Test: Blit viewport top-left para DOSBox
+    ; mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    ; mov di, ax
+    ; add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
@@ -554,9 +556,11 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
-    mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    xor di, di                     ; Fix: Top-left sin offset para el blit
+    ; Test: Blit viewport top-left para DOSBox
+    ; mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    ; mov di, ax
+    ; add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
@@ -575,9 +579,11 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
-    mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    xor di, di                     ; Fix: Top-left sin offset para el blit
+    ; Test: Blit viewport top-left para DOSBox
+    ; mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    ; mov di, ax
+    ; add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
@@ -596,9 +602,11 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
-    mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    xor di, di                     ; Fix: Top-left sin offset para el blit
+    ; Test: Blit viewport top-left para DOSBox
+    ; mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
+    ; mov di, ax
+    ; add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
     mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
@@ -704,30 +712,29 @@ main PROC
     call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
     call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
 
-    call DirectDrawTest            ; Test directo en VRAM sin buffer
+    ; call DirectDrawTest            ; Test directo en VRAM sin buffer
 
-    ; call ClearOffScreenBuffer   ; Temporal: deshabilitado durante prueba directa
+    call ClearOffScreenBuffer      ; Preparar buffer off-screen
 
-    ; mov bx, 0                   ; Temporal: código de raster en buffer deshabilitado
-    ; mov cx, 50
-    ; mov dl, 15
-;LineLoop:
-    ; call DrawPixel
+    mov bx, 0                      ; X inicial para línea horizontal
+    mov cx, 50                     ; Y fijo (fila 50)
+    mov dl, 4                      ; Color rojo
+LineLoop:
+    call DrawPixel
+    inc bx
+    cmp bx, 160
+    jle LineLoop
 
-    ; inc bx
-    ; cmp bx, 160
-    ; jle LineLoop
+    mov dl, 4                      ; Reusar rojo para línea vertical
+    mov bx, 80                     ; X fijo (columna 80)
+    mov cx, 0                      ; Y inicial
+VertLoop:
+    call DrawPixel
+    inc cx
+    cmp cx, 100
+    jle VertLoop
 
-    ; mov dl, 15
-    ; mov bx, 80
-    ; mov cx, 0
-;VertLoop:
-    ; call DrawPixel
-    ; inc cx
-    ; cmp cx, 100
-    ; jle VertLoop
-
-    ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
+    call BlitBufferToScreen        ; Copiar buffer a la pantalla
 
     xor ah, ah                     ; Esperar tecla
     int 16h
