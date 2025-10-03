@@ -294,6 +294,59 @@ SetPaletteWhite PROC
     ret
 SetPaletteWhite ENDP
 
+; Test: Direct draw cruz blanca/roja top-left sin buffer
+DirectDrawTest PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push di
+    push es
+
+    mov ax, 0A000h
+    mov es, ax
+
+    mov dx, 03C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+    dec dx
+
+    xor di, di
+    mov al, 4
+    mov cx, 160
+    rep stosb
+
+    xor di, di
+    mov cx, 100
+@vert:
+    mov BYTE PTR es:[di], 4
+    add di, 80
+    loop @vert
+
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    dec dx
+
+    xor di, di
+    mov al, 15
+    mov cx, 160
+    rep stosb
+
+    pop es
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+DirectDrawTest ENDP
+
 ; Fix: Limpia full A000h para eliminar garbage de modo anterior
 ClearScreen PROC
     push ax
@@ -651,28 +704,30 @@ main PROC
     call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
     call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
 
-    call ClearOffScreenBuffer      ; Limpiar el buffer off-screen
+    call DirectDrawTest            ; Test directo en VRAM sin buffer
 
-    mov bx, 0                      ; Fix: Barrido horizontal completo del viewport
-    mov cx, 50                     ; Fix: Línea central horizontal
-    mov dl, 15                     ; Test: Blanco para comprobar la paleta
-LineLoop:
-    call DrawPixel                 ; Fix: Usar BX=X, CX=Y, DL=color
+    ; call ClearOffScreenBuffer   ; Temporal: deshabilitado durante prueba directa
 
-    inc bx                         ; Siguiente X
-    cmp bx, 160                    ; Fix: Cubrir todo el ancho del viewport (0-160)
-    jle LineLoop                   ; Repetir mientras BX <= 160
+    ; mov bx, 0                   ; Temporal: código de raster en buffer deshabilitado
+    ; mov cx, 50
+    ; mov dl, 15
+;LineLoop:
+    ; call DrawPixel
 
-    mov dl, 15                     ; Test: Blanco para la línea vertical
-    mov bx, 80                     ; Fix: Columna central del viewport (160/2)
-    mov cx, 0                      ; Fix: Inicio superior del viewport
-VertLoop:
-    call DrawPixel                 ; Fix: Dibujo vertical del cruce
-    inc cx
-    cmp cx, 100                    ; Fix: Altura total del viewport
-    jle VertLoop
+    ; inc bx
+    ; cmp bx, 160
+    ; jle LineLoop
 
-    call BlitBufferToScreen        ; Copiar buffer a la pantalla
+    ; mov dl, 15
+    ; mov bx, 80
+    ; mov cx, 0
+;VertLoop:
+    ; call DrawPixel
+    ; inc cx
+    ; cmp cx, 100
+    ; jle VertLoop
+
+    ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
 
     xor ah, ah                     ; Esperar tecla
     int 16h
