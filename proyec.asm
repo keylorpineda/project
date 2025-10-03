@@ -547,60 +547,50 @@ HandleInput PROC
     xor ah, ah
     int 16h
     cmp al, 27
-    jne @continue_input
-    jmp NEAR PTR @exit_input        ; Fix: Salto cercano para evitar overflow de salto corto
-
-@continue_input:
+    je @exit_input
 
     cmp ah, 48h
-    jne @check_down
-    dec word ptr player_y
-    jmp @apply_clamp
-
-@check_down:
+    je @move_up
     cmp ah, 50h
-    jne @check_left
-    inc word ptr player_y
-    jmp @apply_clamp
-
-@check_left:
+    je @move_down
     cmp ah, 4Bh
-    jne @check_right
-    dec word ptr player_x
-    jmp @apply_clamp
-
-@check_right:
+    je @move_left
     cmp ah, 4Dh
-    jne @check_w
-    inc word ptr player_x
-    jmp @apply_clamp
+    je @move_right
 
-@check_w:
     cmp al, 'w'
-    jne @check_s
+    je @move_up
+    cmp al, 'W'
+    je @move_up
+    cmp al, 's'
+    je @move_down
+    cmp al, 'S'
+    je @move_down
+    cmp al, 'a'
+    je @move_left
+    cmp al, 'A'
+    je @move_left
+    cmp al, 'd'
+    je @move_right
+    cmp al, 'D'
+    je @move_right
+
+    jmp @keyloop
+
+@move_up:
     dec word ptr player_y
     jmp @apply_clamp
 
-@check_s:
-    cmp al, 's'
-    jne @check_a
+@move_down:
     inc word ptr player_y
     jmp @apply_clamp
 
-@check_a:
-    cmp al, 'a'
-    jne @check_d
+@move_left:
     dec word ptr player_x
     jmp @apply_clamp
 
-@check_d:
-    cmp al, 'd'
-    jne @no_move
+@move_right:
     inc word ptr player_x
-    jmp @apply_clamp
-
-@no_move:
-    jmp @keyloop
 
 @apply_clamp:
     cmp word ptr player_x, 0
