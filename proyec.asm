@@ -7,9 +7,9 @@
 ; Constantes generales del modo gráfico
 SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
 SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
-BYTES_PER_SCAN    EQU (SCREEN_WIDTH / 8) ; Bytes por línea en cada plano (640/8 = 80)
-PLANE_SIZE        EQU (BYTES_PER_SCAN * SCREEN_HEIGHT) ; Bytes por plano (80*350 = 28000)
-PLANE_PARAGRAPHS  EQU ((PLANE_SIZE + 15) / 16) ; Párrafos necesarios para cada plano (28000/16 = 1750)
+BYTES_PER_SCAN    EQU 80          ; Fix: Valor literal para evitar overflow (640/8)
+PLANE_SIZE        EQU 28000       ; Fix: Valor literal para tamaño de plano
+PLANE_PARAGRAPHS  EQU 1750        ; Fix: Valor literal para número de párrafos por plano
 
 .DATA                             ; Segmento de datos
 Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
@@ -35,7 +35,7 @@ InitOffScreenBuffer PROC
     mov Plane2Segment, 0
     mov Plane3Segment, 0
 
-    mov bx, PLANE_PARAGRAPHS       ; Número de párrafos a reservar por plano
+    mov bx, 1750                  ; Fix: Valor fijo de párrafos por plano
 
     mov ah, 48h                    ; Reservar memoria para el plano 0
     int 21h
@@ -43,19 +43,19 @@ InitOffScreenBuffer PROC
     mov Plane0Segment, ax
 
     mov ah, 48h                    ; Reservar memoria para el plano 1
-    mov bx, PLANE_PARAGRAPHS
+    mov bx, 1750                  ; Fix: Reaplicar valor fijo antes de reservar
     int 21h
     jc @AllocationFailed
     mov Plane1Segment, ax
 
     mov ah, 48h                    ; Reservar memoria para el plano 2
-    mov bx, PLANE_PARAGRAPHS
+    mov bx, 1750                  ; Fix: Reaplicar valor fijo antes de reservar
     int 21h
     jc @AllocationFailed
     mov Plane2Segment, ax
 
     mov ah, 48h                    ; Reservar memoria para el plano 3
-    mov bx, PLANE_PARAGRAPHS
+    mov bx, 1750                  ; Fix: Reaplicar valor fijo antes de reservar
     int 21h
     jc @AllocationFailed
     mov Plane3Segment, ax
@@ -138,14 +138,13 @@ ClearOffScreenBuffer PROC
     push di
     push es
 
-    mov al, 0                      ; Valor de llenado: cero
-
     mov ax, Plane0Segment          ; Borrar plano 0
     or ax, ax
     jz @SkipPlane0
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, 28000                 ; Fix: Conteo literal de bytes por plano
     rep stosb
 @SkipPlane0:
 
@@ -153,8 +152,9 @@ ClearOffScreenBuffer PROC
     or ax, ax
     jz @SkipPlane1
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, 28000                 ; Fix: Conteo literal de bytes por plano
     rep stosb
 @SkipPlane1:
 
@@ -162,8 +162,9 @@ ClearOffScreenBuffer PROC
     or ax, ax
     jz @SkipPlane2
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, 28000                 ; Fix: Conteo literal de bytes por plano
     rep stosb
 @SkipPlane2:
 
@@ -171,8 +172,9 @@ ClearOffScreenBuffer PROC
     or ax, ax
     jz @SkipPlane3
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, 28000                 ; Fix: Conteo literal de bytes por plano
     rep stosb
 @SkipPlane3:
 
@@ -187,101 +189,105 @@ ClearOffScreenBuffer ENDP
 ; Rutina: DrawPixel
 ; Dibuja un píxel en el buffer off-screen usando coordenadas (X,Y) y color C.
 ;  Entradas:
-;       CX = coordenada X (0..639)
-;       DX = coordenada Y (0..349)
-;       AL = color (0..15, 4 bits -> planos 0..3)
-;  Salidas:
-;       Ninguna. El buffer se actualiza en memoria de datos.
+;       BX = coordenada X (0..639)
+;       CX = coordenada Y (0..349)
+;       DL = color (0..15, 4 bits -> planos 0..3)
 ; ----------------------------------------------------------------------------
 DrawPixel PROC
     push ax                        ; Guardar registros modificados
     push bx
     push cx
     push dx
+    push si
     push di
     push es
 
-    mov ah, al                     ; Guardar el color completo en AH
+    mov dh, dl                     ; Fix: Conservar el color completo en DH
 
-    ; Calcular desplazamiento dentro del plano: offset = Y * 80 + (X / 8)
-    mov ax, BYTES_PER_SCAN         ; AX = 80 bytes por línea
-    mul dx                         ; DX:AX = Y * 80 (DX queda en 0 porque 350*80 < 65536)
+    mov ax, BYTES_PER_SCAN         ; Fix: AX=80 para multiplicar Y
+    mul cx                         ; DX:AX = Y * 80 (sin overflow para 350 líneas)
     mov di, ax                     ; DI = Y * 80
 
-    mov bx, cx                     ; BX = X
-    mov dl, bl                     ; DL = parte baja de X (para obtener X mod 8)
-    shr bx, 3                      ; BX = X / 8 (índice de byte dentro de la línea)
-    add di, bx                     ; DI = offset final dentro del plano
+    mov si, bx                     ; Fix: Guardar X original en SI
+    mov ax, si
+    shr ax, 3                      ; AX = X / 8 (índice de byte)
+    add di, ax                     ; DI = offset final dentro del plano
 
-    and dl, 7                      ; DL = X mod 8
-    mov cl, 7                      ; Preparar desplazamiento para invertir el bit
-    sub cl, dl                     ; CL = 7 - (X mod 8)
+    mov ax, si
+    and ax, 7                      ; AX = X mod 8
+    mov cl, 7
+    sub cl, al                     ; CL = 7 - (X mod 8)
     mov al, 1
-    shl al, cl                     ; AL = máscara con el bit correspondiente al píxel
-    mov bl, al                     ; BL = máscara de píxel
-    mov bh, bl                     ; BH = copia de la máscara
-    not bh                         ; BH = máscara invertida (para limpiar el bit)
+    shl al, cl                     ; AL = máscara del bit del píxel
+    mov bl, al                     ; BL = máscara directa
+    mov bh, bl                     ; Fix: Copia de la máscara
+    not bh                         ; Fix: Máscara invertida para limpiar el bit
 
-    ; Actualizar cada plano con el bit correspondiente del color
+    mov si, di                     ; Fix: Guardar offset para reutilizar en cada plano
 
-    ; Plano 0 (bit 0)
-    mov ax, Plane0Segment
+    mov ax, Plane0Segment          ; Plano 0 (bit 0)
     or ax, ax
     jz @NextPlane0
     mov es, ax
-    mov al, ah                     ; AL = color
-    test al, 1                     ; ¿Está activo el bit 0 del color?
+    mov di, si
+    test dh, 1
     jz @ClearPlane0
-    or es:[di], bl                 ; Establecer el bit en el buffer
+    mov al, bl
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
     jmp @NextPlane0
 @ClearPlane0:
-    and es:[di], bh                ; Limpiar el bit si el plano no participa
+    mov al, bh
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
 @NextPlane0:
 
-    ; Plano 1 (bit 1)
-    mov ax, Plane1Segment
+    mov ax, Plane1Segment          ; Plano 1 (bit 1)
     or ax, ax
     jz @NextPlane1
     mov es, ax
-    mov al, ah
-    test al, 2
+    mov di, si
+    test dh, 2
     jz @ClearPlane1
-    or es:[di], bl
+    mov al, bl
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
     jmp @NextPlane1
 @ClearPlane1:
-    and es:[di], bh
+    mov al, bh
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
 @NextPlane1:
 
-    ; Plano 2 (bit 2)
-    mov ax, Plane2Segment
+    mov ax, Plane2Segment          ; Plano 2 (bit 2)
     or ax, ax
     jz @NextPlane2
     mov es, ax
-    mov al, ah
-    test al, 4
+    mov di, si
+    test dh, 4
     jz @ClearPlane2
-    or es:[di], bl
+    mov al, bl
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
     jmp @NextPlane2
 @ClearPlane2:
-    and es:[di], bh
+    mov al, bh
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
 @NextPlane2:
 
-    ; Plano 3 (bit 3)
-    mov ax, Plane3Segment
+    mov ax, Plane3Segment          ; Plano 3 (bit 3)
     or ax, ax
     jz @NextPlane3
     mov es, ax
-    mov al, ah
-    test al, 8
+    mov di, si
+    test dh, 8
     jz @ClearPlane3
-    or es:[di], bl
+    mov al, bl
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
     jmp @NextPlane3
 @ClearPlane3:
-    and es:[di], bh
+    mov al, bh
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
 @NextPlane3:
 
     pop es                         ; Restaurar registros
     pop di
+    pop si
     pop dx
     pop cx
     pop bx
@@ -304,93 +310,86 @@ BlitBufferToScreen PROC
     push ds
     push es
 
-    mov ax, 0A000h                 ; ES = segmento de memoria de video
+    mov ax, 0A000h                 ; Fix: Cargar segmento de video en ES
     mov es, ax
+    mov dx, 03C4h                  ; Fix: Puerto base del sequencer
 
-    ; Copiar cada plano al video usando la máscara correspondiente
-
-    ; Plano 0 --------------------------------------------------------------
-    mov dx, 03C4h                  ; Puerto del sequencer
-    mov al, 02h                    ; Índice del registro Map Mask
-    out dx, al
-    inc dx                         ; DX = 03C5h (registro de datos)
-    mov al, 0001b                  ; Activar únicamente el plano 0
-    out dx, al
-    dec dx                         ; DX = 03C4h (restaurar índice)
-    mov bx, Plane0Segment
-    or bx, bx
+    mov ax, Plane0Segment          ; Plano 0 ------------------------------------------------
+    or ax, ax
     jz @SkipCopy0
-    push ds
-    mov ds, bx
-    xor si, si
-    xor di, di
-    mov cx, PLANE_SIZE             ; CX = número de bytes del plano
-    rep movsb                      ; Copiar plano completo
-    pop ds
-@SkipCopy0:
-
-    ; Plano 1 --------------------------------------------------------------
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 0002b                  ; Activar plano 1
+    mov al, 1                      ; Fix: Máscara decimal para plano 0
     out dx, al
     dec dx
-    mov bx, Plane1Segment
-    or bx, bx
-    jz @SkipCopy1
-    push ds
-    mov ds, bx
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ds, ax
     xor si, si
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, 28000                 ; Fix: Conteo literal para copiar bytes
+    rep movsb
+    pop ds
+@SkipCopy0:
+
+    mov ax, Plane1Segment          ; Plano 1 ------------------------------------------------
+    or ax, ax
+    jz @SkipCopy1
+    mov al, 02h
+    out dx, al
+    inc dx
+    mov al, 2                      ; Fix: Máscara decimal para plano 1
+    out dx, al
+    dec dx
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ds, ax
+    xor si, si
+    xor di, di
+    mov cx, 28000                 ; Fix: Conteo literal para copiar bytes
     rep movsb
     pop ds
 @SkipCopy1:
 
-    ; Plano 2 --------------------------------------------------------------
+    mov ax, Plane2Segment          ; Plano 2 ------------------------------------------------
+    or ax, ax
+    jz @SkipCopy2
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 0004b                  ; Activar plano 2
+    mov al, 4                      ; Fix: Máscara decimal para plano 2
     out dx, al
     dec dx
-    mov bx, Plane2Segment
-    or bx, bx
-    jz @SkipCopy2
-    push ds
-    mov ds, bx
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ds, ax
     xor si, si
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, 28000                 ; Fix: Conteo literal para copiar bytes
     rep movsb
     pop ds
 @SkipCopy2:
 
-    ; Plano 3 --------------------------------------------------------------
+    mov ax, Plane3Segment          ; Plano 3 ------------------------------------------------
+    or ax, ax
+    jz @SkipCopy3
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 0008b                  ; Activar plano 3
+    mov al, 8                      ; Fix: Máscara decimal para plano 3
     out dx, al
     dec dx
-    mov bx, Plane3Segment
-    or bx, bx
-    jz @SkipCopy3
-    push ds
-    mov ds, bx
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ds, ax
     xor si, si
     xor di, di
-    mov cx, PLANE_SIZE
+    mov cx, 28000                 ; Fix: Conteo literal para copiar bytes
     rep movsb
     pop ds
 @SkipCopy3:
 
-    ; Restaurar la máscara para habilitar todos los planos (valor por defecto 0Fh)
-    mov al, 02h
+    mov al, 02h                    ; Fix: Restaurar índice del registro de máscara
     out dx, al
     inc dx
-    mov al, 0Fh
+    mov al, 0Fh                    ; Fix: Habilitar los cuatro planos
     out dx, al
 
     pop es                         ; Restaurar registros
@@ -419,40 +418,32 @@ main PROC
 
 @BuffersReady:
 
-    ; Cambiar a modo gráfico EGA 640x350x16 (INT 10h, AH=00h, AL=10h)
-    mov ax, 0010h
+    mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
 
-    ; Limpiar el buffer off-screen antes de dibujar
-    call ClearOffScreenBuffer
+    call ClearOffScreenBuffer      ; Limpiar el buffer off-screen
 
-    ; Dibujar una línea horizontal de color rojo (4) desde X=0 hasta X=100 en Y=100
-    mov bx, 0                      ; BX = X inicial
+    mov bx, 0                      ; Fix: X inicial de la línea
+    mov cx, 100                    ; Fix: Y constante para la línea
+    mov dl, 4                      ; Fix: Color rojo (bit 2)
 LineLoop:
-    mov cx, bx                     ; CX = X actual
-    mov dx, 100                    ; DX = Y fijo
-    mov al, 4                      ; AL = color rojo (bit 2 activado)
-    call DrawPixel                 ; Dibujar píxel en el buffer
+    call DrawPixel                 ; Fix: Usar BX=X, CX=Y, DL=color
 
     inc bx                         ; Siguiente X
     cmp bx, 101                    ; ¿Llegamos al final (X = 100)?
     jle LineLoop                   ; Repetir mientras BX <= 101
 
-    ; Copiar el buffer a la pantalla (doble buffer -> se muestra todo a la vez)
-    call BlitBufferToScreen
+    call BlitBufferToScreen        ; Copiar buffer a la pantalla
 
-    ; Esperar a que se presione una tecla (INT 16h, AH=00h)
-    xor ah, ah
+    xor ah, ah                     ; Esperar tecla
     int 16h
 
-    ; Volver a modo texto 80x25 (INT 10h, AH=00h, AL=03h)
-    mov ax, 0003h
+    mov ax, 0003h                  ; Volver a modo texto 80x25
     int 10h
 
     call ReleaseOffScreenBuffer    ; Liberar memoria reservada
 
-    ; Terminar el programa regresando a DOS
-    mov ax, 4C00h
+    mov ax, 4C00h                  ; Terminar programa
     int 21h
 main ENDP
 
