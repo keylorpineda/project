@@ -16,17 +16,18 @@ plane0Segment    dw 0             ; Segmento asignado dinámicamente para plano 
 plane1Segment    dw 0             ; Segmento asignado dinámicamente para plano 1
 plane2Segment    dw 0             ; Segmento asignado dinámicamente para plano 2
 plane3Segment    dw 0             ; Segmento asignado dinámicamente para plano 3
+psp_seg          dw 0             ; Fix: Merge viejo working alloc/clear + debug trace crash
 viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
 viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
 crlf             db 13,10,'$'
-msg_alloc_ok     db 'Alloc OK - Buffer listo.$'          ; Fix: Debug prints para trazar crash parpadeo
-msg_draw_ok      db 'Draw OK - Línea lista.$'            ; Fix: Debug prints para trazar crash parpadeo
-msg_blit_ok      db 'Blit OK - Renderizado.$'            ; Fix: Debug prints para trazar crash parpadeo
-msg_wait         db 'Presiona tecla para salir.$'        ; Fix: Debug prints para trazar crash parpadeo
-msg_error        db 'Error en [lugar]: $'                ; Fix: Debug prints para trazar crash parpadeo
+msg_mode_ok      db 'Mode EGA OK.$'                      ; Fix: Merge viejo working alloc/clear + debug trace crash
+msg_alloc_ok     db 'Alloc OK.$'                         ; Fix: Merge viejo working alloc/clear + debug trace crash
+msg_draw_ok      db 'Draw OK.$'                          ; Fix: Merge viejo working alloc/clear + debug trace crash
+msg_blit_ok      db 'Blit OK.$'                          ; Fix: Merge viejo working alloc/clear + debug trace crash
+msg_wait         db 'Wait key.$'                         ; Fix: Merge viejo working alloc/clear + debug trace crash
 
 .CODE                             ; Segmento de código
 
@@ -37,8 +38,43 @@ msg_error        db 'Error en [lugar]: $'                ; Fix: Debug prints par
 ; cargador asigna al .EXE al iniciarse.
 ; -------------------------------------------------------------------------
 ShrinkProgramMemory PROC
-    ; Fix: Buffer fijo .DATA para Fase 2 sin bugs DOSBox
+    ; Fix: Merge viejo working alloc/clear + debug trace crash
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+
+    mov ax, psp_seg
+    or ax, ax
+    jnz SHORT @have_psp
+
+    mov ah, 51h
+    int 21h
+    mov psp_seg, bx
+
+@have_psp:
+    mov es, psp_seg
+    mov ax, es:[2]
+    shr ax, 1
+
+    mov ah, 4Ah
+    mov bx, 100
+    int 21h
+    jc SHORT @shrink_fail
+
     xor ax, ax
+    jmp SHORT @exit
+
+@shrink_fail:
+    mov ax, 1
+
+@exit:
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
     ret
 ShrinkProgramMemory ENDP
 
@@ -49,6 +85,7 @@ ShrinkProgramMemory ENDP
 ; éxito; en caso contrario, AX contiene el código de error devuelto por DOS.
 ; -------------------------------------------------------------------------
 InitOffScreenBuffer PROC
+    ; Fix: Merge viejo working alloc/clear + debug trace crash
     push bx
     push cx
     push dx
@@ -64,62 +101,56 @@ InitOffScreenBuffer PROC
     mov bx, PLANE_PARAGRAPHS
     mov ah, 48h
     int 21h
-    jc @AllocFail
+    jc SHORT @AllocFail
     mov plane0Segment, ax
     mov es, ax
     xor di, di
-    mov al, 0
+    xor ax, ax
     mov cx, PLANE_SIZE
-    rep stosb                     ; Fix: Clear inmediato post-alloc para evitar basura en buffer
+    rep stosb
 
     mov bx, PLANE_PARAGRAPHS
     mov ah, 48h
     int 21h
-    jc @AllocFail
+    jc SHORT @AllocFail
     mov plane1Segment, ax
     mov es, ax
     xor di, di
-    mov al, 0
+    xor ax, ax
     mov cx, PLANE_SIZE
-    rep stosb                     ; Fix: Clear inmediato post-alloc para evitar basura en buffer
+    rep stosb
 
     mov bx, PLANE_PARAGRAPHS
     mov ah, 48h
     int 21h
-    jc @AllocFail
+    jc SHORT @AllocFail
     mov plane2Segment, ax
     mov es, ax
     xor di, di
-    mov al, 0
+    xor ax, ax
     mov cx, PLANE_SIZE
-    rep stosb                     ; Fix: Clear inmediato post-alloc para evitar basura en buffer
+    rep stosb
 
     mov bx, PLANE_PARAGRAPHS
     mov ah, 48h
     int 21h
-    jc @AllocFail
+    jc SHORT @AllocFail
     mov plane3Segment, ax
     mov es, ax
     xor di, di
-    mov al, 0
+    xor ax, ax
     mov cx, PLANE_SIZE
-    rep stosb                     ; Fix: Clear inmediato post-alloc para evitar basura en buffer
+    rep stosb
 
     xor ax, ax
-    pop es
-    pop di
-    pop dx
-    pop cx
-    pop bx
-    ret
+    jmp SHORT @InitExit
 
 @AllocFail:
-    mov dx, OFFSET msg_error       ; Fix: Debug prints para trazar crash parpadeo
-    mov ah, 09h
-    int 21h
     push ax
     call ReleaseOffScreenBuffer
     pop ax
+
+@InitExit:
     pop es
     pop di
     pop dx
@@ -134,52 +165,47 @@ InitOffScreenBuffer ENDP
 ; off-screen (INT 21h, función 49h).
 ; -------------------------------------------------------------------------
 ReleaseOffScreenBuffer PROC
+    ; Fix: Merge viejo working alloc/clear + debug trace crash
     push ax
-    push dx
     push es
-
-    mov ax, plane3Segment
-    or ax, ax
-    jz SHORT @relSkip3            ; Fix: Labels únicos y SHORT jumps para TASM range
-    mov es, ax
-    mov ah, 49h
-    int 21h
-    xor ax, ax
-    mov plane3Segment, ax
-@relSkip3:
-
-    mov ax, plane2Segment
-    or ax, ax
-    jz SHORT @relSkip2            ; Fix: Labels únicos y SHORT jumps para TASM range
-    mov es, ax
-    mov ah, 49h
-    int 21h
-    xor ax, ax
-    mov plane2Segment, ax
-@relSkip2:
-
-    mov ax, plane1Segment
-    or ax, ax
-    jz SHORT @relSkip1            ; Fix: Labels únicos y SHORT jumps para TASM range
-    mov es, ax
-    mov ah, 49h
-    int 21h
-    xor ax, ax
-    mov plane1Segment, ax
-@relSkip1:
 
     mov ax, plane0Segment
     or ax, ax
-    jz SHORT @relSkip0            ; Fix: Labels únicos y SHORT jumps para TASM range
+    jz SHORT @SkipFree0
     mov es, ax
     mov ah, 49h
     int 21h
-    xor ax, ax
-    mov plane0Segment, ax
-@relSkip0:
+    mov plane0Segment, 0
+@SkipFree0:
+
+    mov ax, plane1Segment
+    or ax, ax
+    jz SHORT @SkipFree1
+    mov es, ax
+    mov ah, 49h
+    int 21h
+    mov plane1Segment, 0
+@SkipFree1:
+
+    mov ax, plane2Segment
+    or ax, ax
+    jz SHORT @SkipFree2
+    mov es, ax
+    mov ah, 49h
+    int 21h
+    mov plane2Segment, 0
+@SkipFree2:
+
+    mov ax, plane3Segment
+    or ax, ax
+    jz SHORT @SkipFree3
+    mov es, ax
+    mov ah, 49h
+    int 21h
+    mov plane3Segment, 0
+@SkipFree3:
 
     pop es
-    pop dx
     pop ax
     ret
 ReleaseOffScreenBuffer ENDP
@@ -431,6 +457,7 @@ DrawPixel ENDP
 ; Usa el registro de máscara del mapa (sequencer) para seleccionar cada plano.
 ; ----------------------------------------------------------------------------
 BlitBufferToScreen PROC
+    ; Fix: Merge viejo working alloc/clear + debug trace crash
     push ax                        ; Guardar registros usados
     push bx
     push cx
@@ -582,74 +609,90 @@ PrintHexAX PROC
 PrintHexAX ENDP                     ; Fix: Hex correcto, MSB first, A-F
 
 main PROC
-    mov ax, @data                  ; Inicializar el segmento de datos
+    ; Fix: Merge viejo working alloc/clear + debug trace crash
+    mov ax, @data
     mov ds, ax
 
-    mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
+    call ShrinkProgramMemory
+
+    mov ax, 0010h
     int 10h
 
-    call ClearScreen               ; Fix: Fondo negro completo para evitar artefactos previos
-
-    call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
-
-    call InitOffScreenBuffer       ; Reservar memoria para el buffer off-screen
-    cmp ax, 0
-    je @alloc_ok
-    mov dx, OFFSET msg_error       ; Fix: Debug prints para trazar crash parpadeo
+    mov dx, OFFSET msg_mode_ok
     mov ah, 09h
     int 21h
-    mov al, 1                      ; Fix: Debug prints para trazar crash parpadeo
-    mov ah, 4Ch
+
+    call ClearScreen
+    call SetPaletteRed
+
+    call InitOffScreenBuffer
+    or ax, ax
+    jz SHORT @alloc_ok
+
+    mov si, ax
+    mov dx, OFFSET msg_err
+    mov ah, 09h
+    int 21h
+    mov ax, si
+    call PrintHexAX
+    mov dx, OFFSET msg_free
+    mov ah, 09h
+    int 21h
+    mov ax, bx
+    call PrintHexAX
+    mov dx, OFFSET crlf
+    mov ah, 09h
+    int 21h
+    mov ax, 4C01h
     int 21h
 
 @alloc_ok:
-    mov dx, OFFSET msg_alloc_ok    ; Fix: Debug prints para trazar crash parpadeo
+    mov dx, OFFSET msg_alloc_ok
     mov ah, 09h
     int 21h
 
-    call ClearOffScreenBuffer      ; Preparar buffer off-screen en RAM dinámica
+    call ClearOffScreenBuffer
 
-    mov cx, 50                     ; Fix: Línea horizontal roja en Y=50
-    mov bx, 0                      ; Fix: Inicio de línea horizontal en X=0
-    mov dl, 4                      ; Fix: Color rojo índice 4
-LineLoop:
+    mov cx, 0
+    mov bx, 0
+    mov dl, 4
+@LineLoop:
     call DrawPixel
     inc bx
     cmp bx, 160
-    jb LineLoop
+    jb SHORT @LineLoop
 
-    mov dx, OFFSET msg_draw_ok     ; Fix: Debug prints para trazar crash parpadeo
+    mov dx, OFFSET msg_draw_ok
     mov ah, 09h
     int 21h
 
-    mov bx, 80                     ; Fix: Línea vertical roja en X=80
-    mov cx, 0                      ; Fix: Inicio de línea vertical en Y=0
-    mov dl, 4                      ; Fix: Color rojo índice 4
-VertLoop:
+    mov bx, 0
+    mov cx, 0
+    mov dl, 4
+@VertLoop:
     call DrawPixel
     inc cx
     cmp cx, 100
-    jb VertLoop
+    jb SHORT @VertLoop
 
-    call BlitBufferToScreen        ; Copiar buffer a la pantalla
+    call BlitBufferToScreen
 
-    mov dx, OFFSET msg_blit_ok     ; Fix: Debug prints para trazar crash parpadeo
+    mov dx, OFFSET msg_blit_ok
     mov ah, 09h
     int 21h
 
-    mov dx, OFFSET msg_wait        ; Fix: Debug prints para trazar crash parpadeo
+    mov dx, OFFSET msg_wait
     mov ah, 09h
     int 21h
-    xor ah, ah                     ; Fix: Debug prints para trazar crash parpadeo
+    xor ah, ah
     int 16h
 
-@Exit:
-    call ReleaseOffScreenBuffer    ; Liberar memoria dinámica reservada
+    call ReleaseOffScreenBuffer
 
-    mov ax, 0003h                  ; Volver a modo texto 80x25
+    mov ax, 0003h
     int 10h
 
-    mov ax, 4C00h                  ; Terminar programa
+    mov ax, 4C00h
     int 21h
 main ENDP
 
