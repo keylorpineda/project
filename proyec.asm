@@ -597,7 +597,7 @@ HandleInput PROC
     cmp bl, 'D'
     je @move_right
 
-    jmp short @frame_loop          ; Tecla no válida: continuar
+    jmp @frame_loop                ; Tecla no válida: continuar
 
 @move_up:
     mov ax, player_y
@@ -605,7 +605,7 @@ HandleInput PROC
     jz @apply_clamp
     dec ax
     mov player_y, ax
-    jmp short @apply_clamp
+    jmp @apply_clamp
 
 @move_down:
     mov ax, player_y
@@ -613,7 +613,7 @@ HandleInput PROC
     jae @apply_clamp
     inc ax
     mov player_y, ax
-    jmp short @apply_clamp
+    jmp @apply_clamp
 
 @move_left:
     mov ax, player_x
@@ -621,7 +621,7 @@ HandleInput PROC
     jz @apply_clamp
     dec ax
     mov player_x, ax
-    jmp short @apply_clamp
+    jmp @apply_clamp
 
 @move_right:
     mov ax, player_x
@@ -655,7 +655,7 @@ HandleInput PROC
     jbe @frame_loop
     mov ax, VIEWPORT_MAX_Y
     mov player_y, ax
-    jmp short @frame_loop
+    jmp @frame_loop
 
 @exit_input:
     pop dx
