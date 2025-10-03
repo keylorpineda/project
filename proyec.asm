@@ -256,23 +256,43 @@ SetPaletteRed PROC
     out dx, al                     ; Seleccionar color 4
     inc dx                         ; DX = 03C9h (datos de la DAC)
 
-    mov al, 3
-    out dx, al                     ; R bajo = 3 (valor 63 = 3*16 + 15)
-    mov al, 15
-    out dx, al                     ; R alto = 15
+    mov al, 63
+    out dx, al                     ; Fix: EGA 6-bit DAC, 3 bytes/color (R=63 G=0 B=0 para rojo puro)
     mov al, 0
-    out dx, al                     ; G bajo = 0
+    out dx, al
     mov al, 0
-    out dx, al                     ; G alto = 0
-    mov al, 0
-    out dx, al                     ; B bajo = 0
-    mov al, 0
-    out dx, al                     ; B alto = 0
+    out dx, al
 
     pop dx                         ; Restaurar registros
     pop ax
     ret
 SetPaletteRed ENDP
+
+; ----------------------------------------------------------------------------
+; Rutina: SetPaletteWhite
+; Ajusta el color 15 de la paleta EGA a blanco completo (R=63, G=63, B=63)
+; para mejorar la visibilidad de los elementos de prueba.
+; ----------------------------------------------------------------------------
+SetPaletteWhite PROC
+    push ax
+    push dx
+
+    mov dx, 03C8h
+    mov al, 15
+    out dx, al
+    inc dx
+
+    mov al, 63
+    out dx, al                     ; Test: Blanco full para línea visible
+    mov al, 63
+    out dx, al
+    mov al, 63
+    out dx, al
+
+    pop dx
+    pop ax
+    ret
+SetPaletteWhite ENDP
 
 ; Fix: Limpia full A000h para eliminar garbage de modo anterior
 ClearScreen PROC
@@ -629,25 +649,27 @@ main PROC
 
     call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
     call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
+    call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
 
     call ClearOffScreenBuffer      ; Limpiar el buffer off-screen
 
-    mov bx, 40                     ; Fix: Inicio horizontal ampliado para visibilidad
-    mov cx, 50                     ; Fix: Y centrado dentro del viewport
-    mov dl, 4                      ; Fix: Color rojo (bit 2)
+    mov bx, 0                      ; Fix: Barrido horizontal completo del viewport
+    mov cx, 50                     ; Fix: Línea central horizontal
+    mov dl, 15                     ; Test: Blanco para comprobar la paleta
 LineLoop:
     call DrawPixel                 ; Fix: Usar BX=X, CX=Y, DL=color
 
     inc bx                         ; Siguiente X
-    cmp bx, 120                    ; Fix: Extender la línea horizontal
-    jle LineLoop                   ; Repetir mientras BX <= 120
+    cmp bx, 160                    ; Fix: Cubrir todo el ancho del viewport (0-160)
+    jle LineLoop                   ; Repetir mientras BX <= 160
 
-    mov bx, 75                     ; Fix: X central para la línea vertical
-    mov cx, 40                     ; Fix: Inicio superior de la cruz
+    mov dl, 15                     ; Test: Blanco para la línea vertical
+    mov bx, 80                     ; Fix: Columna central del viewport (160/2)
+    mov cx, 0                      ; Fix: Inicio superior del viewport
 VertLoop:
     call DrawPixel                 ; Fix: Dibujo vertical del cruce
     inc cx
-    cmp cx, 60                     ; Fix: Hacer línea vertical visible
+    cmp cx, 100                    ; Fix: Altura total del viewport
     jle VertLoop
 
     call BlitBufferToScreen        ; Copiar buffer a la pantalla
