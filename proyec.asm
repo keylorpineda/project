@@ -60,13 +60,13 @@ ShrinkProgramMemory PROC
 
     mov ax, psp_seg                 ; ¿Ya tenemos el PSP cacheado?
     or ax, ax
-    jnz @have_psp
+    jnz Shrink_have_psp
 
     mov ah, 51h                     ; DOS 2+: obtener segmento del PSP
     int 21h
     mov psp_seg, bx
 
-@have_psp:
+Shrink_have_psp:
     mov es, psp_seg                 ; ES -> PSP
     mov si, es:[2]                  ; SI = tamaño actual del bloque en párrafos
 
@@ -79,28 +79,28 @@ ShrinkProgramMemory PROC
     mov cl, 4
     shr ax, cl
     cmp dx, 0
-    je @NoExtraParagraph
+    je Shrink_NoExtraParagraph
     inc ax
-@NoExtraParagraph:
+Shrink_NoExtraParagraph:
     add bx, ax                      ; BX = párrafos necesarios para el programa
 
     mov ax, si
     sub ax, bx                      ; ¿Cuántos párrafos quedarían libres?
-    jc @cannot_shrink               ; No hay espacio extra
+    jc Shrink_cannot_shrink         ; No hay espacio extra
     cmp ax, REQUIRED_FREE_PARAGRAPHS
-    jb @cannot_shrink               ; No es suficiente para los buffers
+    jb Shrink_cannot_shrink         ; No es suficiente para los buffers
 
     mov ah, 4Ah                     ; Intentar encoger el bloque
     int 21h
-    jc @cannot_shrink
+    jc Shrink_cannot_shrink
 
     xor ax, ax                      ; AX=0 -> shrink exitoso
-    jmp @exit
+    jmp Shrink_exit
 
-@cannot_shrink:
+Shrink_cannot_shrink:
     mov ax, 1                       ; AX=1 -> se mantiene el tamaño original
 
-@exit:
+Shrink_exit:
     pop es
     pop si
     pop dx
