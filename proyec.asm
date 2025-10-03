@@ -23,6 +23,8 @@ msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
 crlf             db 13,10,'$'
+player_x        dw 80            ; Fase 3: Input movimiento línea - posición X inicial
+player_y        dw 50            ; Fase 3: Input movimiento línea - posición Y inicial
 
 .CODE                             ; Segmento de código
 
@@ -503,6 +505,134 @@ DrawPixel PROC
     ret
 DrawPixel ENDP
 
+; Fase 3: Input movimiento línea
+; Dibuja la línea roja del jugador reutilizando DrawPixel.
+; Dibuja línea player horizontal desde player_x en player_y
+DrawPlayerLine PROC
+    push bx
+    push cx
+    push dx
+    push si
+
+    mov bx, player_x
+    mov cx, player_y
+    mov dl, 4
+    mov si, 20
+
+@loop_player:
+    call DrawPixel
+    inc bx
+    dec si
+    jnz @loop_player
+
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    ret
+DrawPlayerLine ENDP
+
+; Fase 3: Input movimiento línea - Lee tecla, mueve player, redraw loop
+HandleInput PROC
+    push ax
+    push bx
+    push cx
+    push dx
+
+    call ClearOffScreenBuffer
+    call DrawPlayerLine
+    call BlitBufferToScreen
+
+@keyloop:
+    xor ah, ah
+    int 16h
+    cmp al, 27
+    je @exit_input
+
+    cmp ah, 48h
+    jne @check_down
+    dec word ptr player_y
+    jmp @apply_clamp
+
+@check_down:
+    cmp ah, 50h
+    jne @check_left
+    inc word ptr player_y
+    jmp @apply_clamp
+
+@check_left:
+    cmp ah, 4Bh
+    jne @check_right
+    dec word ptr player_x
+    jmp @apply_clamp
+
+@check_right:
+    cmp ah, 4Dh
+    jne @check_w
+    inc word ptr player_x
+    jmp @apply_clamp
+
+@check_w:
+    cmp al, 'w'
+    jne @check_s
+    dec word ptr player_y
+    jmp @apply_clamp
+
+@check_s:
+    cmp al, 's'
+    jne @check_a
+    inc word ptr player_y
+    jmp @apply_clamp
+
+@check_a:
+    cmp al, 'a'
+    jne @check_d
+    dec word ptr player_x
+    jmp @apply_clamp
+
+@check_d:
+    cmp al, 'd'
+    jne @no_move
+    inc word ptr player_x
+    jmp @apply_clamp
+
+@no_move:
+    jmp @keyloop
+
+@apply_clamp:
+    cmp word ptr player_x, 0
+    jge @clamp_x_high
+    mov word ptr player_x, 0
+
+@clamp_x_high:
+    cmp word ptr player_x, 140
+    jle @clamp_y_low
+    mov word ptr player_x, 140
+
+@clamp_y_low:
+    cmp word ptr player_y, 0
+    jge @clamp_y_high
+    mov word ptr player_y, 0
+
+@clamp_y_high:
+    cmp word ptr player_y, 99
+    jle @redraw
+    mov word ptr player_y, 99
+
+@redraw:
+    call ClearOffScreenBuffer
+    call DrawPlayerLine
+    call BlitBufferToScreen
+    jmp @keyloop
+
+@exit_input:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+HandleInput ENDP
+
 ; ----------------------------------------------------------------------------
 ; Rutina: BlitBufferToScreen
 ; Copia el contenido del buffer off-screen a la memoria de video A000h.
@@ -729,8 +859,7 @@ main PROC
 
     ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
 
-    xor ah, ah                     ; Esperar tecla
-    int 16h
+    call HandleInput               ; Fase 3: Input movimiento línea - control interactivo
 
     mov ax, 0003h                  ; Volver a modo texto 80x25
     int 10h
