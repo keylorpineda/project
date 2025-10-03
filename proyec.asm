@@ -16,13 +16,67 @@ Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
 Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
+psp_seg          dw 0             ; Fix: Para PSP segment
 msg_ok           db 'Memoria OK - Entrando grafico. Presiona tecla para salir.$'
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
-buffer_err       db 10 dup(0)
+msg_shrink       db 'Shrink OK$',13,10,'$'
+msg_shrink_fail  db 'Shrink fail',13,10,'$'
 crlf             db 13,10,'$'
 
 .CODE                             ; Segmento de código
+
+; -------------------------------------------------------------------------
+; Rutina: ShrinkProgramMemory
+; Reduce el bloque de memoria asignado al programa antes de reservar
+; memoria adicional para los planos. Esto libera memoria "prestada" que el
+; cargador asigna al .EXE al iniciarse.
+; -------------------------------------------------------------------------
+ShrinkProgramMemory PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+
+    mov ax, psp_seg
+    or ax, ax
+    jnz @have_psp
+
+    mov ah, 51h                     ; Fix: Obtener segmento del PSP actual
+    int 21h
+    mov psp_seg, bx
+
+@have_psp:
+    mov es, psp_seg                 ; PSP segment para INT 21h/4Ah
+    mov ax, es:[2]                  ; AX = párrafos originales
+    shr ax, 1                       ; Fix: Estimar tamaño de código propio
+
+    mov ah, 4Ah                     ; Función DOS para encoger bloque
+    mov bx, 100                     ; Fix: Shrink programa a 100 paragraphs para liberar mem para alloc
+    int 21h
+    jc @shrink_fail
+
+    mov dx, offset msg_shrink
+    mov ah, 09h
+    int 21h
+    xor ax, ax                      ; Fix: AX=0 indica shrink exitoso
+    jmp @exit
+
+@shrink_fail:
+    mov dx, offset msg_shrink_fail
+    mov ah, 09h
+    int 21h
+    mov ax, 1                       ; Fix: AX=1 indica shrink no disponible
+
+@exit:
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+ShrinkProgramMemory ENDP
 
 ; -------------------------------------------------------------------------
 ; Rutina: InitOffScreenBuffer
@@ -343,7 +397,7 @@ BlitBufferToScreen PROC
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
     mov ds, ax
     xor si, si
-    xor di, di                    ; Fix: Copiar viewport desde offset 0
+    xor di, di                    ; Fix: Mantener viewport en origen (centrado pendiente)
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
@@ -361,7 +415,7 @@ BlitBufferToScreen PROC
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
     mov ds, ax
     xor si, si
-    xor di, di                    ; Fix: Copiar viewport desde offset 0
+    xor di, di                    ; Fix: Mantener viewport en origen (centrado pendiente)
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
@@ -379,7 +433,7 @@ BlitBufferToScreen PROC
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
     mov ds, ax
     xor si, si
-    xor di, di                    ; Fix: Copiar viewport desde offset 0
+    xor di, di                    ; Fix: Mantener viewport en origen (centrado pendiente)
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
@@ -397,7 +451,7 @@ BlitBufferToScreen PROC
     push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
     mov ds, ax
     xor si, si
-    xor di, di                    ; Fix: Copiar viewport desde offset 0
+    xor di, di                    ; Fix: Mantener viewport en origen (centrado pendiente)
     mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
     rep movsb
     pop ds
@@ -425,23 +479,35 @@ PrintHexAX PROC
     push bx
     push cx
     push dx
-    mov cx, 4
+    push si
+    mov dx, ax
     mov bx, ax
+    mov si, 4
+    mov cl, 12
 @loop:
-    mov al, bh
-    and al, 0F0h
-    shr al, 4
-    shl bx, 4
+    mov ax, dx
+    shr ax, cl
+    and al, 0Fh
     mov dl, '0'
     cmp al, 9
     jbe @num
     mov dl, 'A'
-    sub al, 10
+    add dl, al
+    sub dl, 10
+    jmp @print
 @num:
     add dl, al
+@print:
     mov ah, 02h
     int 21h
-    loop @loop
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+    shr bx, 4                       ; Fix: Avanzar siguiente nibble desde MSB
+    dec si
+    jnz @loop
+    pop si
     pop dx
     pop cx
     pop bx
@@ -452,6 +518,8 @@ PrintHexAX ENDP                     ; Fix: Hex correcto, MSB first, A-F
 main PROC
     mov ax, @data                  ; Inicializar el segmento de datos
     mov ds, ax
+
+    call ShrinkProgramMemory       ; Fix: Liberar memoria prestada antes de reservar planos
 
     call InitOffScreenBuffer       ; Reservar memoria para el buffer off-screen
     cmp ax, 0
