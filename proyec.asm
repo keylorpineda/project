@@ -4,52 +4,25 @@
 .MODEL SMALL                      ; Usar modelo de memoria small (código y datos < 64K)
 .STACK 100h                       ; Reservar 256 bytes para la pila
 
-STACK_SIZE            EQU 100h
-STACK_PARAGRAPHS      EQU (STACK_SIZE + 15) / 16
-SHRINK_MARGIN_PARAS   EQU 16
-
 ; Constantes generales del modo gráfico
-SCREEN_WIDTH          EQU 640
-SCREEN_HEIGHT         EQU 350
-SCREEN_BYTES_PER_SCAN EQU SCREEN_WIDTH / 8            ; 80 bytes por scanline
-VRAM_SIZE             EQU SCREEN_BYTES_PER_SCAN * SCREEN_HEIGHT
-
-; Constantes del viewport 160x100 centrado en pantalla
-VIEWPORT_WIDTH        EQU 160
-VIEWPORT_HEIGHT       EQU 100
-BYTES_PER_SCAN        EQU VIEWPORT_WIDTH / 8          ; 160 / 8 = 20 bytes por scanline
-PLANE_SIZE            EQU BYTES_PER_SCAN * VIEWPORT_HEIGHT
-PLANE_PARAGRAPHS      EQU 128                         ; 8 KB por plano para reserva segura
-ROW_STRIDE_DIFF       EQU SCREEN_BYTES_PER_SCAN - BYTES_PER_SCAN
-VIEWPORT_MARGIN_X     EQU (SCREEN_WIDTH - VIEWPORT_WIDTH) / 2
-VIEWPORT_MARGIN_Y     EQU (SCREEN_HEIGHT - VIEWPORT_HEIGHT) / 2
-VIEWPORT_X_OFFSET     EQU VIEWPORT_MARGIN_X / 8
-VIEWPORT_Y_OFFSET     EQU VIEWPORT_MARGIN_Y * SCREEN_BYTES_PER_SCAN
-
-; Constantes de la línea controlable
-LINE_LENGTH           EQU 120
-LINE_STEP             EQU 4
-LINE_COLOR            EQU 4
-MAX_PIXEL_X           EQU VIEWPORT_WIDTH - 1
-MAX_PIXEL_Y           EQU VIEWPORT_HEIGHT - 1
-MAX_LINE_X            EQU VIEWPORT_WIDTH - LINE_LENGTH
-MAX_LINE_Y            EQU VIEWPORT_HEIGHT - 1
+SCREEN_WIDTH      EQU 640         ; Ancho de pantalla en píxeles
+SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
+BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
+PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
+PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
 
 .DATA                             ; Segmento de datos
-Plane0Segment        dw 0         ; Segmento del plano 0 (bit de peso 1)
-Plane1Segment        dw 0         ; Segmento del plano 1 (bit de peso 2)
-Plane2Segment        dw 0         ; Segmento del plano 2 (bit de peso 4)
-Plane3Segment        dw 0         ; Segmento del plano 3 (bit de peso 8)
-psp_seg              dw 0         ; Segmento del PSP para shrink
-viewport_x_offset_var dw VIEWPORT_X_OFFSET
-viewport_y_offset_var dw VIEWPORT_Y_OFFSET
-line_pos_x           dw (VIEWPORT_WIDTH - LINE_LENGTH) / 2
-line_pos_y           dw VIEWPORT_HEIGHT / 2
-msg_err              db 'ERROR: Alloc fallo. Codigo: $'
-msg_free             db ' (free block: $'
-msg_shrink_fail      db 'Shrink fail',13,10,'$'
-crlf                 db 13,10,'$'
-DataEnd              LABEL BYTE
+Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
+Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
+Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
+Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
+psp_seg          dw 0             ; Fix: Para PSP segment
+viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
+viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
+msg_err          db 'ERROR: Alloc fallo. Codigo: $'
+msg_free         db ' (free block: $'
+msg_shrink_fail  db 'Shrink fail',13,10,'$'
+crlf             db 13,10,'$'
 
 .CODE                             ; Segmento de código
 
@@ -64,81 +37,38 @@ ShrinkProgramMemory PROC
     push bx
     push cx
     push dx
-    push si
-    push di
-    push bp
     push es
 
     mov ax, psp_seg
     or ax, ax
     jnz @have_psp
 
-    mov ah, 51h                     ; Obtener segmento del PSP actual
+    mov ah, 51h                     ; Fix: Obtener segmento del PSP actual
     int 21h
     mov psp_seg, bx
 
 @have_psp:
-    mov ax, psp_seg
-    mov es, ax
-    mov dx, es:[2]                  ; Tamaño actual del bloque en párrafos
+    mov es, psp_seg                 ; PSP segment para INT 21h/4Ah
+    mov ax, es:[2]                  ; AX = párrafos originales
+    shr ax, 1                       ; Fix: Estimar tamaño de código propio
 
-    mov ax, cs
-    sub ax, psp_seg
-    mov bx, ax
-    mov ax, OFFSET CodeEnd
-    add ax, 15
-    shr ax, 4
-    add bx, ax
-    mov si, bx                      ; Párrafos necesarios para el código
-
-    mov ax, ds
-    sub ax, psp_seg
-    mov bx, ax
-    mov ax, OFFSET DataEnd
-    add ax, 15
-    shr ax, 4
-    add bx, ax
-    mov di, bx                      ; Párrafos necesarios para datos
-
-    mov ax, ss
-    sub ax, psp_seg
-    mov bx, ax
-    mov ax, STACK_PARAGRAPHS
-    add bx, ax
-    mov bp, bx                      ; Párrafos necesarios para la pila
-
-    mov ax, si
-    cmp di, ax
-    jbe @check_stack
-    mov ax, di
-@check_stack:
-    cmp bp, ax
-    jbe @add_margin
-    mov ax, bp
-@add_margin:
-    add ax, SHRINK_MARGIN_PARAS
-    cmp ax, dx
-    jbe @have_size
-    mov ax, dx
-@have_size:
-    mov bx, ax
     mov ah, 4Ah                     ; Función DOS para encoger bloque
-    mov ax, psp_seg
-    mov es, ax
+    mov bx, 100                     ; Fix: Shrink programa a 100 paragraphs para liberar mem para alloc
     int 21h
     jc @shrink_fail
 
-    xor ax, ax                      ; AX=0 indica shrink exitoso
+    xor ax, ax                      ; Fix: AX=0 indica shrink exitoso
     jmp @exit
 
 @shrink_fail:
-    mov ax, 1                       ; AX=1 indica shrink no disponible
+    ; Fix: Quitar mensaje shrink para evitar basura en salida
+    ; mov dx, offset msg_shrink_fail
+    ; mov ah, 09h
+    ; int 21h
+    mov ax, 1                       ; Fix: AX=1 indica shrink no disponible
 
 @exit:
     pop es
-    pop bp
-    pop di
-    pop si
     pop dx
     pop cx
     pop bx
@@ -158,43 +88,44 @@ InitOffScreenBuffer PROC
     push dx
     push es
 
+    ; Asegurarse de que los segmentos están en cero antes de reservar.
     mov Plane0Segment, 0
     mov Plane1Segment, 0
     mov Plane2Segment, 0
     mov Plane3Segment, 0
 
-    mov bx, PLANE_PARAGRAPHS
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reserva 8 KB por plano reducido
 
-    mov ah, 48h
+    mov ah, 48h                    ; Reservar memoria para el plano 0
     int 21h
     jc @AllocationFailed
     mov Plane0Segment, ax
 
-    mov ah, 48h
-    mov bx, PLANE_PARAGRAPHS
+    mov ah, 48h                    ; Reservar memoria para el plano 1
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reaplicar tamaño reducido
     int 21h
     jc @AllocationFailed
     mov Plane1Segment, ax
 
-    mov ah, 48h
-    mov bx, PLANE_PARAGRAPHS
+    mov ah, 48h                    ; Reservar memoria para el plano 2
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reaplicar tamaño reducido
     int 21h
     jc @AllocationFailed
     mov Plane2Segment, ax
 
-    mov ah, 48h
-    mov bx, PLANE_PARAGRAPHS
+    mov ah, 48h                    ; Reservar memoria para el plano 3
+    mov bx, PLANE_PARAGRAPHS      ; Fix: Reaplicar tamaño reducido
     int 21h
     jc @AllocationFailed
     mov Plane3Segment, ax
 
-    xor ax, ax
+    xor ax, ax                     ; AX=0 indica éxito
     jmp @InitExit
 
 @AllocationFailed:
-    push ax
-    call ReleaseOffScreenBuffer
-    pop ax
+    push ax                        ; Guardar código de error
+    call ReleaseOffScreenBuffer    ; Liberar cualquier bloque ya reservado
+    pop ax                         ; Recuperar el código de error original
 
 @InitExit:
     pop es
@@ -259,54 +190,52 @@ ReleaseOffScreenBuffer ENDP
 ; Borra los cuatro planos del buffer off-screen llenándolos con cero.
 ; ----------------------------------------------------------------------------
 ClearOffScreenBuffer PROC
-    push ax
+    push ax                        ; Guardar registros usados
     push cx
     push di
     push es
 
-    cld
-
-    mov ax, Plane0Segment
+    mov ax, Plane0Segment          ; Borrar plano 0
     or ax, ax
     jz @SkipPlane0
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    xor ax, ax
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
 @SkipPlane0:
 
-    mov ax, Plane1Segment
+    mov ax, Plane1Segment          ; Borrar plano 1
     or ax, ax
     jz @SkipPlane1
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    xor ax, ax
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
 @SkipPlane1:
 
-    mov ax, Plane2Segment
+    mov ax, Plane2Segment          ; Borrar plano 2
     or ax, ax
     jz @SkipPlane2
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    xor ax, ax
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
 @SkipPlane2:
 
-    mov ax, Plane3Segment
+    mov ax, Plane3Segment          ; Borrar plano 3
     or ax, ax
     jz @SkipPlane3
     mov es, ax
+    xor ax, ax                     ; Fix: AL=0 para stosb
     xor di, di
-    xor ax, ax
-    mov cx, PLANE_SIZE
+    mov cx, PLANE_SIZE            ; Fix: Conteo ajustado al viewport reducido
     rep stosb
 @SkipPlane3:
 
-    pop es
+    pop es                         ; Restaurar registros
     pop di
     pop cx
     pop ax
@@ -314,58 +243,35 @@ ClearOffScreenBuffer PROC
 ClearOffScreenBuffer ENDP
 
 ; ----------------------------------------------------------------------------
-; Rutina: WaitVerticalRetrace
-; Sincroniza con el inicio del barrido vertical de la EGA para evitar tearing.
-; ----------------------------------------------------------------------------
-WaitVerticalRetrace PROC
-    push ax
-    push dx
-
-    mov dx, 03DAh
-
-@WaitNotRetrace:
-    in al, dx
-    test al, 08h
-    jnz @WaitNotRetrace
-
-@WaitRetrace:
-    in al, dx
-    test al, 08h
-    jz @WaitRetrace
-
-    pop dx
-    pop ax
-    ret
-WaitVerticalRetrace ENDP
-
-; ----------------------------------------------------------------------------
 ; Rutina: SetPaletteRed
 ; Ajusta el color 4 de la paleta EGA a rojo brillante (R=63, G=0, B=0).
+; Esto mejora la visibilidad de los elementos renderizados en el viewport.
 ; ----------------------------------------------------------------------------
 SetPaletteRed PROC
-    push ax
+    push ax                        ; Conservar registros usados
     push dx
 
-    mov dx, 03C8h
+    mov dx, 03C8h                  ; Puerto de índice de la DAC
     mov al, 4
-    out dx, al
-    inc dx
+    out dx, al                     ; Seleccionar color 4
+    inc dx                         ; DX = 03C9h (datos de la DAC)
 
     mov al, 63
-    out dx, al
+    out dx, al                     ; Fix: EGA 6-bit DAC, 3 bytes/color (R=63 G=0 B=0 para rojo puro)
     mov al, 0
     out dx, al
     mov al, 0
     out dx, al
 
-    pop dx
+    pop dx                         ; Restaurar registros
     pop ax
     ret
 SetPaletteRed ENDP
 
 ; ----------------------------------------------------------------------------
 ; Rutina: SetPaletteWhite
-; Ajusta el color 15 de la paleta EGA a blanco completo (R=63, G=63, B=63).
+; Ajusta el color 15 de la paleta EGA a blanco completo (R=63, G=63, B=63)
+; para mejorar la visibilidad de los elementos de prueba.
 ; ----------------------------------------------------------------------------
 SetPaletteWhite PROC
     push ax
@@ -377,7 +283,7 @@ SetPaletteWhite PROC
     inc dx
 
     mov al, 63
-    out dx, al
+    out dx, al                     ; Test: Blanco full para línea visible
     mov al, 63
     out dx, al
     mov al, 63
@@ -388,12 +294,63 @@ SetPaletteWhite PROC
     ret
 SetPaletteWhite ENDP
 
-; ----------------------------------------------------------------------------
-; Rutina: ClearScreen
-; Limpia toda la memoria de video del modo 10h.
-; ----------------------------------------------------------------------------
+; Test: Direct draw cruz blanca/roja top-left sin buffer
+DirectDrawTest PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push di
+    push es
+
+    mov ax, 0A000h
+    mov es, ax
+
+    mov dx, 03C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+    dec dx
+
+    xor di, di
+    mov al, 4
+    mov cx, 160
+    rep stosb
+
+    xor di, di
+    mov cx, 100
+@vert:
+    mov BYTE PTR es:[di], 4
+    add di, 80
+    loop @vert
+
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    dec dx
+
+    xor di, di
+    mov al, 15
+    mov cx, 160
+    rep stosb
+
+    pop es
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+DirectDrawTest ENDP
+
+; Fix: Limpia full A000h para eliminar garbage de modo anterior
 ClearScreen PROC
     push ax
+    push bx
     push cx
     push dx
     push di
@@ -410,16 +367,16 @@ ClearScreen PROC
     out dx, al
     dec dx
 
-    cld
     xor di, di
-    xor ax, ax
-    mov cx, VRAM_SIZE
+    mov al, 0
+    mov cx, 28000                ; Fix: 350*80 bytes totales modo 10h
     rep stosb
 
     pop es
     pop di
     pop dx
     pop cx
+    pop bx
     pop ax
     ret
 ClearScreen ENDP
@@ -427,13 +384,13 @@ ClearScreen ENDP
 ; ----------------------------------------------------------------------------
 ; Rutina: DrawPixel
 ; Dibuja un píxel en el buffer off-screen usando coordenadas (X,Y) y color C.
-; Entradas:
-;   BX = coordenada X (0..VIEWPORT_WIDTH-1)
-;   CX = coordenada Y (0..VIEWPORT_HEIGHT-1)
-;   DL = color (0..15)
+;  Entradas:
+;       BX = coordenada X (0..639)
+;       CX = coordenada Y (0..349)
+;       DL = color (0..15, 4 bits -> planos 0..3)
 ; ----------------------------------------------------------------------------
 DrawPixel PROC
-    push ax
+    push ax                        ; Guardar registros modificados
     push bx
     push cx
     push dx
@@ -441,40 +398,41 @@ DrawPixel PROC
     push di
     push es
 
-    cmp bx, MAX_PIXEL_X
+    cmp bx, 159                    ; Fix: Limit viewport 160x100
     jbe @CheckYBounds
     jmp NEAR PTR @exit_pixel
 
 @CheckYBounds:
-    cmp cx, MAX_PIXEL_Y
+    cmp cx, 99                     ; Fix: Limit viewport 160x100
     jbe @PixelWithinBounds
     jmp NEAR PTR @exit_pixel
 
 @PixelWithinBounds:
-    mov dh, dl
 
-    mov ax, BYTES_PER_SCAN
-    mul cx
-    mov di, ax
+    mov dh, dl                     ; Fix: Conservar el color completo en DH
 
-    mov si, bx
+    mov ax, BYTES_PER_SCAN         ; Fix: AX=20 para multiplicar Y en viewport
+    mul cx                         ; DX:AX = Y * 20 (sin overflow para 100 líneas)
+    mov di, ax                     ; DI = Y * 20
+
+    mov si, bx                     ; Fix: Guardar X original en SI
     mov ax, si
-    shr ax, 3
-    add di, ax
+    shr ax, 3                      ; AX = X / 8 (índice de byte)
+    add di, ax                     ; DI = offset final dentro del plano
 
     mov ax, si
-    and ax, 7
+    and ax, 7                      ; AX = X mod 8
     mov cl, 7
-    sub cl, al
+    sub cl, al                     ; CL = 7 - (X mod 8)
     mov al, 1
-    shl al, cl
-    mov bl, al
-    mov bh, bl
-    not bh
+    shl al, cl                     ; AL = máscara del bit del píxel
+    mov bl, al                     ; BL = máscara directa
+    mov bh, bl                     ; Fix: Copia de la máscara
+    not bh                         ; Fix: Máscara invertida para limpiar el bit
 
-    mov si, di
+    mov si, di                     ; Fix: Guardar offset para reutilizar en cada plano
 
-    mov ax, Plane0Segment
+    mov ax, Plane0Segment          ; Plano 0 (bit 0)
     or ax, ax
     jz @NextPlane0
     mov es, ax
@@ -482,14 +440,14 @@ DrawPixel PROC
     test dh, 1
     jz @ClearPlane0
     mov al, bl
-    or BYTE PTR es:[di], al
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
     jmp @NextPlane0
 @ClearPlane0:
     mov al, bh
-    and BYTE PTR es:[di], al
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
 @NextPlane0:
 
-    mov ax, Plane1Segment
+    mov ax, Plane1Segment          ; Plano 1 (bit 1)
     or ax, ax
     jz @NextPlane1
     mov es, ax
@@ -497,14 +455,14 @@ DrawPixel PROC
     test dh, 2
     jz @ClearPlane1
     mov al, bl
-    or BYTE PTR es:[di], al
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
     jmp @NextPlane1
 @ClearPlane1:
     mov al, bh
-    and BYTE PTR es:[di], al
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
 @NextPlane1:
 
-    mov ax, Plane2Segment
+    mov ax, Plane2Segment          ; Plano 2 (bit 2)
     or ax, ax
     jz @NextPlane2
     mov es, ax
@@ -512,14 +470,14 @@ DrawPixel PROC
     test dh, 4
     jz @ClearPlane2
     mov al, bl
-    or BYTE PTR es:[di], al
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
     jmp @NextPlane2
 @ClearPlane2:
     mov al, bh
-    and BYTE PTR es:[di], al
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
 @NextPlane2:
 
-    mov ax, Plane3Segment
+    mov ax, Plane3Segment          ; Plano 3 (bit 3)
     or ax, ax
     jz @NextPlane3
     mov es, ax
@@ -527,15 +485,15 @@ DrawPixel PROC
     test dh, 8
     jz @ClearPlane3
     mov al, bl
-    or BYTE PTR es:[di], al
+    or BYTE PTR es:[di], al        ; Fix: Especificar tamaño byte al establecer
     jmp @NextPlane3
 @ClearPlane3:
     mov al, bh
-    and BYTE PTR es:[di], al
+    and BYTE PTR es:[di], al       ; Fix: Especificar tamaño byte al limpiar
 @NextPlane3:
 
 @exit_pixel:
-    pop es
+    pop es                         ; Restaurar registros
     pop di
     pop si
     pop dx
@@ -546,205 +504,116 @@ DrawPixel PROC
 DrawPixel ENDP
 
 ; ----------------------------------------------------------------------------
-; Rutina: DrawHorizontalLine
-; Dibuja una línea horizontal en el buffer off-screen.
-; Entradas:
-;   BX = coordenada X inicial
-;   CX = coordenada Y
-;   SI = longitud en píxeles
-;   DL = color (0..15)
-; ----------------------------------------------------------------------------
-DrawHorizontalLine PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-
-    mov di, si
-    mov si, bx
-    mov ax, cx
-    or di, di
-    jz @ExitLine
-
-@NextPixel:
-    mov bx, si
-    mov cx, ax
-    call DrawPixel
-    inc si
-    dec di
-    jnz @NextPixel
-
-@ExitLine:
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-DrawHorizontalLine ENDP
-
-; ----------------------------------------------------------------------------
 ; Rutina: BlitBufferToScreen
 ; Copia el contenido del buffer off-screen a la memoria de video A000h.
-; El viewport es de 160x100 y se centra en la pantalla 640x350.
+; Usa el registro de máscara del mapa (sequencer) para seleccionar cada plano.
 ; ----------------------------------------------------------------------------
 BlitBufferToScreen PROC
-    push ax
+    push ax                        ; Guardar registros usados
     push bx
     push cx
     push dx
     push si
     push di
-    push bp
     push ds
     push es
 
-    cld
-
-    mov ax, 0A000h
+    mov ax, 0A000h                 ; Fix: Cargar segmento de video en ES
     mov es, ax
-    mov dx, 03C4h
+    mov dx, 03C4h                  ; Fix: Puerto base del sequencer
 
-    mov ax, Plane0Segment
+    mov ax, Plane0Segment          ; Plano 0 ------------------------------------------------
     or ax, ax
     jz @SkipCopy0
-    mov bx, ax
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 1
+    mov al, 1                      ; Fix: Máscara decimal para plano 0
     out dx, al
     dec dx
-    push ds
-    mov ax, viewport_y_offset_var
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
     mov di, ax
-    mov ax, viewport_x_offset_var
-    add di, ax
-    mov ds, bx
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov bp, VIEWPORT_HEIGHT
-@RowCopy0:
-    mov cx, BYTES_PER_SCAN
-@RowCopy0Bytes:
-    mov al, ds:[si]
-    mov es:[di], al
-    inc si
-    inc di
-    loop @RowCopy0Bytes
-    add di, ROW_STRIDE_DIFF
-    dec bp
-    jnz @RowCopy0
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    rep movsb
     pop ds
 @SkipCopy0:
 
-    mov ax, Plane1Segment
+    mov ax, Plane1Segment          ; Plano 1 ------------------------------------------------
     or ax, ax
     jz @SkipCopy1
-    mov bx, ax
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 2
+    mov al, 2                      ; Fix: Máscara decimal para plano 1
     out dx, al
     dec dx
-    push ds
-    mov ax, viewport_y_offset_var
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
     mov di, ax
-    mov ax, viewport_x_offset_var
-    add di, ax
-    mov ds, bx
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov bp, VIEWPORT_HEIGHT
-@RowCopy1:
-    mov cx, BYTES_PER_SCAN
-@RowCopy1Bytes:
-    mov al, ds:[si]
-    mov es:[di], al
-    inc si
-    inc di
-    loop @RowCopy1Bytes
-    add di, ROW_STRIDE_DIFF
-    dec bp
-    jnz @RowCopy1
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    rep movsb
     pop ds
 @SkipCopy1:
 
-    mov ax, Plane2Segment
+    mov ax, Plane2Segment          ; Plano 2 ------------------------------------------------
     or ax, ax
     jz @SkipCopy2
-    mov bx, ax
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 4
+    mov al, 4                      ; Fix: Máscara decimal para plano 2
     out dx, al
     dec dx
-    push ds
-    mov ax, viewport_y_offset_var
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
     mov di, ax
-    mov ax, viewport_x_offset_var
-    add di, ax
-    mov ds, bx
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov bp, VIEWPORT_HEIGHT
-@RowCopy2:
-    mov cx, BYTES_PER_SCAN
-@RowCopy2Bytes:
-    mov al, ds:[si]
-    mov es:[di], al
-    inc si
-    inc di
-    loop @RowCopy2Bytes
-    add di, ROW_STRIDE_DIFF
-    dec bp
-    jnz @RowCopy2
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    rep movsb
     pop ds
 @SkipCopy2:
 
-    mov ax, Plane3Segment
+    mov ax, Plane3Segment          ; Plano 3 ------------------------------------------------
     or ax, ax
     jz @SkipCopy3
-    mov bx, ax
+    mov bx, ax                     ; Fix: Preservar segmento del plano
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 8
+    mov al, 8                      ; Fix: Máscara decimal para plano 3
     out dx, al
     dec dx
-    push ds
-    mov ax, viewport_y_offset_var
+    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
+    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
     mov di, ax
-    mov ax, viewport_x_offset_var
-    add di, ax
-    mov ds, bx
+    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
+    mov ds, bx                     ; Fix: Usar segmento preservado del plano
     xor si, si
-    mov bp, VIEWPORT_HEIGHT
-@RowCopy3:
-    mov cx, BYTES_PER_SCAN
-@RowCopy3Bytes:
-    mov al, ds:[si]
-    mov es:[di], al
-    inc si
-    inc di
-    loop @RowCopy3Bytes
-    add di, ROW_STRIDE_DIFF
-    dec bp
-    jnz @RowCopy3
+    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
+    rep movsb
     pop ds
 @SkipCopy3:
 
-    mov al, 02h
+    mov al, 02h                    ; Fix: Restaurar índice del registro de máscara
     out dx, al
     inc dx
-    mov al, 0Fh
+    mov al, 0Fh                    ; Fix: Habilitar los cuatro planos
     out dx, al
 
-    pop es
+    pop es                         ; Restaurar registros
     pop ds
-    pop bp
     pop di
     pop si
     pop dx
@@ -784,7 +653,7 @@ PrintHexAX PROC
     shl dx, 1
     shl dx, 1
     shl dx, 1
-    shr bx, 4
+    shr bx, 4                       ; Fix: Avanzar siguiente nibble desde MSB
     dec si
     jnz @loop
     pop si
@@ -793,199 +662,83 @@ PrintHexAX PROC
     pop bx
     pop ax
     ret
-PrintHexAX ENDP
+PrintHexAX ENDP                     ; Fix: Hex correcto, MSB first, A-F
 
 main PROC
-    mov ax, @data
+    mov ax, @data                  ; Inicializar el segmento de datos
     mov ds, ax
 
-    call ShrinkProgramMemory
+    call ShrinkProgramMemory       ; Fix: Liberar memoria prestada antes de reservar planos
 
-    call InitOffScreenBuffer
+    call InitOffScreenBuffer       ; Reservar memoria para el buffer off-screen
     cmp ax, 0
-    je @BuffersReady
+    je @ok_print
 
-    mov si, ax
-    mov dx, offset msg_err
+    mov si, ax                     ; Fix: Preservar código de error
+    mov dx, offset msg_err         ; Fix: Mensaje de error
     mov ah, 09h
     int 21h
     mov ax, si
-    push ax
+    push ax                        ; Fix: Guardar error para depuración
     call PrintHexAX
-    mov dx, offset msg_free
+    mov dx, offset msg_free        ; Fix: Mostrar bloque libre más grande
     mov ah, 09h
     int 21h
-    pop ax
+    pop ax                         ; Fix: Limpiar pila tras imprimir error
     mov ax, bx
     call PrintHexAX
     mov dx, offset crlf
     mov ah, 09h
     int 21h
-    mov ah, 4Ch
+    mov ah, 4Ch                    ; Fix: Salir con código de error genérico 8
     mov al, 8
     int 21h
 
+@ok_print:
 @BuffersReady:
-    mov ax, 0010h
+
+    mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
 
-    call ClearScreen
-    call SetPaletteRed
-    call SetPaletteWhite
+    call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
+    call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
+    call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
 
-    jmp RenderFrame
+    call DirectDrawTest            ; Test directo en VRAM sin buffer
 
-MainLoop:
-    call WaitVerticalRetrace
+    ; call ClearOffScreenBuffer   ; Temporal: deshabilitado durante prueba directa
 
-    mov ah, 01h
+    ; mov bx, 0                   ; Temporal: código de raster en buffer deshabilitado
+    ; mov cx, 50
+    ; mov dl, 15
+;LineLoop:
+    ; call DrawPixel
+
+    ; inc bx
+    ; cmp bx, 160
+    ; jle LineLoop
+
+    ; mov dl, 15
+    ; mov bx, 80
+    ; mov cx, 0
+;VertLoop:
+    ; call DrawPixel
+    ; inc cx
+    ; cmp cx, 100
+    ; jle VertLoop
+
+    ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
+
+    xor ah, ah                     ; Esperar tecla
     int 16h
-    jnz @KeyPressed
-    jmp RenderFrame
 
-@KeyPressed:
-    mov ah, 00h
-    int 16h
-    cmp al, 1Bh
-    jne @CheckEscapeScan
-    jmp ExitGraphics
-
-@CheckEscapeScan:
-    cmp ah, 01h
-    jne @NotEscape
-    jmp ExitGraphics
-
-@NotEscape:
-    mov bh, ah
-    mov bl, al
-
-    cmp bh, 48h
-    jne @CheckKeyWLower
-    jmp MoveLineUp
-
-@CheckKeyWLower:
-    cmp bl, 'w'
-    jne @CheckKeyWUpper
-    jmp MoveLineUp
-
-@CheckKeyWUpper:
-    cmp bl, 'W'
-    jne @CheckKeyDownArrow
-    jmp MoveLineUp
-
-@CheckKeyDownArrow:
-    cmp bh, 50h
-    jne @CheckKeySLower
-    jmp MoveLineDown
-
-@CheckKeySLower:
-    cmp bl, 's'
-    jne @CheckKeySUpper
-    jmp MoveLineDown
-
-@CheckKeySUpper:
-    cmp bl, 'S'
-    jne @CheckKeyLeftArrow
-    jmp MoveLineDown
-
-@CheckKeyLeftArrow:
-    cmp bh, 4Bh
-    jne @CheckKeyALower
-    jmp MoveLineLeft
-
-@CheckKeyALower:
-    cmp bl, 'a'
-    jne @CheckKeyAUpper
-    jmp MoveLineLeft
-
-@CheckKeyAUpper:
-    cmp bl, 'A'
-    jne @CheckKeyRightArrow
-    jmp MoveLineLeft
-
-@CheckKeyRightArrow:
-    cmp bh, 4Dh
-    jne @CheckKeyDLower
-    jmp MoveLineRight
-
-@CheckKeyDLower:
-    cmp bl, 'd'
-    jne @CheckKeyDUpper
-    jmp MoveLineRight
-
-@CheckKeyDUpper:
-    cmp bl, 'D'
-    jne @NoMovementKey
-    jmp MoveLineRight
-
-@NoMovementKey:
-
-    jmp RenderFrame
-
-MoveLineUp:
-    mov ax, line_pos_y
-    cmp ax, LINE_STEP
-    jb @ClampTop
-    sub ax, LINE_STEP
-    jmp @StoreUp
-@ClampTop:
-    xor ax, ax
-@StoreUp:
-    mov line_pos_y, ax
-    jmp RenderFrame
-
-MoveLineDown:
-    mov ax, line_pos_y
-    add ax, LINE_STEP
-    cmp ax, MAX_LINE_Y
-    jbe @StoreDown
-    mov ax, MAX_LINE_Y
-@StoreDown:
-    mov line_pos_y, ax
-    jmp RenderFrame
-
-MoveLineLeft:
-    mov ax, line_pos_x
-    cmp ax, LINE_STEP
-    jb @ClampLeft
-    sub ax, LINE_STEP
-    jmp @StoreLeft
-@ClampLeft:
-    xor ax, ax
-@StoreLeft:
-    mov line_pos_x, ax
-    jmp RenderFrame
-
-MoveLineRight:
-    mov ax, line_pos_x
-    add ax, LINE_STEP
-    cmp ax, MAX_LINE_X
-    jbe @StoreRight
-    mov ax, MAX_LINE_X
-@StoreRight:
-    mov line_pos_x, ax
-    jmp RenderFrame
-
-RenderFrame:
-    call ClearOffScreenBuffer
-    mov bx, line_pos_x
-    mov cx, line_pos_y
-    mov si, LINE_LENGTH
-    mov dl, LINE_COLOR
-    call DrawHorizontalLine
-    call BlitBufferToScreen
-    jmp MainLoop
-
-ExitGraphics:
-    mov ax, 0003h
+    mov ax, 0003h                  ; Volver a modo texto 80x25
     int 10h
 
-    call ReleaseOffScreenBuffer
+    call ReleaseOffScreenBuffer    ; Liberar memoria reservada
 
-    mov ax, 4C00h
+    mov ax, 4C00h                  ; Terminar programa
     int 21h
 main ENDP
-
-CodeEnd LABEL BYTE
 
 END main
