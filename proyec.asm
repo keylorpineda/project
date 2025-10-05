@@ -23,7 +23,7 @@ Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
 viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
-viewport_y_offset dw 10000        ; Fix: Desfase vertical (125 scans * 80 bytes)
+viewport_y_offset dw 8000         ; FIX: Cambiar de 10000 a 8000 (línea 100 * 80 bytes)
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
@@ -41,6 +41,34 @@ speed_dx        dw 1             ; Velocidad horizontal (1 píxel)
 speed_dy        dw 1             ; Velocidad vertical (1 píxel)
 
 .CODE                             ; Segmento de código
+
+; FIX: Nueva rutina para verificar si el modo gráfico se estableció correctamente
+CheckGraphicsMode PROC
+    push ax
+    push bx
+    
+    mov ah, 0Fh                   ; Obtener modo de video actual
+    int 10h
+    cmp al, 10h                   ; ¿Es modo 10h (640x350x16)?
+    je @mode_ok
+    
+    ; Si no es modo 10h, intentar modo alternativo
+    mov ax, 000Eh                 ; Intentar modo 0Eh (640x200x16)
+    int 10h
+    mov ah, 0Fh
+    int 10h
+    cmp al, 0Eh
+    je @mode_ok
+    
+    ; Si tampoco funciona, usar modo básico
+    mov ax, 0004h                 ; Modo CGA 320x200x4
+    int 10h
+    
+@mode_ok:
+    pop bx
+    pop ax
+    ret
+CheckGraphicsMode ENDP
 
 ; -------------------------------------------------------------------------
 ; Rutina: ShrinkProgramMemory
@@ -69,7 +97,7 @@ ShrinkProgramMemory PROC
     shr ax, 1                       ; Fix: Estimar tamaño de código propio
 
     mov ah, 4Ah                     ; Función DOS para encoger bloque
-    mov bx, 100                     ; Fix: Shrink programa a 100 paragraphs para liberar mem para alloc
+    mov bx, 200                     ; FIX: Aumentar de 100 a 200 paragraphs
     int 21h
     jc @shrink_fail
 
@@ -258,6 +286,53 @@ ClearOffScreenBuffer PROC
     pop ax
     ret
 ClearOffScreenBuffer ENDP
+
+; ...existing code...
+
+; FIX: Rutina de prueba simple para verificar que el hardware funciona
+SimpleDrawTest PROC
+    push ax
+    push cx
+    push dx
+    push di
+    push es
+    
+    mov ax, 0A000h
+    mov es, ax
+    
+    ; Configurar sequencer para escribir en todos los planos
+    mov dx, 03C4h
+    mov al, 02h
+    out dx, al
+    inc dx
+    mov al, 0Fh                   ; Escribir en todos los planos
+    out dx, al
+    
+    ; Dibujar algunas líneas de prueba
+    xor di, di
+    mov al, 15                    ; Color blanco
+    mov cx, 160                   ; Primera línea horizontal
+    rep stosb
+    
+    ; Saltar a línea 50
+    mov di, 4000                  ; 50 * 80 bytes
+    mov al, 4                     ; Color rojo
+    mov cx, 160
+    rep stosb
+    
+    ; Saltar a línea 100
+    mov di, 8000                  ; 100 * 80 bytes
+    mov al, 2                     ; Color verde
+    mov cx, 160
+    rep stosb
+    
+    pop es
+    pop di
+    pop dx
+    pop cx
+    pop ax
+    ret
+SimpleDrawTest ENDP
 
 ; ----------------------------------------------------------------------------
 ; Rutinas de manejo de archivo ASCII (lectura de mapa)
@@ -499,6 +574,7 @@ RenderMapGreenViewport PROC
     pop ax
     ret
 RenderMapGreenViewport ENDP
+
 ; ----------------------------------------------------------------------------
 ; Rutina: SetPaletteRed
 ; Ajusta el color 4 de la paleta EGA a rojo brillante (R=63, G=0, B=0).
@@ -533,33 +609,21 @@ DirectDrawTest PROC
     mov al, 2
     out dx, al
     inc dx
-    mov al, 4
+    mov al, 0Fh                   ; FIX: Escribir en todos los planos
     out dx, al
     dec dx
 
     xor di, di
-    mov al, 4
+    mov al, 15                    ; FIX: Color blanco brillante
     mov cx, 160
     rep stosb
 
     xor di, di
     mov cx, 100
 @vert:
-    mov BYTE PTR es:[di], 4
+    mov BYTE PTR es:[di], 15      ; FIX: Color blanco brillante
     add di, 80
     loop @vert
-
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 0Fh
-    out dx, al
-    dec dx
-
-    xor di, di
-    mov al, 15
-    mov cx, 160
-    rep stosb
 
     pop es
     pop di
@@ -913,7 +977,7 @@ DrawRedLine PROC
 
 @dr_loop:
     mov bx, si
-    mov dl, 4                    ; Color rojo en plano 1
+    mov dl, 4                    ; Color rojo en plano 2 (4 = rojo)
     call DrawPixel               ; Usa rutina existente (planar seguro)
     inc si
     dec di
@@ -1166,8 +1230,16 @@ main PROC
 
     mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
+    
+    call CheckGraphicsMode         ; FIX: Verificar que el modo se estableció correctamente
 
     call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
+    call SimpleDrawTest           ; FIX: Agregar prueba simple para verificar hardware
+    
+    ; FIX: Esperar una tecla antes de continuar con el programa principal
+    mov ah, 00h
+    int 16h
+    
     call SetPaletteRed             ; Stub EGA-safe (sin DAC)
     call SetPaletteWhite           ; Stub EGA-safe (sin DAC)
 
