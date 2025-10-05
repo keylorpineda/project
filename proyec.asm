@@ -41,8 +41,8 @@ Plane1Segment        dw 0         ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment        dw 0         ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment        dw 0         ; Segmento del plano 3 (bit de peso 8)
 psp_seg              dw 0         ; Segmento del PSP para shrink
-viewport_x_offset    dw VIEWPORT_X_OFFSET
-viewport_y_offset    dw VIEWPORT_Y_OFFSET
+viewport_x_offset_var dw VIEWPORT_X_OFFSET
+viewport_y_offset_var dw VIEWPORT_Y_OFFSET
 line_pos_x           dw (VIEWPORT_WIDTH - LINE_LENGTH) / 2
 line_pos_y           dw VIEWPORT_HEIGHT / 2
 msg_err              db 'ERROR: Alloc fallo. Codigo: $'
@@ -619,9 +619,9 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
-    mov ax, viewport_y_offset
+    mov ax, viewport_y_offset_var
     mov di, ax
-    mov ax, viewport_x_offset
+    mov ax, viewport_x_offset_var
     add di, ax
     mov ds, bx
     xor si, si
@@ -651,9 +651,9 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
-    mov ax, viewport_y_offset
+    mov ax, viewport_y_offset_var
     mov di, ax
-    mov ax, viewport_x_offset
+    mov ax, viewport_x_offset_var
     add di, ax
     mov ds, bx
     xor si, si
@@ -683,9 +683,9 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
-    mov ax, viewport_y_offset
+    mov ax, viewport_y_offset_var
     mov di, ax
-    mov ax, viewport_x_offset
+    mov ax, viewport_x_offset_var
     add di, ax
     mov ds, bx
     xor si, si
@@ -715,9 +715,9 @@ BlitBufferToScreen PROC
     out dx, al
     dec dx
     push ds
-    mov ax, viewport_y_offset
+    mov ax, viewport_y_offset_var
     mov di, ax
-    mov ax, viewport_x_offset
+    mov ax, viewport_x_offset_var
     add di, ax
     mov ds, bx
     xor si, si
@@ -847,9 +847,13 @@ MainLoop:
     mov ah, 00h
     int 16h
     cmp al, 1Bh
-    je ExitGraphics
+    jne @CheckEscapeScan
+    jmp ExitGraphics
+
+@CheckEscapeScan:
     cmp ah, 01h
-    je ExitGraphics
+    jne @NotEscape
+    jmp ExitGraphics
 
 @NotEscape:
     mov bh, ah
