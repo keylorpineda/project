@@ -206,6 +206,7 @@ ReleaseOffScreenBuffer ENDP
 ; Borra los cuatro planos del buffer off-screen llenándolos con cero.
 ; ----------------------------------------------------------------------------
 ClearOffScreenBuffer PROC
+    cld
     push ax                        ; Guardar registros usados
     push cx
     push di
@@ -446,6 +447,7 @@ ParseTwoInts ENDP
 ; Render del mapa simplificado: todo el viewport en verde (color 2)
 ; ----------------------------------------------------------------------------
 RenderMapGreenViewport PROC
+    cld
     push ax
     push cx
     push di
@@ -730,7 +732,7 @@ DrawPixel ENDP
 ; Usa el registro de máscara del mapa (sequencer) para seleccionar cada plano.
 ; ----------------------------------------------------------------------------
 BlitBufferToScreen PROC
-    push ax                        ; Guardar registros usados
+    push ax
     push bx
     push cx
     push dx
@@ -739,101 +741,133 @@ BlitBufferToScreen PROC
     push ds
     push es
 
-    mov ax, 0A000h                 ; Fix: Cargar segmento de video en ES
+    cld                             ; copiar hacia adelante
+
+    mov ax, 0A000h
     mov es, ax
-    mov dx, 03C4h                  ; Fix: Puerto base del sequencer
+    mov dx, 03C4h                   ; Sequencer base
 
-    mov ax, Plane0Segment          ; Plano 0 ------------------------------------------------
-    or ax, ax
-    jz @SkipCopy0
-    mov bx, ax                     ; Fix: Preservar segmento del plano
+    ; ========= PLANO 0 =========
+    mov ax, Plane0Segment
+    or  ax, ax
+    jz  @Skip0
+    mov bx, ax                      ; BX = seg del plano 0
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 1                      ; Fix: Máscara decimal para plano 0
+    mov al, 1                       ; Map Mask = 0001b
     out dx, al
     dec dx
-    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
-    mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, bx                     ; Fix: Usar segmento preservado del plano
-    xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
-    rep movsb
-    pop ds
-@SkipCopy0:
 
-    mov ax, Plane1Segment          ; Plano 1 ------------------------------------------------
-    or ax, ax
-    jz @SkipCopy1
-    mov bx, ax                     ; Fix: Preservar segmento del plano
+    push ds
+    mov ds, bx
+    xor si, si
+    mov di, viewport_y_offset
+    add di, viewport_x_offset
+
+    mov cx, VIEWPORT_HEIGHT         ; 100 filas
+@Row0:
+    push cx
+    mov cx, BYTES_PER_SCAN          ; 20 bytes por fila
+    rep movsb                       ; copia DS:SI -> ES:DI (20 bytes)
+    add di, (80 - BYTES_PER_SCAN)   ; saltar 60 bytes hasta inicio de la próxima fila en VRAM
+    pop cx
+    loop @Row0
+    pop ds
+@Skip0:
+
+    ; ========= PLANO 1 =========
+    mov ax, Plane1Segment
+    or  ax, ax
+    jz  @Skip1
+    mov bx, ax
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 2                      ; Fix: Máscara decimal para plano 1
+    mov al, 2                       ; Map Mask = 0010b
     out dx, al
     dec dx
-    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
-    mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, bx                     ; Fix: Usar segmento preservado del plano
-    xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
-    rep movsb
-    pop ds
-@SkipCopy1:
 
-    mov ax, Plane2Segment          ; Plano 2 ------------------------------------------------
-    or ax, ax
-    jz @SkipCopy2
-    mov bx, ax                     ; Fix: Preservar segmento del plano
+    push ds
+    mov ds, bx
+    xor si, si
+    mov di, viewport_y_offset
+    add di, viewport_x_offset
+    mov cx, VIEWPORT_HEIGHT
+@Row1:
+    push cx
+    mov cx, BYTES_PER_SCAN
+    rep movsb
+    add di, (80 - BYTES_PER_SCAN)
+    pop cx
+    loop @Row1
+    pop ds
+@Skip1:
+
+    ; ========= PLANO 2 =========
+    mov ax, Plane2Segment
+    or  ax, ax
+    jz  @Skip2
+    mov bx, ax
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 4                      ; Fix: Máscara decimal para plano 2
+    mov al, 4                       ; Map Mask = 0100b
     out dx, al
     dec dx
-    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
-    mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, bx                     ; Fix: Usar segmento preservado del plano
-    xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
-    rep movsb
-    pop ds
-@SkipCopy2:
 
-    mov ax, Plane3Segment          ; Plano 3 ------------------------------------------------
-    or ax, ax
-    jz @SkipCopy3
-    mov bx, ax                     ; Fix: Preservar segmento del plano
+    push ds
+    mov ds, bx
+    xor si, si
+    mov di, viewport_y_offset
+    add di, viewport_x_offset
+    mov cx, VIEWPORT_HEIGHT
+@Row2:
+    push cx
+    mov cx, BYTES_PER_SCAN
+    rep movsb
+    add di, (80 - BYTES_PER_SCAN)
+    pop cx
+    loop @Row2
+    pop ds
+@Skip2:
+
+    ; ========= PLANO 3 =========
+    mov ax, Plane3Segment
+    or  ax, ax
+    jz  @Skip3
+    mov bx, ax
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 8                      ; Fix: Máscara decimal para plano 3
+    mov al, 8                       ; Map Mask = 1000b
     out dx, al
     dec dx
-    push ds                        ; Fix: Guardar DS antes de cambiarlo al plano
-    mov ax, viewport_y_offset      ; Fix: Obtener desplazamiento vertical base
-    mov di, ax
-    add di, viewport_x_offset      ; Fix: Desplazar viewport centrado
-    mov ds, bx                     ; Fix: Usar segmento preservado del plano
-    xor si, si
-    mov cx, PLANE_SIZE            ; Fix: Conteo reducido del plano
-    rep movsb
-    pop ds
-@SkipCopy3:
 
-    mov al, 02h                    ; Fix: Restaurar índice del registro de máscara
+    push ds
+    mov ds, bx
+    xor si, si
+    mov di, viewport_y_offset
+    add di, viewport_x_offset
+    mov cx, VIEWPORT_HEIGHT
+@Row3:
+    push cx
+    mov cx, BYTES_PER_SCAN
+    rep movsb
+    add di, (80 - BYTES_PER_SCAN)
+    pop cx
+    loop @Row3
+    pop ds
+@Skip3:
+
+    ; Restaurar: habilitar los cuatro planos
+    mov al, 02h
     out dx, al
     inc dx
-    mov al, 0Fh                    ; Fix: Habilitar los cuatro planos
+    mov al, 0Fh
     out dx, al
 
-    pop es                         ; Restaurar registros
+    pop es
     pop ds
     pop di
     pop si
