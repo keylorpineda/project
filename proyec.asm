@@ -10,6 +10,11 @@ SCREEN_HEIGHT     EQU 350         ; Alto de pantalla en píxeles
 BYTES_PER_SCAN    EQU 20          ; Fix: Ajuste a viewport 160x100 (160/8)
 PLANE_SIZE        EQU 2000        ; Fix: Tamaño del plano reducido (20 bytes * 100 scans)
 PLANE_PARAGRAPHS  EQU 128         ; Fix: 128 párrafos (8 KB) para reserva segura
+VIEWPORT_WIDTH    EQU 160         ; Ancho del viewport en píxeles
+VIEWPORT_HEIGHT   EQU 100         ; Alto del viewport en píxeles
+VIEWPORT_PIXELS   EQU VIEWPORT_WIDTH * VIEWPORT_HEIGHT
+VIEWPORT_BYTES    EQU PLANE_SIZE  ; 20 bytes * 100 filas para el viewport
+LINE_BUFFER_SIZE  EQU 128         ; Tamaño del buffer temporal para lectura
 
 .DATA                             ; Segmento de datos
 Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
@@ -23,6 +28,17 @@ msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
 crlf             db 13,10,'$'
+mapHandle       dw 0FFFFh        ; Handle actual del archivo del mapa o -1
+mapW            dw 0             ; Ancho del mapa en tiles
+mapH            dw 0             ; Alto del mapa en tiles
+mapFileName     db 'mapa.txt',0  ; Nombre del archivo de mapa (ASCIIZ)
+lineBuffer      db LINE_BUFFER_SIZE dup (0) ; Buffer para lectura de líneas
+readChar        db 0             ; Byte temporal de lectura
+x_pos           dw 20            ; Posición inicial X de la línea roja
+y_pos           dw 20            ; Posición inicial Y de la línea roja
+line_len        dw 80            ; Longitud de la línea roja
+speed_dx        dw 1             ; Velocidad horizontal (1 píxel)
+speed_dy        dw 1             ; Velocidad vertical (1 píxel)
 
 .CODE                             ; Segmento de código
 
@@ -243,29 +259,251 @@ ClearOffScreenBuffer PROC
 ClearOffScreenBuffer ENDP
 
 ; ----------------------------------------------------------------------------
+; Rutinas de manejo de archivo ASCII (lectura de mapa)
+; ----------------------------------------------------------------------------
+OpenFile PROC
+    push dx
+    mov ah, 3Dh                   ; Abrir archivo en modo solo lectura
+    xor al, al
+    int 21h
+    jc @open_error
+    mov mapHandle, ax             ; Guardar handle válido
+    clc
+    pop dx
+    ret
+
+@open_error:
+    mov mapHandle, 0FFFFh         ; Indicar handle inválido
+    stc
+    pop dx
+    ret
+OpenFile ENDP
+
+CloseFile PROC
+    push ax
+    push bx
+    mov ax, mapHandle
+    cmp ax, 0FFFFh
+    je @close_done                ; Nada que cerrar
+    mov bx, ax
+    mov ah, 3Eh                   ; Cerrar archivo
+    int 21h
+    mov mapHandle, 0FFFFh
+@close_done:
+    pop bx
+    pop ax
+    ret
+CloseFile ENDP
+
+ReadLine PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push es
+
+    mov ax, ds                    ; Espejo DS en ES para limpiar buffer
+    mov es, ax
+    mov di, OFFSET lineBuffer
+    mov cx, LINE_BUFFER_SIZE
+    xor al, al
+    rep stosb
+
+    mov bx, mapHandle
+    cmp bx, 0FFFFh
+    je @rl_done                   ; Handle inválido, salir
+
+    mov di, OFFSET lineBuffer
+
+@rl_next:
+    mov ah, 3Fh                   ; Leer 1 byte
+    mov cx, 1
+    mov dx, OFFSET readChar
+    int 21h
+    jc @rl_done
+    cmp ax, 0
+    je @rl_done                   ; Fin de archivo
+
+    mov al, readChar
+    cmp al, 0Dh
+    je @rl_next                   ; Ignorar CR
+    cmp al, 0Ah
+    je @rl_done                   ; Fin de línea
+
+    cmp di, OFFSET lineBuffer + LINE_BUFFER_SIZE - 1
+    jae @rl_next                  ; Evitar desbordar, continuar lectura
+
+    mov [di], al
+    inc di
+    jmp @rl_next
+
+@rl_done:
+    pop es
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+ReadLine ENDP
+
+ParseTwoInts PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+
+    mov mapW, 0
+    mov mapH, 0
+    mov si, OFFSET lineBuffer
+
+; --- Primer entero (ancho) ---
+@skip_ws1:
+    mov al, [si]
+    cmp al, 0
+    je @store_width
+    cmp al, ' '
+    je @adv_ws1
+    cmp al, 9
+    je @adv_ws1
+    jmp @parse_width
+@adv_ws1:
+    inc si
+    jmp @skip_ws1
+
+@parse_width:
+    xor ax, ax
+@width_loop:
+    mov al, [si]
+    cmp al, '0'
+    jb @store_width
+    cmp al, '9'
+    ja @store_width
+    mov dl, [si]
+    sub dl, '0'
+    xor dh, dh
+    mov cx, ax
+    shl ax, 1
+    shl cx, 3
+    add ax, cx
+    add ax, dx
+    inc si
+    jmp @width_loop
+
+@store_width:
+    mov mapW, ax
+
+; --- Segundo entero (alto) ---
+@skip_ws2:
+    mov al, [si]
+    cmp al, 0
+    je @done_parse
+    cmp al, ' '
+    je @adv_ws2
+    cmp al, 9
+    je @adv_ws2
+    jmp @parse_height
+@adv_ws2:
+    inc si
+    jmp @skip_ws2
+
+@parse_height:
+    xor ax, ax
+@height_loop:
+    mov al, [si]
+    cmp al, '0'
+    jb @store_height
+    cmp al, '9'
+    ja @store_height
+    mov dl, [si]
+    sub dl, '0'
+    xor dh, dh
+    mov cx, ax
+    shl ax, 1
+    shl cx, 3
+    add ax, cx
+    add ax, dx
+    inc si
+    jmp @height_loop
+
+@store_height:
+    mov mapH, ax
+
+@done_parse:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+ParseTwoInts ENDP
+
+; ----------------------------------------------------------------------------
+; Render del mapa simplificado: todo el viewport en verde (color 2)
+; ----------------------------------------------------------------------------
+RenderMapGreenViewport PROC
+    push ax
+    push cx
+    push di
+    push es
+
+    mov ax, Plane0Segment          ; Plano 0 = 0 (bit 0)
+    or ax, ax
+    jz @skip_plane0
+    mov es, ax
+    xor di, di
+    xor al, al
+    mov cx, VIEWPORT_BYTES
+    rep stosb
+@skip_plane0:
+
+    mov ax, Plane2Segment          ; Plano 2 = 0 (bit 2)
+    or ax, ax
+    jz @skip_plane2
+    mov es, ax
+    xor di, di
+    xor al, al
+    mov cx, VIEWPORT_BYTES
+    rep stosb
+@skip_plane2:
+
+    mov ax, Plane3Segment          ; Plano 3 = 0 (bit 3)
+    or ax, ax
+    jz @skip_plane3
+    mov es, ax
+    xor di, di
+    xor al, al
+    mov cx, VIEWPORT_BYTES
+    rep stosb
+@skip_plane3:
+
+    mov ax, Plane1Segment          ; Plano 1 = FFh (color 2)
+    or ax, ax
+    jz @rm_exit
+    mov es, ax
+    xor di, di
+    mov al, 0FFh
+    mov cx, VIEWPORT_BYTES
+    rep stosb
+
+@rm_exit:
+    pop es
+    pop di
+    pop cx
+    pop ax
+    ret
+RenderMapGreenViewport ENDP
+; ----------------------------------------------------------------------------
 ; Rutina: SetPaletteRed
 ; Ajusta el color 4 de la paleta EGA a rojo brillante (R=63, G=0, B=0).
 ; Esto mejora la visibilidad de los elementos renderizados en el viewport.
 ; ----------------------------------------------------------------------------
 SetPaletteRed PROC
-    push ax                        ; Conservar registros usados
-    push dx
-
-    mov dx, 03C8h                  ; Puerto de índice de la DAC
-    mov al, 4
-    out dx, al                     ; Seleccionar color 4
-    inc dx                         ; DX = 03C9h (datos de la DAC)
-
-    mov al, 63
-    out dx, al                     ; Fix: EGA 6-bit DAC, 3 bytes/color (R=63 G=0 B=0 para rojo puro)
-    mov al, 0
-    out dx, al
-    mov al, 0
-    out dx, al
-
-    pop dx                         ; Restaurar registros
-    pop ax
-    ret
+    ret                             ; Stub: mantener compatibilidad sin tocar DAC VGA
 SetPaletteRed ENDP
 
 ; ----------------------------------------------------------------------------
@@ -274,24 +512,7 @@ SetPaletteRed ENDP
 ; para mejorar la visibilidad de los elementos de prueba.
 ; ----------------------------------------------------------------------------
 SetPaletteWhite PROC
-    push ax
-    push dx
-
-    mov dx, 03C8h
-    mov al, 15
-    out dx, al
-    inc dx
-
-    mov al, 63
-    out dx, al                     ; Test: Blanco full para línea visible
-    mov al, 63
-    out dx, al
-    mov al, 63
-    out dx, al
-
-    pop dx
-    pop ax
-    ret
+    ret                             ; Stub: sin cambios de paleta para EGA pura
 SetPaletteWhite ENDP
 
 ; Test: Direct draw cruz blanca/roja top-left sin buffer
@@ -623,6 +844,218 @@ BlitBufferToScreen PROC
     ret
 BlitBufferToScreen ENDP
 
+DrawRedLine PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov ax, line_len
+    cmp ax, 0
+    jz @dr_exit                  ; Nada que dibujar si longitud es cero
+
+    mov dx, VIEWPORT_WIDTH - 1
+    sub dx, ax
+    inc dx                       ; DX = 159 - line_len + 1
+    mov bx, x_pos
+    cmp bx, dx
+    jbe @dr_clamp_y
+    mov bx, dx
+    mov x_pos, bx                ; Clamp horizontal máximo
+
+@dr_clamp_y:
+    mov ax, y_pos
+    cmp ax, VIEWPORT_HEIGHT - 1
+    jbe @dr_setup
+    mov ax, VIEWPORT_HEIGHT - 1
+    mov y_pos, ax                ; Clamp vertical máximo
+
+@dr_setup:
+    mov cx, y_pos
+    mov si, x_pos
+    mov di, line_len
+
+@dr_loop:
+    mov bx, si
+    mov dl, 4                    ; Color rojo en plano 1
+    call DrawPixel               ; Usa rutina existente (planar seguro)
+    inc si
+    dec di
+    jnz @dr_loop
+
+@dr_exit:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+DrawRedLine ENDP
+
+ReadKeyNonBlocking PROC
+    push bx
+    push cx
+    push dx
+
+    mov ah, 01h                  ; ¿Hay tecla disponible?
+    int 16h
+    jz @rknb_none
+
+    mov ah, 00h                  ; Leer tecla
+    int 16h
+    cmp al, 'a'
+    jb @rknb_upper_done
+    cmp al, 'z'
+    ja @rknb_upper_done
+    sub al, 20h                  ; Normalizar a mayúscula
+@rknb_upper_done:
+    xor ah, ah
+    pop dx
+    pop cx
+    pop bx
+    ret
+
+@rknb_none:
+    xor ax, ax                   ; Sin tecla → AX=0
+    pop dx
+    pop cx
+    pop bx
+    ret
+ReadKeyNonBlocking ENDP
+
+DelayTicks PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov bl, cl                   ; Guardar número de ticks a esperar
+    or bl, bl
+    jz @dt_exit
+
+    mov ah, 00h
+    int 1Ah                      ; Leer contador actual
+    mov si, dx                   ; Guardar DX (parte baja)
+    mov di, cx                   ; Guardar CX (parte alta)
+
+@dt_wait:
+    mov ah, 00h
+    int 1Ah
+    cmp cx, di
+    jne @dt_tick
+    cmp dx, si
+    jne @dt_tick
+    jmp @dt_wait
+
+@dt_tick:
+    dec bl
+    jz @dt_exit
+    mov si, dx
+    mov di, cx
+    jmp @dt_wait
+
+@dt_exit:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+DelayTicks ENDP
+
+MainLoop PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+@frame_loop:
+    call ClearOffScreenBuffer
+    call RenderMapGreenViewport
+    call DrawRedLine
+    call BlitBufferToScreen
+
+    call ReadKeyNonBlocking
+    cmp ax, 0
+    je @no_key
+
+    cmp al, 1Bh                  ; ESC → salir
+    je @exit_loop
+
+    cmp al, 'W'
+    jne @check_s
+    mov bx, speed_dy
+    mov ax, y_pos
+    cmp ax, bx
+    jb @handled
+    sub ax, bx
+    mov y_pos, ax
+    jmp @handled
+
+@check_s:
+    cmp al, 'S'
+    jne @check_a
+    mov bx, speed_dy
+    mov ax, y_pos
+    mov dx, VIEWPORT_HEIGHT - 1
+    sub dx, bx
+    cmp ax, dx
+    ja @handled
+    add ax, bx
+    mov y_pos, ax
+    jmp @handled
+
+@check_a:
+    cmp al, 'A'
+    jne @check_d
+    mov bx, speed_dx
+    mov ax, x_pos
+    cmp ax, bx
+    jb @handled
+    sub ax, bx
+    mov x_pos, ax
+    jmp @handled
+
+@check_d:
+    cmp al, 'D'
+    jne @handled
+    mov bx, speed_dx
+    mov ax, x_pos
+    add ax, bx
+    mov dx, VIEWPORT_WIDTH - 1
+    mov si, line_len
+    sub dx, si
+    inc dx
+    cmp ax, dx
+    jbe @store_x
+    mov ax, dx
+@store_x:
+    mov x_pos, ax
+
+@handled:
+@no_key:
+    mov cl, 1
+    call DelayTicks              ; Pequeña pausa por frame
+    jmp @frame_loop
+
+@exit_loop:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+MainLoop ENDP
+
 PrintHexAX PROC
     push ax
     push bx
@@ -701,36 +1134,20 @@ main PROC
     int 10h
 
     call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
-    call SetPaletteRed             ; Fix: Color 4 = rojo brillante (R=63)
-    call SetPaletteWhite           ; Test: Paleta blanco puro para referencia en color 15
+    call SetPaletteRed             ; Stub EGA-safe (sin DAC)
+    call SetPaletteWhite           ; Stub EGA-safe (sin DAC)
 
-    call DirectDrawTest            ; Test directo en VRAM sin buffer
+    push ds
+    mov dx, OFFSET mapFileName     ; DS:DX -> nombre del mapa
+    call OpenFile                  ; Abrir "mapa.txt"
+    pop ds
+    jc @skip_map_read              ; Si falla, continuar con dimensiones por defecto
+    call ReadLine                  ; Leer primera línea
+    call ParseTwoInts              ; Guardar mapW/mapH
+@skip_map_read:
+    call CloseFile                 ; Cerrar archivo si estaba abierto
 
-    ; call ClearOffScreenBuffer   ; Temporal: deshabilitado durante prueba directa
-
-    ; mov bx, 0                   ; Temporal: código de raster en buffer deshabilitado
-    ; mov cx, 50
-    ; mov dl, 15
-;LineLoop:
-    ; call DrawPixel
-
-    ; inc bx
-    ; cmp bx, 160
-    ; jle LineLoop
-
-    ; mov dl, 15
-    ; mov bx, 80
-    ; mov cx, 0
-;VertLoop:
-    ; call DrawPixel
-    ; inc cx
-    ; cmp cx, 100
-    ; jle VertLoop
-
-    ; call BlitBufferToScreen     ; Temporal: mantener para uso posterior
-
-    xor ah, ah                     ; Esperar tecla
-    int 16h
+    call MainLoop                  ; Bucle principal de render/interacción
 
     mov ax, 0003h                  ; Volver a modo texto 80x25
     int 10h
