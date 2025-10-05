@@ -23,7 +23,7 @@ Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
 psp_seg          dw 0             ; Fix: Para PSP segment
 viewport_x_offset dw 30           ; Fix: Desfase horizontal (centrado 160 px en 640)
-viewport_y_offset dw 8000         ; FIX: Cambiar de 10000 a 8000 (línea 100 * 80 bytes)
+viewport_y_offset dw 10000        ; 125 * 80 bytes → centra 100 filas en 350 (modo 10h)
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
 msg_shrink_fail  db 'Shrink fail',13,10,'$'
@@ -372,6 +372,7 @@ CloseFile PROC
 CloseFile ENDP
 
 ReadLine PROC
+    cld
     push ax
     push bx
     push cx
@@ -636,6 +637,7 @@ DirectDrawTest ENDP
 
 ; Fix: Limpia full A000h para eliminar garbage de modo anterior
 ClearScreen PROC
+    cld
     push ax
     push bx
     push cx
@@ -977,7 +979,7 @@ DrawRedLine PROC
 
 @dr_loop:
     mov bx, si
-    mov dl, 4                    ; Color rojo en plano 2 (4 = rojo)
+    mov dl, 12                   ; 1100b = rojo brillante (mejor contraste)
     call DrawPixel               ; Usa rutina existente (planar seguro)
     inc si
     dec di
@@ -1230,16 +1232,9 @@ main PROC
 
     mov ax, 0010h                  ; Cambiar a modo gráfico EGA 640x350x16
     int 10h
-    
-    call CheckGraphicsMode         ; FIX: Verificar que el modo se estableció correctamente
 
     call ClearScreen              ; Fix: Limpiar VRAM y evitar basura previa
-    call SimpleDrawTest           ; FIX: Agregar prueba simple para verificar hardware
-    
-    ; FIX: Esperar una tecla antes de continuar con el programa principal
-    mov ah, 00h
-    int 16h
-    
+
     call SetPaletteRed             ; Stub EGA-safe (sin DAC)
     call SetPaletteWhite           ; Stub EGA-safe (sin DAC)
 
