@@ -40,21 +40,21 @@ VIEWPORT_TILES_Y  EQU 6           ; 100/16 = 6 tiles verticales (con margen)
 map_data          db MAX_MAP_SIZE dup(0)  ; Matriz de tiles del mapa
 map_width         dw 0            ; Ancho actual del mapa en tiles
 map_height        dw 0            ; Alto actual del mapa en tiles
-map_loaded        db 0            ; Flag: 1 = mapa cargado correctamente
+map_loaded        db 0             ; Flag: 1 = mapa cargado correctamente
 
 ; Posición de la cámara (en tiles)
 camera_tile_x     dw 0            ; Tile X superior izquierdo visible
 camera_tile_y     dw 0            ; Tile Y superior izquierdo visible
 
-; Colores para tipos de tiles (EGA estándar)
+; ===== CORRECCIÓN: Colores para tipos de tiles (EGA estándar) =====
 TILE_EMPTY        EQU 0           ; Tipo 0: Vacío/Muro (negro)
-TILE_WALL         EQU 8           ; Tipo 1: Muro (gris oscuro)
+TILE_WALL         EQU 1           ; Tipo 1: Muro (cambiar a tipo 1)
 TILE_FLOOR        EQU 2           ; Tipo 2: Piso (verde)
-TILE_WATER        EQU 1           ; Tipo 3: Agua (azul)
+TILE_WATER        EQU 3           ; Tipo 3: Agua (azul)
 
 ; ===== Offsets para centrar el viewport dentro de 640x350 =====
-viewport_x_offset dw 30           ; Centrar horizontalmente (corregido)
-viewport_y_offset dw 125          ; Centrar verticalmente (corregido)
+viewport_x_offset dw 0      ; Cambiar de 30 a 0 temporalmente  
+viewport_y_offset dw 0      ; Cambiar de 125 a 0 temporalmente
 
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
@@ -73,6 +73,17 @@ speed_dx         dw 1             ; Velocidad horizontal (1 píxel)
 speed_dy         dw 1   
 debug_msg        db 'Map loaded: W=', 0
 debug_msg2       db ' H=', 0
+debug_loading      db 'Cargando mapa...', 13, 10, '$'
+debug_file_ok      db 'Archivo abierto OK', 13, 10, '$'
+debug_file_error   db 'ERROR: No se pudo abrir mapa.txt', 13, 10, '$'
+debug_header_error db 'ERROR: Encabezado invalido', 13, 10, '$'
+debug_data_error   db 'ERROR: Datos del mapa invalidos', 13, 10, '$'
+debug_success      db 'Mapa cargado exitosamente', 13, 10, '$'
+debug_using_default db 'Usando mapa por defecto', 13, 10, '$'
+debug_dimensions   db 'Dimensiones: $'
+debug_x_sep        db ' x $'    ; Cambiar de ' x', 0 a ' x $'
+debug_creating_default db 'Creando mapa por defecto...', 13, 10, '$'
+debug_default_created  db 'Mapa por defecto creado (10x6)', 13, 10, '$'
 
 .CODE                             ; Segmento de código
 
@@ -95,6 +106,7 @@ main PROC
     int 21h
 
 main_ok_print:
+    ; Configurar modo gráfico ANTES de todo
     mov ax, 0010h
     int 10h
     
@@ -117,10 +129,49 @@ main_map_ready:
     mov camera_tile_x, 0
     mov camera_tile_y, 0
 
-    ; FIX: Cambiar RENDERMAPVIEWPORT a RenderMapViewport (capitalización correcta)
+    ; QUITAR LA PRUEBA DE EMERGENCIA DE AQUÍ
+    ; La movemos DESPUÉS de RenderMapViewport
+
 main_game_loop:
-    call RenderMapViewport    ; FIX: Nombre correcto del procedimiento
-    call DrawRedLine
+    ; CAMBIAR DE CRUZ DE PRUEBA AL SISTEMA DE TILES REAL
+    call RenderMapViewport          ; ACTIVAR SISTEMA DE TILES
+    
+    ; COMENTAR LA PRUEBA DE LA CRUZ:
+    ; call ClearOffScreenBuffer
+    ; 
+    ; ; Línea horizontal (más larga)
+    ; mov cx, 10                     ; Y = 10
+    ; mov bx, 5                      ; Empezar en X = 5
+    ; mov dl, 15                     ; Color blanco brillante
+    ; 
+    ; mov ax, 0                      ; Contador
+    ; draw_horizontal:
+    ; cmp ax, 20                     ; Dibujar 20 píxeles
+    ; jae draw_vertical_start
+    ; 
+    ; call DrawPixel
+    ; inc bx
+    ; inc ax
+    ; jmp draw_horizontal
+    ; 
+    ; draw_vertical_start:
+    ; ; Línea vertical
+    ; mov bx, 15                     ; X = 15 (centro)
+    ; mov cx, 5                      ; Empezar en Y = 5
+    ; mov dl, 15                     ; Color blanco
+    ; 
+    ; mov ax, 0                      ; Contador
+    ; draw_vertical:
+    ; cmp ax, 20                     ; Dibujar 20 píxeles
+    ; jae draw_done
+    ; 
+    ; call DrawPixel
+    ; inc cx
+    ; inc ax
+    ; jmp draw_vertical
+    ; 
+    ; draw_done:
+
     call BlitBufferToScreen
 
     call ReadKeyNonBlocking
@@ -130,55 +181,29 @@ main_game_loop:
     cmp al, 1Bh             ; ESC para salir
     je main_exit_loop
 
+    ; AGREGAR CONTROLES WASD:
     cmp al, 'W'
-    jne main_check_s
-    mov ax, camera_tile_y
-    cmp ax, 0
-    je main_handled
-    dec ax
-    mov camera_tile_y, ax
-    jmp main_handled
-
-main_check_s:
-    cmp al, 'S'
-    jne main_check_a
-    mov ax, camera_tile_y
-    mov bx, map_height
-    sub bx, VIEWPORT_TILES_Y
-    cmp bx, 0
-    jge main_check_s_limit
-    mov bx, 0
-main_check_s_limit:
-    cmp ax, bx
-    jae main_handled
-    inc ax
-    mov camera_tile_y, ax
-    jmp main_handled
-
-main_check_a:
+    je main_move_up
+    cmp al, 'S' 
+    je main_move_down
     cmp al, 'A'
-    jne main_check_d
-    mov ax, camera_tile_x
-    cmp ax, 0
-    je main_handled
-    dec ax
-    mov camera_tile_x, ax
-    jmp main_handled
-
-main_check_d:
+    je main_move_left
     cmp al, 'D'
-    jne main_handled
-    mov ax, camera_tile_x
-    mov bx, map_width
-    sub bx, VIEWPORT_TILES_X
-    cmp bx, 0
-    jge main_check_d_limit
-    mov bx, 0
-main_check_d_limit:
-    cmp ax, bx
-    jae main_handled
-    inc ax
-    mov camera_tile_x, ax
+    je main_move_right
+    jmp main_no_key
+
+main_move_up:
+    dec camera_tile_y
+    jmp main_handled
+main_move_down:
+    inc camera_tile_y
+    jmp main_handled
+main_move_left:
+    dec camera_tile_x
+    jmp main_handled
+main_move_right:
+    inc camera_tile_x
+    jmp main_handled
 
 main_handled:
 main_no_key:
@@ -241,18 +266,17 @@ CheckGraphicsMode PROC
     push ax
     push bx
     
+    ; Forzar modo EGA 640x350 16 colores
+    mov ax, 0010h
+    int 10h
+    
+    ; Verificar que se estableció correctamente
     mov ah, 0Fh
     int 10h
     cmp al, 10h
     je @cgm_mode_ok
     
-    mov ax, 000Eh
-    int 10h
-    mov ah, 0Fh
-    int 10h
-    cmp al, 0Eh
-    je @cgm_mode_ok
-    
+    ; Si falló, intentar modo CGA como respaldo
     mov ax, 0004h
     int 10h
     
@@ -751,70 +775,74 @@ ClearMapData ENDP
 
 CreateDefaultMap PROC
     push ax
-    push bx
     push cx
-    push dx
-    push si
     push di
+    push es
+
+    ; Debug
+    mov dx, OFFSET debug_creating_default
+    mov ah, 09h
+    int 21h
 
     call ClearMapData
 
+    ; Mapa 10x6 con patrón de prueba
     mov ax, 10
     mov map_width, ax
-    mov ax, 6
+    mov ax, 6  
     mov map_height, ax
-
     mov map_loaded, 1
 
+    ; Crear patrón ajedrez más visible
+    mov ax, ds
+    mov es, ax
     mov di, OFFSET map_data
-    mov cx, 60
-    xor bx, bx
+    mov cx, 0                       ; Contador de posición
 
-@cdm_fill_loop:
-    mov ax, bx
-    mov dx, 0
-    mov si, 10
-    div si
+@cdm_loop:
+    cmp cx, 60                      ; 10 * 6 = 60 tiles
+    jae @cdm_done
     
-    cmp ax, 0
+    ; Crear patrón más interesante
+    mov ax, cx
+    mov bx, 10
+    xor dx, dx
+    div bx                          ; AX = fila, DX = columna
+    
+    ; Bordes = muros (tipo 1)
+    cmp ax, 0                       ; Primera fila
     je @cdm_wall
-    cmp ax, 5
-    je @cdm_wall  
-    cmp dx, 0
+    cmp ax, 5                       ; Última fila
     je @cdm_wall
-    cmp dx, 9
+    cmp dx, 0                       ; Primera columna
+    je @cdm_wall
+    cmp dx, 9                       ; Última columna
     je @cdm_wall
     
-    cmp ax, 2
-    jne @cdm_check_floor
-    cmp dx, 4
-    je @cdm_water
-    cmp dx, 5
-    je @cdm_water
-    
-@cdm_check_floor:
-    mov al, 2
-    jmp @cdm_store
-
-@cdm_water:
-    mov al, 3
+    ; Interior alternado
+    add ax, dx
+    and ax, 1
+    add ax, 2                       ; Tipos 2 y 3
     jmp @cdm_store
 
 @cdm_wall:
-    mov al, 1
+    mov ax, 1                       ; Tipo 1 = muro
 
 @cdm_store:
     mov [di], al
     inc di
-    inc bx
-    dec cx
-    jnz @cdm_fill_loop
+    inc cx
+    jmp @cdm_loop
 
+@cdm_done:
+    ; Debug: Confirmar creación
+    mov dx, OFFSET debug_default_created
+    mov ah, 09h
+    int 21h
+
+    pop es
     pop di
-    pop si
-    pop dx
     pop cx
-    pop bx
     pop ax
     ret
 CreateDefaultMap ENDP
@@ -862,62 +890,55 @@ RenderMapViewport PROC
     push di
     push bp
 
-    call ClearOffScreenBuffer
+    call ClearOffScreenBuffer       ; Limpiar buffer cada frame
     call ClampCameraPosition
 
-    xor bp, bp
+    ; Dibujar viewport completo (10x6 tiles)
+    mov si, 0                       ; SI = fila de tile actual
 
-RenderMapViewport_RowLoop:
-    cmp bp, VIEWPORT_TILES_Y
-    jae RenderMapViewport_Done
+RMV_RowLoop:
+    cmp si, VIEWPORT_TILES_Y        ; 6 filas
+    jae RMV_Done
+    
+    mov di, 0                       ; DI = columna de tile actual
 
-    mov ax, bp
-    shl ax, 1
-    shl ax, 1
-    shl ax, 1
-    shl ax, 1
-    mov si, ax
-
-    mov ax, camera_tile_y
-    add ax, bp
-    mov dx, ax
-
-    xor cx, cx
-
-RenderMapViewport_ColLoop:
-    cmp cx, VIEWPORT_TILES_X
-    jae RenderMapViewport_NextRow
-
-    push cx
-
+RMV_ColLoop:
+    cmp di, VIEWPORT_TILES_X        ; 10 columnas
+    jae RMV_NextRow
+    
+    ; Calcular coordenadas del tile en el mapa
     mov ax, camera_tile_x
-    add ax, cx
+    add ax, di                      ; AX = tile_x en mapa
     mov bx, ax
-
-    mov cx, dx
-    call GetTileAt
-    mov dl, al
-
-    pop ax
-
-    mov bx, ax
-    shl bx, 1
-    shl bx, 1
-    shl bx, 1
-    shl bx, 1
-
-    mov cx, si
-    call DrawTile
-
+    
+    mov ax, camera_tile_y
+    add ax, si                      ; AX = tile_y en mapa
     mov cx, ax
-    inc cx
-    jmp RenderMapViewport_ColLoop
+    
+    ; Obtener tipo de tile
+    call GetTileAt                  ; AL = tipo de tile
+    
+    ; Calcular posición en píxeles
+    mov ax, di
+    shl ax, 4                       ; AX = columna * 16
+    mov bx, ax                      ; BX = pixel_x
+    
+    mov ax, si
+    shl ax, 4                       ; AX = fila * 16  
+    mov cx, ax                      ; CX = pixel_y
+    
+    ; Dibujar tile
+    mov dl, al                      ; DL = tipo de tile
+    call DrawTile                   ; BX=x, CX=y, DL=tipo
+    
+    inc di                          ; Siguiente columna
+    jmp RMV_ColLoop
 
-RenderMapViewport_NextRow:
-    inc bp
-    jmp RenderMapViewport_RowLoop
+RMV_NextRow:
+    inc si                          ; Siguiente fila
+    jmp RMV_RowLoop
 
-RenderMapViewport_Done:
+RMV_Done:
     pop bp
     pop di
     pop si
@@ -937,91 +958,89 @@ DrawPixel PROC
     push di
     push es
 
+    ; Verificar límites
     cmp bx, VIEWPORT_WIDTH
-    jb @dp_check_y_bounds
-    jmp @dp_exit_pixel
-
-@dp_check_y_bounds:
+    jae @dp_exit_pixel
     cmp cx, VIEWPORT_HEIGHT
-    jb @dp_continue_pixel
-    jmp @dp_exit_pixel
+    jae @dp_exit_pixel
 
-@dp_continue_pixel:
-
-    mov dh, dl
-
-    mov ax, BYTES_PER_SCAN
-    mul cx
-    mov di, ax
-
-    mov si, bx
-    mov ax, si
-    shr ax, 3
-    add di, ax
-
-    mov ax, si
-    and ax, 7
+    ; Calcular offset y máscara
+    mov ax, BYTES_PER_SCAN         ; 20
+    mul cx                         ; AX = Y * 20
+    mov si, ax                     ; SI = offset de línea
+    
+    mov ax, bx                     ; AX = X
+    shr ax, 3                      ; AX = X / 8
+    add si, ax                     ; SI = offset final
+    
+    ; Calcular máscara de bit
+    mov ax, bx                     ; AX = X
+    and ax, 7                      ; AX = X % 8
     mov cl, 7
-    sub cl, al
+    sub cl, al                     ; CL = 7 - (X % 8)
     mov al, 1
-    shl al, cl
-    mov bl, al
-    mov bh, bl
-    not bh
-
-    mov si, di
-
-    mov ax, Plane0Segment
-    or ax, ax
-    jz @dp_NextPlane0
-    mov es, ax
-    mov di, si
-    mov al, bh
-    and BYTE PTR es:[di], al
-    test dh, 1
-    jz @dp_NextPlane0
-    mov al, bl
-    or BYTE PTR es:[di], al
-@dp_NextPlane0:
-
-    mov ax, Plane1Segment
-    or ax, ax
-    jz @dp_NextPlane1
-    mov es, ax
-    mov di, si
-    mov al, bh
-    and BYTE PTR es:[di], al
-    test dh, 2
-    jz @dp_NextPlane1
-    mov al, bl
-    or BYTE PTR es:[di], al
-@dp_NextPlane1:
-
-    mov ax, Plane2Segment
-    or ax, ax
-    jz @dp_NextPlane2
-    mov es, ax
-    mov di, si
-    mov al, bh
-    and BYTE PTR es:[di], al
-    test dh, 4
-    jz @dp_NextPlane2
-    mov al, bl
-    or BYTE PTR es:[di], al
-@dp_NextPlane2:
-
-    mov ax, Plane3Segment
-    or ax, ax
-    jz @dp_NextPlane3
-    mov es, ax
-    mov di, si
-    mov al, bh
-    and BYTE PTR es:[di], al
-    test dh, 8
-    jz @dp_NextPlane3
-    mov al, bl
-    or BYTE PTR es:[di], al
-@dp_NextPlane3:
+    shl al, cl                     ; AL = máscara de bit
+    
+    ; CORRECCIÓN: Salvar DL antes de usar DX para segmentos
+    mov dh, dl                     ; Guardar color en DH
+    
+    ; Plano 0 (bit 0 del color)
+    mov dx, Plane0Segment
+    or dx, dx
+    jz @dp_plane1                  ; Salto corto a plano 1
+    mov es, dx
+    test dh, 01h                   ; ¿Bit 0 del color está activo?
+    jz @dp_clear_p0
+    or BYTE PTR es:[si], al        ; Activar bit
+    jmp @dp_plane1
+@dp_clear_p0:
+    not al
+    and BYTE PTR es:[si], al       ; Limpiar bit
+    not al
+    
+@dp_plane1:
+    ; Plano 1 (bit 1 del color)
+    mov dx, Plane1Segment
+    or dx, dx
+    jz @dp_plane2                  ; Salto corto a plano 2
+    mov es, dx
+    test dh, 02h                   ; ¿Bit 1 del color está activo?
+    jz @dp_clear_p1
+    or BYTE PTR es:[si], al        ; Activar bit
+    jmp @dp_plane2
+@dp_clear_p1:
+    not al
+    and BYTE PTR es:[si], al       ; Limpiar bit
+    not al
+    
+@dp_plane2:
+    ; Plano 2 (bit 2 del color)
+    mov dx, Plane2Segment
+    or dx, dx
+    jz @dp_plane3                  ; Salto corto a plano 3
+    mov es, dx
+    test dh, 04h                   ; ¿Bit 2 del color está activo?
+    jz @dp_clear_p2
+    or BYTE PTR es:[si], al        ; Activar bit
+    jmp @dp_plane3
+@dp_clear_p2:
+    not al
+    and BYTE PTR es:[si], al       ; Limpiar bit
+    not al
+    
+@dp_plane3:
+    ; Plano 3 (bit 3 del color)
+    mov dx, Plane3Segment
+    or dx, dx
+    jz @dp_exit_pixel              ; Ya está cerca, no necesita cambio
+    mov es, dx
+    test dh, 08h                   ; ¿Bit 3 del color está activo?
+    jz @dp_clear_p3
+    or BYTE PTR es:[si], al        ; Activar bit
+    jmp @dp_exit_pixel
+@dp_clear_p3:
+    not al
+    and BYTE PTR es:[si], al       ; Limpiar bit
 
 @dp_exit_pixel:
     pop es
@@ -1043,64 +1062,68 @@ DrawTile PROC
     push di
     push bp
 
-    mov si, cx
-    mov di, bx
+    ; Mapeo de tipos de tiles a colores EGA
+    cmp dl, 0                       ; TILE_EMPTY
+    jne DT_CheckWall
+    mov dl, 0                       ; Negro (0000b)
+    jmp DT_DrawStart
+    
+DT_CheckWall:
+    cmp dl, 1                       ; TILE_WALL
+    jne DT_CheckFloor
+    mov dl, 15                      ; Blanco brillante (1111b)
+    jmp DT_DrawStart
+    
+DT_CheckFloor:
+    cmp dl, 2                       ; TILE_FLOOR  
+    jne DT_CheckWater
+    mov dl, 10                      ; Verde brillante (1010b)
+    jmp DT_DrawStart
+    
+DT_CheckWater:
+    cmp dl, 3                       ; TILE_WATER
+    jne DT_DefaultColor
+    mov dl, 9                       ; Azul brillante (1001b)
+    jmp DT_DrawStart
+    
+DT_DefaultColor:
+    mov dl, 7                       ; Gris claro (0111b)
 
-    mov al, dl
-    cmp al, 0
-    je @dt_color_empty
-    cmp al, 1
-    je @dt_color_wall
-    cmp al, 2
-    je @dt_color_floor
-    cmp al, 3
-    je @dt_color_water
-    mov dl, 15
-    jmp @dt_start_drawing
-
-@dt_color_empty:
-    mov dl, TILE_EMPTY
-    jmp @dt_start_drawing
-
-@dt_color_wall:
-    mov dl, TILE_WALL
-    jmp @dt_start_drawing
-
-@dt_color_floor:
-    mov dl, TILE_FLOOR
-    jmp @dt_start_drawing
-
-@dt_color_water:
-    mov dl, TILE_WATER
-
-@dt_start_drawing:
-    mov bp, 0
+DT_DrawStart:
+    ; Solo dibujar si no es color negro (optimización)
+    cmp dl, 0
+    je @dt_done                     ; No dibujar tiles negros
+    
+    mov si, cx                      ; SI = Y pixel
+    mov di, bx                      ; DI = X pixel
+    mov bp, 0                       ; BP = fila actual
 
 @dt_row_loop:
     cmp bp, TILE_SIZE
     jae @dt_done
     
     mov cx, si
-    add cx, bp
-    mov bx, di
-    mov ax, 0
+    add cx, bp                      ; CX = Y actual
+    mov bx, di                      ; BX = X inicial
+    mov ax, 0                       ; AX = columna actual
 
 @dt_col_loop:
     cmp ax, TILE_SIZE
     jae @dt_next_row
     
+    ; Dibujar píxel
     push ax
     push cx
-    call DrawPixel
+    call DrawPixel                  ; BX=X, CX=Y, DL=color
     pop cx
     pop ax
-    
-    inc bx
-    inc ax
+
+    inc bx                          ; Siguiente X
+    inc ax                          ; Siguiente columna
     jmp @dt_col_loop
 
 @dt_next_row:
-    inc bp
+    inc bp                          ; Siguiente fila
     jmp @dt_row_loop
 
 @dt_done:
@@ -1243,6 +1266,7 @@ ClampCameraPosition PROC
     push ax
     push bx
 
+    ; Limitar X de cámara
     mov ax, camera_tile_x
     cmp ax, 0
     jge @ccp_check_max_x
@@ -1251,7 +1275,7 @@ ClampCameraPosition PROC
 
 @ccp_check_max_x:
     mov bx, map_width
-    sub bx, VIEWPORT_TILES_X
+    sub bx, VIEWPORT_TILES_X        ; 20 - 10 = máx 10
     cmp bx, 0
     jge @ccp_check_x_limit
     mov bx, 0
@@ -1264,6 +1288,7 @@ ClampCameraPosition PROC
 @ccp_store_x:
     mov camera_tile_x, ax
 
+    ; Limitar Y de cámara  
     mov ax, camera_tile_y
     cmp ax, 0
     jge @ccp_check_max_y
@@ -1272,7 +1297,7 @@ ClampCameraPosition PROC
 
 @ccp_check_max_y:
     mov bx, map_height
-    sub bx, VIEWPORT_TILES_Y
+    sub bx, VIEWPORT_TILES_Y        ; 15 - 6 = máx 9
     cmp bx, 0
     jge @ccp_check_y_limit
     mov bx, 0
@@ -1301,111 +1326,63 @@ LoadMapFromFile PROC
     push di
 
     mov map_loaded, 0
+    
+    ; Debug: Intentando cargar mapa
+    mov dx, OFFSET debug_loading
+    mov ah, 09h
+    int 21h
 
-    push ds
+    ; Intentar abrir archivo
     mov dx, OFFSET mapFileName
     call OpenFile
-    pop ds
+    jc LMFF_FileError
     
-    ; FIX: Usar NOT carry flag para evitar salto largo
-    jnc LoadMapFromFile_FileOK
-    jmp LoadMapFromFile_UseDefault
-
-LoadMapFromFile_FileOK:
-    call ReadLine
-    call ParseTwoInts
+    ; Debug: Archivo abierto
+    mov dx, OFFSET debug_file_ok
+    mov ah, 09h
+    int 21h
     
-    ; FIX: Reorganizar verificaciones para usar saltos cortos
-    mov ax, mapW
-    cmp ax, 1
-    jae LoadMapFromFile_CheckMaxW    ; Salto corto hacia adelante
-    jmp LoadMapFromFile_UseDefault   ; Salto largo OK con JMP
-
-LoadMapFromFile_CheckMaxW:
-    cmp ax, MAX_MAP_WIDTH
-    jbe LoadMapFromFile_CheckMinH    ; Salto corto hacia adelante  
-    jmp LoadMapFromFile_UseDefault   ; Salto largo OK con JMP
-
-LoadMapFromFile_CheckMinH:
-    mov ax, mapH
-    cmp ax, 1
-    jae LoadMapFromFile_CheckMaxH    ; Salto corto hacia adelante
-    jmp LoadMapFromFile_UseDefault   ; Salto largo OK con JMP
-
-LoadMapFromFile_CheckMaxH:
-    cmp ax, MAX_MAP_HEIGHT
-    jbe LoadMapFromFile_ValidSize    ; Salto corto hacia adelante
-    jmp LoadMapFromFile_UseDefault   ; Salto largo OK con JMP
-
-LoadMapFromFile_ValidSize:
-    ; Tamaño válido, continuar
-    mov ax, mapW
-    mov map_width, ax
-    mov ax, mapH
-    mov map_height, ax
-
-    call ClearMapData
-    mov dx, 0
-
-LoadMapFromFile_RowLoop:
-    mov ax, dx
-    cmp ax, mapH
-    jb LoadMapFromFile_ReadRow
-    jmp LoadMapFromFile_Success
-
-LoadMapFromFile_ReadRow:
-    call ReadLine
-
-    mov si, OFFSET lineBuffer
-    mov al, [si]
-    cmp al, 'R'
-    jne LoadMapFromFile_StartCols
-    jmp LoadMapFromFile_Success
-
-LoadMapFromFile_StartCols:
-    mov cx, 0
-
-LoadMapFromFile_ColLoop:
-    mov ax, cx
-    cmp ax, mapW
-    jae LoadMapFromFile_NextRow
+    call LoadMapHeader
+    jc LMFF_HeaderError
     
-    call ParseNextInt
+    call LoadMapData  
+    jc LMFF_DataError
     
-    push ax
-    mov ax, dx
-    mul mapW
-    add ax, cx
-    mov di, OFFSET map_data
-    add di, ax
-    pop ax
-    
-    cmp ax, 255
-    jbe LoadMapFromFile_StoreValue
-    mov BYTE PTR [di], 0
-    jmp LoadMapFromFile_NextCol
-
-LoadMapFromFile_StoreValue:
-    mov [di], al
-
-LoadMapFromFile_NextCol:
-    inc cx
-    jmp LoadMapFromFile_ColLoop
-
-LoadMapFromFile_NextRow:
-    inc dx
-    jmp LoadMapFromFile_RowLoop
-
-LoadMapFromFile_Success:
+    ; Éxito
     mov map_loaded, 1
+    mov dx, OFFSET debug_success
+    mov ah, 09h
+    int 21h
     call CloseFile
-    jmp LoadMapFromFile_Done
+    jmp LMFF_Done
 
-LoadMapFromFile_UseDefault:
+LMFF_FileError:
+    mov dx, OFFSET debug_file_error
+    mov ah, 09h
+    int 21h
+    jmp LMFF_UseDefault
+
+LMFF_HeaderError:
+    mov dx, OFFSET debug_header_error
+    mov ah, 09h
+    int 21h
     call CloseFile
+    jmp LMFF_UseDefault
+
+LMFF_DataError:
+    mov dx, OFFSET debug_data_error
+    mov ah, 09h
+    int 21h
+    call CloseFile
+    jmp LMFF_UseDefault
+
+LMFF_UseDefault:
+    mov dx, OFFSET debug_using_default
+    mov ah, 09h
+    int 21h
     call CreateDefaultMap
 
-LoadMapFromFile_Done:
+LMFF_Done:
     pop di
     pop si
     pop dx
@@ -1415,8 +1392,279 @@ LoadMapFromFile_Done:
     ret
 LoadMapFromFile ENDP
 
-; ===== CORRECCIÓN DEFINITIVA - BlitBufferToScreen (línea 1160) =====
+; ===== NUEVO: Cargar encabezado del mapa =====
+LoadMapHeader PROC
+    push ax
+    push bx
+    
+    call ReadLine
+    call ParseTwoInts
+    
+    ; Verificar ancho
+    mov ax, mapW
+    cmp ax, 1
+    jb LMH_Error
+    cmp ax, MAX_MAP_WIDTH  
+    ja LMH_Error
+    
+    ; Verificar alto
+    mov ax, mapH
+    cmp ax, 1
+    jb LMH_Error
+    cmp ax, MAX_MAP_HEIGHT
+    ja LMH_Error
+    
+    ; Dimensiones válidas
+    mov ax, mapW
+    mov map_width, ax
+    mov ax, mapH
+    mov map_height, ax
+    
+    call PrintMapDimensions        ; Mover debug a procedimiento separado
+    call ClearMapData
+    clc                           ; Sin error
+    jmp LMH_Exit
 
+LMH_Error:
+    stc                           ; Con error
+
+LMH_Exit:
+    pop bx
+    pop ax
+    ret
+LoadMapHeader ENDP
+
+; ===== NUEVO: Procedimiento separado para debug =====
+PrintMapDimensions PROC
+    push ax
+    push dx
+    
+    ; Debug: Mostrar dimensiones
+    mov dx, OFFSET debug_dimensions
+    mov ah, 09h
+    int 21h
+    mov ax, mapW
+    call PrintDecimalAX
+    mov dx, OFFSET debug_x_sep
+    mov ah, 09h
+    int 21h
+    mov ax, mapH
+    call PrintDecimalAX
+    mov dx, OFFSET crlf
+    mov ah, 09h
+    int 21h
+    
+    pop dx
+    pop ax
+    ret
+PrintMapDimensions ENDP
+
+; ===== NUEVO: Cargar datos del mapa =====
+LoadMapData PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    
+    xor dx, dx                    ; DX = fila actual
+
+LMD_RowLoop:
+    mov ax, dx
+    cmp ax, mapH
+    jb LMD_Continue              ; Cambio: usar jb (salto hacia adelante corto)
+    jmp LMD_Success              ; Salto largo directo
+    
+LMD_Continue:
+    call ReadLine
+    mov si, OFFSET lineBuffer
+    mov al, [si]
+    cmp al, 'R'
+    je LMD_Success               ; Este salto ya es corto
+    
+    ; Procesar fila
+    push dx
+    call ProcessMapRow
+    pop dx
+    
+    inc dx
+    jmp LMD_RowLoop
+
+LMD_Success:
+    clc                           ; Sin error
+
+LMD_Exit:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+LoadMapData ENDP
+
+; ===== NUEVO: Procesar una fila del mapa =====
+ProcessMapRow PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    
+    mov si, OFFSET lineBuffer
+    xor cx, cx                    ; CX = columna actual
+
+PMR_ColLoop:
+    mov ax, cx
+    cmp ax, mapW
+    jb PMR_Continue              ; Cambio: usar jb (salto hacia adelante corto)
+    jmp PMR_Done                 ; Salto largo directo
+
+PMR_Continue:
+    call ParseNextInt
+    call StoreMapTile
+    
+    inc cx
+    jmp PMR_ColLoop
+
+PMR_Done:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+ProcessMapRow ENDP
+
+; ===== NUEVO: Procedimiento auxiliar para almacenar tile =====
+StoreMapTile PROC
+    push ax
+    push bx
+    push di
+    
+    ; Calcular offset en map_data
+    push ax
+    mov ax, dx                    ; DX = fila (pasada como parámetro)
+    mul map_width
+    add ax, cx
+    mov di, OFFSET map_data
+    add di, ax
+    pop ax
+    
+    ; Validar y almacenar
+    cmp ax, 255
+    ja SMT_StoreZero
+    mov [di], al
+    jmp SMT_Done
+
+SMT_StoreZero:
+    mov BYTE PTR [di], 0
+
+SMT_Done:
+    pop di
+    pop bx
+    pop ax
+    ret
+StoreMapTile ENDP
+
+; ===== RUTINAS AUXILIARES PARA DEBUGGING =====
+
+PrintDecimalAX PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov si, 10                     ; Divisor para conversión decimal
+    xor cx, cx                     ; Contador de dígitos
+
+@print_decimal_loop:
+    xor dx, dx
+    div si                         ; DX:AX = AX / 10
+    push dx                        ; Guardar dígito en la pila
+    inc cx                         ; Aumentar contador de dígitos
+    test ax, ax
+    jnz @print_decimal_loop
+
+    ; Imprimir dígitos en orden inverso
+@print_decimal_pop:
+    pop dx
+    add dl, '0'                   ; Convertir a carácter ASCII
+    mov ah, 02h
+    int 21h
+    loop @print_decimal_pop
+
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+PrintDecimalAX ENDP
+
+; ===== NUEVO: Rutina auxiliar para copiar un plano =====
+CopyPlaneToVRAM PROC
+    ; Entrada: AX = segmento del plano, BL = máscara del plano
+    ; Modifica: SI, DI, CX, usa DS temporalmente
+    push ds
+    push ax
+    push bx
+    push dx
+    
+    mov ds, ax                     ; DS = segmento del plano
+    xor si, si                     ; SI = 0 (inicio del buffer)
+    
+    ; Configurar máscara del plano
+    mov dx, 03C4h
+    mov al, 02h
+    out dx, al
+    inc dx
+    mov al, bl                     ; AL = máscara del plano
+    out dx, al
+    
+    ; Calcular offset inicial en VRAM
+    mov ax, viewport_y_offset
+    mov dx, VRAM_BYTES_PER_SCAN
+    mul dx
+    mov di, ax
+    add di, viewport_x_offset
+    
+    ; Copiar VIEWPORT_HEIGHT líneas
+    mov bx, VIEWPORT_HEIGHT
+    
+@cptv_loop:
+    push si
+    push di
+    push bx
+    
+    mov cx, BYTES_PER_SCAN         ; 20 bytes por línea
+    rep movsb                      ; Copiar línea completa
+    
+    pop bx
+    pop di
+    pop si
+    
+    ; Siguiente línea
+    add si, BYTES_PER_SCAN         ; Siguiente línea en buffer
+    add di, VRAM_BYTES_PER_SCAN    ; Siguiente línea en VRAM
+    
+    dec bx
+    jnz @cptv_loop
+    
+    pop dx
+    pop bx
+    pop ax
+    pop ds
+    ret
+CopyPlaneToVRAM ENDP
+
+; ===== CORRECCIÓN: BlitBufferToScreen =====
 BlitBufferToScreen PROC
     push ax
     push bx
@@ -1427,202 +1675,57 @@ BlitBufferToScreen PROC
     push ds
     push es
 
-    cld
+    ; Verificar que los buffers estén inicializados
+    mov ax, Plane0Segment
+    or ax, ax
+    jz @bbts_exit
 
+    ; Configurar segmento de VRAM
     mov ax, 0A000h
     mov es, ax
-    mov dx, 03C4h
+    cld
 
-    ; PLANO 0
+    ; Copiar plano 0 (bit 0 del color)
     mov ax, Plane0Segment
-    or  ax, ax
-    jz  BlitBufferToScreen_CheckPlane1  ; Salto intermedio corto
-    
-    mov bx, ax
-    mov al, 02h
-    out dx, al
-    inc dx
-    mov al, 1
-    out dx, al
-    dec dx
+    or ax, ax
+    jz @bbts_check_p1
+    mov bl, 01h                    ; Máscara plano 0
+    call CopyPlaneToVRAM
 
-    push ds
-    mov ds, bx
-    xor si, si
-    
-    mov di, viewport_y_offset
-    mov ax, VRAM_BYTES_PER_SCAN
-    mul di
-    mov di, ax
-    mov ax, viewport_x_offset
-    shr ax, 3
-    add di, ax
-
-    mov ax, VIEWPORT_HEIGHT
-BlitBufferToScreen_Row0:
-    push ax
-    push si
-    push di
-    
-    mov cx, BYTES_PER_SCAN
-    rep movsb
-    
-    pop di
-    pop si
-    pop ax
-    
-    add si, BYTES_PER_SCAN
-    add di, VRAM_BYTES_PER_SCAN
-    
-    dec ax
-    jnz BlitBufferToScreen_Row0
-    pop ds
-
-BlitBufferToScreen_CheckPlane1:
-    ; PLANO 1
+@bbts_check_p1:
+    ; Copiar plano 1 (bit 1 del color)  
     mov ax, Plane1Segment
-    or  ax, ax
-    jz  BlitBufferToScreen_CheckPlane2  ; Salto intermedio corto
-    
-    mov bx, ax
-    mov al, 02h
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    dec dx
+    or ax, ax
+    jz @bbts_check_p2
+    mov bl, 02h                    ; Máscara plano 1
+    call CopyPlaneToVRAM
 
-    push ds
-    mov ds, bx
-    xor si, si
-    
-    mov di, viewport_y_offset
-    mov ax, VRAM_BYTES_PER_SCAN
-    mul di
-    mov di, ax
-    mov ax, viewport_x_offset
-    shr ax, 3
-    add di, ax
-    
-    mov ax, VIEWPORT_HEIGHT
-BlitBufferToScreen_Row1:
-    push ax
-    push si
-    push di
-    
-    mov cx, BYTES_PER_SCAN
-    rep movsb
-    
-    pop di
-    pop si
-    pop ax
-    
-    add si, BYTES_PER_SCAN
-    add di, VRAM_BYTES_PER_SCAN
-    
-    dec ax
-    jnz BlitBufferToScreen_Row1
-    pop ds
-
-BlitBufferToScreen_CheckPlane2:
-    ; PLANO 2
+@bbts_check_p2:
+    ; Copiar plano 2 (bit 2 del color)
     mov ax, Plane2Segment
-    or  ax, ax
-    jz  BlitBufferToScreen_CheckPlane3  ; Salto intermedio corto
-    
-    mov bx, ax
-    mov al, 02h
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    dec dx
+    or ax, ax
+    jz @bbts_check_p3
+    mov bl, 04h                    ; Máscara plano 2
+    call CopyPlaneToVRAM
 
-    push ds
-    mov ds, bx
-    xor si, si
-    
-    mov di, viewport_y_offset
-    mov ax, VRAM_BYTES_PER_SCAN
-    mul di
-    mov di, ax
-    mov ax, viewport_x_offset
-    shr ax, 3
-    add di, ax
-    
-    mov ax, VIEWPORT_HEIGHT
-BlitBufferToScreen_Row2:
-    push ax
-    push si
-    push di
-    
-    mov cx, BYTES_PER_SCAN
-    rep movsb
-    
-    pop di
-    pop si
-    pop ax
-    
-    add si, BYTES_PER_SCAN
-    add di, VRAM_BYTES_PER_SCAN
-    
-    dec ax
-    jnz BlitBufferToScreen_Row2
-    pop ds
-
-BlitBufferToScreen_CheckPlane3:
-    ; PLANO 3
+@bbts_check_p3:
+    ; Copiar plano 3 (bit 3 del color)
     mov ax, Plane3Segment
-    or  ax, ax
-    jz  BlitBufferToScreen_Finish  ; Salto intermedio corto
-    
-    mov bx, ax
+    or ax, ax
+    jz @bbts_restore
+    mov bl, 08h                    ; Máscara plano 3
+    call CopyPlaneToVRAM
+
+@bbts_restore:
+    ; Restaurar máscara de todos los planos
+    mov dx, 03C4h
     mov al, 02h
     out dx, al
     inc dx
-    mov al, 8
-    out dx, al
-    dec dx
-
-    push ds
-    mov ds, bx
-    xor si, si
-    
-    mov di, viewport_y_offset
-    mov ax, VRAM_BYTES_PER_SCAN
-    mul di
-    mov di, ax
-    mov ax, viewport_x_offset
-    shr ax, 3
-    add di, ax
-    
-    mov ax, VIEWPORT_HEIGHT
-BlitBufferToScreen_Row3:
-    push ax
-    push si
-    push di
-    
-    mov cx, BYTES_PER_SCAN
-    rep movsb
-    
-    pop di
-    pop si
-    pop ax
-    
-    add si, BYTES_PER_SCAN
-    add di, VRAM_BYTES_PER_SCAN
-    
-    dec ax
-    jnz BlitBufferToScreen_Row3
-    pop ds
-
-BlitBufferToScreen_Finish:
-    mov al, 02h
-    out dx, al
-    inc dx
-    mov al, 0Fh
+    mov al, 0Fh                    ; Todos los planos
     out dx, al
 
+@bbts_exit:
     pop es
     pop ds
     pop di
