@@ -40,7 +40,7 @@ VIEWPORT_TILES_Y  EQU 6           ; 100/16 = 6 tiles verticales (con margen)
 map_data          db MAX_MAP_SIZE dup(0)  ; Matriz de tiles del mapa
 map_width         dw 0            ; Ancho actual del mapa en tiles
 map_height        dw 0            ; Alto actual del mapa en tiles
-map_loaded        db 0             ; Flag: 1 = mapa cargado correctamente
+map_loaded        db 0            ; Flag: 1 = mapa cargado correctamente
 
 ; Posición de la cámara (en tiles)
 camera_tile_x     dw 0            ; Tile X superior izquierdo visible
@@ -53,8 +53,8 @@ TILE_FLOOR        EQU 2           ; Tipo 2: Piso (verde)
 TILE_WATER        EQU 1           ; Tipo 3: Agua (azul)
 
 ; ===== Offsets para centrar el viewport dentro de 640x350 =====
-viewport_x_offset dw 240         ; Centrar horizontalmente  
-viewport_y_offset dw 10000       ; Centrar verticalmente
+viewport_x_offset dw 30           ; Centrar horizontalmente (corregido)
+viewport_y_offset dw 125          ; Centrar verticalmente (corregido)
 
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
@@ -101,10 +101,10 @@ main PROC
     call CheckGraphicsMode
     call ClearScreen
     
-    ; FIX: Cargar mapa ANTES de cualquier otra cosa
+    ; Cargar mapa
     call LoadMapFromFile
     
-    ; FIX: Verificar que el mapa se cargó
+    ; Verificar que el mapa se cargó
     cmp map_loaded, 0
     je @use_default
     jmp @map_ready
@@ -113,11 +113,11 @@ main PROC
     call CreateDefaultMap
 
 @map_ready:
-    ; FIX: Inicializar posición de cámara
+    ; Inicializar posición de cámara
     mov camera_tile_x, 0
     mov camera_tile_y, 0
 
-    call MainLoop
+    call MainLoop    ; FIX: Cambiar MAINLOOP a MainLoop (con mayúscula correcta)
 
     mov ax, 0003h
     int 10h
@@ -126,7 +126,7 @@ main PROC
     int 21h
 main ENDP
 
-; ===== RUTINAS BÁSICAS PRIMERO =====
+; ===== RUTINAS BÁSICAS =====
 
 PrintHexAX PROC
     push ax
@@ -201,21 +201,13 @@ ShrinkProgramMemory PROC
     push dx
     push es
 
-    mov ax, psp_seg
-    or ax, ax
-    jnz @spm_have_psp
-
     mov ah, 51h
     int 21h
     mov psp_seg, bx
 
-@spm_have_psp:
     mov es, psp_seg
-    mov ax, es:[2]
-    shr ax, 1
-
+    mov bx, 1000h  ; Reducir a tamaño razonable
     mov ah, 4Ah
-    mov bx, 200
     int 21h
     jc @spm_shrink_fail
 
@@ -725,7 +717,6 @@ CreateDefaultMap PROC
     cmp dx, 9
     je @cdm_wall
     
-    ; FIX: Agregar agua en el centro para asegurar que se vea
     cmp ax, 2
     jne @cdm_check_floor
     cmp dx, 4
@@ -804,15 +795,9 @@ DrawPixel PROC
     push es
 
     cmp bx, VIEWPORT_WIDTH
-    jb @dp_check_y
-    jmp @dp_exit_pixel
-
-@dp_check_y:
+    jae @dp_exit_pixel
     cmp cx, VIEWPORT_HEIGHT
-    jb @dp_continue
-    jmp @dp_exit_pixel
-
-@dp_continue:
+    jae @dp_exit_pixel
 
     mov dh, dl
 
@@ -990,10 +975,7 @@ DrawRedLine PROC
 
     mov ax, line_len
     cmp ax, 0
-    jne @drl_dr_continue
-    jmp @drl_dr_exit
-
-@drl_dr_continue:
+    jz @drl_dr_exit
 
     mov dx, VIEWPORT_WIDTH - 1
     sub dx, ax
@@ -1108,14 +1090,6 @@ DelayTicks PROC
     ret
 DelayTicks ENDP
 
-; FIX: Agregar rutina faltante ClampCameraPosition
-MainLoop PROC
-    call RenderMapViewport
-    call DrawRedLine
-    call BlitBufferToScreen
-    ret
-MainLoop ENDP
-
 ClampCameraPosition PROC
     push ax
     push bx
@@ -1183,64 +1157,58 @@ LoadMapFromFile PROC
     mov dx, OFFSET mapFileName
     call OpenFile
     pop ds
-    jnc LoadMapFromFile_AfterOpen
-    jmp LoadMapFromFile_UseDefault
-
-LoadMapFromFile_AfterOpen:
+    jc @lmf_error_jump    ; Salto corto intermedio
 
     call ReadLine
     call ParseTwoInts
-
+    
+    ; FIX: Usar saltos cortos intermedios para evitar errores de rango
     mov ax, mapW
     cmp ax, 1
-    jae LoadMapFromFile_CheckMaxWidth
-    jmp LoadMapFromFile_UseDefault
-
-LoadMapFromFile_CheckMaxWidth:
+    jb @lmf_error_jump    ; Salto corto intermedio (línea 798)
     cmp ax, MAX_MAP_WIDTH
-    jbe LoadMapFromFile_CheckMinHeight
-    jmp LoadMapFromFile_UseDefault
-
-LoadMapFromFile_CheckMinHeight:
+    ja @lmf_error_jump    ; Salto corto intermedio (línea 800)
+    
     mov ax, mapH
     cmp ax, 1
-    jae LoadMapFromFile_CheckMaxHeight
-    jmp LoadMapFromFile_UseDefault
-
-LoadMapFromFile_CheckMaxHeight:
+    jb @lmf_error_jump2   ; Segundo salto corto intermedio
     cmp ax, MAX_MAP_HEIGHT
-    jbe LoadMapFromFile_SizeValid
-    jmp LoadMapFromFile_UseDefault
+    ja @lmf_error_jump2
 
-LoadMapFromFile_SizeValid:
-
+    ; Continuar con procesamiento normal
     mov ax, mapW
     mov map_width, ax
     mov ax, mapH
     mov map_height, ax
 
     call ClearMapData
-
     mov dx, 0
+    jmp @lmf_process_rows
 
-LoadMapFromFile_ReadRowLoop:
+@lmf_error_jump:
+    jmp @lmf_use_default
+
+@lmf_error_jump2:
+    jmp @lmf_use_default
+
+@lmf_process_rows:
     mov ax, dx
     cmp ax, mapH
-    jae LoadMapFromFile_Success
+    jae @lmf_success
     
     call ReadLine
     
     mov si, OFFSET lineBuffer
     mov al, [si]
     cmp al, 'R'
-    je LoadMapFromFile_Success
+    je @lmf_success
     
     mov cx, 0
 
-LoadMapFromFile_ReadColLoop:
+@lmf_process_cols:
     mov ax, cx
     cmp ax, mapW
-    jae LoadMapFromFile_NextRow
+    jae @lmf_next_row
     
     call ParseNextInt
     
@@ -1253,31 +1221,31 @@ LoadMapFromFile_ReadColLoop:
     pop ax
     
     cmp ax, 255
-    ja LoadMapFromFile_StoreZero
+    ja @lmf_store_zero
     mov [di], al
-    jmp LoadMapFromFile_Stored
+    jmp @lmf_stored
 
-LoadMapFromFile_StoreZero:
+@lmf_store_zero:
     mov BYTE PTR [di], 0
 
-LoadMapFromFile_Stored:
+@lmf_stored:
     inc cx
-    jmp LoadMapFromFile_ReadColLoop
+    jmp @lmf_process_cols
 
-LoadMapFromFile_NextRow:
+@lmf_next_row:
     inc dx
-    jmp LoadMapFromFile_ReadRowLoop
+    jmp @lmf_process_rows
 
-LoadMapFromFile_Success:
+@lmf_success:
     mov map_loaded, 1
     call CloseFile
-    jmp LoadMapFromFile_Done
+    jmp @lmf_done
 
-LoadMapFromFile_UseDefault:
+@lmf_use_default:
     call CloseFile
     call CreateDefaultMap
 
-LoadMapFromFile_Done:
+@lmf_done:
     pop di
     pop si
     pop dx
@@ -1287,78 +1255,7 @@ LoadMapFromFile_Done:
     ret
 LoadMapFromFile ENDP
 
-RenderMapViewport PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-    push bp
-
-    cmp map_loaded, 0
-    je RenderMapViewport_Default
-
-    call ClearOffScreenBuffer
-    call ClampCameraPosition
-
-    mov bp, 0
-
-RenderMapViewport_RowLoop:
-    cmp bp, VIEWPORT_TILES_Y
-    jae RenderMapViewport_Done
-    
-    mov ax, camera_tile_y
-    add ax, bp
-    cmp ax, map_height
-    jae RenderMapViewport_NextRow
-    mov si, ax
-    
-    mov di, 0
-
-RenderMapViewport_ColLoop:
-    cmp di, VIEWPORT_TILES_X
-    jae RenderMapViewport_NextRow
-    
-    mov ax, camera_tile_x
-    add ax, di
-    cmp ax, map_width
-    jae RenderMapViewport_NextCol
-    mov dx, ax
-    
-    mov bx, dx
-    mov cx, si
-    call GetTileAt
-    
-    mov bx, di
-    shl bx, 4
-    mov cx, bp
-    shl cx, 4
-    
-    mov dl, al
-    call DrawTile
-    
-RenderMapViewport_NextCol:
-    inc di
-    jmp RenderMapViewport_ColLoop
-
-RenderMapViewport_NextRow:
-    inc bp
-    jmp RenderMapViewport_RowLoop
-
-RenderMapViewport_Default:
-    call ClearOffScreenBuffer
-
-RenderMapViewport_Done:
-    pop bp
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-RenderMapViewport ENDP
+; ===== CORREGIR TAMBIÉN BlitBufferToScreen (línea 1160) =====
 
 BlitBufferToScreen PROC
     push ax
@@ -1379,7 +1276,8 @@ BlitBufferToScreen PROC
     ; PLANO 0
     mov ax, Plane0Segment
     or  ax, ax
-    jz  BlitBufferToScreen_Skip0
+    jz  BlitBufferToScreen_CheckPlane1  ; Salto intermedio corto
+    
     mov bx, ax
     mov al, 02h
     out dx, al
@@ -1393,7 +1291,12 @@ BlitBufferToScreen PROC
     xor si, si
     
     mov di, viewport_y_offset
-    add di, viewport_x_offset
+    mov ax, VRAM_BYTES_PER_SCAN
+    mul di
+    mov di, ax
+    mov ax, viewport_x_offset
+    shr ax, 3
+    add di, ax
 
     mov ax, VIEWPORT_HEIGHT
 BlitBufferToScreen_Row0:
@@ -1414,12 +1317,13 @@ BlitBufferToScreen_Row0:
     dec ax
     jnz BlitBufferToScreen_Row0
     pop ds
-BlitBufferToScreen_Skip0:
 
+BlitBufferToScreen_CheckPlane1:
     ; PLANO 1
     mov ax, Plane1Segment
     or  ax, ax
-    jz  BlitBufferToScreen_Skip1
+    jz  BlitBufferToScreen_CheckPlane2  ; Salto intermedio corto
+    
     mov bx, ax
     mov al, 02h
     out dx, al
@@ -1433,7 +1337,12 @@ BlitBufferToScreen_Skip0:
     xor si, si
     
     mov di, viewport_y_offset
-    add di, viewport_x_offset
+    mov ax, VRAM_BYTES_PER_SCAN
+    mul di
+    mov di, ax
+    mov ax, viewport_x_offset
+    shr ax, 3
+    add di, ax
     
     mov ax, VIEWPORT_HEIGHT
 BlitBufferToScreen_Row1:
@@ -1454,12 +1363,13 @@ BlitBufferToScreen_Row1:
     dec ax
     jnz BlitBufferToScreen_Row1
     pop ds
-BlitBufferToScreen_Skip1:
 
+BlitBufferToScreen_CheckPlane2:
     ; PLANO 2
     mov ax, Plane2Segment
     or  ax, ax
-    jz  BlitBufferToScreen_Skip2
+    jz  BlitBufferToScreen_CheckPlane3  ; Salto intermedio corto
+    
     mov bx, ax
     mov al, 02h
     out dx, al
@@ -1473,7 +1383,12 @@ BlitBufferToScreen_Skip1:
     xor si, si
     
     mov di, viewport_y_offset
-    add di, viewport_x_offset
+    mov ax, VRAM_BYTES_PER_SCAN
+    mul di
+    mov di, ax
+    mov ax, viewport_x_offset
+    shr ax, 3
+    add di, ax
     
     mov ax, VIEWPORT_HEIGHT
 BlitBufferToScreen_Row2:
@@ -1494,12 +1409,13 @@ BlitBufferToScreen_Row2:
     dec ax
     jnz BlitBufferToScreen_Row2
     pop ds
-BlitBufferToScreen_Skip2:
 
+BlitBufferToScreen_CheckPlane3:
     ; PLANO 3
     mov ax, Plane3Segment
     or  ax, ax
-    jz  BlitBufferToScreen_Skip3
+    jz  BlitBufferToScreen_Finish  ; Salto intermedio corto
+    
     mov bx, ax
     mov al, 02h
     out dx, al
@@ -1513,7 +1429,12 @@ BlitBufferToScreen_Skip2:
     xor si, si
     
     mov di, viewport_y_offset
-    add di, viewport_x_offset
+    mov ax, VRAM_BYTES_PER_SCAN
+    mul di
+    mov di, ax
+    mov ax, viewport_x_offset
+    shr ax, 3
+    add di, ax
     
     mov ax, VIEWPORT_HEIGHT
 BlitBufferToScreen_Row3:
@@ -1534,8 +1455,8 @@ BlitBufferToScreen_Row3:
     dec ax
     jnz BlitBufferToScreen_Row3
     pop ds
-BlitBufferToScreen_Skip3:
 
+BlitBufferToScreen_Finish:
     mov al, 02h
     out dx, al
     inc dx
