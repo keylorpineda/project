@@ -643,7 +643,206 @@ ParseTwoInts PROC
     ret
 ParseTwoInts ENDP
 
+ParseNextInt PROC
+    push bx
+    push dx
+
+@pni_skip_non_digit:
+    mov al, [si]
+    cmp al, 0
+    je @pni_return_zero
+    cmp al, '0'
+    jb @pni_advance
+    cmp al, '9'
+    jbe @pni_start_parse
+@pni_advance:
+    inc si
+    jmp @pni_skip_non_digit
+
+@pni_start_parse:
+    xor ax, ax
+
+@pni_digit_loop:
+    mov al, [si]
+    cmp al, '0'
+    jb @pni_digits_done
+    cmp al, '9'
+    ja @pni_digits_done
+    mov dl, al
+    sub dl, '0'
+    xor dh, dh
+    mov bx, ax
+    shl ax, 1
+    shl bx, 3
+    add ax, bx
+    add ax, dx
+    inc si
+    jmp @pni_digit_loop
+
+@pni_digits_done:
+@pni_skip_delimiters:
+    mov al, [si]
+    cmp al, 0
+    je @pni_done
+    cmp al, '0'
+    jb @pni_check_space
+    cmp al, '9'
+    jbe @pni_done
+@pni_check_space:
+    cmp al, ' '
+    je @pni_consume
+    cmp al, 9
+    je @pni_consume
+    cmp al, ','
+    je @pni_consume
+    cmp al, 0Dh
+    je @pni_consume
+    cmp al, 0Ah
+    je @pni_consume
+    jmp @pni_done
+
+@pni_consume:
+    inc si
+    jmp @pni_skip_delimiters
+
+@pni_return_zero:
+    xor ax, ax
+
+@pni_done:
+    pop dx
+    pop bx
+    ret
+ParseNextInt ENDP
+
+ClearMapData PROC
+    push ax
+    push cx
+    push dx
+    push di
+    push es
+
+    xor ax, ax
+    mov cx, MAX_MAP_SIZE
+    mov di, OFFSET map_data
+    mov dx, ds
+    mov es, dx
+    rep stosb
+
+    mov map_loaded, 0
+    mov map_width, 0
+    mov map_height, 0
+
+    pop es
+    pop di
+    pop dx
+    pop cx
+    pop ax
+    ret
+ClearMapData ENDP
+
+CreateDefaultMap PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push es
+
+    call ClearMapData
+
+    mov ax, 10
+    mov map_width, ax
+    mov ax, 6
+    mov map_height, ax
+
+    mov map_loaded, 1
+
+    mov dx, map_height
+    xor si, si
+
+@cdm_row_loop:
+    cmp si, dx
+    jae @cdm_done
+
+    mov ax, si
+    mul map_width
+    mov di, OFFSET map_data
+    add di, ax
+
+    mov cx, map_width
+    xor bx, bx
+
+@cdm_col_loop:
+    mov al, TILE_FLOOR
+    cmp si, 0
+    je @cdm_use_wall
+    mov ax, map_height
+    dec ax
+    cmp si, ax
+    je @cdm_use_wall
+    cmp bx, 0
+    je @cdm_use_wall
+    mov ax, map_width
+    dec ax
+    cmp bx, ax
+    jne @cdm_store
+
+@cdm_use_wall:
+    mov al, TILE_WALL
+
+@cdm_store:
+    mov [di], al
+    inc di
+    inc bx
+    loop @cdm_col_loop
+
+    inc si
+    jmp @cdm_row_loop
+
+@cdm_done:
+    pop es
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+CreateDefaultMap ENDP
+
 ; ===== RUTINAS DE DIBUJADO CORTAS =====
+
+GetTileAt PROC
+    push dx
+    push si
+    push di
+
+    mov ax, map_width
+    cmp bx, ax
+    jae @gta_out_of_bounds
+
+    mov ax, map_height
+    cmp cx, ax
+    jae @gta_out_of_bounds
+
+    mov ax, cx
+    mul map_width
+    add ax, bx
+    mov si, OFFSET map_data
+    add si, ax
+    mov al, [si]
+    jmp @gta_done
+
+@gta_out_of_bounds:
+    mov al, TILE_EMPTY
+
+@gta_done:
+    pop di
+    pop si
+    pop dx
+    ret
+GetTileAt ENDP
 
 DrawPixel PROC
     push ax
@@ -655,10 +854,15 @@ DrawPixel PROC
     push es
 
     cmp bx, 159
-    ja @dp_exit_pixel
-    cmp cx, 99
-    ja @dp_exit_pixel
+    jbe @dp_check_y
+    jmp @dp_exit_pixel
 
+@dp_check_y:
+    cmp cx, 99
+    jbe @dp_prepare_pixel
+    jmp @dp_exit_pixel
+
+@dp_prepare_pixel:
     mov dh, dl
 
     mov ax, BYTES_PER_SCAN
@@ -744,6 +948,79 @@ DrawPixel PROC
     pop ax
     ret
 DrawPixel ENDP
+
+DrawTile PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+
+    mov si, cx
+    mov di, bx
+
+    mov al, dl
+    cmp al, 0
+    je @dt_color_empty
+    cmp al, 1
+    je @dt_color_wall
+    cmp al, 2
+    je @dt_color_floor
+    cmp al, 3
+    je @dt_color_water
+    mov dl, 15
+    jmp @dt_color_ready
+
+@dt_color_empty:
+    mov dl, TILE_EMPTY
+    jmp @dt_color_ready
+
+@dt_color_wall:
+    mov dl, TILE_WALL
+    jmp @dt_color_ready
+
+@dt_color_floor:
+    mov dl, TILE_FLOOR
+    jmp @dt_color_ready
+
+@dt_color_water:
+    mov dl, TILE_WATER
+
+@dt_color_ready:
+    xor ax, ax
+
+@dt_row_loop:
+    cmp ax, TILE_SIZE
+    jae @dt_done
+    mov cx, si
+    add cx, ax
+    mov bx, di
+    xor bp, bp
+
+@dt_col_loop:
+    cmp bp, TILE_SIZE
+    jae @dt_next_row
+    call DrawPixel
+    inc bx
+    inc bp
+    jmp @dt_col_loop
+
+@dt_next_row:
+    inc ax
+    jmp @dt_row_loop
+
+@dt_done:
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+DrawTile ENDP
 
 DrawRedLine PROC
     push ax
@@ -1056,6 +1333,7 @@ RenderMapViewport PROC
     cmp bx, VIEWPORT_WIDTH
     jae @rmv_end_tile_row
 
+    push ax
     push bx
     push cx
     mov bx, di
@@ -1064,13 +1342,16 @@ RenderMapViewport PROC
     mov dl, al
     pop cx
     pop bx
+    pop ax
 
+    push ax
     push bx
     push cx
     mov cx, ax
     call DrawTile
     pop cx
     pop bx
+    pop ax
 
 @rmv_next_tile_column:
     add bx, TILE_SIZE
