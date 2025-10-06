@@ -804,9 +804,15 @@ DrawPixel PROC
     push es
 
     cmp bx, VIEWPORT_WIDTH
-    jae @dp_exit_pixel
+    jb @dp_check_y
+    jmp @dp_exit_pixel
+
+@dp_check_y:
     cmp cx, VIEWPORT_HEIGHT
-    jae @dp_exit_pixel
+    jb @dp_continue
+    jmp @dp_exit_pixel
+
+@dp_continue:
 
     mov dh, dl
 
@@ -984,7 +990,10 @@ DrawRedLine PROC
 
     mov ax, line_len
     cmp ax, 0
-    jz @drl_dr_exit
+    jne @drl_dr_continue
+    jmp @drl_dr_exit
+
+@drl_dr_continue:
 
     mov dx, VIEWPORT_WIDTH - 1
     sub dx, ax
@@ -1100,6 +1109,13 @@ DelayTicks PROC
 DelayTicks ENDP
 
 ; FIX: Agregar rutina faltante ClampCameraPosition
+MainLoop PROC
+    call RenderMapViewport
+    call DrawRedLine
+    call BlitBufferToScreen
+    ret
+MainLoop ENDP
+
 ClampCameraPosition PROC
     push ax
     push bx
@@ -1167,22 +1183,36 @@ LoadMapFromFile PROC
     mov dx, OFFSET mapFileName
     call OpenFile
     pop ds
-    jc LoadMapFromFile_UseDefault
+    jnc LoadMapFromFile_AfterOpen
+    jmp LoadMapFromFile_UseDefault
+
+LoadMapFromFile_AfterOpen:
 
     call ReadLine
     call ParseTwoInts
-    
+
     mov ax, mapW
     cmp ax, 1
-    jb LoadMapFromFile_UseDefault
+    jae LoadMapFromFile_CheckMaxWidth
+    jmp LoadMapFromFile_UseDefault
+
+LoadMapFromFile_CheckMaxWidth:
     cmp ax, MAX_MAP_WIDTH
-    ja LoadMapFromFile_UseDefault
-    
+    jbe LoadMapFromFile_CheckMinHeight
+    jmp LoadMapFromFile_UseDefault
+
+LoadMapFromFile_CheckMinHeight:
     mov ax, mapH
     cmp ax, 1
-    jb LoadMapFromFile_UseDefault
+    jae LoadMapFromFile_CheckMaxHeight
+    jmp LoadMapFromFile_UseDefault
+
+LoadMapFromFile_CheckMaxHeight:
     cmp ax, MAX_MAP_HEIGHT
-    ja LoadMapFromFile_UseDefault
+    jbe LoadMapFromFile_SizeValid
+    jmp LoadMapFromFile_UseDefault
+
+LoadMapFromFile_SizeValid:
 
     mov ax, mapW
     mov map_width, ax
