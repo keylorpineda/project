@@ -938,9 +938,15 @@ DrawPixel PROC
     push es
 
     cmp bx, VIEWPORT_WIDTH
-    jae @dp_exit_pixel
+    jb @dp_check_y_bounds
+    jmp @dp_exit_pixel
+
+@dp_check_y_bounds:
     cmp cx, VIEWPORT_HEIGHT
-    jae @dp_exit_pixel
+    jb @dp_continue_pixel
+    jmp @dp_exit_pixel
+
+@dp_continue_pixel:
 
     mov dh, dl
 
