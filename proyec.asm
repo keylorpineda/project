@@ -1109,9 +1109,9 @@ DrawTile PROC
     mov dl, 15                      ; Blanco brillante (1111b)
 
 @DT_DrawStart:
-    ; Solo dibujar si no es color negro (optimización)
-    cmp dl, 0
-    je @dt_done                     ; No dibujar tiles negros
+    ; CORRECCIÓN: Comentar la optimización que salta tiles negros
+    ; cmp dl, 0
+    ; je @dt_done                   ; COMENTADO: Causa problemas
     
     mov si, cx                      ; SI = Y pixel
     mov di, bx                      ; DI = X pixel
@@ -1631,63 +1631,8 @@ PrintDecimalAX PROC
     ret
 PrintDecimalAX ENDP
 
-; ===== NUEVO: Rutina auxiliar para copiar un plano =====
-CopyPlaneToVRAM PROC
-    ; Entrada: AX = segmento del plano, BL = máscara del plano
-    ; Modifica: SI, DI, CX, usa DS temporalmente
-    push ds
-    push ax
-    push bx
-    push dx
-    
-    mov ds, ax                     ; DS = segmento del plano
-    xor si, si                     ; SI = 0 (inicio del buffer)
-    
-    ; Configurar máscara del plano
-    mov dx, 03C4h
-    mov al, 02h
-    out dx, al
-    inc dx
-    mov al, bl                     ; AL = máscara del plano
-    out dx, al
-    
-    ; Calcular offset inicial en VRAM
-    mov ax, viewport_y_offset
-    mov dx, VRAM_BYTES_PER_SCAN
-    mul dx
-    mov di, ax
-    add di, viewport_x_offset
-    
-    ; Copiar VIEWPORT_HEIGHT líneas
-    mov bx, VIEWPORT_HEIGHT
-    
-@cptv_loop:
-    push si
-    push di
-    push bx
-    
-    mov cx, BYTES_PER_SCAN         ; 20 bytes por línea
-    rep movsb                      ; Copiar línea completa
-    
-    pop bx
-    pop di
-    pop si
-    
-    ; Siguiente línea
-    add si, BYTES_PER_SCAN         ; Siguiente línea en buffer
-    add di, VRAM_BYTES_PER_SCAN    ; Siguiente línea en VRAM
-    
-    dec bx
-    jnz @cptv_loop
-    
-    pop dx
-    pop bx
-    pop ax
-    pop ds
-    ret
-CopyPlaneToVRAM ENDP
-
-; ===== CORRECCIÓN: BlitBufferToScreen =====
+; filepath: c:\ASM\project\proyec.asm
+; ===== CORRECCIÓN CRÍTICA: BlitBufferToScreen con manejo correcto de DS =====
 BlitBufferToScreen PROC
     push ax
     push bx
@@ -1697,50 +1642,169 @@ BlitBufferToScreen PROC
     push di
     push ds
     push es
+    push bp
 
     ; Verificar que los buffers estén inicializados
     mov ax, Plane0Segment
     or ax, ax
     jz @bbts_exit
 
-    ; Configurar segmento de VRAM
+    ; CRITICAL: Guardar offsets ANTES de cambiar DS
+    mov bp, sp
+    sub sp, 4
+    mov ax, viewport_y_offset
+    mov [bp-2], ax                 ; Guardar Y offset
+    mov ax, viewport_x_offset
+    mov [bp-4], ax                 ; Guardar X offset
+
     mov ax, 0A000h
     mov es, ax
     cld
 
-    ; Copiar plano 0 (bit 0 del color)
+    ; === PLANO 0 (AZUL) ===
     mov ax, Plane0Segment
     or ax, ax
-    jz @bbts_check_p1
-    mov bl, 01h                    ; Máscara plano 0
-    call CopyPlaneToVRAM
+    jz @bbts_p1
+    
+    mov ds, ax
+    xor si, si
+    
+    ; Calcular offset VRAM usando valores guardados
+    mov ax, [bp-2]                 ; viewport_y_offset guardado
+    mov bx, VRAM_BYTES_PER_SCAN
+    mul bx
+    mov di, ax
+    add di, [bp-4]                 ; viewport_x_offset guardado
+    
+    ; Configurar sequencer para plano 0
+    mov dx, 03C4h
+    mov al, 02h
+    out dx, al
+    inc dx
+    mov al, 01h                    ; Máscara plano 0
+    out dx, al
+    
+    ; Copiar plano 0
+    mov bx, VIEWPORT_HEIGHT
+@bbts_p0_loop:
+    push si
+    push di
+    mov cx, BYTES_PER_SCAN
+    rep movsb
+    pop di
+    pop si
+    add si, BYTES_PER_SCAN
+    add di, VRAM_BYTES_PER_SCAN
+    dec bx
+    jnz @bbts_p0_loop
 
-@bbts_check_p1:
-    ; Copiar plano 1 (bit 1 del color)  
+@bbts_p1:
+    ; === PLANO 1 (VERDE) ===
     mov ax, Plane1Segment
     or ax, ax
-    jz @bbts_check_p2
-    mov bl, 02h                    ; Máscara plano 1
-    call CopyPlaneToVRAM
+    jz @bbts_p2
+    
+    mov ds, ax
+    xor si, si
+    
+    mov ax, [bp-2]
+    mov bx, VRAM_BYTES_PER_SCAN
+    mul bx
+    mov di, ax
+    add di, [bp-4]
+    
+    mov dx, 03C4h
+    mov al, 02h
+    out dx, al
+    inc dx
+    mov al, 02h                    ; Máscara plano 1
+    out dx, al
+    
+    mov bx, VIEWPORT_HEIGHT
+@bbts_p1_loop:
+    push si
+    push di
+    mov cx, BYTES_PER_SCAN
+    rep movsb
+    pop di
+    pop si
+    add si, BYTES_PER_SCAN
+    add di, VRAM_BYTES_PER_SCAN
+    dec bx
+    jnz @bbts_p1_loop
 
-@bbts_check_p2:
-    ; Copiar plano 2 (bit 2 del color)
+@bbts_p2:
+    ; === PLANO 2 (ROJO) - EL QUE NECESITAS ===
     mov ax, Plane2Segment
     or ax, ax
-    jz @bbts_check_p3
-    mov bl, 04h                    ; Máscara plano 2
-    call CopyPlaneToVRAM
+    jz @bbts_p3
+    
+    mov ds, ax
+    xor si, si
+    
+    mov ax, [bp-2]
+    mov bx, VRAM_BYTES_PER_SCAN
+    mul bx
+    mov di, ax
+    add di, [bp-4]
+    
+    mov dx, 03C4h
+    mov al, 02h
+    out dx, al
+    inc dx
+    mov al, 04h                    ; Máscara plano 2 (ROJO)
+    out dx, al
+    
+    mov bx, VIEWPORT_HEIGHT
+@bbts_p2_loop:
+    push si
+    push di
+    mov cx, BYTES_PER_SCAN
+    rep movsb
+    pop di
+    pop si
+    add si, BYTES_PER_SCAN
+    add di, VRAM_BYTES_PER_SCAN
+    dec bx
+    jnz @bbts_p2_loop
 
-@bbts_check_p3:
-    ; Copiar plano 3 (bit 3 del color)
+@bbts_p3:
+    ; === PLANO 3 (INTENSIDAD) ===
     mov ax, Plane3Segment
     or ax, ax
-    jz @bbts_restore
-    mov bl, 08h                    ; Máscara plano 3
-    call CopyPlaneToVRAM
+    jz @bbts_done
+    
+    mov ds, ax
+    xor si, si
+    
+    mov ax, [bp-2]
+    mov bx, VRAM_BYTES_PER_SCAN
+    mul bx
+    mov di, ax
+    add di, [bp-4]
+    
+    mov dx, 03C4h
+    mov al, 02h
+    out dx, al
+    inc dx
+    mov al, 08h                    ; Máscara plano 3
+    out dx, al
+    
+    mov bx, VIEWPORT_HEIGHT
+@bbts_p3_loop:
+    push si
+    push di
+    mov cx, BYTES_PER_SCAN
+    rep movsb
+    pop di
+    pop si
+    add si, BYTES_PER_SCAN
+    add di, VRAM_BYTES_PER_SCAN
+    dec bx
+    jnz @bbts_p3_loop
 
-@bbts_restore:
-    ; Restaurar máscara de todos los planos
+@bbts_done:
+    ; Restaurar todos los planos
     mov dx, 03C4h
     mov al, 02h
     out dx, al
@@ -1748,7 +1812,10 @@ BlitBufferToScreen PROC
     mov al, 0Fh                    ; Todos los planos
     out dx, al
 
+    mov sp, bp                     ; Restaurar stack
+
 @bbts_exit:
+    pop bp
     pop es
     pop ds
     pop di
