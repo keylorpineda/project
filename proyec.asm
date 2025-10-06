@@ -13,7 +13,7 @@ VRAM_BYTES_PER_SCAN EQU 80        ; 640/8 bytes por línea en VRAM
 VIEWPORT_WIDTH    EQU 160         ; Ancho del viewport en píxeles
 VIEWPORT_HEIGHT   EQU 100         ; Alto del viewport en píxeles
 BYTES_PER_SCAN    EQU 20          ; VIEWPORT_WIDTH/8 = 20 bytes por línea
-PLANE_SIZE        EQU 2000        ; FIX: 20 * 100 = 2000 bytes por plano (NO 8000)
+PLANE_SIZE        EQU 2000        ; 20 * 100 = 2000 bytes por plano
 PLANE_PARAGRAPHS  EQU 128 
 VIEWPORT_PIXELS   EQU VIEWPORT_WIDTH * VIEWPORT_HEIGHT
 VIEWPORT_BYTES    EQU PLANE_SIZE  ; 2000 bytes para el viewport
@@ -24,7 +24,7 @@ Plane0Segment    dw 0             ; Segmento del plano 0 (bit de peso 1)
 Plane1Segment    dw 0             ; Segmento del plano 1 (bit de peso 2)
 Plane2Segment    dw 0             ; Segmento del plano 2 (bit de peso 4)
 Plane3Segment    dw 0             ; Segmento del plano 3 (bit de peso 8)
-psp_seg          dw 0             ; Fix: Para PSP segment
+psp_seg          dw 0             ; Para PSP segment
 
 ; ===== Sistema de tiles - FASE 1 =====
 TILE_SIZE         EQU 16          ; Tamaño de cada tile (16x16 píxeles)
@@ -53,8 +53,8 @@ TILE_FLOOR        EQU 2           ; Tipo 2: Piso (verde)
 TILE_WATER        EQU 1           ; Tipo 3: Agua (azul)
 
 ; ===== Offsets para centrar el viewport dentro de 640x350 =====
-viewport_x_offset dw 30          ; FIX: Reducir offset horizontal
-viewport_y_offset dw 1000        ; FIX: Reducir offset vertical
+viewport_x_offset dw 240         ; Centrar horizontalmente  
+viewport_y_offset dw 10000       ; Centrar verticalmente
 
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
@@ -71,6 +71,8 @@ y_pos            dw 20            ; Posición inicial Y de la línea roja
 line_len         dw 80            ; Longitud de la línea roja
 speed_dx         dw 1             ; Velocidad horizontal (1 píxel)
 speed_dy         dw 1   
+debug_msg        db 'Map loaded: W=', 0
+debug_msg2       db ' H=', 0
 
 .CODE                             ; Segmento de código
 
@@ -98,17 +100,19 @@ main PROC
     
     call CheckGraphicsMode
     call ClearScreen
-    call SimpleDrawTest
     
-    mov ah, 00h
-    int 16h
-    
-    call SetPaletteRed
-    call SetPaletteWhite
-
-    ; FIX: Cargar mapa de tiles desde archivo
+    ; FIX: Cargar mapa ANTES de cualquier otra cosa
     call LoadMapFromFile
+    
+    ; FIX: Verificar que el mapa se cargó
+    cmp map_loaded, 0
+    je @use_default
+    jmp @map_ready
 
+@use_default:
+    call CreateDefaultMap
+
+@map_ready:
     ; FIX: Inicializar posición de cámara
     mov camera_tile_x, 0
     mov camera_tile_y, 0
@@ -381,46 +385,6 @@ ClearOffScreenBuffer PROC
     ret
 ClearOffScreenBuffer ENDP
 
-SimpleDrawTest PROC
-    push ax
-    push cx
-    push dx
-    push di
-    push es
-    
-    mov ax, 0A000h
-    mov es, ax
-    
-    mov dx, 03C4h
-    mov al, 02h
-    out dx, al
-    inc dx
-    mov al, 0Fh
-    out dx, al
-    
-    xor di, di
-    mov al, 15
-    mov cx, 160
-    rep stosb
-    
-    mov di, 4000
-    mov al, 4
-    mov cx, 160
-    rep stosb
-    
-    mov di, 8000
-    mov al, 2
-    mov cx, 160
-    rep stosb
-    
-    pop es
-    pop di
-    pop dx
-    pop cx
-    pop ax
-    ret
-SimpleDrawTest ENDP
-
 ClearScreen PROC
     push ax
     push bx
@@ -453,14 +417,6 @@ ClearScreen PROC
     pop ax
     ret
 ClearScreen ENDP
-
-SetPaletteRed PROC
-    ret
-SetPaletteRed ENDP
-
-SetPaletteWhite PROC
-    ret
-SetPaletteWhite ENDP
 
 ; ===== RUTINAS DE ARCHIVO =====
 
@@ -645,71 +601,64 @@ ParseTwoInts ENDP
 
 ParseNextInt PROC
     push bx
+    push cx
     push dx
 
-@pni_skip_non_digit:
+@pni_skip_ws:
     mov al, [si]
     cmp al, 0
     je @pni_return_zero
+    cmp al, ' '
+    je @pni_next_char
+    cmp al, 9
+    je @pni_next_char
+    cmp al, ','
+    je @pni_next_char
+    cmp al, 13
+    je @pni_next_char
+    cmp al, 10
+    je @pni_next_char
+    
     cmp al, '0'
-    jb @pni_advance
+    jb @pni_return_zero
     cmp al, '9'
-    jbe @pni_start_parse
-@pni_advance:
-    inc si
-    jmp @pni_skip_non_digit
+    ja @pni_return_zero
+    jmp @pni_parse_number
 
-@pni_start_parse:
-    xor ax, ax
+@pni_next_char:
+    inc si
+    jmp @pni_skip_ws
+
+@pni_parse_number:
+    xor dx, dx
 
 @pni_digit_loop:
     mov al, [si]
     cmp al, '0'
-    jb @pni_digits_done
+    jb @pni_done
     cmp al, '9'
-    ja @pni_digits_done
-    mov dl, al
-    sub dl, '0'
-    xor dh, dh
-    mov bx, ax
-    shl ax, 1
-    shl bx, 3
+    ja @pni_done
+    
+    sub al, '0'
+    mov bl, al
+    mov ax, dx
+    mov cx, 10
+    mul cx
     add ax, bx
-    add ax, dx
+    mov dx, ax
     inc si
     jmp @pni_digit_loop
 
-@pni_digits_done:
-@pni_skip_delimiters:
-    mov al, [si]
-    cmp al, 0
-    je @pni_done
-    cmp al, '0'
-    jb @pni_check_space
-    cmp al, '9'
-    jbe @pni_done
-@pni_check_space:
-    cmp al, ' '
-    je @pni_consume
-    cmp al, 9
-    je @pni_consume
-    cmp al, ','
-    je @pni_consume
-    cmp al, 0Dh
-    je @pni_consume
-    cmp al, 0Ah
-    je @pni_consume
-    jmp @pni_done
-
-@pni_consume:
-    inc si
-    jmp @pni_skip_delimiters
+@pni_done:
+    mov ax, dx
+    jmp @pni_exit
 
 @pni_return_zero:
     xor ax, ax
 
-@pni_done:
+@pni_exit:
     pop dx
+    pop cx
     pop bx
     ret
 ParseNextInt ENDP
@@ -747,7 +696,6 @@ CreateDefaultMap PROC
     push dx
     push si
     push di
-    push es
 
     call ClearMapData
 
@@ -758,50 +706,51 @@ CreateDefaultMap PROC
 
     mov map_loaded, 1
 
-    mov dx, map_height
-    xor si, si
-
-@cdm_row_loop:
-    cmp si, dx
-    jae @cdm_done
-
-    mov ax, si
-    mul map_width
     mov di, OFFSET map_data
-    add di, ax
-
-    mov cx, map_width
+    mov cx, 60
     xor bx, bx
 
-@cdm_col_loop:
-    mov al, TILE_FLOOR
-    cmp si, 0
-    je @cdm_use_wall
-    mov ax, map_height
-    dec ax
-    cmp si, ax
-    je @cdm_use_wall
-    cmp bx, 0
-    je @cdm_use_wall
-    mov ax, map_width
-    dec ax
-    cmp bx, ax
-    jne @cdm_store
+@cdm_fill_loop:
+    mov ax, bx
+    mov dx, 0
+    mov si, 10
+    div si
+    
+    cmp ax, 0
+    je @cdm_wall
+    cmp ax, 5
+    je @cdm_wall  
+    cmp dx, 0
+    je @cdm_wall
+    cmp dx, 9
+    je @cdm_wall
+    
+    ; FIX: Agregar agua en el centro para asegurar que se vea
+    cmp ax, 2
+    jne @cdm_check_floor
+    cmp dx, 4
+    je @cdm_water
+    cmp dx, 5
+    je @cdm_water
+    
+@cdm_check_floor:
+    mov al, 2
+    jmp @cdm_store
 
-@cdm_use_wall:
-    mov al, TILE_WALL
+@cdm_water:
+    mov al, 3
+    jmp @cdm_store
+
+@cdm_wall:
+    mov al, 1
 
 @cdm_store:
     mov [di], al
     inc di
     inc bx
-    loop @cdm_col_loop
+    dec cx
+    jnz @cdm_fill_loop
 
-    inc si
-    jmp @cdm_row_loop
-
-@cdm_done:
-    pop es
     pop di
     pop si
     pop dx
@@ -811,24 +760,25 @@ CreateDefaultMap PROC
     ret
 CreateDefaultMap ENDP
 
-; ===== RUTINAS DE DIBUJADO CORTAS =====
+; ===== RUTINAS DE DIBUJADO =====
 
 GetTileAt PROC
     push dx
     push si
     push di
 
-    mov ax, map_width
-    cmp bx, ax
+    cmp bx, map_width
     jae @gta_out_of_bounds
-
-    mov ax, map_height
-    cmp cx, ax
+    cmp cx, map_height  
     jae @gta_out_of_bounds
 
     mov ax, cx
     mul map_width
     add ax, bx
+    
+    cmp ax, MAX_MAP_SIZE
+    jae @gta_out_of_bounds
+    
     mov si, OFFSET map_data
     add si, ax
     mov al, [si]
@@ -853,16 +803,11 @@ DrawPixel PROC
     push di
     push es
 
-    cmp bx, 159
-    jbe @dp_check_y
-    jmp @dp_exit_pixel
+    cmp bx, VIEWPORT_WIDTH
+    jae @dp_exit_pixel
+    cmp cx, VIEWPORT_HEIGHT
+    jae @dp_exit_pixel
 
-@dp_check_y:
-    cmp cx, 99
-    jbe @dp_prepare_pixel
-    jmp @dp_exit_pixel
-
-@dp_prepare_pixel:
     mov dh, dl
 
     mov ax, BYTES_PER_SCAN
@@ -971,44 +916,51 @@ DrawTile PROC
     cmp al, 3
     je @dt_color_water
     mov dl, 15
-    jmp @dt_color_ready
+    jmp @dt_start_drawing
 
 @dt_color_empty:
     mov dl, TILE_EMPTY
-    jmp @dt_color_ready
+    jmp @dt_start_drawing
 
 @dt_color_wall:
     mov dl, TILE_WALL
-    jmp @dt_color_ready
+    jmp @dt_start_drawing
 
 @dt_color_floor:
     mov dl, TILE_FLOOR
-    jmp @dt_color_ready
+    jmp @dt_start_drawing
 
 @dt_color_water:
     mov dl, TILE_WATER
 
-@dt_color_ready:
-    xor ax, ax
+@dt_start_drawing:
+    mov bp, 0
 
 @dt_row_loop:
-    cmp ax, TILE_SIZE
+    cmp bp, TILE_SIZE
     jae @dt_done
+    
     mov cx, si
-    add cx, ax
+    add cx, bp
     mov bx, di
-    xor bp, bp
+    mov ax, 0
 
 @dt_col_loop:
-    cmp bp, TILE_SIZE
+    cmp ax, TILE_SIZE
     jae @dt_next_row
+    
+    push ax
+    push cx
     call DrawPixel
+    pop cx
+    pop ax
+    
     inc bx
-    inc bp
+    inc ax
     jmp @dt_col_loop
 
 @dt_next_row:
-    inc ax
+    inc bp
     jmp @dt_row_loop
 
 @dt_done:
@@ -1147,8 +1099,9 @@ DelayTicks PROC
     ret
 DelayTicks ENDP
 
-; ===== RUTINAS DE TILES =====
+; ===== RUTINAS DE TILES CORREGIDAS =====
 
+; FIX: LoadMapFromFile simplificado para evitar saltos largos
 LoadMapFromFile PROC
     push ax
     push bx
@@ -1163,22 +1116,22 @@ LoadMapFromFile PROC
     mov dx, OFFSET mapFileName
     call OpenFile
     pop ds
-    jc @lmff_load_default_map
+    jc @lmff_default
 
     call ReadLine
     call ParseTwoInts
     
     mov ax, mapW
     cmp ax, 1
-    jb @lmff_load_default_map
+    jb @lmff_default
     cmp ax, MAX_MAP_WIDTH
-    ja @lmff_load_default_map
+    ja @lmff_default
     
     mov ax, mapH
     cmp ax, 1
-    jb @lmff_load_default_map
+    jb @lmff_default
     cmp ax, MAX_MAP_HEIGHT
-    ja @lmff_load_default_map
+    ja @lmff_default
 
     mov ax, mapW
     mov map_width, ax
@@ -1187,57 +1140,65 @@ LoadMapFromFile PROC
 
     call ClearMapData
 
-    mov cx, mapH
-    mov di, 0
+    ; FIX: Leer solo las filas de la matriz (ignorar líneas R al final)
+    mov dx, 0
 
-@lmff_read_matrix_row:
-    push cx
-    push di
+@lmff_matrix_loop:
+    mov ax, dx
+    cmp ax, mapH
+    jae @lmff_success
     
     call ReadLine
     
+    ; FIX: Verificar si la línea es un rectángulo (empieza con 'R')
     mov si, OFFSET lineBuffer
-    mov cx, mapW
+    mov al, [si]
+    cmp al, 'R'
+    je @lmff_success        ; Si encuentra 'R', terminar matriz
     
-@lmff_parse_tile_in_row:
-    push cx
-    push di
+    mov cx, 0
+
+@lmff_column_loop:
+    mov ax, cx
+    cmp ax, mapW
+    jae @lmff_next_matrix_row
     
     call ParseNextInt
+    
+    push ax
+    mov ax, dx
+    mul mapW
+    add ax, cx
+    mov di, OFFSET map_data
+    add di, ax
+    pop ax
+    
     cmp ax, 255
-    ja @lmff_invalid_tile
-    
-    mov bx, OFFSET map_data
-    add bx, di
-    mov [bx], al
-    
-    pop di
-    inc di
-    pop cx
-    dec cx                        ; FIX: Cambiar loop por dec cx + jnz
-    jnz @lmff_parse_tile_in_row
-    
-    pop di
-    add di, mapW
-    pop cx
-    dec cx                        ; FIX: Cambiar loop por dec cx + jnz
-    jnz @lmff_read_matrix_row
+    ja @lmff_invalid
+    mov [di], al
+    jmp @lmff_stored
 
+@lmff_invalid:
+    mov BYTE PTR [di], 0
+
+@lmff_stored:
+    inc cx
+    jmp @lmff_column_loop
+
+@lmff_next_matrix_row:
+    inc dx
+    jmp @lmff_matrix_loop
+
+@lmff_success:
     mov map_loaded, 1
     call CloseFile
-    jmp @lmff_load_success
+    jmp @lmff_done
 
-@lmff_invalid_tile:
-    pop di
-    pop cx
-    pop cx
+@lmff_default:
     call CloseFile
-    jmp @lmff_load_default_map
-
-@lmff_load_default_map:
     call CreateDefaultMap
 
-@lmff_load_success:
+@lmff_done:
     pop di
     pop si
     pop dx
@@ -1305,72 +1266,63 @@ RenderMapViewport PROC
     push dx
     push si
     push di
+    push bp
 
     cmp map_loaded, 0
-    je @rmv_render_default
+    je @rmv_default
 
     call ClearOffScreenBuffer
     call ClampCameraPosition
 
-    mov si, camera_tile_y
-    mov ax, 0
+    mov bp, 0
 
-@rmv_render_tile_row:
-    cmp si, map_height
-    jae @rmv_next_tile_row
-    cmp ax, VIEWPORT_HEIGHT
-    jae @rmv_exit_render
-
-    push ax
-    push si
+@rmv_row_loop:
+    cmp bp, VIEWPORT_TILES_Y
+    jae @rmv_done
     
-    mov di, camera_tile_x
-    mov bx, 0
+    mov ax, camera_tile_y
+    add ax, bp
+    cmp ax, map_height
+    jae @rmv_next_row
+    mov si, ax
     
-@rmv_render_tile_column:
-    cmp di, map_width
-    jae @rmv_next_tile_column
-    cmp bx, VIEWPORT_WIDTH
-    jae @rmv_end_tile_row
+    mov di, 0
 
-    push ax
-    push bx
-    push cx
-    mov bx, di
+@rmv_col_loop:
+    cmp di, VIEWPORT_TILES_X
+    jae @rmv_next_row
+    
+    mov ax, camera_tile_x
+    add ax, di
+    cmp ax, map_width
+    jae @rmv_next_col
+    mov dx, ax
+    
+    mov bx, dx
     mov cx, si
     call GetTileAt
-    mov dl, al
-    pop cx
-    pop bx
-    pop ax
-
-    push ax
-    push bx
-    push cx
-    mov cx, ax
-    call DrawTile
-    pop cx
-    pop bx
-    pop ax
-
-@rmv_next_tile_column:
-    add bx, TILE_SIZE
-    inc di
-    jmp @rmv_render_tile_column
-
-@rmv_end_tile_row:
-    pop si
-    pop ax
     
-@rmv_next_tile_row:
-    add ax, TILE_SIZE
-    inc si
-    jmp @rmv_render_tile_row
+    mov bx, di
+    shl bx, 4
+    mov cx, bp
+    shl cx, 4
+    
+    mov dl, al
+    call DrawTile
+    
+@rmv_next_col:
+    inc di
+    jmp @rmv_col_loop
 
-@rmv_render_default:
+@rmv_next_row:
+    inc bp
+    jmp @rmv_row_loop
+
+@rmv_default:
     call ClearOffScreenBuffer
 
-@rmv_exit_render:
+@rmv_done:
+    pop bp
     pop di
     pop si
     pop dx
@@ -1452,7 +1404,7 @@ MainLoop PROC
 
 @ml_handled:
 @ml_no_key:
-    mov cl, 2
+    mov cl, 3
     call DelayTicks
     jmp @ml_frame_loop
 
@@ -1465,8 +1417,6 @@ MainLoop PROC
     pop ax
     ret
 MainLoop ENDP
-
-; ===== RUTINA MÁS LARGA AL FINAL =====
 
 BlitBufferToScreen PROC
     push ax
@@ -1484,7 +1434,6 @@ BlitBufferToScreen PROC
     mov es, ax
     mov dx, 03C4h
 
-    ; PLANO 0
     mov ax, Plane0Segment
     or  ax, ax
     jz  @bbts_Skip0
@@ -1524,7 +1473,6 @@ BlitBufferToScreen PROC
     pop ds
 @bbts_Skip0:
 
-    ; PLANO 1
     mov ax, Plane1Segment
     or  ax, ax
     jz  @bbts_Skip1
@@ -1564,7 +1512,6 @@ BlitBufferToScreen PROC
     pop ds
 @bbts_Skip1:
 
-    ; PLANO 2
     mov ax, Plane2Segment
     or  ax, ax
     jz  @bbts_Skip2
@@ -1604,7 +1551,6 @@ BlitBufferToScreen PROC
     pop ds
 @bbts_Skip2:
 
-    ; PLANO 3
     mov ax, Plane3Segment
     or  ax, ax
     jz  @bbts_Skip3
