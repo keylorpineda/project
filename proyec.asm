@@ -661,15 +661,21 @@ ParseTwoInts PROC
 
 @pti_store_width:
     mov mapW, ax
-    
+
     ; Verificar que el ancho es válido
     cmp ax, 0
-    je @pti_error_invalid
+    jne @pti_width_ok
+    jmp @pti_error_invalid
+
+@pti_width_ok:
 
 @pti_skip_ws2:
     mov al, [si]
     cmp al, 0
-    je @pti_done_parse
+    jne @pti_check_ws2
+    jmp @pti_done_parse
+
+@pti_check_ws2:
     cmp al, ' '
     je @pti_adv_ws2
     cmp al, 9
@@ -700,10 +706,13 @@ ParseTwoInts PROC
 
 @pti_store_height:
     mov mapH, ax
-    
+
     ; Verificar que el alto es válido
     cmp ax, 0
-    je @pti_error_invalid
+    jne @pti_height_ok
+    jmp @pti_error_invalid
+
+@pti_height_ok:
     jmp @pti_done_parse
 
 @pti_error_empty:
@@ -736,7 +745,10 @@ ParseNextInt PROC
 @pni_skip_ws:
     mov al, [si]
     cmp al, 0
-    je @pni_return_zero
+    jne @pni_check_ws
+    jmp @pni_return_zero
+
+@pni_check_ws:
     cmp al, ' '
     je @pni_next_char
     cmp al, 9
@@ -749,10 +761,13 @@ ParseNextInt PROC
     je @pni_next_char
     
     cmp al, '0'
-    jb @pni_return_zero
+    jb @pni_invalid_digit
     cmp al, '9'
-    ja @pni_return_zero
+    ja @pni_invalid_digit
     jmp @pni_parse_number
+
+@pni_invalid_digit:
+    jmp @pni_return_zero
 
 @pni_next_char:
     inc si
