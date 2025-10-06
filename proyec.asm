@@ -1376,7 +1376,10 @@ LoadMapFromFile PROC
     ; Intentar abrir archivo
     mov dx, OFFSET mapFileName
     call OpenFile
-    jc LMFF_FileError
+    jnc LMFF_AfterOpen
+    jmp LMFF_FileError
+
+LMFF_AfterOpen:
     
     ; Debug: Archivo abierto
     mov dx, OFFSET debug_file_ok
@@ -1384,10 +1387,16 @@ LoadMapFromFile PROC
     int 21h
     
     call LoadMapHeader
-    jc LMFF_HeaderError
+    jnc LMFF_AfterHeader
+    jmp LMFF_HeaderError
+
+LMFF_AfterHeader:
     
-    call LoadMapData  
-    jc LMFF_DataError
+    call LoadMapData
+    jnc LMFF_AfterData
+    jmp LMFF_DataError
+
+LMFF_AfterData:
     
     ; Éxito
     mov map_loaded, 1
