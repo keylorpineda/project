@@ -40,7 +40,7 @@ VIEWPORT_TILES_Y  EQU 6           ; 100/16 = 6 tiles verticales (con margen)
 map_data          db MAX_MAP_SIZE dup(0)  ; Matriz de tiles del mapa
 map_width         dw 0            ; Ancho actual del mapa en tiles
 map_height        dw 0            ; Alto actual del mapa en tiles
-map_loaded        db 0            ; Flag: 1 = mapa cargado correctamente
+map_loaded        db 0             ; Flag: 1 = mapa cargado correctamente
 
 ; Posición de la cámara (en tiles)
 camera_tile_x     dw 0            ; Tile X superior izquierdo visible
@@ -760,7 +760,7 @@ CreateDefaultMap PROC
     ret
 CreateDefaultMap ENDP
 
-; ===== RUTINAS DE DIBUJADO =====
+; ===== RUTINAS DE DIBUJO =====
 
 GetTileAt PROC
     push dx
@@ -1099,115 +1099,7 @@ DelayTicks PROC
     ret
 DelayTicks ENDP
 
-; ===== RUTINAS DE TILES CORREGIDAS =====
-
-; FIX: LoadMapFromFile simplificado para evitar saltos largos
-LoadMapFromFile PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-
-    mov map_loaded, 0
-
-    push ds
-    mov dx, OFFSET mapFileName
-    call OpenFile
-    pop ds
-    jc @lmff_default
-
-    call ReadLine
-    call ParseTwoInts
-    
-    mov ax, mapW
-    cmp ax, 1
-    jb @lmff_default
-    cmp ax, MAX_MAP_WIDTH
-    ja @lmff_default
-    
-    mov ax, mapH
-    cmp ax, 1
-    jb @lmff_default
-    cmp ax, MAX_MAP_HEIGHT
-    ja @lmff_default
-
-    mov ax, mapW
-    mov map_width, ax
-    mov ax, mapH
-    mov map_height, ax
-
-    call ClearMapData
-
-    ; FIX: Leer solo las filas de la matriz (ignorar líneas R al final)
-    mov dx, 0
-
-@lmff_matrix_loop:
-    mov ax, dx
-    cmp ax, mapH
-    jae @lmff_success
-    
-    call ReadLine
-    
-    ; FIX: Verificar si la línea es un rectángulo (empieza con 'R')
-    mov si, OFFSET lineBuffer
-    mov al, [si]
-    cmp al, 'R'
-    je @lmff_success        ; Si encuentra 'R', terminar matriz
-    
-    mov cx, 0
-
-@lmff_column_loop:
-    mov ax, cx
-    cmp ax, mapW
-    jae @lmff_next_matrix_row
-    
-    call ParseNextInt
-    
-    push ax
-    mov ax, dx
-    mul mapW
-    add ax, cx
-    mov di, OFFSET map_data
-    add di, ax
-    pop ax
-    
-    cmp ax, 255
-    ja @lmff_invalid
-    mov [di], al
-    jmp @lmff_stored
-
-@lmff_invalid:
-    mov BYTE PTR [di], 0
-
-@lmff_stored:
-    inc cx
-    jmp @lmff_column_loop
-
-@lmff_next_matrix_row:
-    inc dx
-    jmp @lmff_matrix_loop
-
-@lmff_success:
-    mov map_loaded, 1
-    call CloseFile
-    jmp @lmff_done
-
-@lmff_default:
-    call CloseFile
-    call CreateDefaultMap
-
-@lmff_done:
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-LoadMapFromFile ENDP
-
+; FIX: Agregar rutina faltante ClampCameraPosition
 ClampCameraPosition PROC
     push ax
     push bx
@@ -1259,6 +1151,112 @@ ClampCameraPosition PROC
     ret
 ClampCameraPosition ENDP
 
+; ===== RUTINAS DE TILES CORREGIDAS =====
+
+LoadMapFromFile PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov map_loaded, 0
+
+    push ds
+    mov dx, OFFSET mapFileName
+    call OpenFile
+    pop ds
+    jc LoadMapFromFile_UseDefault
+
+    call ReadLine
+    call ParseTwoInts
+    
+    mov ax, mapW
+    cmp ax, 1
+    jb LoadMapFromFile_UseDefault
+    cmp ax, MAX_MAP_WIDTH
+    ja LoadMapFromFile_UseDefault
+    
+    mov ax, mapH
+    cmp ax, 1
+    jb LoadMapFromFile_UseDefault
+    cmp ax, MAX_MAP_HEIGHT
+    ja LoadMapFromFile_UseDefault
+
+    mov ax, mapW
+    mov map_width, ax
+    mov ax, mapH
+    mov map_height, ax
+
+    call ClearMapData
+
+    mov dx, 0
+
+LoadMapFromFile_ReadRowLoop:
+    mov ax, dx
+    cmp ax, mapH
+    jae LoadMapFromFile_Success
+    
+    call ReadLine
+    
+    mov si, OFFSET lineBuffer
+    mov al, [si]
+    cmp al, 'R'
+    je LoadMapFromFile_Success
+    
+    mov cx, 0
+
+LoadMapFromFile_ReadColLoop:
+    mov ax, cx
+    cmp ax, mapW
+    jae LoadMapFromFile_NextRow
+    
+    call ParseNextInt
+    
+    push ax
+    mov ax, dx
+    mul mapW
+    add ax, cx
+    mov di, OFFSET map_data
+    add di, ax
+    pop ax
+    
+    cmp ax, 255
+    ja LoadMapFromFile_StoreZero
+    mov [di], al
+    jmp LoadMapFromFile_Stored
+
+LoadMapFromFile_StoreZero:
+    mov BYTE PTR [di], 0
+
+LoadMapFromFile_Stored:
+    inc cx
+    jmp LoadMapFromFile_ReadColLoop
+
+LoadMapFromFile_NextRow:
+    inc dx
+    jmp LoadMapFromFile_ReadRowLoop
+
+LoadMapFromFile_Success:
+    mov map_loaded, 1
+    call CloseFile
+    jmp LoadMapFromFile_Done
+
+LoadMapFromFile_UseDefault:
+    call CloseFile
+    call CreateDefaultMap
+
+LoadMapFromFile_Done:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+LoadMapFromFile ENDP
+
 RenderMapViewport PROC
     push ax
     push bx
@@ -1269,33 +1267,33 @@ RenderMapViewport PROC
     push bp
 
     cmp map_loaded, 0
-    je @rmv_default
+    je RenderMapViewport_Default
 
     call ClearOffScreenBuffer
     call ClampCameraPosition
 
     mov bp, 0
 
-@rmv_row_loop:
+RenderMapViewport_RowLoop:
     cmp bp, VIEWPORT_TILES_Y
-    jae @rmv_done
+    jae RenderMapViewport_Done
     
     mov ax, camera_tile_y
     add ax, bp
     cmp ax, map_height
-    jae @rmv_next_row
+    jae RenderMapViewport_NextRow
     mov si, ax
     
     mov di, 0
 
-@rmv_col_loop:
+RenderMapViewport_ColLoop:
     cmp di, VIEWPORT_TILES_X
-    jae @rmv_next_row
+    jae RenderMapViewport_NextRow
     
     mov ax, camera_tile_x
     add ax, di
     cmp ax, map_width
-    jae @rmv_next_col
+    jae RenderMapViewport_NextCol
     mov dx, ax
     
     mov bx, dx
@@ -1310,18 +1308,18 @@ RenderMapViewport PROC
     mov dl, al
     call DrawTile
     
-@rmv_next_col:
+RenderMapViewport_NextCol:
     inc di
-    jmp @rmv_col_loop
+    jmp RenderMapViewport_ColLoop
 
-@rmv_next_row:
+RenderMapViewport_NextRow:
     inc bp
-    jmp @rmv_row_loop
+    jmp RenderMapViewport_RowLoop
 
-@rmv_default:
+RenderMapViewport_Default:
     call ClearOffScreenBuffer
 
-@rmv_done:
+RenderMapViewport_Done:
     pop bp
     pop di
     pop si
@@ -1331,92 +1329,6 @@ RenderMapViewport PROC
     pop ax
     ret
 RenderMapViewport ENDP
-
-MainLoop PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-
-@ml_frame_loop:
-    call RenderMapViewport
-    call DrawRedLine
-    call BlitBufferToScreen
-
-    call ReadKeyNonBlocking
-    cmp ax, 0
-    je @ml_no_key
-
-    cmp al, 1Bh
-    je @ml_exit_loop
-
-    cmp al, 'W'
-    jne @ml_check_s
-    mov ax, camera_tile_y
-    cmp ax, 0
-    je @ml_handled
-    dec ax
-    mov camera_tile_y, ax
-    jmp @ml_handled
-
-@ml_check_s:
-    cmp al, 'S'
-    jne @ml_check_a
-    mov ax, camera_tile_y
-    mov bx, map_height
-    sub bx, VIEWPORT_TILES_Y
-    cmp bx, 0
-    jge @ml_check_s_limit
-    mov bx, 0
-@ml_check_s_limit:
-    cmp ax, bx
-    jae @ml_handled
-    inc ax
-    mov camera_tile_y, ax
-    jmp @ml_handled
-
-@ml_check_a:
-    cmp al, 'A'
-    jne @ml_check_d
-    mov ax, camera_tile_x
-    cmp ax, 0
-    je @ml_handled
-    dec ax
-    mov camera_tile_x, ax
-    jmp @ml_handled
-
-@ml_check_d:
-    cmp al, 'D'
-    jne @ml_handled
-    mov ax, camera_tile_x
-    mov bx, map_width
-    sub bx, VIEWPORT_TILES_X
-    cmp bx, 0
-    jge @ml_check_d_limit
-    mov bx, 0
-@ml_check_d_limit:
-    cmp ax, bx
-    jae @ml_handled
-    inc ax
-    mov camera_tile_x, ax
-
-@ml_handled:
-@ml_no_key:
-    mov cl, 3
-    call DelayTicks
-    jmp @ml_frame_loop
-
-@ml_exit_loop:
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-MainLoop ENDP
 
 BlitBufferToScreen PROC
     push ax
@@ -1434,9 +1346,10 @@ BlitBufferToScreen PROC
     mov es, ax
     mov dx, 03C4h
 
+    ; PLANO 0
     mov ax, Plane0Segment
     or  ax, ax
-    jz  @bbts_Skip0
+    jz  BlitBufferToScreen_Skip0
     mov bx, ax
     mov al, 02h
     out dx, al
@@ -1453,7 +1366,7 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset
 
     mov ax, VIEWPORT_HEIGHT
-@bbts_Row0:
+BlitBufferToScreen_Row0:
     push ax
     push si
     push di
@@ -1469,13 +1382,14 @@ BlitBufferToScreen PROC
     add di, VRAM_BYTES_PER_SCAN
     
     dec ax
-    jnz @bbts_Row0
+    jnz BlitBufferToScreen_Row0
     pop ds
-@bbts_Skip0:
+BlitBufferToScreen_Skip0:
 
+    ; PLANO 1
     mov ax, Plane1Segment
     or  ax, ax
-    jz  @bbts_Skip1
+    jz  BlitBufferToScreen_Skip1
     mov bx, ax
     mov al, 02h
     out dx, al
@@ -1492,7 +1406,7 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset
     
     mov ax, VIEWPORT_HEIGHT
-@bbts_Row1:
+BlitBufferToScreen_Row1:
     push ax
     push si
     push di
@@ -1508,13 +1422,14 @@ BlitBufferToScreen PROC
     add di, VRAM_BYTES_PER_SCAN
     
     dec ax
-    jnz @bbts_Row1
+    jnz BlitBufferToScreen_Row1
     pop ds
-@bbts_Skip1:
+BlitBufferToScreen_Skip1:
 
+    ; PLANO 2
     mov ax, Plane2Segment
     or  ax, ax
-    jz  @bbts_Skip2
+    jz  BlitBufferToScreen_Skip2
     mov bx, ax
     mov al, 02h
     out dx, al
@@ -1531,7 +1446,7 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset
     
     mov ax, VIEWPORT_HEIGHT
-@bbts_Row2:
+BlitBufferToScreen_Row2:
     push ax
     push si
     push di
@@ -1547,13 +1462,14 @@ BlitBufferToScreen PROC
     add di, VRAM_BYTES_PER_SCAN
     
     dec ax
-    jnz @bbts_Row2
+    jnz BlitBufferToScreen_Row2
     pop ds
-@bbts_Skip2:
+BlitBufferToScreen_Skip2:
 
+    ; PLANO 3
     mov ax, Plane3Segment
     or  ax, ax
-    jz  @bbts_Skip3
+    jz  BlitBufferToScreen_Skip3
     mov bx, ax
     mov al, 02h
     out dx, al
@@ -1570,7 +1486,7 @@ BlitBufferToScreen PROC
     add di, viewport_x_offset
     
     mov ax, VIEWPORT_HEIGHT
-@bbts_Row3:
+BlitBufferToScreen_Row3:
     push ax
     push si
     push di
@@ -1586,9 +1502,9 @@ BlitBufferToScreen PROC
     add di, VRAM_BYTES_PER_SCAN
     
     dec ax
-    jnz @bbts_Row3
+    jnz BlitBufferToScreen_Row3
     pop ds
-@bbts_Skip3:
+BlitBufferToScreen_Skip3:
 
     mov al, 02h
     out dx, al
