@@ -853,6 +853,81 @@ GetTileAt PROC
     ret
 GetTileAt ENDP
 
+RenderMapViewport PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+
+    call ClearOffScreenBuffer
+    call ClampCameraPosition
+
+    xor bp, bp
+
+RenderMapViewport_RowLoop:
+    cmp bp, VIEWPORT_TILES_Y
+    jae RenderMapViewport_Done
+
+    mov ax, bp
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    mov si, ax
+
+    mov ax, camera_tile_y
+    add ax, bp
+    mov dx, ax
+
+    xor cx, cx
+
+RenderMapViewport_ColLoop:
+    cmp cx, VIEWPORT_TILES_X
+    jae RenderMapViewport_NextRow
+
+    push cx
+
+    mov ax, camera_tile_x
+    add ax, cx
+    mov bx, ax
+
+    mov cx, dx
+    call GetTileAt
+    mov dl, al
+
+    pop ax
+
+    mov bx, ax
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+
+    mov cx, si
+    call DrawTile
+
+    mov cx, ax
+    inc cx
+    jmp RenderMapViewport_ColLoop
+
+RenderMapViewport_NextRow:
+    inc bp
+    jmp RenderMapViewport_RowLoop
+
+RenderMapViewport_Done:
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+RenderMapViewport ENDP
+
 DrawPixel PROC
     push ax
     push bx
@@ -1269,15 +1344,19 @@ LoadMapFromFile_ValidSize:
 LoadMapFromFile_RowLoop:
     mov ax, dx
     cmp ax, mapH
-    jae LoadMapFromFile_Success
-    
+    jb LoadMapFromFile_ReadRow
+    jmp LoadMapFromFile_Success
+
+LoadMapFromFile_ReadRow:
     call ReadLine
-    
+
     mov si, OFFSET lineBuffer
     mov al, [si]
     cmp al, 'R'
-    je LoadMapFromFile_Success
-    
+    jne LoadMapFromFile_StartCols
+    jmp LoadMapFromFile_Success
+
+LoadMapFromFile_StartCols:
     mov cx, 0
 
 LoadMapFromFile_ColLoop:
