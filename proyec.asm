@@ -960,9 +960,15 @@ DrawPixel PROC
 
     ; Verificar límites
     cmp bx, VIEWPORT_WIDTH
-    jae @dp_exit_pixel
+    jb @dp_check_y_bound
+    jmp @dp_exit_pixel
+
+@dp_check_y_bound:
     cmp cx, VIEWPORT_HEIGHT
-    jae @dp_exit_pixel
+    jb @dp_calculate_offset
+    jmp @dp_exit_pixel
+
+@dp_calculate_offset:
 
     ; Calcular offset y máscara
     mov ax, BYTES_PER_SCAN         ; 20
