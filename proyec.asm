@@ -83,7 +83,7 @@ main PROC
     call ShrinkProgramMemory
     call InitOffScreenBuffer
     cmp ax, 0
-    je @ok_print
+    je main_ok_print
 
     ; Imprimir código de error y salir
     call PrintHexAX
@@ -94,7 +94,7 @@ main PROC
     mov al, 8
     int 21h
 
-@ok_print:
+main_ok_print:
     mov ax, 0010h
     int 10h
     
@@ -106,19 +106,87 @@ main PROC
     
     ; Verificar que el mapa se cargó
     cmp map_loaded, 0
-    je @use_default
-    jmp @map_ready
+    je main_use_default
+    jmp main_map_ready
 
-@use_default:
+main_use_default:
     call CreateDefaultMap
 
-@map_ready:
+main_map_ready:
     ; Inicializar posición de cámara
     mov camera_tile_x, 0
     mov camera_tile_y, 0
 
-    call MainLoop    ; FIX: Cambiar MAINLOOP a MainLoop (con mayúscula correcta)
+    ; FIX: Cambiar RENDERMAPVIEWPORT a RenderMapViewport (capitalización correcta)
+main_game_loop:
+    call RenderMapViewport    ; FIX: Nombre correcto del procedimiento
+    call DrawRedLine
+    call BlitBufferToScreen
 
+    call ReadKeyNonBlocking
+    cmp ax, 0
+    je main_no_key
+
+    cmp al, 1Bh             ; ESC para salir
+    je main_exit_loop
+
+    cmp al, 'W'
+    jne main_check_s
+    mov ax, camera_tile_y
+    cmp ax, 0
+    je main_handled
+    dec ax
+    mov camera_tile_y, ax
+    jmp main_handled
+
+main_check_s:
+    cmp al, 'S'
+    jne main_check_a
+    mov ax, camera_tile_y
+    mov bx, map_height
+    sub bx, VIEWPORT_TILES_Y
+    cmp bx, 0
+    jge main_check_s_limit
+    mov bx, 0
+main_check_s_limit:
+    cmp ax, bx
+    jae main_handled
+    inc ax
+    mov camera_tile_y, ax
+    jmp main_handled
+
+main_check_a:
+    cmp al, 'A'
+    jne main_check_d
+    mov ax, camera_tile_x
+    cmp ax, 0
+    je main_handled
+    dec ax
+    mov camera_tile_x, ax
+    jmp main_handled
+
+main_check_d:
+    cmp al, 'D'
+    jne main_handled
+    mov ax, camera_tile_x
+    mov bx, map_width
+    sub bx, VIEWPORT_TILES_X
+    cmp bx, 0
+    jge main_check_d_limit
+    mov bx, 0
+main_check_d_limit:
+    cmp ax, bx
+    jae main_handled
+    inc ax
+    mov camera_tile_x, ax
+
+main_handled:
+main_no_key:
+    mov cl, 3
+    call DelayTicks
+    jmp main_game_loop
+
+main_exit_loop:
     mov ax, 0003h
     int 10h
     call ReleaseOffScreenBuffer
@@ -1157,25 +1225,39 @@ LoadMapFromFile PROC
     mov dx, OFFSET mapFileName
     call OpenFile
     pop ds
-    jc @lmf_error_jump    ; Salto corto intermedio
+    
+    ; FIX: Usar NOT carry flag para evitar salto largo
+    jnc LoadMapFromFile_FileOK
+    jmp LoadMapFromFile_UseDefault
 
+LoadMapFromFile_FileOK:
     call ReadLine
     call ParseTwoInts
     
-    ; FIX: Usar saltos cortos intermedios para evitar errores de rango
+    ; FIX: Reorganizar verificaciones para usar saltos cortos
     mov ax, mapW
     cmp ax, 1
-    jb @lmf_error_jump    ; Salto corto intermedio (línea 798)
+    jae LoadMapFromFile_CheckMaxW    ; Salto corto hacia adelante
+    jmp LoadMapFromFile_UseDefault   ; Salto largo OK con JMP
+
+LoadMapFromFile_CheckMaxW:
     cmp ax, MAX_MAP_WIDTH
-    ja @lmf_error_jump    ; Salto corto intermedio (línea 800)
-    
+    jbe LoadMapFromFile_CheckMinH    ; Salto corto hacia adelante  
+    jmp LoadMapFromFile_UseDefault   ; Salto largo OK con JMP
+
+LoadMapFromFile_CheckMinH:
     mov ax, mapH
     cmp ax, 1
-    jb @lmf_error_jump2   ; Segundo salto corto intermedio
-    cmp ax, MAX_MAP_HEIGHT
-    ja @lmf_error_jump2
+    jae LoadMapFromFile_CheckMaxH    ; Salto corto hacia adelante
+    jmp LoadMapFromFile_UseDefault   ; Salto largo OK con JMP
 
-    ; Continuar con procesamiento normal
+LoadMapFromFile_CheckMaxH:
+    cmp ax, MAX_MAP_HEIGHT
+    jbe LoadMapFromFile_ValidSize    ; Salto corto hacia adelante
+    jmp LoadMapFromFile_UseDefault   ; Salto largo OK con JMP
+
+LoadMapFromFile_ValidSize:
+    ; Tamaño válido, continuar
     mov ax, mapW
     mov map_width, ax
     mov ax, mapH
@@ -1183,32 +1265,25 @@ LoadMapFromFile PROC
 
     call ClearMapData
     mov dx, 0
-    jmp @lmf_process_rows
 
-@lmf_error_jump:
-    jmp @lmf_use_default
-
-@lmf_error_jump2:
-    jmp @lmf_use_default
-
-@lmf_process_rows:
+LoadMapFromFile_RowLoop:
     mov ax, dx
     cmp ax, mapH
-    jae @lmf_success
+    jae LoadMapFromFile_Success
     
     call ReadLine
     
     mov si, OFFSET lineBuffer
     mov al, [si]
     cmp al, 'R'
-    je @lmf_success
+    je LoadMapFromFile_Success
     
     mov cx, 0
 
-@lmf_process_cols:
+LoadMapFromFile_ColLoop:
     mov ax, cx
     cmp ax, mapW
-    jae @lmf_next_row
+    jae LoadMapFromFile_NextRow
     
     call ParseNextInt
     
@@ -1221,31 +1296,31 @@ LoadMapFromFile PROC
     pop ax
     
     cmp ax, 255
-    ja @lmf_store_zero
-    mov [di], al
-    jmp @lmf_stored
-
-@lmf_store_zero:
+    jbe LoadMapFromFile_StoreValue
     mov BYTE PTR [di], 0
+    jmp LoadMapFromFile_NextCol
 
-@lmf_stored:
+LoadMapFromFile_StoreValue:
+    mov [di], al
+
+LoadMapFromFile_NextCol:
     inc cx
-    jmp @lmf_process_cols
+    jmp LoadMapFromFile_ColLoop
 
-@lmf_next_row:
+LoadMapFromFile_NextRow:
     inc dx
-    jmp @lmf_process_rows
+    jmp LoadMapFromFile_RowLoop
 
-@lmf_success:
+LoadMapFromFile_Success:
     mov map_loaded, 1
     call CloseFile
-    jmp @lmf_done
+    jmp LoadMapFromFile_Done
 
-@lmf_use_default:
+LoadMapFromFile_UseDefault:
     call CloseFile
     call CreateDefaultMap
 
-@lmf_done:
+LoadMapFromFile_Done:
     pop di
     pop si
     pop dx
@@ -1255,7 +1330,7 @@ LoadMapFromFile PROC
     ret
 LoadMapFromFile ENDP
 
-; ===== CORREGIR TAMBIÉN BlitBufferToScreen (línea 1160) =====
+; ===== CORRECCIÓN DEFINITIVA - BlitBufferToScreen (línea 1160) =====
 
 BlitBufferToScreen PROC
     push ax
