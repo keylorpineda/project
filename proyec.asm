@@ -84,6 +84,10 @@ debug_dimensions   db 'Dimensiones: $'
 debug_x_sep        db ' x $'    ; Cambiar de ' x', 0 a ' x $'
 debug_creating_default db 'Creando mapa por defecto...', 13, 10, '$'
 debug_default_created  db 'Mapa por defecto creado (10x6)', 13, 10, '$'
+debug_empty_line    db 'ERROR: Línea vacía en mapa.txt', 13, 10, '$'
+debug_invalid_dims  db 'ERROR: Dimensiones inválidas en mapa.txt', 13, 10, '$'
+debug_buffer_content   db 'DEBUG: Contenido buffer: $'
+debug_force_default   db 'DEBUG: Forzando mapa por defecto', 13, 10, '$'
 
 .CODE                             ; Segmento de código
 
@@ -600,14 +604,27 @@ ParseTwoInts PROC
     push dx
     push si
 
+    ; Debug: Mostrar contenido del buffer leído
+    mov dx, OFFSET lineBuffer
+    mov ah, 09h
+    int 21h
+    mov dx, OFFSET crlf
+    mov ah, 09h
+    int 21h
+
     mov mapW, 0
     mov mapH, 0
     mov si, OFFSET lineBuffer
 
+    ; Verificar que hay contenido
+    mov al, [si]
+    cmp al, 0
+    je @pti_error_empty
+
 @pti_skip_ws1:
     mov al, [si]
     cmp al, 0
-    je @pti_store_width
+    je @pti_error_empty
     cmp al, ' '
     je @pti_adv_ws1
     cmp al, 9
@@ -638,6 +655,10 @@ ParseTwoInts PROC
 
 @pti_store_width:
     mov mapW, ax
+    
+    ; Verificar que el ancho es válido
+    cmp ax, 0
+    je @pti_error_invalid
 
 @pti_skip_ws2:
     mov al, [si]
@@ -673,6 +694,24 @@ ParseTwoInts PROC
 
 @pti_store_height:
     mov mapH, ax
+    
+    ; Verificar que el alto es válido
+    cmp ax, 0
+    je @pti_error_invalid
+    jmp @pti_done_parse
+
+@pti_error_empty:
+    ; Debug: Línea vacía
+    mov dx, OFFSET debug_empty_line
+    mov ah, 09h
+    int 21h
+    jmp @pti_done_parse
+
+@pti_error_invalid:
+    ; Debug: Dimensiones inválidas
+    mov dx, OFFSET debug_invalid_dims
+    mov ah, 09h
+    int 21h
 
 @pti_done_parse:
     pop si
@@ -786,55 +825,21 @@ CreateDefaultMap PROC
 
     call ClearMapData
 
-    ; Mapa 10x6 con patrón de prueba
+    ; Mapa 10x6 COMPLETAMENTE SIMPLE
     mov ax, 10
     mov map_width, ax
     mov ax, 6  
     mov map_height, ax
     mov map_loaded, 1
 
-    ; Crear patrón ajedrez más visible
+    ; Llenar TODO con tipo 1 (rojos)
     mov ax, ds
     mov es, ax
     mov di, OFFSET map_data
-    mov cx, 0                       ; Contador de posición
+    mov al, 1                      ; TODO tipo 1 = rojo
+    mov cx, 60                     ; 10 * 6 tiles
+    rep stosb
 
-@cdm_loop:
-    cmp cx, 60                      ; 10 * 6 = 60 tiles
-    jae @cdm_done
-    
-    ; Crear patrón más interesante
-    mov ax, cx
-    mov bx, 10
-    xor dx, dx
-    div bx                          ; AX = fila, DX = columna
-    
-    ; Bordes = muros (tipo 1)
-    cmp ax, 0                       ; Primera fila
-    je @cdm_wall
-    cmp ax, 5                       ; Última fila
-    je @cdm_wall
-    cmp dx, 0                       ; Primera columna
-    je @cdm_wall
-    cmp dx, 9                       ; Última columna
-    je @cdm_wall
-    
-    ; Interior alternado
-    add ax, dx
-    and ax, 1
-    add ax, 2                       ; Tipos 2 y 3
-    jmp @cdm_store
-
-@cdm_wall:
-    mov ax, 1                       ; Tipo 1 = muro
-
-@cdm_store:
-    mov [di], al
-    inc di
-    inc cx
-    jmp @cdm_loop
-
-@cdm_done:
     ; Debug: Confirmar creación
     mov dx, OFFSET debug_default_created
     mov ah, 09h
@@ -969,7 +974,6 @@ DrawPixel PROC
     jmp @dp_exit_pixel
 
 @dp_calculate_offset:
-
     ; Calcular offset y máscara
     mov ax, BYTES_PER_SCAN         ; 20
     mul cx                         ; AX = Y * 20
@@ -987,64 +991,66 @@ DrawPixel PROC
     mov al, 1
     shl al, cl                     ; AL = máscara de bit
     
-    ; CORRECCIÓN: Salvar DL antes de usar DX para segmentos
-    mov dh, dl                     ; Guardar color en DH
+    ; CORRECCIÓN: Guardar máscara antes de modificar registros
+    mov ch, al                     ; CH = máscara de bit
+    mov cl, dl                     ; CL = color original
     
-    ; Plano 0 (bit 0 del color)
+    ; Plano 0 (bit 0 del color) - AZUL
     mov dx, Plane0Segment
     or dx, dx
-    jz @dp_plane1                  ; Salto corto a plano 1
+    jz @dp_plane1
     mov es, dx
-    test dh, 01h                   ; ¿Bit 0 del color está activo?
+    test cl, 01h                   ; ¿Bit 0 del color está activo?
     jz @dp_clear_p0
-    or BYTE PTR es:[si], al        ; Activar bit
+    or BYTE PTR es:[si], ch        ; Activar bit
     jmp @dp_plane1
 @dp_clear_p0:
+    mov al, ch
     not al
     and BYTE PTR es:[si], al       ; Limpiar bit
-    not al
     
 @dp_plane1:
-    ; Plano 1 (bit 1 del color)
+    ; Plano 1 (bit 1 del color) - VERDE
     mov dx, Plane1Segment
     or dx, dx
-    jz @dp_plane2                  ; Salto corto a plano 2
+    jz @dp_plane2
     mov es, dx
-    test dh, 02h                   ; ¿Bit 1 del color está activo?
+    test cl, 02h                   ; ¿Bit 1 del color está activo?
     jz @dp_clear_p1
-    or BYTE PTR es:[si], al        ; Activar bit
+    or BYTE PTR es:[si], ch        ; Activar bit
     jmp @dp_plane2
 @dp_clear_p1:
+    mov al, ch
     not al
     and BYTE PTR es:[si], al       ; Limpiar bit
-    not al
     
 @dp_plane2:
-    ; Plano 2 (bit 2 del color)
+    ; Plano 2 (bit 2 del color) - ROJO
     mov dx, Plane2Segment
     or dx, dx
-    jz @dp_plane3                  ; Salto corto a plano 3
+    jz @dp_plane3
     mov es, dx
-    test dh, 04h                   ; ¿Bit 2 del color está activo?
+    test cl, 04h                   ; ¿Bit 2 del color está activo?
     jz @dp_clear_p2
-    or BYTE PTR es:[si], al        ; Activar bit
+    or BYTE PTR es:[si], ch        ; Activar bit
     jmp @dp_plane3
 @dp_clear_p2:
+    mov al, ch
     not al
     and BYTE PTR es:[si], al       ; Limpiar bit
-    not al
     
 @dp_plane3:
-    ; Plano 3 (bit 3 del color)
+    ; Plano 3 (bit 3 del color) - INTENSIDAD
     mov dx, Plane3Segment
     or dx, dx
-    jz @dp_exit_pixel              ; Ya está cerca, no necesita cambio
+    jz @dp_exit_pixel
     mov es, dx
-    test dh, 08h                   ; ¿Bit 3 del color está activo?
+    test cl, 08h                   ; ¿Bit 3 del color está activo?
     jz @dp_clear_p3
-    or BYTE PTR es:[si], al        ; Activar bit
+    or BYTE PTR es:[si], ch        ; Activar bit
     jmp @dp_exit_pixel
 @dp_clear_p3:
+    mov al, ch
     not al
     and BYTE PTR es:[si], al       ; Limpiar bit
 
@@ -1059,6 +1065,7 @@ DrawPixel PROC
     ret
 DrawPixel ENDP
 
+; ===== CORRECCIÓN: Mejores colores EGA más visibles =====
 DrawTile PROC
     push ax
     push bx
@@ -1068,34 +1075,34 @@ DrawTile PROC
     push di
     push bp
 
-    ; Mapeo de tipos de tiles a colores EGA
+    ; Mapeo de tipos de tiles a colores EGA MÁS CONTRASTANTES
     cmp dl, 0                       ; TILE_EMPTY
-    jne DT_CheckWall
-    mov dl, 0                       ; Negro (0000b)
-    jmp DT_DrawStart
+    jne @DT_CheckWall
+    mov dl, 0                       ; Negro (0000b) - Sin cambios
+    jmp @DT_DrawStart
     
-DT_CheckWall:
+@DT_CheckWall:
     cmp dl, 1                       ; TILE_WALL
-    jne DT_CheckFloor
-    mov dl, 15                      ; Blanco brillante (1111b)
-    jmp DT_DrawStart
+    jne @DT_CheckFloor
+    mov dl, 4                       ; Rojo puro (0100b) - MÁS VISIBLE
+    jmp @DT_DrawStart
     
-DT_CheckFloor:
+@DT_CheckFloor:
     cmp dl, 2                       ; TILE_FLOOR  
-    jne DT_CheckWater
-    mov dl, 10                      ; Verde brillante (1010b)
-    jmp DT_DrawStart
+    jne @DT_CheckWater
+    mov dl, 2                       ; Verde puro (0010b) - MÁS VISIBLE
+    jmp @DT_DrawStart
     
-DT_CheckWater:
+@DT_CheckWater:
     cmp dl, 3                       ; TILE_WATER
-    jne DT_DefaultColor
-    mov dl, 9                       ; Azul brillante (1001b)
-    jmp DT_DrawStart
+    jne @DT_DefaultColor
+    mov dl, 1                       ; Azul puro (0001b) - MÁS VISIBLE
+    jmp @DT_DrawStart
     
-DT_DefaultColor:
-    mov dl, 7                       ; Gris claro (0111b)
+@DT_DefaultColor:
+    mov dl, 15                      ; Blanco brillante (1111b)
 
-DT_DrawStart:
+@DT_DrawStart:
     ; Solo dibujar si no es color negro (optimización)
     cmp dl, 0
     je @dt_done                     ; No dibujar tiles negros
@@ -1333,11 +1340,15 @@ LoadMapFromFile PROC
 
     mov map_loaded, 0
     
-    ; Debug: Intentando cargar mapa
-    mov dx, OFFSET debug_loading
+    ; Debug: Forzar mapa por defecto temporalmente
+    mov dx, OFFSET debug_force_default
     mov ah, 09h
     int 21h
+    
+    ; TEMPORAL: Saltar directo al mapa por defecto
+    jmp LMFF_UseDefault
 
+    ; (El resto del código permanece igual para futuras correcciones)
     ; Intentar abrir archivo
     mov dx, OFFSET mapFileName
     call OpenFile
