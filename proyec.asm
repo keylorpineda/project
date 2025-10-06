@@ -53,8 +53,8 @@ TILE_FLOOR        EQU 2           ; Tipo 2: Piso (verde)
 TILE_WATER        EQU 3           ; Tipo 3: Agua (azul)
 
 ; ===== Offsets para centrar el viewport dentro de 640x350 =====
-viewport_x_offset dw 0      ; Cambiar de 30 a 0 temporalmente  
-viewport_y_offset dw 0      ; Cambiar de 125 a 0 temporalmente
+viewport_x_offset dw 240     ; CAMBIO: Centrar horizontalmente (640-160)/2 = 240
+viewport_y_offset dw 125     ; CAMBIO: Centrar verticalmente (350-100)/2 = 125
 
 msg_err          db 'ERROR: Alloc fallo. Codigo: $'
 msg_free         db ' (free block: $'
@@ -1096,6 +1096,13 @@ DrawTile PROC
     push di
     push bp
 
+    ; TEMPORAL: Debug - mostrar que se está llamando DrawTile
+    push dx
+    mov dl, '*'        ; Imprimir asterisco por cada tile
+    mov ah, 02h
+    int 21h
+    pop dx
+
     ; Mapeo de tipos de tiles a colores EGA MÁS CONTRASTANTES
     cmp dl, 0                       ; TILE_EMPTY
     jne @DT_CheckWall
@@ -1105,7 +1112,7 @@ DrawTile PROC
 @DT_CheckWall:
     cmp dl, 1                       ; TILE_WALL
     jne @DT_CheckFloor
-    mov dl, 4                       ; Rojo puro (0100b) - MÁS VISIBLE
+    mov dl, 15                      ; CAMBIO: Blanco brillante (1111b) - MÁS VISIBLE
     jmp @DT_DrawStart
     
 @DT_CheckFloor:
@@ -1124,10 +1131,6 @@ DrawTile PROC
     mov dl, 15                      ; Blanco brillante (1111b)
 
 @DT_DrawStart:
-    ; CORRECCIÓN: Comentar la optimización que salta tiles negros
-    ; cmp dl, 0
-    ; je @dt_done                   ; COMENTADO: Causa problemas
-    
     mov si, cx                      ; SI = Y pixel
     mov di, bx                      ; DI = X pixel
     mov bp, 0                       ; BP = fila actual
@@ -1646,8 +1649,6 @@ PrintDecimalAX PROC
     ret
 PrintDecimalAX ENDP
 
-; filepath: c:\ASM\project\proyec.asm
-; ===== CORRECCIÓN CRÍTICA: BlitBufferToScreen con manejo correcto de DS =====
 BlitBufferToScreen PROC
     push ax
     push bx
@@ -1662,10 +1663,7 @@ BlitBufferToScreen PROC
     ; Verificar que los buffers estén inicializados
     mov ax, Plane0Segment
     or ax, ax
-    jnz @bbts_plane0_ready
-    jmp NEAR PTR @bbts_exit
-
-@bbts_plane0_ready:
+    jz @bbts_exit
 
     ; CRITICAL: Guardar offsets ANTES de cambiar DS
     mov bp, sp
@@ -1752,7 +1750,7 @@ BlitBufferToScreen PROC
     jnz @bbts_p1_loop
 
 @bbts_p2:
-    ; === PLANO 2 (ROJO) - EL QUE NECESITAS ===
+    ; === PLANO 2 (ROJO) ===
     mov ax, Plane2Segment
     or ax, ax
     jz @bbts_p3
