@@ -1672,7 +1672,10 @@ BlitBufferToScreen PROC
     ; Verificar que los buffers estén inicializados
     mov ax, Plane0Segment
     or ax, ax
-    jz @bbts_exit
+    jnz @bbts_has_buffers
+    jmp @bbts_exit
+
+@bbts_has_buffers:
 
     ; CRITICAL: Guardar offsets ANTES de cambiar DS
     mov bp, sp
