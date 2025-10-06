@@ -619,12 +619,18 @@ ParseTwoInts PROC
     ; Verificar que hay contenido
     mov al, [si]
     cmp al, 0
-    je @pti_error_empty
+    jne @pti_not_empty
+    jmp @pti_error_empty
+
+@pti_not_empty:
 
 @pti_skip_ws1:
     mov al, [si]
     cmp al, 0
-    je @pti_error_empty
+    jne @pti_check_ws1
+    jmp @pti_error_empty
+
+@pti_check_ws1:
     cmp al, ' '
     je @pti_adv_ws1
     cmp al, 9
