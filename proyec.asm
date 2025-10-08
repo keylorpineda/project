@@ -514,8 +514,8 @@ dstb_pixel:
     mov dx, 03CEh
     out dx, ax
     
-    mov al, [es:di]
-    mov [es:di], ah
+    mov al, es:[di]
+    mov es:[di], ah
     pop di
     
     pop dx
