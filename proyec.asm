@@ -167,7 +167,10 @@ game_loop:
     ; Revisar si hay tecla
     mov ah, 01h
     int 16h
-    jz game_loop
+    jnz input_available
+    jmp game_loop
+
+input_available:
     
     ; Leer tecla
     mov ah, 00h
@@ -175,7 +178,10 @@ game_loop:
     
     ; ESC para salir (prioritario)
     cmp al, 27
-    je main_exit
+    jne check_arrows
+    jmp main_exit
+
+check_arrows:
     
     ; Teclas de movimiento - Flechas
     cmp ah, 48h
@@ -210,7 +216,10 @@ game_loop:
 move_up:
     mov ax, player_y
     cmp ax, 1
-    jbe game_loop
+    ja move_up_continue
+    jmp game_loop
+
+move_up_continue:
     dec player_y
     call CheckCollision
     jnc move_ok_up
@@ -223,7 +232,10 @@ move_down:
     mov ax, player_y
     inc ax
     cmp ax, map_height
-    jae game_loop
+    jb move_down_continue
+    jmp game_loop
+
+move_down_continue:
     inc player_y
     call CheckCollision
     jnc move_ok_down
@@ -235,7 +247,10 @@ move_ok_down:
 move_left:
     mov ax, player_x
     cmp ax, 1
-    jbe game_loop
+    ja move_left_continue
+    jmp game_loop
+
+move_left_continue:
     dec player_x
     call CheckCollision
     jnc move_ok_left
@@ -248,7 +263,10 @@ move_right:
     mov ax, player_x
     inc ax
     cmp ax, map_width
-    jae game_loop
+    jb move_right_continue
+    jmp game_loop
+
+move_right_continue:
     inc player_x
     call CheckCollision
     jnc move_ok_right
