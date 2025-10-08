@@ -656,9 +656,12 @@ LoadMap PROC
     mov al, 0
     mov ah, 3Dh
     int 21h
-    jc lm_use_default    ; ✅ Si no existe, usar por defecto
-    
+    jnc lm_open_ok       ; ✅ Si la apertura fue exitosa, continuar
+lm_open_failed:
+    jmp lm_use_default   ; ✅ Si no existe, usar por defecto
+
     ; ✅ VERIFICAR HANDLE VÁLIDO
+lm_open_ok:
     cmp ax, 0FFFFh       ; Handle inválido (-1)
     je lm_use_default
     cmp ax, 0            ; Handle 0 también es problemático
