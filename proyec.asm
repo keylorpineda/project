@@ -191,8 +191,11 @@ check_arrows:
     cmp ah, 4Bh
     je move_left
     cmp ah, 4Dh
-    je move_right
-    
+    jne check_wasd
+    jmp move_right
+
+check_wasd:
+
     ; WASD
     cmp al, 'w'
     je move_up
