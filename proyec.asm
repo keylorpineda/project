@@ -95,24 +95,29 @@ main PROC
     mov ax, @data
     mov ds, ax
     
-    ; Mostrar mensaje de carga
+    ; ✅ DEBUG: Mostrar progreso
     mov dx, OFFSET msg_loading
     mov ah, 09h
     int 21h
     
-    ; ✅ CREAR MAPA POR DEFECTO PRIMERO (siempre funciona)
+    ; ✅ CREAR MAPA POR DEFECTO PRIMERO
     call CreateDefaultMap
     
     ; ✅ INICIALIZAR SPRITES POR DEFECTO
     call InitDefaultSprites
     
-    ; Intentar cargar sprites (opcional)
-    call LoadAllSprites
-    ; No importa si falla
+    ; ✅ DEBUG: Mostrar estado
+    mov ah, 02h
+    mov dl, '1'
+    int 21h
     
     ; Intentar cargar mapa real (opcional)
     call LoadMap
-    ; No importa si falla - ya tenemos el por defecto
+    
+    ; ✅ DEBUG: Mostrar estado
+    mov ah, 02h
+    mov dl, '2'
+    int 21h
     
     ; Allocar buffer
     call AllocateBuffer
@@ -120,6 +125,11 @@ main PROC
     jmp main_error
     
 start_game:
+    ; ✅ DEBUG: Mostrar estado
+    mov ah, 02h
+    mov dl, '3'
+    int 21h
+    
     ; Mostrar mensaje de éxito
     mov dx, OFFSET msg_success
     mov ah, 09h
@@ -129,12 +139,24 @@ start_game:
     mov ah, 00h
     int 16h
     
-    ; Modo gráfico EGA
-    mov ax, VIDEO_MODE
+    ; ✅ CONFIGURAR MODO EGA CORRECTAMENTE
+    mov ax, 0010h       ; EGA 640x350 16 colores
     int 10h
+    
+    ; ✅ Limpiar pantalla inicial
+    call ClearScreen
     
     ; Inicializar cámara
     call UpdateCamera
+    
+    ; ✅ DEBUG: Mostrar que entramos al loop
+    mov ah, 02h
+    mov dl, '4'
+    int 21h
+    
+    ; Esperar tecla antes del loop para debug
+    mov ah, 00h
+    int 16h
     
 game_loop:
     call ClearScreen
@@ -150,6 +172,10 @@ game_loop:
     ; Leer tecla
     mov ah, 00h
     int 16h
+    
+    ; ESC para salir (prioritario)
+    cmp al, 27
+    je main_exit
     
     ; Teclas de movimiento - Flechas
     cmp ah, 48h
@@ -179,18 +205,12 @@ game_loop:
     cmp al, 'D'
     je move_right
     
-    ; ESC para salir
-    cmp al, 27
-    je request_exit
     jmp game_loop
-
-request_exit:
-    jmp main_exit
 
 move_up:
     mov ax, player_y
-    cmp ax, 0
-    je game_loop
+    cmp ax, 1
+    jbe game_loop
     dec player_y
     call CheckCollision
     jnc move_ok_up
@@ -214,10 +234,8 @@ move_ok_down:
 
 move_left:
     mov ax, player_x
-    cmp ax, 0
-    jne can_move_left
-    jmp game_loop
-can_move_left:
+    cmp ax, 1
+    jbe game_loop
     dec player_x
     call CheckCollision
     jnc move_ok_left
@@ -230,9 +248,7 @@ move_right:
     mov ax, player_x
     inc ax
     cmp ax, map_width
-    jb can_move_right
-    jmp game_loop
-can_move_right:
+    jae game_loop
     inc player_x
     call CheckCollision
     jnc move_ok_right
@@ -616,7 +632,7 @@ ls_error:
     ret
 LoadSprite ENDP
 
-; === CARGAR MAPA (OPCIONAL) ===
+; === CARGAR MAPA (ROBUSTO) ===
 LoadMap PROC
     push ax
     push bx
@@ -625,36 +641,50 @@ LoadMap PROC
     push si
     push di
     
+    ; ✅ DEBUG: Mostrar que intentamos cargar
+    mov dx, OFFSET msg_loading
+    mov ah, 09h
+    int 21h
+    
     ; Abrir archivo
     mov dx, OFFSET map_file
     mov al, 0
     mov ah, 3Dh
     int 21h
-    jc lm_error                 ; ✅ No importa si falla
+    jc lm_use_default    ; ✅ Si no existe, usar por defecto
     
     mov file_handle, ax
     
+    ; Verificar handle válido
+    cmp ax, 0
+    je lm_use_default
+    
     ; Leer dimensiones
     call ReadLine
+    
+    ; Verificar que se leyó algo
+    cmp byte ptr line_buffer, 0
+    je lm_close_and_default
+    
     call ParseDimensions
-    jc lm_close_error
+    jc lm_close_and_default
     
     ; Verificar dimensiones válidas
     mov ax, map_width
     cmp ax, 1
-    jb lm_close_error
+    jb lm_close_and_default
     cmp ax, MAP_MAX_W
-    ja lm_close_error
+    ja lm_close_and_default
     
     mov ax, map_height
     cmp ax, 1
-    jb lm_close_error
+    jb lm_close_and_default
     cmp ax, MAP_MAX_H
-    ja lm_close_error
+    ja lm_close_and_default
     
     ; Leer filas del mapa
     mov cx, map_height
-    xor si, si          ; Contador de filas
+    xor si, si
     
 lm_read_row:
     push cx
@@ -663,8 +693,7 @@ lm_read_row:
     call ReadLine
     
     ; Verificar que hay datos
-    mov al, line_buffer
-    cmp al, 0
+    cmp byte ptr line_buffer, 0
     je lm_skip_row
     
     ; Parsear la fila
@@ -676,44 +705,22 @@ lm_skip_row:
     pop cx
     loop lm_read_row
     
-    ; Leer recursos
-    xor di, di
-    
-lm_read_res:
-    call ReadLine
-    
-    ; Verificar fin de archivo
-    mov al, line_buffer
-    cmp al, 0
-    je lm_close
-    
-    ; Verificar si es recurso
-    cmp al, 'R'
-    jne lm_read_res
-    
-    call ParseResource
-    inc di
-    cmp di, 50
-    jl lm_read_res
-    
-lm_close:
-    mov num_resources, di
-    
-    ; Cerrar archivo
+    ; ✅ Cerrar archivo y usar mapa cargado
     mov bx, file_handle
     mov ah, 3Eh
     int 21h
     
+    ; ✅ Marcar como exitoso
     clc
     jmp lm_exit
     
-lm_close_error:
+lm_close_and_default:
     mov bx, file_handle
     mov ah, 3Eh
     int 21h
     
-lm_error:
-    ; ✅ No importa el error - usar mapa por defecto
+lm_use_default:
+    ; ✅ Ya tenemos mapa por defecto - no hacer nada más
     clc
     
 lm_exit:
@@ -923,7 +930,7 @@ ss_done:
     ret
 SkipSpaces ENDP
 
-; === LEER LÍNEA DE ARCHIVO ===
+; === LEER LÍNEA DE ARCHIVO (CORREGIDO) ===
 ReadLine PROC
     push ax
     push bx
@@ -948,7 +955,7 @@ rl_loop:
     mov ah, 3Fh
     int 21h
     
-    ; Verificar EOF
+    ; Verificar EOF/Error
     jc rl_done
     cmp ax, 0
     je rl_done
@@ -958,7 +965,7 @@ rl_loop:
     cmp al, 10      ; LF
     je rl_done
     cmp al, 13      ; CR
-    je rl_loop      ; Ignorar CR
+    je rl_skip_cr   ; ✅ CAMBIO: Manejar CR correctamente
     
     ; Carácter válido
     inc di
@@ -968,6 +975,31 @@ rl_loop:
     sub ax, OFFSET line_buffer
     cmp ax, 254
     jl rl_loop
+    jmp rl_done
+    
+rl_skip_cr:
+    ; ✅ Leer siguiente carácter (probablemente LF)
+    push di
+    mov cx, 1
+    mov dx, OFFSET temp_buffer
+    mov ah, 3Fh
+    int 21h
+    pop di
+    
+    ; Si error o EOF, terminar
+    jc rl_done
+    cmp ax, 0
+    je rl_done
+    
+    ; Si el siguiente es LF, terminamos
+    mov al, temp_buffer
+    cmp al, 10
+    je rl_done
+    
+    ; Si no era LF, lo guardamos en el buffer
+    mov [di], al
+    inc di
+    jmp rl_loop
     
 rl_done:
     mov byte ptr [di], 0
@@ -1059,23 +1091,29 @@ uc_set_y:
     ret
 UpdateCamera ENDP
 
-; === LIMPIAR PANTALLA ===
+; === LIMPIAR PANTALLA (EGA) ===
 ClearScreen PROC
     push ax
+    push bx
     push cx
-    push di
-    push es
+    push dx
     
-    mov ax, VIDEO_SEG
-    mov es, ax
-    xor di, di
-    xor ax, ax
-    mov cx, 8000h
-    rep stosw
+    ; ✅ Usar servicio BIOS para limpiar pantalla
+    mov ax, 0600h       ; Scroll window up (limpiar)
+    mov bh, 00h         ; Atributo de fondo (negro)
+    mov cx, 0000h       ; Esquina superior izquierda (0,0)
+    mov dx, 184Fh       ; Esquina inferior derecha
+    int 10h
     
-    pop es
-    pop di
+    ; ✅ Posicionar cursor en origen
+    mov ax, 0200h
+    mov bh, 0
+    mov dx, 0000h
+    int 10h
+    
+    pop dx
     pop cx
+    pop bx
     pop ax
     ret
 ClearScreen ENDP
@@ -1217,100 +1255,81 @@ DrawSprite PROC
     push cx
     push dx
     push si
-    push di
-    push es
     
-    ; Verificar límites
-    cmp cx, 640
-    jb ds_check_y
-    jmp ds_done
-
-ds_check_y:
-    cmp dx, 350
-    jb ds_prepare
-    jmp ds_done
-
-ds_prepare:
-    
-    mov ax, VIDEO_SEG
-    mov es, ax
+    ; Verificar límites básicos
+    cmp cx, 600
+    jae ds_done
+    cmp dx, 300
+    jae ds_done
     
     ; Obtener dimensiones
     mov ax, [si]        ; Ancho
     mov bx, [si+2]      ; Alto
     add si, 4           ; Datos
     
-    ; ✅ ALGORITMO SIMPLIFICADO - PIXELS GRANDES
-    push dx             ; Guardar Y inicial
+    ; Limitar dimensiones para evitar problemas
+    cmp ax, 32
+    jbe ds_width_ok
+    mov ax, 32
+ds_width_ok:
+    cmp bx, 32
+    jbe ds_height_ok
+    mov bx, 32
+ds_height_ok:
     
-ds_row_simple:
+    ; Para cada fila del sprite
+ds_row_loop:
     cmp bx, 0
-    jne ds_row_continue
-    jmp ds_done_simple
-
-ds_row_continue:
+    je ds_done
     
     push cx             ; Guardar X inicial
     push ax             ; Guardar ancho
     
-ds_col_simple:
+    ; Para cada columna
+ds_col_loop:
     cmp ax, 0
-    jne ds_col_continue
-    jmp ds_next_row_simple
-
-ds_col_continue:
+    je ds_next_row
     
     ; Leer color del sprite
     push ax
     mov al, [si]
     inc si
     
-    ; Si es transparente (0), saltar
+    ; Si no es transparente (0)
     cmp al, 0
-    je ds_skip_simple
+    je ds_skip_pixel
     
-    ; ✅ DIBUJAR PIXEL SIMPLE - Solo escribir color
-    push si
+    ; ✅ Usar INT 10h para dibujar pixel (lento pero funciona)
+    push bx
+    push cx
     push dx
+    push si
     
-    ; Calcular posición Y * 80 + X/8
-    mov di, dx
-    mov si, 80
-    push ax
-    mov ax, di
-    mul si
-    mov di, ax
-    pop ax
+    mov ah, 0Ch         ; Función escribir pixel
+    mov bh, 0           ; Página 0
+    ; AL ya tiene el color
+    ; CX = X, DX = Y
+    int 10h
     
-    mov si, cx
-    shr si, 3
-    add di, si
-    
-    ; Escribir directamente (modo simple)
-    mov es:[di], al
-    
-    pop dx
     pop si
+    pop dx
+    pop cx
+    pop bx
     
-ds_skip_simple:
+ds_skip_pixel:
     pop ax
     inc cx              ; Siguiente X
     dec ax
-    jmp ds_col_simple
+    jmp ds_col_loop
     
-ds_next_row_simple:
+ds_next_row:
     pop ax              ; Recuperar ancho
     pop cx              ; Recuperar X inicial
     inc dx              ; Siguiente Y
     dec bx
-    jmp ds_row_simple
-    
-ds_done_simple:
-    pop dx              ; Limpiar Y inicial del stack
+    jmp ds_row_loop
     
 ds_done:
-    pop es
-    pop di
     pop si
     pop dx
     pop cx
