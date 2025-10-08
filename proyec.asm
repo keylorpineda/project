@@ -106,16 +106,28 @@ game_loop:
     
     ; Procesar teclas
     cmp ah, 48h     ; Arriba
-    je move_up
+    jne check_down
+    jmp move_up
+
+check_down:
     cmp ah, 50h     ; Abajo
-    je move_down
+    jne check_left
+    jmp move_down
+
+check_left:
     cmp ah, 4Bh     ; Izquierda
-    je move_left
+    jne check_right
+    jmp move_left
+
+check_right:
     cmp ah, 4Dh     ; Derecha
-    je move_right
+    jne check_escape
+    jmp move_right
+
+check_escape:
     cmp al, 27      ; ESC
-    je main_exit
-    jmp game_loop
+    jne game_loop
+    jmp main_exit
 
 move_up:
     cmp player_y, 1
