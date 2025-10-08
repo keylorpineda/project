@@ -212,7 +212,9 @@ move_ok_down:
 move_left:
     mov ax, player_x
     cmp ax, 0
-    je game_loop
+    jne can_move_left
+    jmp game_loop
+can_move_left:
     dec player_x
     call CheckCollision
     jnc move_ok_left
@@ -225,7 +227,9 @@ move_right:
     mov ax, player_x
     inc ax
     cmp ax, map_width
-    jae game_loop
+    jb can_move_right
+    jmp game_loop
+can_move_right:
     inc player_x
     call CheckCollision
     jnc move_ok_right
