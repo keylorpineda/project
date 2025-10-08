@@ -1215,9 +1215,15 @@ DrawSprite PROC
     
     ; Verificar límites
     cmp cx, 640
-    jae ds_done
+    jb ds_check_y
+    jmp ds_done
+
+ds_check_y:
     cmp dx, 350
-    jae ds_done
+    jb ds_prepare
+    jmp ds_done
+
+ds_prepare:
     
     mov ax, VIDEO_SEG
     mov es, ax
@@ -1232,14 +1238,20 @@ DrawSprite PROC
     
 ds_row_simple:
     cmp bx, 0
-    je ds_done_simple
+    jne ds_row_continue
+    jmp ds_done_simple
+
+ds_row_continue:
     
     push cx             ; Guardar X inicial
     push ax             ; Guardar ancho
     
 ds_col_simple:
     cmp ax, 0
-    je ds_next_row_simple
+    jne ds_col_continue
+    jmp ds_next_row_simple
+
+ds_col_continue:
     
     ; Leer color del sprite
     push ax
