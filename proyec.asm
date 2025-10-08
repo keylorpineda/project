@@ -856,25 +856,31 @@ dibujar_jugador PROC
     mov ax, jugador_x
     sub ax, camara_x
     cmp ax, 0
-    jl djr_fin
+    jl djr_salir_inmediato
     cmp ax, 20
-    jge djr_fin
-    
+    jge djr_salir_inmediato
+
     mov bx, TILE_SIZE
     mul bx
     mov temp_x, ax
-    
+
     mov ax, jugador_y
     sub ax, camara_y
     cmp ax, 0
-    jl djr_fin
+    jl djr_salir_inmediato
     cmp ax, 10
-    jge djr_fin
-    
+    jge djr_salir_inmediato
+
     mov bx, TILE_SIZE
     mul bx
     mov temp_y, ax
-    
+
+    jmp short djr_continuar
+
+djr_salir_inmediato:
+    jmp djr_fin
+
+djr_continuar:
     mov si, OFFSET spr_player
     add si, 4
     
