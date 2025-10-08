@@ -66,11 +66,17 @@ main PROC
     
     ; Reservar memoria para doble buffer
     call AllocateBuffer
-    jc main_error
-    
+    jnc alloc_ok
+    jmp main_error
+
+alloc_ok:
+
     ; Cargar mapa desde archivo
     call LoadMap
-    jc main_error
+    jnc map_ok
+    jmp main_error
+
+map_ok:
     
     ; Inicializar modo gráfico EGA
     mov ax, 0010h
@@ -171,7 +177,10 @@ move_right:
     mov ax, player_x
     inc ax
     cmp ax, map_width
-    jae game_loop
+    jb move_right_ok
+    jmp game_loop
+
+move_right_ok:
     inc player_x
     call CheckCollision
     jc move_right_undo
