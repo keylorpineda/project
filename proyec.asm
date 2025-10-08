@@ -37,8 +37,8 @@ num_resources   dw 0
 buffer_seg      dw 0
 
 ; === ESTADO DEL JUEGO ===
-player_x        dw 3
-player_y        dw 3
+player_x        dw 5
+player_y        dw 5
 camera_x        dw 0
 camera_y        dw 0
 
@@ -111,18 +111,13 @@ main PROC
     mov dl, '1'
     int 21h
     
-    ; Intentar cargar mapa real (opcional)
-    call LoadMap
+    ; ✅ COMENTAR LoadMap por ahora para usar solo el por defecto
+    ; call LoadMap
     
     ; ✅ DEBUG: Mostrar estado
     mov ah, 02h
     mov dl, '2'
     int 21h
-    
-    ; ✅ COMENTAR ALLOCATE BUFFER (causa problemas)
-    ; call AllocateBuffer
-    ; jnc start_game
-    ; jmp main_error
     
 start_game:
     ; ✅ DEBUG: Mostrar estado
@@ -143,174 +138,116 @@ start_game:
     mov ax, 0010h       ; EGA 640x350 16 colores
     int 10h
     
-    ; ✅ Limpiar pantalla inicial y hacer render inicial
-    call ClearScreen
-    
-    ; Inicializar cámara
+    ; ✅ RENDER INICIAL ÚNICO
     call UpdateCamera
-    
-    ; ✅ RENDER INICIAL (solo una vez al inicio)
+    call ClearScreen
     call RenderWorld
     call RenderPlayer
-    call RenderResources
     
-    ; ✅ ENTRAR AL GAME LOOP OPTIMIZADO
+    ; ✅ GAME LOOP ULTRA SIMPLE - SOLO REDIBUJA CUANDO HAY MOVIMIENTO
 game_loop:
-    ; ✅ NO REDIBUJAR TODO - solo chequear input
-    
     ; Revisar si hay tecla
     mov ah, 01h
     int 16h
-    jnz input_available
-    jmp game_loop
-
-input_available:
+    jz game_loop        ; ✅ Si NO hay input, NO redibujar
     
     ; Leer tecla
     mov ah, 00h
     int 16h
     
-    ; ESC para salir (prioritario)
+    ; ESC para salir
     cmp al, 27
-    jne check_arrows
-    jmp main_exit
-
-check_arrows:
+    je main_exit
     
-    ; Guardar posición anterior para borrar
+    ; Guardar posición anterior
     mov ax, player_x
     push ax
-    mov ax, player_y  
+    mov ax, player_y
     push ax
     
-    ; Teclas de movimiento - Flechas
-    cmp ah, 48h
-    je move_up
-    cmp ah, 50h
-    je move_down
-    cmp ah, 4Bh
-    je move_left
-    cmp ah, 4Dh
-    jne check_wasd
-    jmp move_right
-
-check_wasd:
-
-    ; WASD
-    cmp al, 'w'
-    je move_up
-    cmp al, 'W'
-    je move_up
-    cmp al, 's'
-    je move_down
-    cmp al, 'S'
-    je move_down
-    cmp al, 'a'
-    je move_left
-    cmp al, 'A'
-    je move_left
-    cmp al, 'd'
-    je move_right
-    cmp al, 'D'
-    je move_right
+    ; ✅ MOVIMIENTO SIMPLIFICADO
+    cmp ah, 48h         ; Flecha arriba
+    je try_move_up
+    cmp ah, 50h         ; Flecha abajo  
+    je try_move_down
+    cmp ah, 4Bh         ; Flecha izquierda
+    je try_move_left
+    cmp ah, 4Dh         ; Flecha derecha
+    je try_move_right
     
-    ; Si no es tecla de movimiento, limpiar stack y continuar
-    pop ax  ; limpiar Y anterior
-    pop ax  ; limpiar X anterior
-    jmp game_loop
-
-move_up:
-    mov ax, player_y
-    cmp ax, 1
-    ja move_up_continue
-    pop ax  ; limpiar stack
+    cmp al, 'w'         ; W
+    je try_move_up
+    cmp al, 's'         ; S
+    je try_move_down
+    cmp al, 'a'         ; A
+    je try_move_left
+    cmp al, 'd'         ; D
+    je try_move_right
+    
+    ; Si no es movimiento, limpiar stack
+    pop ax
     pop ax
     jmp game_loop
 
-move_up_continue:
+try_move_up:
+    cmp player_y, 1
+    jle no_movement
     dec player_y
     call CheckCollision
-    jnc move_ok_up
+    jnc movement_ok
     inc player_y
-move_ok_up:
-    call UpdateCamera
-    jmp redraw_after_move
+    jmp no_movement
 
-move_down:
+try_move_down:
     mov ax, player_y
     inc ax
     cmp ax, map_height
-    jb move_down_continue
-    pop ax  ; limpiar stack
-    pop ax
-    jmp game_loop
-
-move_down_continue:
+    jge no_movement
     inc player_y
     call CheckCollision
-    jnc move_ok_down
+    jnc movement_ok
     dec player_y
-move_ok_down:
-    call UpdateCamera
-    jmp redraw_after_move
+    jmp no_movement
 
-move_left:
-    mov ax, player_x
-    cmp ax, 1
-    ja move_left_continue
-    pop ax  ; limpiar stack
-    pop ax
-    jmp game_loop
-
-move_left_continue:
+try_move_left:
+    cmp player_x, 1
+    jle no_movement
     dec player_x
     call CheckCollision
-    jnc move_ok_left
+    jnc movement_ok
     inc player_x
-move_ok_left:
-    call UpdateCamera
-    jmp redraw_after_move
+    jmp no_movement
 
-move_right:
+try_move_right:
     mov ax, player_x
     inc ax
     cmp ax, map_width
-    jb move_right_continue
-    pop ax  ; limpiar stack
+    jge no_movement
+    inc player_x
+    call CheckCollision
+    jnc movement_ok
+    dec player_x
+    jmp no_movement
+
+no_movement:
+    ; No hubo movimiento, limpiar stack
+    pop ax
     pop ax
     jmp game_loop
 
-move_right_continue:
-    inc player_x
-    call CheckCollision
-    jnc move_ok_right
-    dec player_x
-move_ok_right:
-    call UpdateCamera
-    jmp redraw_after_move
-
-redraw_after_move:
-    ; ✅ SOLO REDIBUJAR SI HUBO MOVIMIENTO
-    pop ax  ; Y anterior  
-    pop ax  ; X anterior
+movement_ok:
+    ; ✅ HUBO MOVIMIENTO - REDIBUJAR TODO UNA SOLA VEZ
+    pop ax              ; Limpiar stack
+    pop ax
     
-    ; ✅ REDIBUJAR SOLO LO NECESARIO
+    call UpdateCamera
     call ClearScreen
     call RenderWorld
     call RenderPlayer
-    call RenderResources
     
     jmp game_loop
 
-main_error:
-    mov dx, OFFSET msg_error
-    mov ah, 09h
-    int 21h
-    mov ah, 00h
-    int 16h
-
 main_exit:
-    ; call FreeBuffer  ; ✅ También comentar esto
     mov ax, 0003h
     int 10h
     mov ax, 4C00h
