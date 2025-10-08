@@ -157,7 +157,10 @@ game_loop:
     
     ; ESC para salir
     cmp al, 27
-    je main_exit
+    jne continue_input
+    jmp main_exit
+
+continue_input:
     
     ; Guardar posición anterior
     mov ax, player_x
