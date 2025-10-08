@@ -135,7 +135,7 @@ start_game:
     mov ah, 09h
     int 21h
     
-    ; Esperar tecla
+    ; Esperar tecla UNA SOLA VEZ
     mov ah, 00h
     int 16h
     
@@ -149,15 +149,7 @@ start_game:
     ; Inicializar cámara
     call UpdateCamera
     
-    ; ✅ DEBUG: Mostrar que entramos al loop
-    mov ah, 02h
-    mov dl, '4'
-    int 21h
-    
-    ; Esperar tecla antes del loop para debug
-    mov ah, 00h
-    int 16h
-    
+    ; ✅ ENTRAR DIRECTAMENTE AL GAME LOOP (sin esperas adicionales)
 game_loop:
     call ClearScreen
     call RenderWorld
@@ -650,7 +642,7 @@ ls_error:
     ret
 LoadSprite ENDP
 
-; === CARGAR MAPA (ROBUSTO) ===
+; === CARGAR MAPA (SUPER ROBUSTO) ===
 LoadMap PROC
     push ax
     push bx
@@ -659,11 +651,6 @@ LoadMap PROC
     push si
     push di
     
-    ; ✅ DEBUG: Mostrar que intentamos cargar
-    mov dx, OFFSET msg_loading
-    mov ah, 09h
-    int 21h
-    
     ; Abrir archivo
     mov dx, OFFSET map_file
     mov al, 0
@@ -671,11 +658,13 @@ LoadMap PROC
     int 21h
     jc lm_use_default    ; ✅ Si no existe, usar por defecto
     
-    mov file_handle, ax
-    
-    ; Verificar handle válido
-    cmp ax, 0
+    ; ✅ VERIFICAR HANDLE VÁLIDO
+    cmp ax, 0FFFFh       ; Handle inválido (-1)
     je lm_use_default
+    cmp ax, 0            ; Handle 0 también es problemático
+    je lm_use_default
+    
+    mov file_handle, ax
     
     ; Leer dimensiones
     call ReadLine
@@ -689,18 +678,18 @@ LoadMap PROC
     
     ; Verificar dimensiones válidas
     mov ax, map_width
-    cmp ax, 1
+    cmp ax, 5           ; Mínimo más realista
     jb lm_close_and_default
-    cmp ax, MAP_MAX_W
+    cmp ax, 50          ; Máximo más conservador
     ja lm_close_and_default
     
     mov ax, map_height
-    cmp ax, 1
+    cmp ax, 5
     jb lm_close_and_default
-    cmp ax, MAP_MAX_H
+    cmp ax, 50
     ja lm_close_and_default
     
-    ; Leer filas del mapa
+    ; ✅ Leer solo las filas de datos (saltar recursos por ahora)
     mov cx, map_height
     xor si, si
     
@@ -710,35 +699,48 @@ lm_read_row:
     
     call ReadLine
     
-    ; Verificar que hay datos
+    ; ✅ Verificar si es línea de recurso o línea vacía
+    cmp byte ptr line_buffer, 'R'
+    je lm_skip_resource
     cmp byte ptr line_buffer, 0
     je lm_skip_row
     
-    ; Parsear la fila
+    ; Parsear la fila del mapa
     call ParseMapRow
+    jmp lm_next_row
+    
+lm_skip_resource:
+    ; TODO: Parsear recursos más tarde
+    jmp lm_next_row
     
 lm_skip_row:
+lm_next_row:
     pop si
     inc si
     pop cx
     loop lm_read_row
     
-    ; ✅ Cerrar archivo y usar mapa cargado
+    ; ✅ CERRAR ARCHIVO OBLIGATORIAMENTE
     mov bx, file_handle
     mov ah, 3Eh
     int 21h
+    mov file_handle, 0  ; Limpiar handle
     
     ; ✅ Marcar como exitoso
     clc
     jmp lm_exit
     
 lm_close_and_default:
+    ; ✅ CERRAR ARCHIVO SI ESTÁ ABIERTO
     mov bx, file_handle
+    cmp bx, 0
+    je lm_use_default
     mov ah, 3Eh
     int 21h
+    mov file_handle, 0
     
 lm_use_default:
-    ; ✅ Ya tenemos mapa por defecto - no hacer nada más
+    ; ✅ Ya tenemos mapa por defecto - siempre exitoso
     clc
     
 lm_exit:
