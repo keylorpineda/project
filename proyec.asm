@@ -514,8 +514,8 @@ dstb_pixel:
     mov dx, 03CEh
     out dx, ax
     
-    mov al, [es:di]         ; Latch
-    mov [es:di], ah         ; Escribir
+    mov al, [es:di]
+    mov [es:di], ah
     pop di
     
     pop dx
