@@ -271,14 +271,20 @@ LoadSprite PROC
     mov al, 0
     mov ah, 3Dh
     int 21h
-    jc ls_exit          ; Si falla, usar sprite por defecto
+    jnc ls_open_ok      ; Continuar si se abrió correctamente
+    jmp ls_exit         ; Si falla, usar sprite por defecto
+
+ls_open_ok:
     
     mov bx, ax          ; Guardar handle
     mov file_handle, bx
     
     ; Leer primera línea (dimensiones)
     call ReadLine
-    jc ls_close         ; Si falla leer, cerrar y salir
+    jnc ls_dimensions
+    jmp ls_close        ; Si falla leer, cerrar y salir
+
+ls_dimensions:
     
     ; Parsear ancho
     mov si, OFFSET line_buffer
