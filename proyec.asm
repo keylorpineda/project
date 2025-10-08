@@ -119,10 +119,10 @@ main PROC
     mov dl, '2'
     int 21h
     
-    ; Allocar buffer
-    call AllocateBuffer
-    jnc start_game
-    jmp main_error
+    ; ✅ COMENTAR ALLOCATE BUFFER (causa problemas)
+    ; call AllocateBuffer
+    ; jnc start_game
+    ; jmp main_error
     
 start_game:
     ; ✅ DEBUG: Mostrar estado
@@ -143,18 +143,20 @@ start_game:
     mov ax, 0010h       ; EGA 640x350 16 colores
     int 10h
     
-    ; ✅ Limpiar pantalla inicial
+    ; ✅ Limpiar pantalla inicial y hacer render inicial
     call ClearScreen
     
     ; Inicializar cámara
     call UpdateCamera
     
-    ; ✅ ENTRAR DIRECTAMENTE AL GAME LOOP (sin esperas adicionales)
-game_loop:
-    call ClearScreen
+    ; ✅ RENDER INICIAL (solo una vez al inicio)
     call RenderWorld
     call RenderPlayer
     call RenderResources
+    
+    ; ✅ ENTRAR AL GAME LOOP OPTIMIZADO
+game_loop:
+    ; ✅ NO REDIBUJAR TODO - solo chequear input
     
     ; Revisar si hay tecla
     mov ah, 01h
@@ -174,6 +176,12 @@ input_available:
     jmp main_exit
 
 check_arrows:
+    
+    ; Guardar posición anterior para borrar
+    mov ax, player_x
+    push ax
+    mov ax, player_y  
+    push ax
     
     ; Teclas de movimiento - Flechas
     cmp ah, 48h
@@ -203,12 +211,17 @@ check_arrows:
     cmp al, 'D'
     je move_right
     
+    ; Si no es tecla de movimiento, limpiar stack y continuar
+    pop ax  ; limpiar Y anterior
+    pop ax  ; limpiar X anterior
     jmp game_loop
 
 move_up:
     mov ax, player_y
     cmp ax, 1
     ja move_up_continue
+    pop ax  ; limpiar stack
+    pop ax
     jmp game_loop
 
 move_up_continue:
@@ -218,13 +231,15 @@ move_up_continue:
     inc player_y
 move_ok_up:
     call UpdateCamera
-    jmp game_loop
+    jmp redraw_after_move
 
 move_down:
     mov ax, player_y
     inc ax
     cmp ax, map_height
     jb move_down_continue
+    pop ax  ; limpiar stack
+    pop ax
     jmp game_loop
 
 move_down_continue:
@@ -234,12 +249,14 @@ move_down_continue:
     dec player_y
 move_ok_down:
     call UpdateCamera
-    jmp game_loop
+    jmp redraw_after_move
 
 move_left:
     mov ax, player_x
     cmp ax, 1
     ja move_left_continue
+    pop ax  ; limpiar stack
+    pop ax
     jmp game_loop
 
 move_left_continue:
@@ -249,13 +266,15 @@ move_left_continue:
     inc player_x
 move_ok_left:
     call UpdateCamera
-    jmp game_loop
+    jmp redraw_after_move
 
 move_right:
     mov ax, player_x
     inc ax
     cmp ax, map_width
     jb move_right_continue
+    pop ax  ; limpiar stack
+    pop ax
     jmp game_loop
 
 move_right_continue:
@@ -265,6 +284,19 @@ move_right_continue:
     dec player_x
 move_ok_right:
     call UpdateCamera
+    jmp redraw_after_move
+
+redraw_after_move:
+    ; ✅ SOLO REDIBUJAR SI HUBO MOVIMIENTO
+    pop ax  ; Y anterior  
+    pop ax  ; X anterior
+    
+    ; ✅ REDIBUJAR SOLO LO NECESARIO
+    call ClearScreen
+    call RenderWorld
+    call RenderPlayer
+    call RenderResources
+    
     jmp game_loop
 
 main_error:
@@ -275,7 +307,7 @@ main_error:
     int 16h
 
 main_exit:
-    call FreeBuffer
+    ; call FreeBuffer  ; ✅ También comentar esto
     mov ax, 0003h
     int 10h
     mov ax, 4C00h
