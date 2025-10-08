@@ -181,8 +181,11 @@ game_loop:
     
     ; ESC para salir
     cmp al, 27
-    je main_exit
+    je request_exit
     jmp game_loop
+
+request_exit:
+    jmp main_exit
 
 move_up:
     mov ax, player_y
