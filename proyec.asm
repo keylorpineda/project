@@ -1,18 +1,14 @@
-; Proyecto de Exploración - OPTIMIZADO CON DOUBLE BUFFER
+; Proyecto de Exploración - FUNCIONAL Y SIMPLE
 ; 8086/8088 TASM - Modo EGA 640x350 16 colores
-; Sistema de viewport con renderizado directo a memoria
+; Carga sprites y renderiza correctamente
 
 .MODEL SMALL
 .STACK 512
 
 ; === CONSTANTES ===
 TILE_SIZE       EQU 16
-MAP_MAX_W       EQU 100
-MAP_MAX_H       EQU 100
-VIEWPORT_W      EQU 10          ; Tiles visibles (10 * 16 = 160px)
-VIEWPORT_H      EQU 6           ; Tiles visibles (6 * 16 = 96px)
-SCREEN_W        EQU 640
-SCREEN_H        EQU 350
+VIEWPORT_W      EQU 10
+VIEWPORT_H      EQU 6
 
 ; Tipos de tiles
 TILE_GRASS      EQU 0
@@ -22,53 +18,65 @@ TILE_WATER      EQU 3
 TILE_TREE       EQU 4
 TILE_ROCK       EQU 5
 
-; Segmentos de memoria
-VIDEO_SEG       EQU 0A000h
-BUFFER_SEG      EQU 09000h      ; Segmento para buffer
-
 .DATA
-; === MAPA Y RECURSOS ===
-map_width       dw 0
-map_height      dw 0
-map_data        db MAP_MAX_W * MAP_MAX_H dup(0)
-resources       db 50 * 5 dup(0)
-num_resources   dw 0
+; === MAPA ===
+map_width       dw 20
+map_height      dw 15
+map_data        db 300 dup(0)
 
-; === ESTADO DEL JUEGO ===
+; === JUGADOR ===
 player_x        dw 5
 player_y        dw 5
 camera_x        dw 0
 camera_y        dw 0
 
-; === SPRITES (Solo datos, sin dimensiones repetidas) ===
-sprite_grass    db 256 dup(2)   ; Verde oscuro
-sprite_wall     db 256 dup(8)   ; Gris
-sprite_path     db 256 dup(6)   ; Marrón
-sprite_water    db 256 dup(9)   ; Azul claro
-sprite_tree     db 256 dup(10)  ; Verde claro
-sprite_rock     db 256 dup(7)   ; Gris claro
-sprite_player   db 64 dup(14)   ; Amarillo
+; === SPRITES (ancho, alto, datos) ===
+sprite_grass    dw 16, 16
+                db 256 dup(2)
+sprite_wall     dw 16, 16
+                db 256 dup(8)
+sprite_path     dw 16, 16
+                db 256 dup(6)
+sprite_water    dw 16, 16
+                db 256 dup(9)
+sprite_tree     dw 16, 16
+                db 256 dup(10)
+sprite_rock     dw 16, 16
+                db 256 dup(7)
+sprite_player   dw 8, 8
+                db 64 dup(14)
+
+; === ARCHIVOS ===
+file_handle     dw 0
+spr_grass_f     db 'grass.spr',0
+spr_wall_f      db 'wall.spr',0
+spr_path_f      db 'path.spr',0
+spr_water_f     db 'water.spr',0
+spr_tree_f      db 'tree.spr',0
+spr_rock_f      db 'rock.spr',0
+spr_player_f    db 'player.spr',0
+
+; === BUFFERS ===
+line_buffer     db 256 dup(0)
 
 ; === MENSAJES ===
-msg_loading     db 'Cargando...$'
-msg_success     db 13,10,'Listo! [ESC]=Salir [WASD/Flechas]=Mover$'
+msg_loading     db 'Cargando sprites...$'
+msg_ready       db 13,10,'Listo! [ESC]=Salir [WASD]=Mover',13,10,'$'
 
 .CODE
 main PROC
     mov ax, @data
     mov ds, ax
     
-    ; Mostrar mensaje
+    ; Cargar sprites
     mov dx, OFFSET msg_loading
     mov ah, 09h
     int 21h
     
-    ; Crear mapa por defecto
+    call LoadAllSprites
     call CreateDefaultMap
-    call InitSprites
     
-    ; Mostrar instrucciones
-    mov dx, OFFSET msg_success
+    mov dx, OFFSET msg_ready
     mov ah, 09h
     int 21h
     
@@ -76,30 +84,17 @@ main PROC
     mov ah, 00h
     int 16h
     
-    ; Configurar modo EGA 640x350 16 colores
+    ; Modo EGA
     mov ax, 0010h
     int 10h
     
-    ; Configurar segmento extra para buffer
-    mov ax, BUFFER_SEG
-    mov es, ax
-    
-    ; Limpiar buffer
-    call ClearBuffer
-    
     ; Render inicial
     call UpdateCamera
-    call RenderToBuffer
-    call CopyBufferToScreen
+    call RenderWorld
+    call RenderPlayer
     
-    ; === GAME LOOP ===
 game_loop:
-    ; Revisar tecla (no bloqueante)
-    mov ah, 01h
-    int 16h
-    jz game_loop            ; Si no hay tecla, seguir esperando
-    
-    ; Leer tecla
+    ; Esperar tecla
     mov ah, 00h
     int 16h
     
@@ -107,67 +102,415 @@ game_loop:
     cmp al, 27
     je exit_game
     
-    ; Guardar posición anterior
+    ; Guardar posición
     push player_x
     push player_y
     
-    ; Procesar movimiento
+    ; Procesar input
     call ProcessInput
-    jnc input_moved         ; Si CF=0, hubo movimiento
+    jnc check_collision
     
     ; No hubo movimiento
     pop ax
     pop ax
     jmp game_loop
 
-input_moved:
-    ; Verificar colisión
+check_collision:
     call CheckCollision
-    jnc move_ok             ; Si CF=0, no hay colisión
+    jnc redraw
     
-    ; Hay colisión, restaurar posición
+    ; Colisión - restaurar
     pop player_y
     pop player_x
     jmp game_loop
 
-move_ok:
-    pop ax                  ; Limpiar stack
+redraw:
+    pop ax
     pop ax
     
-    ; Actualizar y redibujar
+    ; Redibujar
     call UpdateCamera
-    call ClearBuffer
-    call RenderToBuffer
-    call CopyBufferToScreen
-    
+    call RenderWorld
+    call RenderPlayer
     jmp game_loop
 
 exit_game:
-    ; Volver a modo texto
     mov ax, 0003h
     int 10h
-    
-    ; Salir al DOS
     mov ax, 4C00h
     int 21h
 main ENDP
 
+; === CARGAR TODOS LOS SPRITES ===
+LoadAllSprites PROC
+    push dx
+    push di
+    
+    ; Primero inicializar sprites por defecto
+    call InitDefaultSprites
+    
+    ; Intentar cargar desde archivos (ignorar errores)
+    mov dx, OFFSET spr_grass_f
+    mov di, OFFSET sprite_grass
+    call LoadSprite
+    
+    mov dx, OFFSET spr_wall_f
+    mov di, OFFSET sprite_wall
+    call LoadSprite
+    
+    mov dx, OFFSET spr_path_f
+    mov di, OFFSET sprite_path
+    call LoadSprite
+    
+    mov dx, OFFSET spr_water_f
+    mov di, OFFSET sprite_water
+    call LoadSprite
+    
+    mov dx, OFFSET spr_tree_f
+    mov di, OFFSET sprite_tree
+    call LoadSprite
+    
+    mov dx, OFFSET spr_rock_f
+    mov di, OFFSET sprite_rock
+    call LoadSprite
+    
+    mov dx, OFFSET spr_player_f
+    mov di, OFFSET sprite_player
+    call LoadSprite
+    
+    pop di
+    pop dx
+    ret
+LoadAllSprites ENDP
+
+; === INICIALIZAR SPRITES POR DEFECTO ===
+InitDefaultSprites PROC
+    push ax
+    push cx
+    push di
+    
+    ; Grass (verde oscuro con puntos claros)
+    mov di, OFFSET sprite_grass + 4
+    mov cx, 256
+    mov al, 2
+ids_grass:
+    mov [di], al
+    inc di
+    loop ids_grass
+    
+    ; Wall (gris)
+    mov di, OFFSET sprite_wall + 4
+    mov cx, 256
+    mov al, 8
+ids_wall:
+    mov [di], al
+    inc di
+    loop ids_wall
+    
+    ; Path (marrón)
+    mov di, OFFSET sprite_path + 4
+    mov cx, 256
+    mov al, 6
+ids_path:
+    mov [di], al
+    inc di
+    loop ids_path
+    
+    ; Water (azul claro)
+    mov di, OFFSET sprite_water + 4
+    mov cx, 256
+    mov al, 9
+ids_water:
+    mov [di], al
+    inc di
+    loop ids_water
+    
+    ; Tree (verde claro)
+    mov di, OFFSET sprite_tree + 4
+    mov cx, 256
+    mov al, 10
+ids_tree:
+    mov [di], al
+    inc di
+    loop ids_tree
+    
+    ; Rock (gris claro)
+    mov di, OFFSET sprite_rock + 4
+    mov cx, 256
+    mov al, 7
+ids_rock:
+    mov [di], al
+    inc di
+    loop ids_rock
+    
+    ; Player (amarillo)
+    mov di, OFFSET sprite_player + 4
+    mov cx, 64
+    mov al, 14
+ids_player:
+    mov [di], al
+    inc di
+    loop ids_player
+    
+    pop di
+    pop cx
+    pop ax
+    ret
+InitDefaultSprites ENDP
+
+; === CARGAR UN SPRITE ===
+; DX = nombre archivo, DI = destino
+LoadSprite PROC
+    push ax
+    push bx
+    push cx
+    push si
+    push di
+    
+    ; Intentar abrir archivo
+    mov al, 0
+    mov ah, 3Dh
+    int 21h
+    jc ls_exit          ; Si falla, usar sprite por defecto
+    
+    mov bx, ax          ; Guardar handle
+    mov file_handle, bx
+    
+    ; Leer primera línea (dimensiones)
+    call ReadLine
+    jc ls_close         ; Si falla leer, cerrar y salir
+    
+    ; Parsear ancho
+    mov si, OFFSET line_buffer
+    call SkipSpaces
+    call ParseNumber
+    cmp ax, 0
+    je ls_close
+    cmp ax, 32
+    ja ls_close
+    mov [di], ax
+    
+    ; Parsear alto
+    call SkipSpaces
+    call ParseNumber
+    cmp ax, 0
+    je ls_close
+    cmp ax, 32
+    ja ls_close
+    mov [di+2], ax
+    
+    ; Apuntar a datos
+    add di, 4
+    mov cx, [di-2]      ; Alto (número de filas)
+    
+ls_row:
+    push cx
+    
+    call ReadLine
+    jc ls_row_done
+    
+    mov si, OFFSET line_buffer
+    call SkipSpaces
+    
+    ; Leer pixels de la fila
+    push di
+    mov cx, [di-4]      ; Ancho
+    
+ls_pixel:
+    cmp cx, 0
+    je ls_pixel_done
+    
+    lodsb
+    cmp al, 0
+    je ls_pixel_done
+    
+    ; Convertir hex
+    cmp al, '0'
+    jb ls_skip
+    cmp al, '9'
+    jbe ls_digit
+    cmp al, 'A'
+    jb ls_skip
+    cmp al, 'F'
+    jbe ls_upper
+    cmp al, 'a'
+    jb ls_skip
+    cmp al, 'f'
+    ja ls_skip
+    
+    sub al, 'a'
+    add al, 10
+    jmp ls_store
+    
+ls_upper:
+    sub al, 'A'
+    add al, 10
+    jmp ls_store
+    
+ls_digit:
+    sub al, '0'
+    jmp ls_store
+    
+ls_skip:
+    xor al, al
+    
+ls_store:
+    stosb
+    call SkipSpaces
+    dec cx
+    jmp ls_pixel
+    
+ls_pixel_done:
+    pop di
+    mov ax, [di-4]
+    add di, ax
+    
+ls_row_done:
+    pop cx
+    dec cx
+    jnz ls_row
+    
+ls_close:
+    ; Cerrar archivo
+    mov bx, file_handle
+    mov ah, 3Eh
+    int 21h
+
+ls_exit:
+    pop di
+    pop si
+    pop cx
+    pop bx
+    pop ax
+    ret
+LoadSprite ENDP
+
+; === LEER LÍNEA ===
+ReadLine PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push di
+    
+    ; Limpiar buffer
+    mov di, OFFSET line_buffer
+    mov cx, 256
+    xor al, al
+    rep stosb
+    
+    mov di, OFFSET line_buffer
+    mov bx, file_handle
+    mov cx, 0           ; Contador de bytes leídos
+    
+rl_loop:
+    ; Leer un byte
+    push cx
+    push di
+    mov cx, 1
+    mov dx, di
+    mov ah, 3Fh
+    int 21h
+    pop di
+    pop cx
+    
+    ; Verificar error o EOF
+    jc rl_error
+    cmp ax, 0
+    je rl_eof
+    
+    ; Verificar carácter
+    mov al, [di]
+    cmp al, 10          ; LF
+    je rl_done
+    cmp al, 13          ; CR
+    je rl_loop          ; Ignorar CR
+    
+    ; Carácter válido
+    inc di
+    inc cx
+    cmp cx, 255
+    jl rl_loop
+    
+rl_done:
+    mov byte ptr [di], 0
+    clc
+    jmp rl_exit
+
+rl_eof:
+    cmp cx, 0           ; Si leímos algo, es válido
+    jne rl_done
+    ; Si no leímos nada, es error
+    
+rl_error:
+    stc
+    
+rl_exit:
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+ReadLine ENDP
+
+; === PARSEAR NÚMERO ===
+ParseNumber PROC
+    push bx
+    push cx
+    
+    xor ax, ax
+    
+pn_loop:
+    mov bl, [si]
+    cmp bl, '0'
+    jb pn_done
+    cmp bl, '9'
+    ja pn_done
+    
+    sub bl, '0'
+    mov cx, 10
+    mul cx
+    add al, bl
+    inc si
+    jmp pn_loop
+    
+pn_done:
+    pop cx
+    pop bx
+    ret
+ParseNumber ENDP
+
+; === SALTAR ESPACIOS ===
+SkipSpaces PROC
+    push ax
+ss_loop:
+    mov al, [si]
+    cmp al, 0
+    je ss_done
+    cmp al, ' '
+    je ss_next
+    cmp al, 9
+    je ss_next
+    jmp ss_done
+ss_next:
+    inc si
+    jmp ss_loop
+ss_done:
+    pop ax
+    ret
+SkipSpaces ENDP
+
 ; === PROCESAR INPUT ===
 ProcessInput PROC
-    ; AH = scan code, AL = ASCII
-    ; Retorna CF=1 si no hubo movimiento, CF=0 si sí
-    
-    ; Flechas
-    cmp ah, 48h             ; Arriba
+    cmp ah, 48h
     je pi_up
-    cmp ah, 50h             ; Abajo
+    cmp ah, 50h
     je pi_down
-    cmp ah, 4Bh             ; Izquierda
+    cmp ah, 4Bh
     je pi_left
-    cmp ah, 4Dh             ; Derecha
+    cmp ah, 4Dh
     je pi_right
-    
-    ; WASD
     cmp al, 'w'
     je pi_up
     cmp al, 'W'
@@ -184,14 +527,12 @@ ProcessInput PROC
     je pi_right
     cmp al, 'D'
     je pi_right
-    
-    ; No es movimiento
     stc
     ret
 
 pi_up:
     cmp player_y, 1
-    jle pi_no_move
+    jle pi_fail
     dec player_y
     clc
     ret
@@ -200,14 +541,14 @@ pi_down:
     mov ax, player_y
     inc ax
     cmp ax, map_height
-    jge pi_no_move
+    jge pi_fail
     inc player_y
     clc
     ret
 
 pi_left:
     cmp player_x, 1
-    jle pi_no_move
+    jle pi_fail
     dec player_x
     clc
     ret
@@ -216,12 +557,12 @@ pi_right:
     mov ax, player_x
     inc ax
     cmp ax, map_width
-    jge pi_no_move
+    jge pi_fail
     inc player_x
     clc
     ret
 
-pi_no_move:
+pi_fail:
     stc
     ret
 ProcessInput ENDP
@@ -232,7 +573,6 @@ CheckCollision PROC
     push bx
     push si
     
-    ; Calcular offset en mapa
     mov ax, player_y
     mov bx, map_width
     mul bx
@@ -240,16 +580,12 @@ CheckCollision PROC
     mov si, ax
     add si, OFFSET map_data
     
-    ; Obtener tipo de tile
     mov al, [si]
-    
-    ; Tiles transitables
     cmp al, TILE_GRASS
     je cc_ok
     cmp al, TILE_PATH
     je cc_ok
     
-    ; Obstáculo
     stc
     jmp cc_exit
 
@@ -268,9 +604,8 @@ UpdateCamera PROC
     push ax
     push bx
     
-    ; Centrar en X
     mov ax, player_x
-    sub ax, 5               ; VIEWPORT_W / 2
+    sub ax, 5
     jns uc_x_ok
     xor ax, ax
 uc_x_ok:
@@ -282,9 +617,8 @@ uc_x_ok:
 uc_x_set:
     mov camera_x, ax
     
-    ; Centrar en Y
     mov ax, player_y
-    sub ax, 3               ; VIEWPORT_H / 2
+    sub ax, 3
     jns uc_y_ok
     xor ax, ax
 uc_y_ok:
@@ -301,53 +635,30 @@ uc_y_set:
     ret
 UpdateCamera ENDP
 
-; === LIMPIAR BUFFER ===
-ClearBuffer PROC
-    push ax
-    push cx
-    push di
-    push es
-    
-    mov ax, BUFFER_SEG
-    mov es, ax
-    xor di, di
-    xor ax, ax              ; Color negro
-    mov cx, 32000           ; 64000 bytes / 2
-    rep stosw
-    
-    pop es
-    pop di
-    pop cx
-    pop ax
-    ret
-ClearBuffer ENDP
-
-; === RENDERIZAR TODO AL BUFFER ===
-RenderToBuffer PROC
+; === RENDERIZAR MUNDO ===
+RenderWorld PROC
     push ax
     push bx
     push cx
     push dx
     push si
-    push di
     
-    ; Para cada tile visible
-    xor dx, dx              ; Y del viewport (0-5)
+    xor dx, dx
 
-rtb_row:
+rw_row:
     cmp dx, VIEWPORT_H
-    jge rtb_done
+    jge rw_done
     
-    xor cx, cx              ; X del viewport (0-9)
+    xor cx, cx
 
-rtb_col:
+rw_col:
     cmp cx, VIEWPORT_W
-    jge rtb_next_row
+    jge rw_next_row
     
     push cx
     push dx
     
-    ; Calcular posición en mapa
+    ; Obtener tile
     mov ax, camera_y
     add ax, dx
     mov bx, map_width
@@ -357,14 +668,13 @@ rtb_col:
     mov si, ax
     add si, OFFSET map_data
     
-    ; Obtener tipo de tile
     xor ah, ah
     mov al, [si]
     
-    ; Calcular posición en pantalla
-    pop bx                  ; Y del viewport
+    ; Calcular posición
+    pop bx
     push bx
-    shl bx, 4               ; Y * 16
+    shl bx, 4
     
     pop dx
     pop cx
@@ -372,259 +682,166 @@ rtb_col:
     push dx
     
     mov dx, cx
-    shl dx, 4               ; X * 16
+    shl dx, 4
     
-    ; Dibujar tile al buffer
-    call DrawTileToBuffer
+    ; Dibujar
+    call DrawTile
     
     pop dx
     pop cx
     inc cx
-    jmp rtb_col
+    jmp rw_col
 
-rtb_next_row:
+rw_next_row:
     inc dx
-    jmp rtb_row
+    jmp rw_row
 
-rtb_done:
-    ; Dibujar jugador
-    call DrawPlayerToBuffer
-    
-    pop di
+rw_done:
     pop si
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-RenderToBuffer ENDP
+RenderWorld ENDP
 
-; === DIBUJAR TILE AL BUFFER ===
-; Entrada: AL=tipo, DX=X, BX=Y
-DrawTileToBuffer PROC
-    push ax
+; === DIBUJAR TILE ===
+; AL=tipo, DX=X, BX=Y
+DrawTile PROC
     push si
     
-    ; Seleccionar sprite
     mov si, OFFSET sprite_grass
     cmp al, TILE_WALL
-    jne dttb_2
+    jne dt_2
     mov si, OFFSET sprite_wall
-    jmp dttb_draw
-dttb_2:
+    jmp dt_draw
+dt_2:
     cmp al, TILE_PATH
-    jne dttb_3
+    jne dt_3
     mov si, OFFSET sprite_path
-    jmp dttb_draw
-dttb_3:
+    jmp dt_draw
+dt_3:
     cmp al, TILE_WATER
-    jne dttb_4
+    jne dt_4
     mov si, OFFSET sprite_water
-    jmp dttb_draw
-dttb_4:
+    jmp dt_draw
+dt_4:
     cmp al, TILE_TREE
-    jne dttb_5
+    jne dt_5
     mov si, OFFSET sprite_tree
-    jmp dttb_draw
-dttb_5:
+    jmp dt_draw
+dt_5:
     cmp al, TILE_ROCK
-    jne dttb_draw
+    jne dt_draw
     mov si, OFFSET sprite_rock
 
-dttb_draw:
-    ; DX=X, BX=Y, SI=sprite
-    push cx
-    mov cx, 16              ; Ancho
-    push bx
-    mov bx, 16              ; Alto
-    call DrawSpriteToBuffer
-    pop bx
-    pop cx
+dt_draw:
+    call DrawSprite
     
     pop si
-    pop ax
     ret
-DrawTileToBuffer ENDP
+DrawTile ENDP
 
-; === DIBUJAR SPRITE AL BUFFER ===
-; Entrada: SI=datos, DX=X, BX=Y, CX=ancho, BX en stack=alto
-DrawSpriteToBuffer PROC
+; === DIBUJAR SPRITE (INT 10h simple) ===
+; SI=sprite, DX=X, BX=Y
+DrawSprite PROC
     push ax
     push bx
     push cx
     push dx
-    push di
-    push es
     
-    mov ax, BUFFER_SEG
-    mov es, ax
+    mov ax, [si]        ; Ancho
+    mov cx, [si+2]      ; Alto
+    add si, 4
     
-    ; Calcular offset inicial: Y*80 + X/8
-    mov ax, bx
-    mov di, 80
-    mul di
-    mov di, ax              ; DI = Y * 80
-    
-    mov ax, dx
-    shr ax, 3               ; X / 8
-    add di, ax              ; DI = offset base
-    
-    ; Obtener alto del stack
-    mov bp, sp
-    mov bx, [bp+12]         ; Alto (ajustado por pushes)
-    
-    ; Para cada fila
-dstb_row:
-    cmp bx, 0
-    je dstb_done
-    
-    push di
-    push cx
-    push dx
-    
-    ; Para cada pixel de la fila
-dstb_pixel:
+ds_row:
     cmp cx, 0
-    je dstb_next_row
+    je ds_done
     
-    ; Leer color
+    push ax
+    push dx
+    push cx
+
+ds_col:
+    cmp ax, 0
+    je ds_next_row
+    
     lodsb
-    
-    ; Si no es transparente
     cmp al, 0
-    je dstb_skip
+    je ds_skip
     
-    ; Escribir pixel
     push ax
     push bx
     push cx
     push dx
     
-    ; Calcular posición exacta
-    mov ax, dx
-    and ax, 7               ; X mod 8
-    mov cl, al
-    mov al, 80h
-    shr al, cl              ; Máscara de bit
-    
-    ; Escribir en plano de color
-    push di
-    mov ah, al
-    mov al, 8               ; Bit Mask Register
-    mov dx, 03CEh
-    out dx, ax
-    
-    mov al, es:[di]
-    mov es:[di], ah
-    pop di
+    mov ah, 0Ch
+    mov bh, 0
+    int 10h
     
     pop dx
     pop cx
     pop bx
     pop ax
 
-dstb_skip:
-    inc dx                  ; Siguiente X
-    
-    ; Si cruzamos byte
-    test dl, 7
-    jnz dstb_same_byte
-    inc di                  ; Siguiente byte
+ds_skip:
+    inc dx
+    dec ax
+    jmp ds_col
 
-dstb_same_byte:
-    dec cx
-    jmp dstb_pixel
-
-dstb_next_row:
-    pop dx
+ds_next_row:
     pop cx
-    pop di
-    add di, 80              ; Siguiente fila
-    dec bx
-    jmp dstb_row
+    pop dx
+    pop ax
+    inc bx
+    dec cx
+    jmp ds_row
 
-dstb_done:
-    pop es
-    pop di
+ds_done:
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-DrawSpriteToBuffer ENDP
+DrawSprite ENDP
 
-; === DIBUJAR JUGADOR AL BUFFER ===
-DrawPlayerToBuffer PROC
+; === DIBUJAR JUGADOR ===
+RenderPlayer PROC
     push ax
     push bx
     push cx
     push dx
     push si
     
-    ; Calcular posición en viewport
     mov ax, player_x
     sub ax, camera_x
     cmp ax, VIEWPORT_W
-    jge dptb_done
+    jge rp_done
     
     mov dx, ax
     shl dx, 4
-    add dx, 4               ; Centrar en tile
+    add dx, 4
     
     mov ax, player_y
     sub ax, camera_y
     cmp ax, VIEWPORT_H
-    jge dptb_done
+    jge rp_done
     
     mov bx, ax
     shl bx, 4
-    add bx, 4               ; Centrar en tile
+    add bx, 4
     
-    ; Dibujar sprite
     mov si, OFFSET sprite_player
-    mov cx, 8               ; Ancho
-    push bx
-    mov bx, 8               ; Alto
-    call DrawSpriteToBuffer
-    pop bx
+    call DrawSprite
 
-dptb_done:
+rp_done:
     pop si
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-DrawPlayerToBuffer ENDP
-
-; === COPIAR BUFFER A PANTALLA ===
-CopyBufferToScreen PROC
-    push ax
-    push cx
-    push si
-    push di
-    push ds
-    push es
-    
-    ; DS = buffer, ES = video
-    mov ax, BUFFER_SEG
-    mov ds, ax
-    mov ax, VIDEO_SEG
-    mov es, ax
-    
-    xor si, si
-    xor di, di
-    mov cx, 32000           ; 64000 / 2
-    rep movsw
-    
-    pop es
-    pop ds
-    pop di
-    pop si
-    pop cx
-    pop ax
-    ret
-CopyBufferToScreen ENDP
+RenderPlayer ENDP
 
 ; === CREAR MAPA POR DEFECTO ===
 CreateDefaultMap PROC
@@ -633,10 +850,6 @@ CreateDefaultMap PROC
     push cx
     push di
     
-    mov map_width, 20
-    mov map_height, 15
-    
-    ; Patrón simple
     mov di, OFFSET map_data
     mov cx, 300
     xor bx, bx
@@ -644,6 +857,7 @@ CreateDefaultMap PROC
 cdm_loop:
     mov ax, bx
     and ax, 15
+    
     cmp al, 0
     jne cdm_1
     mov byte ptr [di], TILE_WALL
@@ -659,6 +873,11 @@ cdm_2:
     mov byte ptr [di], TILE_TREE
     jmp cdm_next
 cdm_3:
+    cmp al, 7
+    jne cdm_4
+    mov byte ptr [di], TILE_PATH
+    jmp cdm_next
+cdm_4:
     mov byte ptr [di], TILE_GRASS
 
 cdm_next:
@@ -678,11 +897,10 @@ CreateDefaultMap ENDP
 ; === CREAR BORDES ===
 CreateBorders PROC
     push ax
-    push bx
     push cx
     push di
     
-    ; Borde superior
+    ; Superior
     mov di, OFFSET map_data
     mov cx, map_width
 cb_top:
@@ -690,22 +908,22 @@ cb_top:
     inc di
     loop cb_top
     
-    ; Borde inferior
+    ; Inferior
     mov ax, map_height
     dec ax
     mul map_width
     add ax, OFFSET map_data
     mov di, ax
     mov cx, map_width
-cb_bottom:
+cb_bot:
     mov byte ptr [di], TILE_WALL
     inc di
-    loop cb_bottom
+    loop cb_bot
     
-    ; Bordes laterales
+    ; Laterales
     mov cx, map_height
     mov di, OFFSET map_data
-cb_sides:
+cb_side:
     mov byte ptr [di], TILE_WALL
     push di
     add di, map_width
@@ -713,28 +931,12 @@ cb_sides:
     mov byte ptr [di], TILE_WALL
     pop di
     add di, map_width
-    loop cb_sides
+    loop cb_side
     
     pop di
     pop cx
-    pop bx
     pop ax
     ret
 CreateBorders ENDP
-
-; === INICIALIZAR SPRITES ===
-InitSprites PROC
-    push ax
-    push cx
-    push di
-    
-    ; Sprites ya inicializados con valores por defecto
-    ; Esta versión optimizada usa inicialización estática
-    
-    pop di
-    pop cx
-    pop ax
-    ret
-InitSprites ENDP
 
 END main
