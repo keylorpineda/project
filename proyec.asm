@@ -176,13 +176,25 @@ gen_loop:
     
     ; Verificar bordes
     cmp ax, 0
-    je gen_wall
+    jne gen_check_ax_max
+    jmp gen_wall
+
+gen_check_ax_max:
     cmp ax, 99
-    je gen_wall
+    jne gen_check_dx_min
+    jmp gen_wall
+
+gen_check_dx_min:
     cmp dx, 0
-    je gen_wall
+    jne gen_check_dx_max
+    jmp gen_wall
+
+gen_check_dx_max:
     cmp dx, 99
-    je gen_wall
+    jne gen_check_done
+    jmp gen_wall
+
+gen_check_done:
     
     ; Zona inicio (48-52, 48-52) - siempre césped
     cmp ax, 48
