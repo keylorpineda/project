@@ -358,19 +358,26 @@ dmr_fila:
     
 dmr_col:
     cmp si, VIEWPORT_W
-    jae dmr_next_fila
+    jb dmr_col_in_bounds
+    jmp dmr_next_fila
+
+dmr_col_in_bounds:
     
     ; Posición en mapa
     mov ax, camara_y
     add ax, bp
     cmp ax, 50
-    jae dmr_next_col
-    
+    jb dmr_col_check_x
+    jmp dmr_next_col
+
+dmr_col_check_x:
     mov bx, camara_x
     add bx, si
     cmp bx, 50
-    jae dmr_next_col
-    
+    jb dmr_col_get_tile
+    jmp dmr_next_col
+
+dmr_col_get_tile:
     ; Índice
     push dx
     mov dx, 50
