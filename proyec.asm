@@ -709,19 +709,14 @@ dibujar_mapa_sprites PROC
     
 
 dms_y:
-    cmp di, VIEWPORT_H      ; ✅ USAR 8 en lugar de 12
-    jb dms_y_body
-    jmp dms_fin
-
-dms_y_body:
+    cmp di, VIEWPORT_H      ; 8
+    jae dms_fin
+    
     xor si, si              ; X viewport (0-11)
-
+    
 dms_x:
-    cmp si, VIEWPORT_W      ; ✅ USAR 12 en lugar de 20
-    jb dms_x_body
-    jmp dms_ny
-
-dms_x_body:
+    cmp si, VIEWPORT_W      ; 12
+    jae dms_ny
     
     ; ✅ VERIFICAR LÍMITES DEL MAPA
     mov ax, camara_y
@@ -741,20 +736,21 @@ dms_x_body:
     add ax, bx
     pop dx
     
-    ; Verificar que no se salga del array
     cmp ax, 2500
     jae dms_nx
     
-    ; Obtener tipo de tile
-    push si
-    mov si, OFFSET mapa_datos
-    add si, ax
-    mov al, [si]
-    pop si
-    
-    ; ✅ OBTENER SPRITE SEGÚN TIPO
+    ; ✅ OBTENER TIPO DE TILE
     push si
     push di
+    mov bx, OFFSET mapa_datos
+    add bx, ax
+    mov al, [bx]            ; AL = tipo de tile
+    pop di
+    pop si
+    
+    ; ✅ OBTENER DIRECCIÓN DE SPRITE SEGÚN TIPO
+    push si                 ; Guardar coordenada X
+    push di                 ; Guardar coordenada Y
     
     cmp al, TILE_GRASS
     jne dms_check_wall
@@ -786,27 +782,31 @@ dms_check_tree:
     jmp dms_draw
     
 dms_default:
-    mov si, OFFSET sprite_grass  ; Por defecto grass
+    mov si, OFFSET sprite_grass
     
 dms_draw:
-    ; ✅ CALCULAR POSICIÓN EN PANTALLA
-    mov ax, di              ; Y en tiles (variable de stack)
-    mov dx, TILE_SIZE
-    mul dx
-    mov dx, ax              ; DX = Y en píxeles
+    ; ✅ CALCULAR POSICIÓN EN PANTALLA CORRECTAMENTE
+    pop di                  ; Recuperar coordenada Y original
+    pop bx                  ; Recuperar coordenada X original (en BX)
     
-    pop di                  ; Recuperar DI original
-    push di                 ; Guardarlo de nuevo
-    
-    mov ax, si              ; X en tiles (variable de stack actual)
-    mov cx, TILE_SIZE
+    ; X en píxeles
+    mov ax, bx              ; BX = X en tiles
+    mov cx, TILE_SIZE       ; 16
     mul cx
     mov cx, ax              ; CX = X en píxeles
     
+    ; Y en píxeles  
+    mov ax, di              ; DI = Y en tiles
+    mov dx, TILE_SIZE       ; 16
+    mul dx
+    mov dx, ax              ; DX = Y en píxeles
+    
+    ; SI ya contiene la dirección del sprite
     call dibujar_sprite_16x16
     
-    pop di                  ; Recuperar DI
-    pop si                  ; Recuperar SI
+    ; Restaurar variables de bucle
+    mov si, bx              ; Restaurar X para bucle
+    ; DI ya está correcto para Y
     
 dms_nx:
     inc si
@@ -828,9 +828,8 @@ dms_fin:
 dibujar_mapa_sprites ENDP
 
 ; =====================================================
-; DIBUJAR SPRITE 16x16
+; DIBUJAR SPRITE 16x16 - CORREGIDO
 ; =====================================================
-; SI = sprite data, CX = x, DX = y, BP = page offset
 dibujar_sprite_16x16 PROC
     push ax
     push bx
@@ -839,60 +838,44 @@ dibujar_sprite_16x16 PROC
     push di
     push si
     
-    ; ✅ VERIFICAR LÍMITES DE PANTALLA PRIMERO
-    cmp cx, SCREEN_W
+    ; ✅ VERIFICAR LÍMITES DE PANTALLA
+    cmp cx, SCREEN_W - 16   ; 320 - 16 = 304
     jae ds16_fin
-    cmp dx, SCREEN_H
+    cmp dx, SCREEN_H - 16   ; 200 - 16 = 184
     jae ds16_fin
     
     xor bx, bx              ; Contador Y
     
 ds16_y:
-    cmp bx, 16              ; ✅ USAR 16 directamente
+    cmp bx, 16
     jae ds16_fin
     
-    ; ✅ VERIFICAR LÍMITE Y
-    mov ax, dx
-    add ax, bx
-    cmp ax, SCREEN_H
-    jae ds16_skip_y
-    
-    ; ✅ CALCULAR DIRECCIÓN DE VIDEO CORRECTAMENTE
-    push dx
-    push cx
-    
+    ; ✅ CALCULAR DIRECCIÓN DE VIDEO
     mov ax, dx
     add ax, bx              ; Y actual
-    mov di, 320             ; Ancho de pantalla
+    mov di, SCREEN_W        ; 320
     mul di
     add ax, cx              ; + X
     add ax, bp              ; + offset de página
     mov di, ax
     
-    pop cx
-    pop dx
+    ; ✅ VERIFICAR LÍMITE DE MEMORIA
+    cmp di, 32000           ; ✅ CAMBIAR: 64000 → 32000 (límite EGA)
+    jae ds16_skip_row
     
     ; Dibujar fila de 16 píxeles
     push cx
     push bx
-    mov cx, 16              ; ✅ USAR 16 directamente
+    mov cx, 16
     
 ds16_x:
-    ; ✅ VERIFICAR LÍMITE X
-    push cx
-    mov ax, dx
-    add ax, cx
-    cmp ax, SCREEN_W
-    pop cx
-    jae ds16_skip_x
+    ; ✅ VERIFICAR LÍMITE DE MEMORIA PARA CADA PIXEL
+    cmp di, 32000
+    jae ds16_skip_pixel
     
     mov al, [si]
-    cmp al, 0               ; ✅ VERIFICAR TRANSPARENCIA
+    cmp al, 0               ; Verificar transparencia
     je ds16_transp
-    
-    ; ✅ VERIFICAR QUE DI NO SE SALGA
-    cmp di, 64000           ; Límite de memoria video
-    jae ds16_transp
     
     mov es:[di], al
     
@@ -901,11 +884,16 @@ ds16_transp:
     inc si
     loop ds16_x
     
-ds16_skip_x:
+    jmp ds16_next_row
+    
+ds16_skip_pixel:
+    add si, cx              ; Saltar píxeles restantes del sprite
+    
+ds16_next_row:
     pop bx
     pop cx
     
-ds16_skip_y:
+ds16_skip_row:
     inc bx
     jmp ds16_y
     
@@ -920,173 +908,69 @@ ds16_fin:
 dibujar_sprite_16x16 ENDP
 
 ; =====================================================
-; DIBUJAR JUGADOR CON SPRITE
-; =====================================================
-; dibujar_jugador_sprite PROC
-;     push ax
-;     push bx
-;     push cx
-;     push dx
-;     push si
-;     push di
-;     
-;     mov ax, jugador_x
-;     sub ax, camara_x
-;     js djs_fin
-;     cmp ax, VIEWPORT_W      ; 12
-;     jae djs_fin
-;     
-;     mov bx, jugador_y
-;     sub bx, camara_y
-;     js djs_fin
-;     cmp bx, VIEWPORT_H      ; 8
-;     jae djs_fin
-;     
-;     shl ax, 4               ; * TILE_SIZE (16)
-;     add ax, 4               ; Centrar en tile
-;     mov cx, ax
-;     
-;     shl bx, 4               ; * TILE_SIZE (16)
-;     add bx, 4               ; Centrar en tile
-;     mov dx, bx
-;     
-;     ; ✅ VERIFICAR LÍMITES DE PANTALLA
-;     cmp cx, SCREEN_W - 8    ; 320 - 8
-;     jae djs_fin
-;     cmp dx, SCREEN_H - 8    ; 200 - 8
-;     jae djs_fin
-;     
-;     mov si, OFFSET sprite_player
-;     
-;     xor bx, bx              ; Y counter
-; djs_y:
-;     cmp bx, 8
-;     jae djs_fin
-;     
-;     ; Calcular dirección de video
-;     mov ax, dx
-;     add ax, bx              ; Y actual
-;     mov di, SCREEN_W        ; 320
-;     mul di
-;     add ax, cx              ; + X
-;     
-;     ; Añadir offset de página
-;     push bx
-;     mov bl, pagina_dibujo
-;     xor bh, bh
-;     push ax
-;     mov ax, PAGE_SIZE
-;     mul bx
-;     mov bx, ax
-;     pop ax
-;     add ax, bx
-;     pop bx
-;     
-;     mov di, ax
-;     
-;     ; Dibujar fila de 8 píxeles
-;     push cx
-;     push bx
-;     mov cx, 8
-;     
-; djs_x:
-;     mov al, [si]
-;     cmp al, 0
-;     je djs_transp
-;     
-;     mov es:[di], al
-;     
-; djs_transp:
-;     inc di
-;     inc si
-;     loop djs_x
-;     
-;     pop bx
-;     pop cx
-;     
-;     inc bx
-;     jmp djs_y
-;     
-; djs_fin:
-;     pop di
-;     pop si
-;     pop dx
-;     pop cx
-;     pop bx
-;     pop ax
-;     ret
-; dibujar_jugador_sprite ENDP
-; =====================================================
-; DIBUJAR JUGADOR CON SPRITE - OPTIMIZADO
+; DIBUJAR JUGADOR - VERSIÓN SIMPLE CON RECTÁNGULO
 ; =====================================================
 dibujar_jugador_sprite PROC
     push ax
     push bx
     push cx
     push dx
-    push si
-    push di
     
-    ; ✅ VERIFICAR SI ESTÁ EN EL VIEWPORT 12x8
+    ; ✅ VERIFICAR SI ESTÁ EN EL VIEWPORT
     mov ax, jugador_x
     sub ax, camara_x
-    jns djs_x_in_view
-    jmp djs_fin
-
-djs_x_in_view:
-    cmp ax, VIEWPORT_W      ; 12
-    jb djs_prepare_y
-    jmp djs_fin
-
-djs_prepare_y:
+    js djs_fin
+    cmp ax, VIEWPORT_W
+    jae djs_fin
+    
     mov bx, jugador_y
     sub bx, camara_y
-    jns djs_y_in_view
-    jmp djs_fin
-
-djs_y_in_view:
-    cmp bx, VIEWPORT_H      ; 8
-    jb djs_prepare_pixels
-    jmp djs_fin
-
-djs_prepare_pixels:
+    js djs_fin
+    cmp bx, VIEWPORT_H
+    jae djs_fin
     
-    ; ✅ CONVERTIR A PÍXELES Y CENTRAR
-    shl ax, 4               ; * TILE_SIZE (16)
-    add ax, 4               ; Centrar en tile
+    ; ✅ CONVERTIR A PÍXELES
+    shl ax, 4               ; * 16
+    add ax, 4               ; Centrar
     mov cx, ax
     
-    shl bx, 4               ; * TILE_SIZE (16)
-    add bx, 4               ; Centrar en tile
+    shl bx, 4               ; * 16
+    add bx, 4               ; Centrar
     mov dx, bx
     
-    ; ✅ VERIFICAR LÍMITES DE PANTALLA
-    cmp cx, SCREEN_W - 8    ; 320 - 8
-    jb djs_check_screen_y
-    jmp djs_fin
-
-djs_check_screen_y:
-    cmp dx, SCREEN_H - 8    ; 200 - 8
-    jb djs_draw_setup
-    jmp djs_fin
-
-djs_draw_setup:
+    ; ✅ DIBUJAR RECTÁNGULO AMARILLO 8x8 (más simple)
+    mov al, 14              ; Amarillo
+    call dibujar_rect_8x8
     
-    mov si, OFFSET sprite_player
-    
-    ; ✅ DIBUJAR SPRITE 8x8 OPTIMIZADO
-    xor bx, bx              ; Y counter
-djs_y:
-    cmp bx, 8
-    jb djs_y_body
-    jmp djs_fin
+djs_fin:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_jugador_sprite ENDP
 
-djs_y_body:
+; =====================================================
+; DIBUJAR RECTÁNGULO 8x8 - FUNCIÓN AUXILIAR
+; =====================================================
+dibujar_rect_8x8 PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push di
+    
+    mov bl, al              ; Color
+    xor bh, bh              ; Contador Y
+    
+dr8_y:
+    cmp bh, 8
+    jae dr8_fin
     
     ; Calcular dirección de video
     mov ax, dx
-    add ax, bx              ; Y actual
-    mov di, SCREEN_W        ; 320
+    add ax, bh              ; Y actual
+    mov di, SCREEN_W
     mul di
     add ax, cx              ; + X
     
@@ -1109,36 +993,29 @@ djs_y_body:
     push bx
     mov cx, 8
     
-djs_x:
-    cmp di, 16000           ; ✅ LÍMITE SEGURO PARA PÁGINA
-    jae djs_skip
+dr8_x:
+    cmp di, 32000           ; ✅ Límite correcto
+    jae dr8_skip
     
-    mov al, [si]
-    cmp al, 0               ; ✅ VERIFICAR TRANSPARENCIA
-    je djs_transp
-    
+    mov al, bl
     mov es:[di], al
     
-djs_transp:
+dr8_skip:
     inc di
-    inc si
-    loop djs_x
+    loop dr8_x
     
-djs_skip:
     pop bx
     pop cx
     
-    inc bx
-    jmp djs_y
+    inc bh
+    jmp dr8_y
     
-djs_fin:
+dr8_fin:
     pop di
-    pop si
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-dibujar_jugador_sprite ENDP
-
+dibujar_rect_8x8 ENDP
 END inicio
