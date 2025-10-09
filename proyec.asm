@@ -1038,8 +1038,7 @@ ms_check_right:
 
 ms_check_d:
     cmp ah, 20h         ; D
-    jne ms_fin
-    jmp ms_der
+    je ms_der
 
     jmp ms_fin
 
@@ -1051,7 +1050,10 @@ ms_arr:
     
     ; Cruzar al tile anterior
     cmp jugador_y, 1
-    jbe ms_fin
+    ja ms_arr_cruzar
+    jmp ms_fin
+
+ms_arr_cruzar:
     
     ; Verificar colisión en nuevo tile
     dec jugador_y
@@ -1081,7 +1083,10 @@ ms_aba:
     
     ; Cruzar al siguiente tile
     cmp jugador_y, 48
-    jae ms_fin
+    jb ms_aba_cruzar
+    jmp ms_fin
+
+ms_aba_cruzar:
     
     inc jugador_y
     call verificar_colision
