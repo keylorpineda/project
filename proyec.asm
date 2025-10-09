@@ -371,8 +371,10 @@ dibujar_mapa_rapido PROC
     
 dmr_fila:
     cmp bp, VIEWPORT_H
-    jae dmr_fin
-    
+    jb dmr_fila_procesar
+    jmp dmr_fin
+
+dmr_fila_procesar:
     xor si, si
     
 dmr_col:
