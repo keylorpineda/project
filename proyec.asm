@@ -205,7 +205,10 @@ cargar_mapa_archivo PROC
     mov dx, OFFSET archivo_mapa
     mov ax, 3D00h
     int 21h
-    jc usar_mapa_default
+    jnc archivo_mapa_abierto
+    jmp usar_mapa_default
+
+archivo_mapa_abierto:
     
     ; DEBUG: Archivo abierto
     push ax
