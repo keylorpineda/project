@@ -2,15 +2,11 @@
 ; JUEGO DE EXPLORACIÓN - MODO EGA 0Dh (320x200x16)
 ; CON DOBLE BUFFER EN RAM
 ; Universidad Nacional - Proyecto II Ciclo 2025
-; CORREGIDO: Sin constantes grandes
+; VERSIÓN FUNCIONAL - CORREGIDA
 ; =====================================================
 
 .MODEL SMALL
 .STACK 4096
-
-.FARDATA?
-back_buffer  db 64000 dup(?)
-back_buffer_end LABEL BYTE
 
 ; === CONSTANTES ===
 TILE_GRASS  EQU 0
@@ -32,11 +28,6 @@ GC_INDEX    EQU 3CEh
 GC_DATA     EQU 3CFh
 
 .DATA
-; === BUFFER CONFIG ===
-buffer_seg   dw SEG back_buffer
-buffer_off   dw OFFSET back_buffer
-buffer_end   dw OFFSET back_buffer_end
-
 ; === ARCHIVOS ===
 archivo_mapa db 'MAPA.TXT',0
 
@@ -58,6 +49,9 @@ camara_y    dw 0
 ; === BUFFER ARCHIVO ===
 buffer_archivo db 20000 dup(0)
 handle_arch dw 0
+
+; === DOBLE BUFFER (inicializado a 0) ===
+back_buffer db 64000 dup(0)
 
 ; === MENSAJES ===
 msg_titulo  db 'JUEGO DE EXPLORACION - EGA',13,10
@@ -485,9 +479,6 @@ mv_fin:
     ret
 mover_jugador ENDP
 
-; =====================================================
-; COLISIÓN - CORREGIDO (sin constantes grandes)
-; =====================================================
 colision PROC
     push ax
     push bx
@@ -505,13 +496,12 @@ colision PROC
     mul cx
     add ax, bx
     
-    ; CORREGIDO: comparar con valor en registro
     mov dx, 10000
     cmp ax, dx
     jae col_bloquear
     
     mov bx, ax
-    mov al, [bx+mapa_datos]
+    mov al, mapa_datos[bx]
     cmp al, TILE_GRASS
     je col_ok
     cmp al, TILE_PATH
@@ -559,21 +549,26 @@ cam_y2:
 actualizar_camara ENDP
 
 ; =====================================================
-; RENDERIZAR CON DOBLE BUFFER
+; RENDERIZAR CON DOBLE BUFFER - CORREGIDO
 ; =====================================================
 renderizar PROC
     push ax
+    push cx
+    push di
     push es
-
-    ; Limpiar buffer
-    mov ax, buffer_seg
+    
+    ; ES = DS para trabajar con el buffer
+    mov ax, ds
     mov es, ax
-    mov di, buffer_off
+    
+    ; Limpiar buffer completamente
+    mov di, OFFSET back_buffer
     mov cx, 32000
     xor ax, ax
+    cld
     rep stosw
     
-    ; Dibujar
+    ; Dibujar todo
     call dibujar_mapa
     call dibujar_player
     
@@ -581,12 +576,14 @@ renderizar PROC
     call flip_buffer
     
     pop es
+    pop di
+    pop cx
     pop ax
     ret
 renderizar ENDP
 
 ; =====================================================
-; DIBUJAR MAPA EN BACK_BUFFER
+; DIBUJAR MAPA - CORREGIDO
 ; =====================================================
 dibujar_mapa PROC
     push ax
@@ -595,11 +592,8 @@ dibujar_mapa PROC
     push dx
     push si
     push di
-    push es
-
-    mov ax, buffer_seg
-    mov es, ax
-
+    push bp
+    
     xor di, di
 dm_y_loop:
     cmp di, VIEWPORT_H
@@ -609,70 +603,78 @@ dm_x_loop:
     cmp si, VIEWPORT_W
     jae dm_next_y
     
+    ; Posición en mapa
     mov ax, camara_y
     add ax, di
     cmp ax, 100
     jae dm_skip_tile
+    
     mov bx, camara_x
     add bx, si
     cmp bx, 100
     jae dm_skip_tile
     
+    ; Índice del tile
     push dx
     mov dx, 100
     mul dx
     add ax, bx
     pop dx
     
-    ; CORREGIDO: usar registro
-    push dx
-    mov dx, 10000
-    cmp ax, dx
-    pop dx
+    mov bp, 10000
+    cmp ax, bp
     jae dm_skip_tile
     
+    ; Obtener tile y color
     push bx
     mov bx, ax
-    mov al, [bx+mapa_datos]
+    mov al, mapa_datos[bx]
     pop bx
     
-    mov cl, 2
+    mov cl, 2           ; Verde
     cmp al, TILE_GRASS
     je dm_draw
-    mov cl, 8
+    mov cl, 8           ; Gris oscuro
     cmp al, TILE_WALL
     je dm_draw
-    mov cl, 7
+    mov cl, 7           ; Gris claro
     cmp al, TILE_PATH
     je dm_draw
-    mov cl, 9
+    mov cl, 9           ; Azul claro
     cmp al, TILE_WATER
     je dm_draw
-    mov cl, 10
+    mov cl, 10          ; Verde claro
     
 dm_draw:
+    ; Calcular posición en pantalla
     push si
     push di
+    
     mov ax, si
-    shl ax, 4
-    mov bp, ax
+    shl ax, 4           ; X * 16
+    mov dx, ax
+    
     mov ax, di
-    shl ax, 4
-    mov dl, cl
-    mov cx, bp
+    shl ax, 4           ; Y * 16
     mov bx, ax
+    
+    ; Dibujar tile
+    mov al, cl
     call dibujar_tile_buffer
+    
     pop di
     pop si
     
 dm_skip_tile:
     inc si
     jmp dm_x_loop
+    
 dm_next_y:
     inc di
     jmp dm_y_loop
+    
 dm_done:
-    pop es
+    pop bp
     pop di
     pop si
     pop dx
@@ -683,8 +685,8 @@ dm_done:
 dibujar_mapa ENDP
 
 ; =====================================================
-; DIBUJAR TILE EN BACK_BUFFER
-; DL = color, CX = X, BX = Y
+; DIBUJAR TILE EN BUFFER - CORREGIDO
+; AL = color, DX = X pantalla, BX = Y pantalla
 ; =====================================================
 dibujar_tile_buffer PROC
     push ax
@@ -693,51 +695,51 @@ dibujar_tile_buffer PROC
     push dx
     push di
     push si
-    push bp
-    push es
-
-    mov ax, buffer_seg
-    mov es, ax
-    mov bp, buffer_end
-
-    mov si, 0
+    
+    mov cl, al          ; Guardar color
+    mov si, 0           ; Y offset
+    
 dtb_y:
     cmp si, 16
     jae dtb_done
     
+    ; Calcular Y total
     mov ax, bx
     add ax, si
     cmp ax, 200
     jae dtb_next_y
     
+    ; Calcular offset: Y * 320 + X
+    mov di, 320
+    mul di              ; AX = Y * 320
+    add ax, dx          ; AX = Y * 320 + X
     mov di, ax
-    shl di, 6
-    push ax
-    shl ax, 8
-    add di, ax
-    pop ax
-    add di, cx
-    add di, buffer_off
-
-    push cx
-    mov cx, 16
-    mov al, dl
+    
+    ; Dibujar 16 píxeles
+    push dx
+    mov dx, 16
+    mov al, cl
+    
 dtb_x:
-    ; CORREGIDO: comparar con variable
-    cmp di, bp
-    jae dtb_skip
-    mov es:[di], al
-dtb_skip:
+    ; Verificar límites
+    cmp di, 64000
+    jae dtb_skip_pixel
+    
+    ; Escribir en buffer
+    mov back_buffer[di], al
+    
+dtb_skip_pixel:
     inc di
-    loop dtb_x
-    pop cx
+    dec dx
+    jnz dtb_x
+    
+    pop dx
     
 dtb_next_y:
     inc si
     jmp dtb_y
+    
 dtb_done:
-    pop es
-    pop bp
     pop si
     pop di
     pop dx
@@ -748,41 +750,42 @@ dtb_done:
 dibujar_tile_buffer ENDP
 
 ; =====================================================
-; DIBUJAR JUGADOR EN BACK_BUFFER
+; DIBUJAR JUGADOR - CORREGIDO
 ; =====================================================
 dibujar_player PROC
     push ax
     push bx
     push cx
     push dx
-    push es
     
+    ; Verificar visibilidad
     mov ax, jugador_x
     sub ax, camara_x
     js dp_fin
     cmp ax, VIEWPORT_W
     jae dp_fin
+    
     mov bx, jugador_y
     sub bx, camara_y
     js dp_fin
     cmp bx, VIEWPORT_H
     jae dp_fin
     
-    shl ax, 4
-    add ax, 4
-    mov cx, ax
-    mov ax, bx
+    ; Posición en pantalla (centrado en tile)
     shl ax, 4
     add ax, 4
     mov dx, ax
-
-    mov ax, buffer_seg
-    mov es, ax
-    mov al, 14
+    
+    mov ax, bx
+    shl ax, 4
+    add ax, 4
+    mov bx, ax
+    
+    ; Dibujar sprite
+    mov al, 14          ; Amarillo
     call sprite_buffer
     
 dp_fin:
-    pop es
     pop dx
     pop cx
     pop bx
@@ -791,8 +794,8 @@ dp_fin:
 dibujar_player ENDP
 
 ; =====================================================
-; SPRITE EN BACK_BUFFER
-; AL = color, CX = X, DX = Y
+; SPRITE EN BUFFER - CORREGIDO
+; AL = color, DX = X, BX = Y
 ; =====================================================
 sprite_buffer PROC
     push ax
@@ -801,50 +804,49 @@ sprite_buffer PROC
     push dx
     push di
     push si
-    push bp
-    push es
-
-    mov ax, buffer_seg
-    mov es, ax
-    mov bl, al
-    mov si, 0
-    mov bp, buffer_end
+    
+    mov cl, al          ; Color
+    mov si, 0           ; Y offset
+    
 spb_y:
     cmp si, 8
     jae spb_done
-    mov ax, dx
+    
+    ; Calcular Y total
+    mov ax, bx
     add ax, si
     cmp ax, 200
     jae spb_next_y
     
+    ; Offset: Y * 320 + X
+    mov di, 320
+    mul di
+    add ax, dx
     mov di, ax
-    shl di, 6
-    push ax
-    shl ax, 8
-    add di, ax
-    pop ax
-    add di, cx
-    add di, buffer_off
-
-    push cx
-    mov cx, 8
-    mov al, bl
+    
+    ; Dibujar 8 píxeles
+    push dx
+    mov dx, 8
+    mov al, cl
+    
 spb_x:
-    ; CORREGIDO: comparar con variable
-    cmp di, bp
+    cmp di, 64000
     jae spb_skip
-    mov es:[di], al
+    
+    mov back_buffer[di], al
+    
 spb_skip:
     inc di
-    loop spb_x
-    pop cx
+    dec dx
+    jnz spb_x
+    
+    pop dx
     
 spb_next_y:
     inc si
     jmp spb_y
+    
 spb_done:
-    pop es
-    pop bp
     pop si
     pop di
     pop dx
@@ -855,25 +857,18 @@ spb_done:
 sprite_buffer ENDP
 
 ; =====================================================
-; COPIAR BACK_BUFFER A VRAM
+; COPIAR BUFFER A VRAM - CORREGIDO
 ; =====================================================
 flip_buffer PROC
     push ax
-    push bx
     push cx
     push dx
     push si
     push di
     push ds
     push es
-
-    mov bx, buffer_off
-    mov ax, buffer_seg
-    mov ds, ax
-    mov si, bx
-    mov ax, 0A000h
-    mov es, ax
     
+    ; Configurar EGA
     mov dx, SEQ_INDEX
     mov al, 2
     out dx, al
@@ -881,8 +876,17 @@ flip_buffer PROC
     mov al, 0Fh
     out dx, al
     
+    ; DS = datos, ES = VRAM
+    mov ax, @data
+    mov ds, ax
+    mov ax, 0A000h
+    mov es, ax
+    
+    ; Copiar buffer
+    mov si, OFFSET back_buffer
     xor di, di
     mov cx, 32000
+    cld
     rep movsw
     
     pop es
@@ -891,7 +895,6 @@ flip_buffer PROC
     pop si
     pop dx
     pop cx
-    pop bx
     pop ax
     ret
 flip_buffer ENDP
