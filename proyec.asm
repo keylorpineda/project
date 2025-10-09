@@ -720,13 +720,18 @@ dibujar_mapa PROC
     
 dm_y:
     cmp di, VIEWPORT_H
-    jae dm_done
-    
+    jb dm_y_continue
+    jmp dm_done
+
+dm_y_continue:
     xor si, si      ; X viewport
-    
+
 dm_x:
     cmp si, VIEWPORT_W
-    jae dm_next_y
+    jb dm_x_continue
+    jmp dm_next_y
+
+dm_x_continue:
     
     ; Calcular posición en mapa
     mov ax, camara_y
