@@ -12,11 +12,12 @@ TILE_PATH   EQU 2
 TILE_WATER  EQU 3
 TILE_TREE   EQU 4
 
-TILE_SIZE   EQU 20
-SCREEN_W    EQU 640
-SCREEN_H    EQU 350
-VIEWPORT_W  EQU 32
-VIEWPORT_H  EQU 17
+TILE_SIZE      EQU 20
+SCREEN_W       EQU 640
+SCREEN_H       EQU 350
+VIEWPORT_W     EQU 32
+VIEWPORT_H     EQU 17
+BUFFER_PIXELS  EQU 28000
 
 .DATA
 ; === ARCHIVOS ===
@@ -46,7 +47,8 @@ handle_arch dw 0
 
 ; === DOBLE BUFFER ===
 ; Buffer para almacenar la pantalla completa antes de mostrarla
-buffer_pantalla db 64000 dup(0)  ; Buffer simplificado para modo 13h simulado
+; Nota: limitar el tamaño del buffer para mantenerse dentro del segmento de datos.
+buffer_pantalla db BUFFER_PIXELS dup(0)  ; Buffer simplificado para modo 13h simulado
 
 ; === VARIABLES PARA DIBUJAR ===
 draw_x_start dw 0
@@ -208,7 +210,7 @@ limpiar_buffer_pantalla PROC
     mov es, ax
     mov di, OFFSET buffer_pantalla
     xor al, al  ; Color negro
-    mov cx, 32000  ; Limpiar solo lo necesario
+    mov cx, BUFFER_PIXELS  ; Limpiar solo lo necesario
     rep stosb
     
     pop es
@@ -387,7 +389,7 @@ drb_x:
     add ax, si
     
     ; Verificar límite del buffer
-    cmp ax, 28000
+    cmp ax, BUFFER_PIXELS
     jae drb_skip
     
     mov bx, ax
@@ -547,7 +549,7 @@ vb_x:
     pop dx
     
     ; Verificar que no excedemos el buffer
-    cmp bx, 28000
+    cmp bx, BUFFER_PIXELS
     jae vb_skip
     
     ; Leer color del buffer
