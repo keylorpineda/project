@@ -45,6 +45,9 @@ sprite_player db 64 dup(0)
 
 buffer_temp db 300 dup(0)
 
+; === TEMPORALES ===
+temp_offset dw 0
+
 ; === JUGADOR ===
 jugador_x   dw 25
 jugador_y   dw 25
@@ -417,8 +420,10 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, VIEWPORT_H
-    jae dmo_fin
+    jb dmo_iniciar_columna
+    jmp dmo_fin
 
+dmo_iniciar_columna:
     xor si, si
 
 dmo_col:
@@ -508,8 +513,6 @@ dmo_fin:
     pop bx
     pop ax
     ret
-
-temp_offset dw 0
 
 dibujar_mapa_en_offset ENDP
 
