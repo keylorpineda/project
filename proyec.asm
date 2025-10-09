@@ -1038,8 +1038,8 @@ ms_check_right:
 
 ms_check_d:
     cmp ah, 20h         ; D
-    jne ms_fin
-    jmp ms_der
+    je ms_der
+    jmp ms_fin
 
 ms_arr:
     ; Mover hacia arriba (decrementar Y)
