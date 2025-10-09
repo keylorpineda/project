@@ -638,17 +638,24 @@ dibujar_jugador PROC
     
     ; Si el jugador está visible en el viewport
     cmp ax, 0
-    jl dj_fin
+    jl dj_no_visible
     cmp ax, VIEWPORT_W
-    jge dj_fin
+    jge dj_no_visible
     
     mov bx, jugador_y
     sub bx, camara_y
     
     cmp bx, 0
-    jl dj_fin
+    jl dj_no_visible
     cmp bx, VIEWPORT_H
-    jge dj_fin
+    jge dj_no_visible
+
+    jmp dj_visible
+
+dj_no_visible:
+    jmp dj_fin
+
+dj_visible:
     
     ; Convertir a píxeles y centrar en tile
     mov cx, TILE_SIZE
