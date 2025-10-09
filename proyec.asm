@@ -1038,7 +1038,10 @@ ms_check_right:
 
 ms_check_d:
     cmp ah, 20h         ; D
-    je ms_der
+    jne ms_check_default
+    jmp ms_der
+
+ms_check_default:
     jmp ms_fin
 
 ms_arr:
