@@ -31,10 +31,10 @@ mapa_alto   dw 100
 mapa_datos  db 10000 dup(0)
 
 ; === JUGADOR ===
-jugador_x   dw 50       ; Centro del mapa 100x100
-jugador_y   dw 50
-jugador_x_ant dw 50
-jugador_y_ant dw 50
+jugador_x   dw 13       ; Centro del mapa 100x100
+jugador_y   dw 13
+jugador_x_ant dw 13
+jugador_y_ant dw 13
 
 ; === CÁMARA ===
 camara_x    dw 0
@@ -591,7 +591,7 @@ mv_fin:
 mover_jugador ENDP
 
 ; =====================================================
-; COLISIÓN - VERSIÓN CORREGIDA
+; COLISIÓN - VERSIÓN ULTRA SEGURA
 ; =====================================================
 colision PROC
     push bx
@@ -599,21 +599,35 @@ colision PROC
     push dx
     push si
     
-    ; Calcular índice: y * ancho + x
-    mov ax, jugador_y
-    mov bx, mapa_ancho
-    mul bx              ; AX = y * ancho
-    add ax, jugador_x   ; AX = y * ancho + x
+    ; Verificar límites primero
+    mov ax, jugador_x
+    cmp ax, mapa_ancho
+    jae col_bloquear
     
-    ; Verificar límites del mapa
-    mov cx, 10000
-    cmp ax, cx
-    jae col_bloquear    ; Si está fuera de rango, bloquear
+    mov ax, jugador_y
+    cmp ax, mapa_alto
+    jae col_bloquear
+    
+    ; Calcular índice: y * 100 + x
+    mov ax, jugador_y
+    mov cx, 100
+    xor dx, dx
+    mul cx              ; DX:AX = Y * 100
+    
+    ; Verificar overflow
+    cmp dx, 0
+    jne col_bloquear
+    
+    add ax, jugador_x   ; AX = Y * 100 + X
+    
+    ; Verificar límites del array
+    cmp ax, 10000
+    jae col_bloquear
     
     ; Obtener tile
-    mov si, OFFSET mapa_datos
-    add si, ax
-    mov al, [si]
+    mov bx, OFFSET mapa_datos
+    add bx, ax
+    mov al, [bx]
     
     ; Verificar si es transitable
     cmp al, TILE_GRASS
@@ -706,7 +720,7 @@ renderizar PROC
 renderizar ENDP
 
 ; =====================================================
-; DIBUJAR MAPA - VERSIÓN CORREGIDA
+; DIBUJAR MAPA - VERSIÓN ULTRA SEGURA
 ; =====================================================
 dibujar_mapa PROC
     push ax
@@ -715,85 +729,86 @@ dibujar_mapa PROC
     push dx
     push si
     push di
+    push bp
     
     xor di, di      ; Y viewport
     
 dm_y:
     cmp di, VIEWPORT_H
-    jb dm_y_continue
-    jmp dm_done
-
-dm_y_continue:
+    jae dm_done
+    
     xor si, si      ; X viewport
-
+    
 dm_x:
     cmp si, VIEWPORT_W
-    jb dm_x_continue
-    jmp dm_next_y
-
-dm_x_continue:
+    jae dm_next_y
     
-    ; Calcular posición en mapa
+    ; Calcular Y en mapa
     mov ax, camara_y
     add ax, di
-    
-    ; VERIFICAR LÍMITES Y
     cmp ax, mapa_alto
     jae dm_next_x
+    mov bp, ax          ; BP = Y en mapa
     
-    ; Calcular índice: (camara_y + di) * ancho + (camara_x + si)
-    push dx
-    mov dx, mapa_ancho
-    mul dx          ; AX = (camara_y + di) * ancho
-    pop dx
-    
-    ; Añadir X
+    ; Calcular X en mapa
     mov bx, camara_x
     add bx, si
-    
-    ; VERIFICAR LÍMITES X
     cmp bx, mapa_ancho
     jae dm_next_x
+    ; BX = X en mapa
     
-    add ax, bx      ; AX = índice final
+    ; Calcular índice: Y * 100 + X
+    ; Usar shifts para multiplicar por 100 de forma segura
+    mov ax, bp          ; AX = Y
+    mov cx, ax          ; CX = Y
+    shl ax, 2           ; AX = Y * 4
+    add ax, cx          ; AX = Y * 5
+    shl ax, 2           ; AX = Y * 20
+    add ax, cx          ; AX = Y * 21
+    shl ax, 2           ; AX = Y * 84
+    add ax, cx          ; AX = Y * 85
+    add ax, cx          ; AX = Y * 86
+    add ax, cx          ; AX = Y * 87
     
-    ; VERIFICAR QUE EL ÍNDICE ESTÉ DENTRO DEL ARRAY
+    ; Mejor método: loop de suma
+    mov ax, bp
+    mov cx, 100
+    xor dx, dx
+    mul cx              ; DX:AX = Y * 100
+    
+    ; Si DX != 0, hay overflow
+    cmp dx, 0
+    jne dm_next_x
+    
+    add ax, bx          ; AX = Y*100 + X
+    
+    ; Verificar límite
     cmp ax, 10000
     jae dm_next_x
     
     ; Obtener tile
-    push si
-    push di
-    mov si, OFFSET mapa_datos
-    add si, ax
-    
-    ; VERIFICAR QUE SI NO PASE DE LOS LÍMITES
+    push bx
     mov bx, OFFSET mapa_datos
-    add bx, 10000
-    cmp si, bx
-    jae dm_skip_tile
-    
-    mov al, [si]
+    add bx, ax
+    mov al, [bx]
+    pop bx
     
     ; Color según tile
-    mov bl, 2       ; Verde (grass)
+    mov cl, 2       ; Verde (grass)
     cmp al, TILE_GRASS
     je dm_color
-    mov bl, 6       ; Marrón (wall)
+    mov cl, 6       ; Marrón (wall)
     cmp al, TILE_WALL
     je dm_color
-    mov bl, 7       ; Gris (path)
+    mov cl, 7       ; Gris (path)
     cmp al, TILE_PATH
     je dm_color
-    mov bl, 1       ; Azul (water)
+    mov cl, 1       ; Azul (water)
     cmp al, TILE_WATER
     je dm_color
-    mov bl, 10      ; Verde claro (tree)
+    mov cl, 10      ; Verde claro (tree)
     
 dm_color:
-    pop di
-    pop si
-    
     ; Calcular posición en pantalla
     push si
     push di
@@ -806,14 +821,9 @@ dm_color:
     shl ax, 4       ; *16
     mov dx, ax
     
-    mov al, bl
+    mov al, cl
     call tile_solido
     
-    pop di
-    pop si
-    jmp dm_next_x
-
-dm_skip_tile:
     pop di
     pop si
     
@@ -826,6 +836,7 @@ dm_next_y:
     jmp dm_y
     
 dm_done:
+    pop bp
     pop di
     pop si
     pop dx
