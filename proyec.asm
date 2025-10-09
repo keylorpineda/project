@@ -108,12 +108,9 @@ inicio:
     mov ah, 9
     int 21h
     call cargar_mapa_txt
-    jc error_carga_jmp
-    jmp mapa_ok
-    
-error_carga_jmp:
+    jnc mapa_ok
     jmp error_carga
-    
+
 mapa_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
@@ -126,7 +123,10 @@ mapa_ok:
     mov dx, OFFSET archivo_grass
     mov di, OFFSET sprite_grass
     call cargar_sprite_16x16
-    jc error_carga_jmp
+    jnc grass_ok
+    jmp error_carga
+
+grass_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -138,7 +138,10 @@ mapa_ok:
     mov dx, OFFSET archivo_wall
     mov di, OFFSET sprite_wall
     call cargar_sprite_16x16
-    jc error_carga_jmp
+    jnc wall_ok
+    jmp error_carga
+
+wall_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -150,7 +153,10 @@ mapa_ok:
     mov dx, OFFSET archivo_path
     mov di, OFFSET sprite_path
     call cargar_sprite_16x16
-    jc error_carga_jmp
+    jnc path_ok
+    jmp error_carga
+
+path_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -162,7 +168,10 @@ mapa_ok:
     mov dx, OFFSET archivo_water
     mov di, OFFSET sprite_water
     call cargar_sprite_16x16
-    jc error_carga_jmp
+    jnc water_ok
+    jmp error_carga
+
+water_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -174,7 +183,10 @@ mapa_ok:
     mov dx, OFFSET archivo_tree
     mov di, OFFSET sprite_tree
     call cargar_sprite_16x16
-    jc error_carga_jmp
+    jnc tree_ok
+    jmp error_carga
+
+tree_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -186,7 +198,10 @@ mapa_ok:
     mov dx, OFFSET archivo_player
     mov di, OFFSET sprite_player
     call cargar_sprite_8x8
-    jc error_carga_jmp
+    jnc player_ok
+    jmp error_carga
+
+player_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
