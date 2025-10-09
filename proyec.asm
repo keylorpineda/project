@@ -365,13 +365,19 @@ dibujar_mapa_rapido PROC
     
 dmr_fila:
     cmp bp, VIEWPORT_H
-    jae dmr_fin
-    
+    jb dmr_fila_cont
+    jmp dmr_fin
+
+dmr_fila_cont:
+
     xor si, si
-    
+
 dmr_col:
     cmp si, VIEWPORT_W
-    jae dmr_next_fila
+    jb dmr_col_cont
+    jmp dmr_next_fila
+
+dmr_col_cont:
     
     ; Posición en mapa
     mov ax, camara_y
