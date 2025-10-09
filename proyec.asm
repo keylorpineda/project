@@ -256,27 +256,27 @@ dmr_col:
     cmp al, 0
     jne dmr_t1
     mov di, OFFSET sprite_grass
-    jmp dmr_draw
+    jmp NEAR PTR dmr_draw
 dmr_t1:
     cmp al, 1
     jne dmr_t2
     mov di, OFFSET sprite_wall
-    jmp dmr_draw
+    jmp NEAR PTR dmr_draw
 dmr_t2:
     cmp al, 2
     jne dmr_t3
     mov di, OFFSET sprite_path
-    jmp dmr_draw
+    jmp NEAR PTR dmr_draw
 dmr_t3:
     cmp al, 3
     jne dmr_t4
     mov di, OFFSET sprite_water
-    jmp dmr_draw
+    jmp NEAR PTR dmr_draw
 dmr_t4:
     cmp al, 4
     jne dmr_t5
     mov di, OFFSET sprite_tree
-    jmp dmr_draw
+    jmp NEAR PTR dmr_draw
 dmr_t5:
     mov di, OFFSET sprite_grass
     
@@ -465,8 +465,11 @@ djr_x:
     
     mov bx, cx
     and bx, 7
+    push cx
     mov al, 80h
-    shr al, bl
+    mov cl, bl
+    shr al, cl
+    pop cx
     or es:[di], al
     
     inc cx
