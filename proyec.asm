@@ -898,6 +898,7 @@ mostrar_coordenadas PROC
     push cx
     push dx
     push si
+    push di
     
     ; Dibujar recuadro negro para las coordenadas
     mov cx, 250
@@ -951,11 +952,11 @@ mc_numeros:
     
     ; Decenas
     push ax
-    add al, '0'
-    sub al, '0'
+    mov ah, 0
+    mov di, ax
     mov si, 0
 mc_x_dec:
-    cmp si, al
+    cmp si, di
     jae mc_x_uni
     
     push cx
@@ -972,10 +973,12 @@ mc_x_uni:
     ; Unidades
     pop ax
     mov al, ah
+    xor ah, ah
+    mov di, ax
     add cx, 5
     mov si, 0
 mc_x_uni_loop:
-    cmp si, al
+    cmp si, di
     jae mc_y
     
     push cx
@@ -1013,11 +1016,11 @@ mc_y:
     
     ; Decenas
     push ax
-    add al, '0'
-    sub al, '0'
+    mov ah, 0
+    mov di, ax
     mov si, 0
 mc_y_dec:
-    cmp si, al
+    cmp si, di
     jae mc_y_uni
     
     push cx
@@ -1034,10 +1037,12 @@ mc_y_uni:
     ; Unidades
     pop ax
     mov al, ah
+    xor ah, ah
+    mov di, ax
     add cx, 5
     mov si, 0
 mc_y_uni_loop:
-    cmp si, al
+    cmp si, di
     jae mc_fin
     
     push cx
@@ -1051,6 +1056,7 @@ mc_y_uni_loop:
     jmp mc_y_uni_loop
     
 mc_fin:
+    pop di
     pop si
     pop dx
     pop cx
