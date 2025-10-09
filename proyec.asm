@@ -707,15 +707,21 @@ dibujar_mapa_sprites PROC
     
     xor di, di              ; Y viewport (0-7)
     
+
 dms_y:
     cmp di, VIEWPORT_H      ; ✅ USAR 8 en lugar de 12
-    jae dms_fin
-    
+    jb dms_y_body
+    jmp dms_fin
+
+dms_y_body:
     xor si, si              ; X viewport (0-11)
-    
+
 dms_x:
     cmp si, VIEWPORT_W      ; ✅ USAR 12 en lugar de 20
-    jae dms_ny
+    jb dms_x_body
+    jmp dms_ny
+
+dms_x_body:
     
     ; ✅ VERIFICAR LÍMITES DEL MAPA
     mov ax, camara_y
@@ -1024,15 +1030,26 @@ dibujar_jugador_sprite PROC
     ; ✅ VERIFICAR SI ESTÁ EN EL VIEWPORT 12x8
     mov ax, jugador_x
     sub ax, camara_x
-    js djs_fin
+    jns djs_x_in_view
+    jmp djs_fin
+
+djs_x_in_view:
     cmp ax, VIEWPORT_W      ; 12
-    jae djs_fin
-    
+    jb djs_prepare_y
+    jmp djs_fin
+
+djs_prepare_y:
     mov bx, jugador_y
     sub bx, camara_y
-    js djs_fin
+    jns djs_y_in_view
+    jmp djs_fin
+
+djs_y_in_view:
     cmp bx, VIEWPORT_H      ; 8
-    jae djs_fin
+    jb djs_prepare_pixels
+    jmp djs_fin
+
+djs_prepare_pixels:
     
     ; ✅ CONVERTIR A PÍXELES Y CENTRAR
     shl ax, 4               ; * TILE_SIZE (16)
@@ -1045,9 +1062,15 @@ dibujar_jugador_sprite PROC
     
     ; ✅ VERIFICAR LÍMITES DE PANTALLA
     cmp cx, SCREEN_W - 8    ; 320 - 8
-    jae djs_fin
+    jb djs_check_screen_y
+    jmp djs_fin
+
+djs_check_screen_y:
     cmp dx, SCREEN_H - 8    ; 200 - 8
-    jae djs_fin
+    jb djs_draw_setup
+    jmp djs_fin
+
+djs_draw_setup:
     
     mov si, OFFSET sprite_player
     
@@ -1055,7 +1078,10 @@ dibujar_jugador_sprite PROC
     xor bx, bx              ; Y counter
 djs_y:
     cmp bx, 8
-    jae djs_fin
+    jb djs_y_body
+    jmp djs_fin
+
+djs_y_body:
     
     ; Calcular dirección de video
     mov ax, dx
