@@ -216,13 +216,13 @@ player_ok:
     int 10h
 
 ; =====================================================
-; BUCLE PRINCIPAL CON DOBLE BUFFER
+; BUCLE PRINCIPAL CON DOBLE BUFFER OPTIMIZADO
 ; =====================================================
 bucle_juego:
-    ; Verificar tecla
+    ; Verificar tecla SIN BLOQUEAR
     mov ah, 1
     int 16h
-    jz bucle_juego
+    jz sin_tecla
     
     ; Leer tecla
     mov ah, 0
@@ -232,14 +232,17 @@ bucle_juego:
     cmp al, 27
     je fin_juego
     
-    ; Mover
+    ; Procesar movimiento
     call mover_jugador
     call actualizar_camara
     
+sin_tecla:
+    ; SIEMPRE redibujar (fluido)
+    
     ; Calcular offset de página de dibujo
     mov al, pagina_dibujo
-    cmp al, 0
-    je offset_pagina_0
+    test al, 1
+    jz offset_pagina_0
     mov offset_pagina, 8000h
     jmp dibujar_frame
 offset_pagina_0:
@@ -249,7 +252,7 @@ dibujar_frame:
     ; Dibujar en página oculta
     call renderizar_todo
     
-    ; Mostrar la página que acabamos de dibujar
+    ; Mostrar inmediatamente
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
@@ -257,6 +260,12 @@ dibujar_frame:
     ; Intercambiar páginas
     xor pagina_dibujo, 1
     xor pagina_visible, 1
+    
+    ; Pequeño delay para estabilidad (~30 FPS)
+    mov cx, 300
+delay_loop:
+    nop
+    loop delay_loop
     
     jmp bucle_juego
 
@@ -293,21 +302,25 @@ renderizar_todo PROC
 renderizar_todo ENDP
 
 ; =====================================================
-; LIMPIAR VIEWPORT
+; LIMPIAR VIEWPORT OPTIMIZADO
 ; =====================================================
 limpiar_viewport PROC
     push ax
     push bx
     push cx
+    push dx
     push di
+    
+    ; Configurar planos EGA para escritura directa
+    mov dx, 3C4h        ; Sequencer
+    mov ax, 0F02h       ; Map Mask = todos los planos
+    out dx, ax
     
     mov bx, viewport_y
     mov cx, VIEWPORT_H * 16
     
 lv_loop:
-    push cx
-    
-    ; Calcular offset en VRAM con página actual
+    ; Calcular offset
     mov ax, bx
     mov di, 80
     mul di
@@ -318,18 +331,18 @@ lv_loop:
     shr ax, 3
     add di, ax
     
-    ; Limpiar 40 bytes (320 píxeles)
-    push di
+    ; Limpiar 40 bytes rápido
+    push cx
     mov cx, 40
     xor al, al
     rep stosb
-    pop di
+    pop cx
     
     inc bx
-    pop cx
     loop lv_loop
     
     pop di
+    pop dx
     pop cx
     pop bx
     pop ax
@@ -352,35 +365,25 @@ dibujar_mapa_rapido PROC
     
 dmr_fila:
     cmp bp, VIEWPORT_H
-    jb dmr_fila_contenido
-    jmp dmr_fin
-
-dmr_fila_contenido:
-
+    jae dmr_fin
+    
     xor si, si
-
+    
 dmr_col:
     cmp si, VIEWPORT_W
-    jb dmr_col_in_bounds
-    jmp dmr_next_fila
-
-dmr_col_in_bounds:
+    jae dmr_next_fila
     
     ; Posición en mapa
     mov ax, camara_y
     add ax, bp
     cmp ax, 50
-    jb dmr_col_check_x
-    jmp dmr_next_col
-
-dmr_col_check_x:
+    jae dmr_next_col
+    
     mov bx, camara_x
     add bx, si
     cmp bx, 50
-    jb dmr_col_get_tile
-    jmp dmr_next_col
-
-dmr_col_get_tile:
+    jae dmr_next_col
+    
     ; Índice
     push dx
     mov dx, 50
@@ -497,7 +500,7 @@ djr_fin:
 dibujar_jugador_rapido ENDP
 
 ; =====================================================
-; DIBUJAR SPRITE 16x16 EN VRAM (CON OFFSET DE PÁGINA)
+; DIBUJAR SPRITE 16x16 OPTIMIZADO
 ; CX=X, DX=Y, DI=sprite
 ; =====================================================
 dibujar_sprite_16x16_vram PROC
@@ -506,21 +509,20 @@ dibujar_sprite_16x16_vram PROC
     push cx
     push dx
     push si
-    push di
     push bp
     
     mov si, di
     mov bp, 16
     
 ds16v_fila:
-    push cx
+    mov bx, cx          ; Guardar X inicial
     push bp
     mov bp, 16
     
 ds16v_pixel:
     lodsb
-    cmp al, 0
-    je ds16v_skip
+    test al, al
+    jz ds16v_skip
     
     call escribir_pixel_ega
     
@@ -529,14 +531,13 @@ ds16v_skip:
     dec bp
     jnz ds16v_pixel
     
+    mov cx, bx          ; Restaurar X
     pop bp
-    pop cx
     inc dx
     dec bp
     jnz ds16v_fila
     
     pop bp
-    pop di
     pop si
     pop dx
     pop cx
@@ -546,27 +547,27 @@ ds16v_skip:
 dibujar_sprite_16x16_vram ENDP
 
 ; =====================================================
-; DIBUJAR SPRITE 8x8 EN VRAM
+; DIBUJAR SPRITE 8x8 OPTIMIZADO
+; CX=X, DX=Y, SI=sprite
 ; =====================================================
 dibujar_sprite_8x8_vram PROC
     push ax
     push bx
     push cx
     push dx
-    push si
     push bp
     
     mov bp, 8
     
 ds8v_fila:
-    push cx
+    mov bx, cx          ; Guardar X inicial
     push bp
     mov bp, 8
     
 ds8v_pixel:
     lodsb
-    cmp al, 0
-    je ds8v_skip
+    test al, al
+    jz ds8v_skip
     
     call escribir_pixel_ega
     
@@ -575,14 +576,13 @@ ds8v_skip:
     dec bp
     jnz ds8v_pixel
     
+    mov cx, bx          ; Restaurar X
     pop bp
-    pop cx
     inc dx
     dec bp
     jnz ds8v_fila
     
     pop bp
-    pop si
     pop dx
     pop cx
     pop bx
@@ -591,7 +591,7 @@ ds8v_skip:
 dibujar_sprite_8x8_vram ENDP
 
 ; =====================================================
-; ESCRIBIR PÍXEL EGA (Modo Planar con offset de página)
+; ESCRIBIR PÍXEL EGA OPTIMIZADO (Modo Planar)
 ; CX=X, DX=Y, AL=color
 ; =====================================================
 escribir_pixel_ega PROC
@@ -601,50 +601,55 @@ escribir_pixel_ega PROC
     push dx
     push di
     
-    ; Calcular offset en VRAM con página
-    push ax
+    ; Guardar color
+    mov bl, al
+    
+    ; Calcular offset en VRAM
     mov ax, dx
-    mov bx, 80
-    mul bx
-    add ax, offset_pagina    ; Añadir offset de página
+    mov di, 80
+    mul di
+    add ax, offset_pagina
     mov di, ax
     
     mov ax, cx
-    mov bx, ax
     shr ax, 3
     add di, ax
     
-    and bx, 7
-    mov cl, bl
-    mov bl, 80h
-    shr bl, cl
-    pop ax
+    ; Calcular máscara de bit
+    and cx, 7
+    mov al, 80h
+    shr al, cl
+    mov ah, al          ; AH = máscara
     
-    ; Configurar EGA
-    push ax
+    ; Configurar registros EGA (modo directo)
     mov dx, 3CEh
     
-    pop ax
-    push ax
-    mov ah, al
+    ; Set/Reset = color
     mov al, 0
-    out dx, ax
+    out dx, al
+    inc dx
+    mov al, bl
+    out dx, al
+    dec dx
     
-    mov ax, 0F01h
-    out dx, ax
+    ; Enable Set/Reset = 0Fh
+    mov al, 1
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    dec dx
     
-    pop ax
-    push ax
-    mov ah, bl
+    ; Bit Mask = máscara
     mov al, 8
-    out dx, ax
+    out dx, al
+    inc dx
+    mov al, ah
+    out dx, al
     
+    ; Escribir
     mov al, es:[di]
-    mov es:[di], al
-    
-    mov ax, 0FF08h
-    out dx, ax
-    pop ax
+    stosb
     
     pop di
     pop dx
