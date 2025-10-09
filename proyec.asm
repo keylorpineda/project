@@ -378,29 +378,28 @@ dm_col:
     ; Seleccionar sprite
     push si
     push bp
-    
-    cmp al, TILE_WALL
-    jne dm_t2
-    mov di, OFFSET sprite_wall
-    jmp dm_draw
-dm_t2:
-    cmp al, TILE_PATH
-    jne dm_t3
-    mov di, OFFSET sprite_path
-    jmp dm_draw
-dm_t3:
-    cmp al, TILE_WATER
-    jne dm_t4
-    mov di, OFFSET sprite_water
-    jmp dm_draw
-dm_t4:
-    cmp al, TILE_TREE
-    jne dm_t5
-    mov di, OFFSET sprite_tree
-    jmp dm_draw
-dm_t5:
+
     mov di, OFFSET sprite_grass
-    
+
+    cmp al, TILE_WALL
+    jne dm_check_path
+    mov di, OFFSET sprite_wall
+
+dm_check_path:
+    cmp al, TILE_PATH
+    jne dm_check_water
+    mov di, OFFSET sprite_path
+
+dm_check_water:
+    cmp al, TILE_WATER
+    jne dm_check_tree
+    mov di, OFFSET sprite_water
+
+dm_check_tree:
+    cmp al, TILE_TREE
+    jne dm_draw
+    mov di, OFFSET sprite_tree
+
 dm_draw:
     pop bp
     pop si
