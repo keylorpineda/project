@@ -1,72 +1,123 @@
 ; =====================================================
-; JUEGO EGA - VRAM con DOBLE BUFFER (Requisito del proyecto)
+; JUEGO EGA - VRAM con DOBLE BUFFER
 ; Universidad Nacional - Proyecto II Ciclo 2025
-; Modo 10h (640x350, 16 colores) OPTIMIZADO
+; Modo 10h (640x350, 16 colores)
+; =====================================================
+; 
+; DESCRIPCIÓN GENERAL:
+; Este juego implementa un sistema de exploración en modo gráfico EGA
+; con las siguientes características principales:
+; - Mapa de 50x50 tiles cargado desde archivo
+; - Sistema de viewport (ventana) de 20x12 tiles
+; - Sprites de 16x16 píxeles para tiles del mapa
+; - Sprite de 8x8 píxeles para el jugador
+; - Doble buffer para evitar parpadeo
+; - Sistema de cámara que sigue al jugador
+; - Detección de colisiones
+;
 ; =====================================================
 
 .MODEL SMALL
 .STACK 2048
 
 ; =====================================================
-; CONSTANTES
+; CONSTANTES DEL JUEGO
 ; =====================================================
-TILE_GRASS  EQU 0
-TILE_WALL   EQU 1
-TILE_PATH   EQU 2
-TILE_WATER  EQU 3
-TILE_TREE   EQU 4
+; Tipos de tiles en el mapa
+TILE_GRASS  EQU 0    ; Césped (transitable)
+TILE_WALL   EQU 1    ; Pared (no transitable)
+TILE_PATH   EQU 2    ; Camino (transitable)
+TILE_WATER  EQU 3    ; Agua (no transitable)
+TILE_TREE   EQU 4    ; Árbol (no transitable)
 
-TILE_SIZE   EQU 16
-VIEWPORT_W  EQU 20
-VIEWPORT_H  EQU 12
+; Dimensiones
+TILE_SIZE   EQU 16   ; Cada tile es 16x16 píxeles
+VIEWPORT_W  EQU 20   ; Viewport: 20 tiles de ancho
+VIEWPORT_H  EQU 12   ; Viewport: 12 tiles de alto
 
+; Segmento de video EGA
 VIDEO_SEG   EQU 0A000h
 
 .DATA
-; === ARCHIVOS ===
-archivo_mapa   db 'MAPA.TXT',0
-archivo_grass  db 'GRASS.TXT',0
-archivo_wall   db 'WALL.TXT',0
-archivo_path   db 'PATH.TXT',0
-archivo_water  db 'WATER.TXT',0
-archivo_tree   db 'TREE.TXT',0
-archivo_player db 'PLAYER.TXT',0
+; === VARIABLES DE CONTROL ===
+tecla_actual db 0       ; Última tecla presionada
+frame_counter db 0      ; Contador para throttling
+delay_movimiento db 0   ; Delay entre movimientos (0-2)
 
-; === MAPA 50x50 ===
+; === VARIABLES DE MOVIMIENTO SUAVE ===
+velocidad_movimiento dw 2          ; Píxeles por frame
+jugador_subpixel_x   dw 0          ; Posición subpixel X (0-15)
+jugador_subpixel_y   dw 0          ; Posición subpixel Y (0-15)
+
+; =====================================================
+; ARCHIVOS DE RECURSOS
+; =====================================================
+archivo_mapa   db 'MAPA.TXT',0      ; Mapa 50x50
+archivo_grass  db 'GRASS.TXT',0     ; Sprite césped
+archivo_wall   db 'WALL.TXT',0      ; Sprite pared
+archivo_path   db 'PATH.TXT',0      ; Sprite camino
+archivo_water  db 'WATER.TXT',0     ; Sprite agua
+archivo_tree   db 'TREE.TXT',0      ; Sprite árbol
+archivo_player db 'PLAYER.TXT',0    ; Sprite jugador
+
+; =====================================================
+; DATOS DEL MAPA Y SPRITES
+; =====================================================
+; Mapa: 50x50 = 2500 bytes
+; Cada byte representa un tipo de tile (0-4)
 mapa_datos  db 2500 dup(0)
 
-; === SPRITES ===
+; Sprites de tiles: 16x16 = 256 bytes cada uno
 sprite_grass  db 256 dup(0)
 sprite_wall   db 256 dup(0)
 sprite_path   db 256 dup(0)
 sprite_water  db 256 dup(0)
 sprite_tree   db 256 dup(0)
+
+; Sprite del jugador: 8x8 = 64 bytes
 sprite_player db 64 dup(0)
 
+; Buffer temporal para lectura de archivos
 buffer_temp db 300 dup(0)
 
-; === JUGADOR ===
-jugador_x   dw 25
-jugador_y   dw 25
+; =====================================================
+; VARIABLES DEL JUGADOR
+; =====================================================
+; Posición del jugador en el mapa (en tiles)
+jugador_x   dw 10    ; Columna (0-49)
+jugador_y   dw 6     ; Fila (0-49)
 
-; === CÁMARA CON SCROLL SUAVE ===
-camara_x        dw 0
-camara_y        dw 0
-camara_x_pixel  dw 0    ; Posición en píxeles para scroll suave
-camara_y_pixel  dw 0
+; =====================================================
+; VARIABLES DE LA CÁMARA (CON SCROLL SUAVE)
+; =====================================================
+; La cámara determina qué porción del mapa se muestra
+camara_x        dw 0    ; Tile superior izquierdo (columna)
+camara_y        dw 0    ; Tile superior izquierdo (fila)
+camara_x_pixel  dw 0    ; Offset en píxeles dentro del tile (0-15)
+camara_y_pixel  dw 0    ; Offset en píxeles dentro del tile (0-15)
 
-; === DOBLE BUFFER ===
-pagina_visible db 0
-pagina_dibujo  db 1
-offset_pagina  dw 0        ; Offset para página actual
+; =====================================================
+; VARIABLES DE DOBLE BUFFER
+; =====================================================
+; El doble buffer evita parpadeo:
+; - Una página se muestra mientras se dibuja en la otra
+; - Al terminar de dibujar, se intercambian
+pagina_visible db 0      ; Página que se muestra (0 o 1)
+pagina_dibujo  db 1      ; Página donde se dibuja (0 o 1)
+offset_pagina  dw 0      ; Offset en VRAM (0 o 8000h)
 
-; === VIEWPORT ===
-viewport_x  dw 160
-viewport_y  dw 79
-scroll_offset_x dw 0    ; Offset de píxeles para scroll suave
+; =====================================================
+; POSICIÓN DEL VIEWPORT EN PANTALLA
+; =====================================================
+; El viewport es la ventana donde se dibuja el juego
+viewport_x  dw 160       ; X inicial en píxeles
+viewport_y  dw 79        ; Y inicial en píxeles
+scroll_offset_x dw 0     ; Offset para scroll (no usado)
 scroll_offset_y dw 0
 
-; === MENSAJES ===
+; =====================================================
+; MENSAJES DE TEXTO
+; =====================================================
 msg_titulo  db 'JUEGO EGA - VRAM + Doble Buffer',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
 msg_mapa    db 'Mapa: $'
@@ -82,21 +133,28 @@ msg_controles db 13,10,'WASD o Flechas = Mover, ESC = Salir',13,10
               db 'Presiona tecla...$'
 
 .CODE
+; =====================================================
+; PUNTO DE ENTRADA DEL PROGRAMA
+; =====================================================
 inicio:
     mov ax, @data
     mov ds, ax
     
-    ; Título
+    ; Mostrar título
     mov dx, OFFSET msg_titulo
     mov ah, 9
     int 21h
     
-    ; Cargar archivos
+    ; Mostrar mensaje de carga
     mov dx, OFFSET msg_cargando
     mov ah, 9
     int 21h
     
-    ; MAPA
+    ; =====================================================
+    ; CARGAR TODOS LOS RECURSOS
+    ; =====================================================
+    
+    ; CARGAR MAPA (50x50)
     mov dx, OFFSET msg_mapa
     mov ah, 9
     int 21h
@@ -108,7 +166,7 @@ mapa_ok:
     mov ah, 9
     int 21h
     
-    ; GRASS
+    ; CARGAR SPRITE GRASS
     mov dx, OFFSET msg_grass
     mov ah, 9
     int 21h
@@ -122,7 +180,7 @@ grass_ok:
     mov ah, 9
     int 21h
     
-    ; WALL
+    ; CARGAR SPRITE WALL
     mov dx, OFFSET msg_wall
     mov ah, 9
     int 21h
@@ -136,7 +194,7 @@ wall_ok:
     mov ah, 9
     int 21h
     
-    ; PATH
+    ; CARGAR SPRITE PATH
     mov dx, OFFSET msg_path
     mov ah, 9
     int 21h
@@ -150,7 +208,7 @@ path_ok:
     mov ah, 9
     int 21h
     
-    ; WATER
+    ; CARGAR SPRITE WATER
     mov dx, OFFSET msg_water
     mov ah, 9
     int 21h
@@ -164,7 +222,7 @@ water_ok:
     mov ah, 9
     int 21h
     
-    ; TREE
+    ; CARGAR SPRITE TREE
     mov dx, OFFSET msg_tree
     mov ah, 9
     int 21h
@@ -178,7 +236,7 @@ tree_ok:
     mov ah, 9
     int 21h
     
-    ; PLAYER
+    ; CARGAR SPRITE PLAYER
     mov dx, OFFSET msg_player
     mov ah, 9
     int 21h
@@ -192,58 +250,52 @@ player_ok:
     mov ah, 9
     int 21h
     
-    ; Esperar
+    ; Esperar tecla antes de iniciar
     mov dx, OFFSET msg_controles
     mov ah, 9
     int 21h
     mov ah, 0
     int 16h
     
-    ; Activar modo EGA
-    mov ax, 10h
+    ; =====================================================
+    ; INICIALIZAR MODO GRÁFICO
+    ; =====================================================
+    mov ax, 10h         ; Modo 10h = EGA 640x350, 16 colores
     int 10h
     
-    ; Configurar Split Screen para doble buffer
-    ; Página 0: offset 0, Página 1: offset 0x8000
+    ; Configurar doble buffer
+    ; Página 0: offset 0
+    ; Página 1: offset 8000h (mitad de la VRAM)
     mov pagina_visible, 0
     mov pagina_dibujo, 1
     mov offset_pagina, 8000h
     
-    ; Inicializar cámara con scroll suave
-    call actualizar_camara
+    ; Centrar cámara en jugador
+    call actualizar_camara_suave
     
-    ; Primera renderización en página 0
+    ; Renderizar primera frame en AMBAS páginas para evitar flash
     mov offset_pagina, 0
+    call renderizar_todo
+    mov offset_pagina, 8000h
     call renderizar_todo
     
     ; Mostrar página 0
     mov ah, 5
     mov al, 0
     int 10h
+    
+    ; Esperar vsync para sincronizar
+    call esperar_vsync
 
 ; =====================================================
-; BUCLE PRINCIPAL CON SCROLL SUAVE
+; BUCLE PRINCIPAL DEL JUEGO (VERSIÓN ULTRA OPTIMIZADA)
 ; =====================================================
 bucle_juego:
-    ; Verificar tecla SIN BLOQUEAR
-    mov ah, 1
-    int 16h
-    jz sin_tecla
+    ; Esperar retrazado vertical para evitar tearing
+    call esperar_vsync
     
-    ; Leer tecla
-    mov ah, 0
-    int 16h
-    
-    ; ESC
-    cmp al, 27
-    je fin_juego
-    
-    ; Procesar movimiento
-    call mover_jugador
-    
-sin_tecla:
-    ; SIEMPRE actualizar cámara (para interpolación suave)
-    call actualizar_camara
+    ; Procesar entrada RÁPIDAMENTE
+    call procesar_input
     
     ; Calcular offset de página de dibujo
     mov al, pagina_dibujo
@@ -258,7 +310,7 @@ dibujar_frame:
     ; Dibujar en página oculta
     call renderizar_todo
     
-    ; Mostrar inmediatamente
+    ; Mostrar inmediatamente la página dibujada
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
@@ -267,14 +319,11 @@ dibujar_frame:
     xor pagina_dibujo, 1
     xor pagina_visible, 1
     
-    ; Pequeño delay para ~60 FPS
-    mov cx, 150
-delay_loop:
-    nop
-    loop delay_loop
-    
     jmp bucle_juego
 
+; =====================================================
+; MANEJO DE ERRORES Y SALIDA
+; =====================================================
 error_carga:
     mov dx, OFFSET msg_error
     mov ah, 9
@@ -283,23 +332,37 @@ error_carga:
     int 16h
 
 fin_juego:
-    mov ax, 3
+    mov ax, 3           ; Volver a modo texto
     int 10h
-    mov ax, 4C00h
+    mov ax, 4C00h       ; Terminar programa
     int 21h
 
 ; =====================================================
-; RENDERIZAR TODO
+; FUNCIÓN: renderizar_todo
+; =====================================================
+; Dibuja un frame completo del juego:
+; 1. Limpia el viewport
+; 2. Dibuja los tiles del mapa
+; 3. Dibuja el jugador
+;
+; ENTRADA: offset_pagina debe estar configurado
+; SALIDA: Frame completo dibujado en VRAM
 ; =====================================================
 renderizar_todo PROC
     push ax
     push es
     
+    ; Apuntar ES al segmento de video
     mov ax, VIDEO_SEG
     mov es, ax
     
+    ; Limpiar el área del viewport
     call limpiar_viewport
+    
+    ; Dibujar todos los tiles visibles
     call dibujar_mapa_rapido
+    
+    ; Dibujar el jugador encima
     call dibujar_jugador_rapido
     
     pop es
@@ -308,7 +371,14 @@ renderizar_todo PROC
 renderizar_todo ENDP
 
 ; =====================================================
-; LIMPIAR VIEWPORT OPTIMIZADO
+; FUNCIÓN: limpiar_viewport
+; =====================================================
+; Limpia el área del viewport llenándola de color negro.
+; Esto es necesario antes de dibujar cada frame.
+;
+; ENTRADA: ES = VIDEO_SEG, offset_pagina configurado
+; SALIDA: Viewport limpio (píxeles en 0)
+; REGISTROS: Preserva todos
 ; =====================================================
 limpiar_viewport PROC
     push ax
@@ -317,34 +387,38 @@ limpiar_viewport PROC
     push dx
     push di
     
-    ; Configurar planos EGA para escritura directa
-    mov dx, 3C4h        ; Sequencer
-    mov ax, 0F02h       ; Map Mask = todos los planos
+    ; Configurar EGA para escribir en todos los planos
+    mov dx, 3C4h        ; Puerto del Sequencer
+    mov ax, 0F02h       ; Map Mask = 1111b (todos los planos)
     out dx, ax
     
+    ; BX = fila actual en píxeles
     mov bx, viewport_y
+    ; CX = contador de líneas (12 tiles * 16 píxeles)
     mov cx, VIEWPORT_H * 16
     
 lv_loop:
-    ; Calcular offset
+    ; Calcular offset en VRAM para esta línea
+    ; offset = fila * 80 + offset_pagina + (viewport_x / 8)
     mov ax, bx
-    mov di, 80
+    mov di, 80          ; Bytes por línea en modo EGA
     mul di
     add ax, offset_pagina
     mov di, ax
     
+    ; Sumar columna inicial (viewport_x convertido a bytes)
     mov ax, viewport_x
-    shr ax, 3
+    shr ax, 3           ; Dividir entre 8 (píxeles por byte)
     add di, ax
     
-    ; Limpiar 40 bytes rápido
+    ; Limpiar 40 bytes (320 píxeles = 20 tiles * 16)
     push cx
-    mov cx, 40
-    xor al, al
-    rep stosb
+    mov cx, 40          ; Ancho del viewport en bytes
+    xor al, al          ; Color negro
+    rep stosb           ; Escribir AL en ES:DI, CX veces
     pop cx
     
-    inc bx
+    inc bx              ; Siguiente línea
     loop lv_loop
     
     pop di
@@ -356,7 +430,15 @@ lv_loop:
 limpiar_viewport ENDP
 
 ; =====================================================
-; DIBUJAR MAPA RÁPIDO
+; FUNCIÓN: dibujar_mapa_rapido (CON SCROLL SUAVE)
+; =====================================================
+; Dibuja todos los tiles visibles en el viewport.
+; Considera el offset de píxeles para scroll suave.
+;
+; ENTRADA: camara_x, camara_y, camara_x_pixel, camara_y_pixel
+;          ES = VIDEO_SEG, offset_pagina configurado
+; SALIDA: Mapa dibujado en el viewport con scroll suave
+; REGISTROS: Preserva todos
 ; =====================================================
 dibujar_mapa_rapido PROC
     push ax
@@ -367,41 +449,48 @@ dibujar_mapa_rapido PROC
     push di
     push bp
     
-    xor bp, bp
+    ; BP = fila actual del viewport (-1 a VIEWPORT_H)
+    ; Dibujamos un tile extra en cada dirección para scroll suave
+    mov bp, -1
     
 dmr_fila:
-    cmp bp, VIEWPORT_H
+    cmp bp, VIEWPORT_H + 1
     jb dmr_fila_procesar
     jmp dmr_fin
 
 dmr_fila_procesar:
-    xor si, si
+    ; SI = columna actual del viewport (-1 a VIEWPORT_W)
+    mov si, -1
     
 dmr_col:
-    cmp si, VIEWPORT_W
+    cmp si, VIEWPORT_W + 1
     jae dmr_next_fila
     
-    ; Posición en mapa
+    ; Calcular posición en el mapa
     mov ax, camara_y
     add ax, bp
+    cmp ax, 0
+    jl dmr_next_col
     cmp ax, 50
     jae dmr_next_col
     
     mov bx, camara_x
     add bx, si
+    cmp bx, 0
+    jl dmr_next_col
     cmp bx, 50
     jae dmr_next_col
     
-    ; Índice
+    ; Calcular índice en mapa_datos
     push dx
     mov dx, 50
     mul dx
     add ax, bx
     pop dx
     
-    ; Obtener tile
+    ; Obtener tipo de tile
     mov bx, ax
-    mov al, [mapa_datos + bx]
+    mov al, BYTE PTR [mapa_datos + bx]
     
     ; Seleccionar sprite
     mov di, OFFSET sprite_grass
@@ -432,16 +521,22 @@ dmr_draw:
     push si
     push bp
     
+    ; Calcular posición en pantalla CON OFFSET de scroll
+    ; X = SI * 16 + viewport_x - camara_x_pixel
     mov ax, si
     shl ax, 4
     add ax, viewport_x
+    sub ax, camara_x_pixel
     mov cx, ax
     
+    ; Y = BP * 16 + viewport_y - camara_y_pixel
     mov ax, bp
     shl ax, 4
     add ax, viewport_y
+    sub ax, camara_y_pixel
     mov dx, ax
     
+    ; Dibujar sprite
     call dibujar_sprite_16x16_vram
     
     pop bp
@@ -467,7 +562,15 @@ dmr_fin:
 dibujar_mapa_rapido ENDP
 
 ; =====================================================
-; DIBUJAR JUGADOR CON SCROLL SUAVE
+; FUNCIÓN: dibujar_jugador_rapido
+; =====================================================
+; Dibuja el sprite del jugador en su posición relativa
+; al viewport. El jugador se dibuja centrado en su tile.
+;
+; ENTRADA: jugador_x, jugador_y, camara_x, camara_y
+;          ES = VIDEO_SEG, offset_pagina configurado
+; SALIDA: Jugador dibujado en el viewport
+; REGISTROS: Preserva todos
 ; =====================================================
 dibujar_jugador_rapido PROC
     push ax
@@ -475,32 +578,33 @@ dibujar_jugador_rapido PROC
     push cx
     push dx
     
-    ; Posición del jugador en píxeles
+    ; Calcular posición relativa al viewport (en tiles)
+    ; tile_x_viewport = jugador_x - camara_x
     mov ax, jugador_x
-    shl ax, 4           ; *16 píxeles
+    sub ax, camara_x
+    js djr_fin          ; Si es negativo, está fuera
+    cmp ax, VIEWPORT_W
+    jae djr_fin         ; Si >= ancho, está fuera
     
-    ; Restar posición cámara en píxeles
-    sub ax, camara_x_pixel
-    js djr_fin          ; Fuera del viewport
-    cmp ax, 320         ; Ancho viewport en píxeles
-    jae djr_fin
-    
+    ; Convertir a píxeles y sumar offset del viewport
+    shl ax, 4           ; Multiplicar por 16 píxeles
     add ax, viewport_x
     add ax, 4           ; Centrar sprite 8x8 en tile 16x16
-    mov cx, ax
+    mov cx, ax          ; CX = X en píxeles
     
-    ; Y del jugador
+    ; Calcular Y
     mov ax, jugador_y
-    shl ax, 4
-    sub ax, camara_y_pixel
+    sub ax, camara_y
     js djr_fin
-    cmp ax, 192         ; Alto viewport en píxeles
+    cmp ax, VIEWPORT_H
     jae djr_fin
     
+    shl ax, 4
     add ax, viewport_y
-    add ax, 4
-    mov dx, ax
+    add ax, 4           ; Centrar verticalmente
+    mov dx, ax          ; DX = Y en píxeles
     
+    ; Dibujar sprite del jugador
     mov si, OFFSET sprite_player
     call dibujar_sprite_8x8_vram
     
@@ -513,8 +617,17 @@ djr_fin:
 dibujar_jugador_rapido ENDP
 
 ; =====================================================
-; DIBUJAR SPRITE 16x16 OPTIMIZADO
-; CX=X, DX=Y, DI=sprite
+; FUNCIÓN: dibujar_sprite_16x16_vram
+; =====================================================
+; Dibuja un sprite de 16x16 píxeles en VRAM.
+; Cada píxel con valor 0 se considera transparente.
+;
+; ENTRADA: CX = X en píxeles
+;          DX = Y en píxeles
+;          DI = puntero al sprite (256 bytes)
+;          ES = VIDEO_SEG, offset_pagina configurado
+; SALIDA: Sprite dibujado
+; REGISTROS: Preserva todos
 ; =====================================================
 dibujar_sprite_16x16_vram PROC
     push ax
@@ -524,29 +637,30 @@ dibujar_sprite_16x16_vram PROC
     push si
     push bp
     
-    mov si, di
-    mov bp, 16
+    mov si, di          ; SI = puntero al sprite
+    mov bp, 16          ; 16 filas
     
 ds16v_fila:
     mov bx, cx          ; Guardar X inicial
     push bp
-    mov bp, 16
+    mov bp, 16          ; 16 píxeles por fila
     
 ds16v_pixel:
-    lodsb
-    test al, al
+    lodsb               ; Leer píxel en AL, incrementar SI
+    test al, al         ; ¿Es 0 (transparente)?
     jz ds16v_skip
     
+    ; Escribir píxel en (CX, DX)
     call escribir_pixel_ega
     
 ds16v_skip:
-    inc cx
+    inc cx              ; Siguiente columna
     dec bp
     jnz ds16v_pixel
     
     mov cx, bx          ; Restaurar X
     pop bp
-    inc dx
+    inc dx              ; Siguiente fila
     dec bp
     jnz ds16v_fila
     
@@ -560,8 +674,17 @@ ds16v_skip:
 dibujar_sprite_16x16_vram ENDP
 
 ; =====================================================
-; DIBUJAR SPRITE 8x8 OPTIMIZADO
-; CX=X, DX=Y, SI=sprite
+; FUNCIÓN: dibujar_sprite_8x8_vram
+; =====================================================
+; Dibuja un sprite de 8x8 píxeles en VRAM.
+; Similar a dibujar_sprite_16x16_vram pero más pequeño.
+;
+; ENTRADA: CX = X en píxeles
+;          DX = Y en píxeles
+;          SI = puntero al sprite (64 bytes)
+;          ES = VIDEO_SEG, offset_pagina configurado
+; SALIDA: Sprite dibujado
+; REGISTROS: Preserva todos
 ; =====================================================
 dibujar_sprite_8x8_vram PROC
     push ax
@@ -570,16 +693,16 @@ dibujar_sprite_8x8_vram PROC
     push dx
     push bp
     
-    mov bp, 8
+    mov bp, 8           ; 8 filas
     
 ds8v_fila:
     mov bx, cx          ; Guardar X inicial
     push bp
-    mov bp, 8
+    mov bp, 8           ; 8 píxeles por fila
     
 ds8v_pixel:
-    lodsb
-    test al, al
+    lodsb               ; Leer píxel
+    test al, al         ; ¿Transparente?
     jz ds8v_skip
     
     call escribir_pixel_ega
@@ -604,8 +727,17 @@ ds8v_skip:
 dibujar_sprite_8x8_vram ENDP
 
 ; =====================================================
-; ESCRIBIR PÍXEL EGA OPTIMIZADO (Modo Planar)
-; CX=X, DX=Y, AL=color
+; FUNCIÓN: escribir_pixel_ega
+; =====================================================
+; Escribe un píxel en VRAM usando el modo planar de EGA.
+; En modo EGA, cada píxel de 4 bits se almacena en 4 planos.
+;
+; ENTRADA: CX = X en píxeles
+;          DX = Y en píxeles
+;          AL = color (0-15)
+;          ES = VIDEO_SEG, offset_pagina configurado
+; SALIDA: Píxel escrito en VRAM
+; REGISTROS: Preserva todos excepto flags
 ; =====================================================
 escribir_pixel_ega PROC
     push ax
@@ -614,55 +746,56 @@ escribir_pixel_ega PROC
     push dx
     push di
     
-    ; Guardar color
-    mov bl, al
+    mov bl, al          ; Guardar color en BL
     
     ; Calcular offset en VRAM
+    ; offset = Y * 80 + offset_pagina + (X / 8)
     mov ax, dx
     mov di, 80
-    mul di
+    mul di              ; AX = Y * 80
     add ax, offset_pagina
     mov di, ax
     
     mov ax, cx
-    shr ax, 3
-    add di, ax
+    shr ax, 3           ; X / 8
+    add di, ax          ; DI = offset del byte
     
-    ; Calcular máscara de bit
-    and cx, 7
-    mov al, 80h
-    shr al, cl
-    mov ah, al          ; AH = máscara
+    ; Calcular máscara de bit dentro del byte
+    ; bit = 7 - (X % 8)
+    and cx, 7           ; CX = X % 8
+    mov al, 80h         ; Máscara inicial (bit 7)
+    shr al, cl          ; Desplazar a la posición correcta
+    mov ah, al          ; AH = máscara de bit
     
-    ; Configurar registros EGA (modo directo)
-    mov dx, 3CEh
+    ; Configurar Graphics Controller de EGA
+    mov dx, 3CEh        ; Puerto del Graphics Controller
     
-    ; Set/Reset = color
-    mov al, 0
+    ; Set/Reset Register = color
+    mov al, 0           ; Registro 0
     out dx, al
     inc dx
-    mov al, bl
+    mov al, bl          ; Color
     out dx, al
     dec dx
     
-    ; Enable Set/Reset = 0Fh
-    mov al, 1
+    ; Enable Set/Reset = 0Fh (todos los planos)
+    mov al, 1           ; Registro 1
     out dx, al
     inc dx
     mov al, 0Fh
     out dx, al
     dec dx
     
-    ; Bit Mask = máscara
-    mov al, 8
+    ; Bit Mask = máscara del bit
+    mov al, 8           ; Registro 8
     out dx, al
     inc dx
-    mov al, ah
+    mov al, ah          ; Máscara
     out dx, al
     
-    ; Escribir
-    mov al, es:[di]
-    stosb
+    ; Escribir en VRAM (activa el latching)
+    mov al, es:[di]     ; Leer (cargar latches)
+    stosb               ; Escribir (aplicar máscara y color)
     
     pop di
     pop dx
@@ -673,25 +806,35 @@ escribir_pixel_ega PROC
 escribir_pixel_ega ENDP
 
 ; =====================================================
-; MOVER JUGADOR
+; FUNCIÓN: mover_jugador
+; =====================================================
+; Procesa la entrada del teclado y mueve al jugador.
+; Verifica colisiones antes de confirmar el movimiento.
+;
+; ENTRADA: AH = scan code, AL = carácter ASCII
+; SALIDA: jugador_x, jugador_y actualizados
+; REGISTROS: Preserva todos
 ; =====================================================
 mover_jugador PROC
     push ax
     
-    cmp ah, 48h
+    ; Verificar tecla ARRIBA
+    cmp ah, 48h         ; Scan code de flecha arriba
     je mj_arr
     cmp al, 'w'
     je mj_arr
     cmp al, 'W'
     je mj_arr
     
-    cmp ah, 50h
+    ; Verificar tecla ABAJO
+    cmp ah, 50h         ; Scan code de flecha abajo
     je mj_aba
     cmp al, 's'
     je mj_aba
     cmp al, 'S'
     je mj_aba
     
+    ; Verificar tecla IZQUIERDA
     cmp ah, 4Bh
     je mj_izq
     cmp al, 'a'
@@ -699,6 +842,7 @@ mover_jugador PROC
     cmp al, 'A'
     je mj_izq
     
+    ; Verificar tecla DERECHA
     cmp ah, 4Dh
     je mj_der
     cmp al, 'd'
@@ -710,16 +854,16 @@ mover_jugador PROC
 
 mj_arr:
     cmp jugador_y, 1
-    jbe mj_fin
+    jbe mj_fin          ; No puede ir más arriba
     dec jugador_y
     call verificar_colision
-    jnc mj_fin
-    inc jugador_y
+    jnc mj_fin          ; Sin colisión, movimiento OK
+    inc jugador_y       ; Colisión, revertir movimiento
     jmp mj_fin
 
 mj_aba:
     cmp jugador_y, 48
-    jae mj_fin
+    jae mj_fin          ; No puede ir más abajo
     inc jugador_y
     call verificar_colision
     jnc mj_fin
@@ -728,7 +872,7 @@ mj_aba:
 
 mj_izq:
     cmp jugador_x, 1
-    jbe mj_fin
+    jbe mj_fin          ; No puede ir más a la izquierda
     dec jugador_x
     call verificar_colision
     jnc mj_fin
@@ -737,7 +881,7 @@ mj_izq:
 
 mj_der:
     cmp jugador_x, 48
-    jae mj_fin
+    jae mj_fin          ; No puede ir más a la derecha
     inc jugador_x
     call verificar_colision
     jnc mj_fin
@@ -749,36 +893,367 @@ mj_fin:
 mover_jugador ENDP
 
 ; =====================================================
-; VERIFICAR COLISIÓN
+; FUNCIÓN: esperar_vsync
+; =====================================================
+; Espera al retrazado vertical del monitor para evitar
+; tearing y sincronizar el framerate con el monitor.
+;
+; SALIDA: Ninguna
+; REGISTROS: Preserva todos
+; =====================================================
+esperar_vsync PROC
+    push ax
+    push dx
+    
+    ; Puerto de estado del CRT
+    mov dx, 3DAh
+    
+ev_wait_retrace:
+    in al, dx
+    test al, 08h        ; Bit 3 = retrazado vertical
+    jnz ev_wait_retrace ; Esperar a que termine el anterior
+    
+ev_wait_display:
+    in al, dx
+    test al, 08h
+    jz ev_wait_display  ; Esperar al siguiente retrazado
+    
+    pop dx
+    pop ax
+    ret
+esperar_vsync ENDP
+
+; =====================================================
+; FUNCIÓN: procesar_input
+; =====================================================
+; Procesa entrada del teclado de manera eficiente.
+; Mueve al jugador PIXEL por PIXEL para scroll suave.
+;
+; SALIDA: Jugador movido si corresponde
+; REGISTROS: Preserva todos
+; =====================================================
+procesar_input PROC
+    push ax
+    push bx
+    
+    ; Verificar buffer de teclado
+    mov ah, 1
+    int 16h
+    jz pi_no_tecla
+    
+    ; Peek tecla sin consumir buffer
+    mov ah, 1
+    int 16h
+    
+    ; Guardar valores
+    push ax
+    mov bh, ah          ; BH = scan code
+    mov bl, al          ; BL = ASCII
+    pop ax
+    
+    ; Solo consumir si es ESC
+    mov al, bl
+    cmp al, 27
+    jne pi_procesar
+    
+    ; Consumir ESC y salir
+    mov ah, 0
+    int 16h
+    jmp fin_juego
+    
+pi_procesar:
+    ; Procesar movimiento con el scan code
+    mov ah, bh
+    call mover_suave
+    call actualizar_camara_suave
+    jmp pi_fin
+    
+pi_no_tecla:
+    ; Limpiar buffer si no hay tecla
+    mov ah, 1
+    int 16h
+    jz pi_fin
+    mov ah, 0
+    int 16h
+    
+pi_fin:
+    pop bx
+    pop ax
+    ret
+procesar_input ENDP
+
+; =====================================================
+; FUNCIÓN: mover_suave
+; =====================================================
+; Mueve al jugador píxel por píxel para scroll suave.
+; Verifica colisiones cuando cruza a un nuevo tile.
+;
+; ENTRADA: AH = scan code de la tecla
+; SALIDA: jugador_x, jugador_y, subpíxeles actualizados
+; REGISTROS: Preserva todos
+; =====================================================
+mover_suave PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    
+    ; ARRIBA
+    cmp ah, 48h
+    je ms_arr
+    cmp ah, 11h         ; W
+    je ms_arr
+    
+    ; ABAJO  
+    cmp ah, 50h
+    je ms_aba
+    cmp ah, 1Fh         ; S
+    je ms_aba
+    
+    ; IZQUIERDA
+    cmp ah, 4Bh
+    je ms_izq
+    cmp ah, 1Eh         ; A
+    je ms_izq
+    
+    ; DERECHA
+    cmp ah, 4Dh
+    je ms_der
+    cmp ah, 20h         ; D
+    je ms_der
+    
+    jmp ms_fin
+
+ms_arr:
+    ; Mover hacia arriba (decrementar Y)
+    mov ax, jugador_subpixel_y
+    sub ax, velocidad_movimiento
+    jns ms_arr_ok
+    
+    ; Cruzar al tile anterior
+    cmp jugador_y, 1
+    jbe ms_fin
+    
+    ; Verificar colisión en nuevo tile
+    dec jugador_y
+    call verificar_colision
+    jc ms_arr_colision
+    
+    ; Sin colisión, ajustar subpíxel
+    add ax, 16
+    mov jugador_subpixel_y, ax
+    jmp ms_fin
+    
+ms_arr_colision:
+    inc jugador_y
+    mov jugador_subpixel_y, 0
+    jmp ms_fin
+    
+ms_arr_ok:
+    mov jugador_subpixel_y, ax
+    jmp ms_fin
+
+ms_aba:
+    ; Mover hacia abajo
+    mov ax, jugador_subpixel_y
+    add ax, velocidad_movimiento
+    cmp ax, 16
+    jb ms_aba_ok
+    
+    ; Cruzar al siguiente tile
+    cmp jugador_y, 48
+    jae ms_fin
+    
+    inc jugador_y
+    call verificar_colision
+    jc ms_aba_colision
+    
+    sub ax, 16
+    mov jugador_subpixel_y, ax
+    jmp ms_fin
+    
+ms_aba_colision:
+    dec jugador_y
+    mov jugador_subpixel_y, 15
+    jmp ms_fin
+    
+ms_aba_ok:
+    mov jugador_subpixel_y, ax
+    jmp ms_fin
+
+ms_izq:
+    ; Mover hacia la izquierda
+    mov ax, jugador_subpixel_x
+    sub ax, velocidad_movimiento
+    jns ms_izq_ok
+    
+    cmp jugador_x, 1
+    jbe ms_fin
+    
+    dec jugador_x
+    call verificar_colision
+    jc ms_izq_colision
+    
+    add ax, 16
+    mov jugador_subpixel_x, ax
+    jmp ms_fin
+    
+ms_izq_colision:
+    inc jugador_x
+    mov jugador_subpixel_x, 0
+    jmp ms_fin
+    
+ms_izq_ok:
+    mov jugador_subpixel_x, ax
+    jmp ms_fin
+
+ms_der:
+    ; Mover hacia la derecha
+    mov ax, jugador_subpixel_x
+    add ax, velocidad_movimiento
+    cmp ax, 16
+    jb ms_der_ok
+    
+    cmp jugador_x, 48
+    jae ms_fin
+    
+    inc jugador_x
+    call verificar_colision
+    jc ms_der_colision
+    
+    sub ax, 16
+    mov jugador_subpixel_x, ax
+    jmp ms_fin
+    
+ms_der_colision:
+    dec jugador_x
+    mov jugador_subpixel_x, 15
+    jmp ms_fin
+    
+ms_der_ok:
+    mov jugador_subpixel_x, ax
+
+ms_fin:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+mover_suave ENDP
+
+; =====================================================
+; FUNCIÓN: actualizar_camara_suave
+; =====================================================
+; Actualiza la cámara para seguir al jugador con
+; scroll suave píxel por píxel.
+;
+; ENTRADA: jugador_x, jugador_y, subpíxeles
+; SALIDA: camara_x, camara_y, offsets en píxeles
+; REGISTROS: Preserva todos
+; =====================================================
+actualizar_camara_suave PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    
+    ; Calcular posición del jugador en píxeles absolutos
+    ; pos_pixel_x = jugador_x * 16 + jugador_subpixel_x
+    mov ax, jugador_x
+    shl ax, 4           ; * 16
+    add ax, jugador_subpixel_x
+    mov bx, ax          ; BX = posición X del jugador en píxeles
+    
+    ; Calcular posición objetivo de la cámara
+    ; centro_viewport = 10 tiles * 16 = 160 píxeles
+    sub ax, 160         ; Centrar en X
+    jge acs_x_ok
+    xor ax, ax
+acs_x_ok:
+    ; Límite máximo: (50-20)*16 = 480 píxeles
+    cmp ax, 480
+    jle acs_x_limit
+    mov ax, 480
+acs_x_limit:
+    ; AX = offset de cámara en píxeles totales
+    ; Dividir en tile + offset
+    mov cx, ax
+    shr ax, 4           ; AX = tile
+    mov camara_x, ax
+    
+    and cx, 15          ; CX = offset en píxeles
+    mov camara_x_pixel, cx
+    
+    ; Repetir para Y
+    mov ax, jugador_y
+    shl ax, 4
+    add ax, jugador_subpixel_y
+    
+    sub ax, 96          ; Centrar en Y (6 tiles * 16)
+    jge acs_y_ok
+    xor ax, ax
+acs_y_ok:
+    cmp ax, 608         ; (50-12)*16
+    jle acs_y_limit
+    mov ax, 608
+acs_y_limit:
+    mov cx, ax
+    shr ax, 4
+    mov camara_y, ax
+    
+    and cx, 15
+    mov camara_y_pixel, cx
+    
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+actualizar_camara_suave ENDP
+
+; =====================================================
+; FUNCIÓN: verificar_colision
+; =====================================================
+; Verifica si el jugador puede estar en su posición actual.
+; Solo permite movimiento en tiles de GRASS y PATH.
+;
+; ENTRADA: jugador_x, jugador_y (posición a verificar)
+; SALIDA: CF = 1 si hay colisión, CF = 0 si es transitable
+; REGISTROS: Preserva todos
 ; =====================================================
 verificar_colision PROC
     push ax
     push bx
     push si
     
+    ; Calcular índice en el mapa
+    ; indice = jugador_y * 50 + jugador_x
     mov ax, jugador_y
     mov bx, 50
-    mul bx
-    add ax, jugador_x
+    mul bx              ; AX = jugador_y * 50
+    add ax, jugador_x   ; AX = índice
     
+    ; Verificar límites del mapa
     cmp ax, 2500
-    jae vc_col
+    jae vc_col          ; Fuera de límites = colisión
     
+    ; Obtener tipo de tile en esa posición
     mov si, OFFSET mapa_datos
     add si, ax
-    mov al, [si]
+    mov al, BYTE PTR [si]        ; AL = tipo de tile
     
+    ; Verificar si es transitable
     cmp al, TILE_GRASS
     je vc_ok
     cmp al, TILE_PATH
     je vc_ok
     
 vc_col:
-    stc
+    stc                 ; CF = 1 (colisión)
     jmp vc_fin
     
 vc_ok:
-    clc
+    clc                 ; CF = 0 (sin colisión)
     
 vc_fin:
     pop si
@@ -788,101 +1263,20 @@ vc_fin:
 verificar_colision ENDP
 
 ; =====================================================
-; ACTUALIZAR CÁMARA CON SCROLL SUAVE
+; FUNCIÓN: cargar_mapa
 ; =====================================================
-actualizar_camara PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    
-    ; Calcular posición objetivo en píxeles
-    mov ax, jugador_x
-    sub ax, 10          ; Centrar (VIEWPORT_W/2)
-    jge ac_x_ok
-    xor ax, ax
-ac_x_ok:
-    mov bx, 30
-    cmp ax, bx
-    jle ac_x_fin
-    mov ax, bx
-ac_x_fin:
-    shl ax, 4           ; Convertir a píxeles (*16)
-    mov bx, ax          ; BX = objetivo_x_pixel
-    
-    ; Interpolación suave en X
-    mov ax, camara_x_pixel
-    cmp ax, bx
-    je ac_x_done
-    jl ac_x_increase
-    ; Disminuir
-    sub ax, 4           ; Velocidad de scroll (píxeles por frame)
-    cmp ax, bx
-    jge ac_x_set
-    mov ax, bx
-    jmp ac_x_set
-ac_x_increase:
-    add ax, 4
-    cmp ax, bx
-    jle ac_x_set
-    mov ax, bx
-ac_x_set:
-    mov camara_x_pixel, ax
-    
-ac_x_done:
-    ; Actualizar camara_x en tiles
-    mov ax, camara_x_pixel
-    shr ax, 4
-    mov camara_x, ax
-    
-    ; Calcular posición objetivo en Y
-    mov ax, jugador_y
-    sub ax, 6           ; Centrar (VIEWPORT_H/2)
-    jge ac_y_ok
-    xor ax, ax
-ac_y_ok:
-    mov bx, 38
-    cmp ax, bx
-    jle ac_y_fin
-    mov ax, bx
-ac_y_fin:
-    shl ax, 4           ; Convertir a píxeles
-    mov bx, ax          ; BX = objetivo_y_pixel
-    
-    ; Interpolación suave en Y
-    mov ax, camara_y_pixel
-    cmp ax, bx
-    je ac_y_done
-    jl ac_y_increase
-    ; Disminuir
-    sub ax, 4
-    cmp ax, bx
-    jge ac_y_set
-    mov ax, bx
-    jmp ac_y_set
-ac_y_increase:
-    add ax, 4
-    cmp ax, bx
-    jle ac_y_set
-    mov ax, bx
-ac_y_set:
-    mov camara_y_pixel, ax
-    
-ac_y_done:
-    ; Actualizar camara_y en tiles
-    mov ax, camara_y_pixel
-    shr ax, 4
-    mov camara_y, ax
-    
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-actualizar_camara ENDP
-
-; =====================================================
-; CARGAR MAPA
+; Carga el archivo MAPA.TXT y llena el array mapa_datos.
+; El archivo debe contener 2500 números (0-4) que
+; representan los tipos de tiles.
+;
+; Formato esperado:
+; [Primera línea: comentario o dimensiones - ignorada]
+; [2500 números separados por espacios/saltos de línea]
+;
+; ENTRADA: archivo_mapa (nombre del archivo)
+; SALIDA: mapa_datos lleno con los tiles
+;         CF = 0 si OK, CF = 1 si error
+; REGISTROS: Preserva todos
 ; =====================================================
 cargar_mapa PROC
     push ax
@@ -893,36 +1287,44 @@ cargar_mapa PROC
     push di
     push bp
     
-    mov ax, 3D00h
+    ; Abrir archivo
+    mov ax, 3D00h       ; Función: abrir archivo (solo lectura)
     mov dx, OFFSET archivo_mapa
     int 21h
-    jc cm_error
+    jc cm_error         ; Si CF=1, hubo error
     
-    mov bx, ax
+    mov bx, ax          ; BX = file handle
+    
+    ; Saltar primera línea (comentario)
     call saltar_linea
     
+    ; Preparar destino
     mov di, OFFSET mapa_datos
-    xor bp, bp
+    xor bp, bp          ; BP = contador de tiles leídos
     
 cm_leer:
-    mov ah, 3Fh
-    mov cx, 200
+    ; Leer bloque del archivo
+    mov ah, 3Fh         ; Función: leer archivo
+    mov cx, 200         ; Leer 200 bytes
     mov dx, OFFSET buffer_temp
     int 21h
     
+    ; AX = bytes leídos
     cmp ax, 0
-    je cm_cerrar
+    je cm_cerrar        ; Si 0, fin del archivo
     
-    mov cx, ax
-    xor si, si
+    mov cx, ax          ; CX = bytes a procesar
+    xor si, si          ; SI = índice en buffer
 
 cm_proc:
     cmp si, cx
-    jae cm_leer
+    jae cm_leer         ; Si procesamos todo, leer más
 
-    mov al, [buffer_temp + si]
+    ; Leer carácter
+    mov al, BYTE PTR [buffer_temp + si]
     inc si
     
+    ; Ignorar espacios, tabs, CR, LF
     cmp al, ' '
     je cm_proc
     cmp al, 13
@@ -931,27 +1333,34 @@ cm_proc:
     je cm_proc
     cmp al, 9
     je cm_proc
+    
+    ; Verificar si es dígito (0-9)
     cmp al, '0'
     jb cm_proc
     cmp al, '9'
     ja cm_proc
     
-    sub al, '0'
-    mov [di], al
+    ; Convertir ASCII a número
+    sub al, '0'         ; '0' -> 0, '1' -> 1, etc.
+    
+    ; Guardar en mapa
+    mov BYTE PTR [di], al
     inc di
     inc bp
 
+    ; ¿Ya leímos 2500 tiles?
     cmp bp, 2500
     jb cm_proc
     
 cm_cerrar:
+    ; Cerrar archivo
     mov ah, 3Eh
     int 21h
-    clc
+    clc                 ; CF = 0 (éxito)
     jmp cm_fin
     
 cm_error:
-    stc
+    stc                 ; CF = 1 (error)
     
 cm_fin:
     pop bp
@@ -965,7 +1374,21 @@ cm_fin:
 cargar_mapa ENDP
 
 ; =====================================================
-; CARGAR SPRITE 16x16
+; FUNCIÓN: cargar_sprite_16x16
+; =====================================================
+; Carga un sprite de 16x16 píxeles desde un archivo.
+; El archivo debe contener 256 números (0-15) que
+; representan los colores de cada píxel.
+;
+; Formato esperado:
+; [Primera línea: dimensiones - ignorada]
+; [256 números (16x16) separados por espacios/saltos]
+;
+; ENTRADA: DX = puntero al nombre del archivo
+;          DI = puntero al buffer destino (256 bytes)
+; SALIDA: Sprite cargado en el buffer
+;         CF = 0 si OK, CF = 1 si error
+; REGISTROS: Preserva todos
 ; =====================================================
 cargar_sprite_16x16 PROC
     push ax
@@ -974,16 +1397,20 @@ cargar_sprite_16x16 PROC
     push si
     push bp
     
+    ; Abrir archivo
     mov ax, 3D00h
     int 21h
     jc cs16_error
     
-    mov bx, ax
+    mov bx, ax          ; BX = file handle
+    
+    ; Saltar primera línea
     call saltar_linea
     
-    xor bp, bp
+    xor bp, bp          ; BP = contador de píxeles
     
 cs16_leer:
+    ; Leer bloque
     mov ah, 3Fh
     mov cx, 200
     push dx
@@ -1001,9 +1428,10 @@ cs16_proc:
     cmp si, cx
     jae cs16_leer
 
-    mov al, [buffer_temp + si]
+    mov al, BYTE PTR [buffer_temp + si]
     inc si
     
+    ; Ignorar whitespace
     cmp al, ' '
     je cs16_proc
     cmp al, 13
@@ -1012,16 +1440,20 @@ cs16_proc:
     je cs16_proc
     cmp al, 9
     je cs16_proc
+    
+    ; Verificar dígito
     cmp al, '0'
     jb cs16_proc
     cmp al, '9'
     ja cs16_proc
     
+    ; Convertir y guardar
     sub al, '0'
-    mov [di], al
+    mov BYTE PTR [di], al
     inc di
     inc bp
 
+    ; ¿Ya leímos 256 píxeles?
     cmp bp, 256
     jb cs16_proc
     
@@ -1044,7 +1476,20 @@ cs16_fin:
 cargar_sprite_16x16 ENDP
 
 ; =====================================================
-; CARGAR SPRITE 8x8
+; FUNCIÓN: cargar_sprite_8x8
+; =====================================================
+; Carga un sprite de 8x8 píxeles desde un archivo.
+; Similar a cargar_sprite_16x16 pero con 64 píxeles.
+;
+; Formato esperado:
+; [Primera línea: dimensiones - ignorada]
+; [64 números (8x8) separados por espacios/saltos]
+;
+; ENTRADA: DX = puntero al nombre del archivo
+;          DI = puntero al buffer destino (64 bytes)
+; SALIDA: Sprite cargado en el buffer
+;         CF = 0 si OK, CF = 1 si error
+; REGISTROS: Preserva todos
 ; =====================================================
 cargar_sprite_8x8 PROC
     push ax
@@ -1053,11 +1498,14 @@ cargar_sprite_8x8 PROC
     push si
     push bp
     
+    ; Abrir archivo
     mov ax, 3D00h
     int 21h
     jc cs8_error
     
     mov bx, ax
+    
+    ; Saltar primera línea
     call saltar_linea
     
     xor bp, bp
@@ -1080,7 +1528,7 @@ cs8_proc:
     cmp si, cx
     jae cs8_leer
 
-    mov al, [buffer_temp + si]
+    mov al, BYTE PTR [buffer_temp + si]
     inc si
     
     cmp al, ' '
@@ -1097,7 +1545,7 @@ cs8_proc:
     ja cs8_proc
     
     sub al, '0'
-    mov [di], al
+    mov BYTE PTR [di], al
     inc di
     inc bp
 
@@ -1123,7 +1571,15 @@ cs8_fin:
 cargar_sprite_8x8 ENDP
 
 ; =====================================================
-; SALTAR LÍNEA
+; FUNCIÓN: saltar_linea
+; =====================================================
+; Lee caracteres del archivo hasta encontrar un
+; salto de línea (LF o CR). Útil para ignorar
+; la primera línea de los archivos de datos.
+;
+; ENTRADA: BX = file handle
+; SALIDA: Posición del archivo avanzada
+; REGISTROS: Preserva todos
 ; =====================================================
 saltar_linea PROC
     push ax
@@ -1131,17 +1587,22 @@ saltar_linea PROC
     push dx
     
 sl_loop:
+    ; Leer 1 byte
     mov ah, 3Fh
     mov cx, 1
     mov dx, OFFSET buffer_temp
     int 21h
     
+    ; Si no se leyó nada, terminar
     cmp ax, 0
     je sl_fin
     
-    mov al, [buffer_temp]
+    ; Verificar si es LF (10)
+    mov al, BYTE PTR [buffer_temp]
     cmp al, 10
     je sl_fin
+    
+    ; Verificar si es CR (13)
     cmp al, 13
     jne sl_loop
     
