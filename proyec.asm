@@ -1,5 +1,5 @@
 ; =====================================================
-; JUEGO EGA RÁPIDO - Acceso Directo a Memoria de Video
+; JUEGO EGA - VRAM con DOBLE BUFFER (Requisito del proyecto)
 ; Universidad Nacional - Proyecto II Ciclo 2025
 ; Modo 10h (640x350, 16 colores) OPTIMIZADO
 ; =====================================================
@@ -17,10 +17,10 @@ TILE_WATER  EQU 3
 TILE_TREE   EQU 4
 
 TILE_SIZE   EQU 16
-VIEWPORT_W  EQU 20      ; 20 tiles × 16px = 320px
-VIEWPORT_H  EQU 12      ; 12 tiles × 16px = 192px
+VIEWPORT_W  EQU 20
+VIEWPORT_H  EQU 12
 
-VIDEO_SEG   EQU 0A000h  ; Segmento de video EGA
+VIDEO_SEG   EQU 0A000h
 
 .DATA
 ; === ARCHIVOS ===
@@ -53,12 +53,17 @@ jugador_y   dw 25
 camara_x    dw 0
 camara_y    dw 0
 
-; === OFFSET EN PANTALLA ===
-viewport_x  dw 160      ; Centrado (640-320)/2
-viewport_y  dw 79       ; Centrado (350-192)/2
+; === DOBLE BUFFER ===
+pagina_visible db 0
+pagina_dibujo  db 1
+offset_pagina  dw 0        ; Offset para página actual
+
+; === VIEWPORT ===
+viewport_x  dw 160
+viewport_y  dw 79
 
 ; === MENSAJES ===
-msg_titulo  db 'JUEGO EGA - Motor Rapido VRAM',13,10,'$'
+msg_titulo  db 'JUEGO EGA - VRAM + Doble Buffer',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
 msg_mapa    db 'Mapa: $'
 msg_grass   db 'Grass: $'
@@ -194,12 +199,24 @@ player_ok:
     mov ax, 10h
     int 10h
     
-    ; Primera renderización
+    ; Configurar Split Screen para doble buffer
+    ; Página 0: offset 0, Página 1: offset 0x8000
+    mov pagina_visible, 0
+    mov pagina_dibujo, 1
+    mov offset_pagina, 8000h
+    
+    ; Primera renderización en página 0
+    mov offset_pagina, 0
     call actualizar_camara
     call renderizar_todo
+    
+    ; Mostrar página 0
+    mov ah, 5
+    mov al, 0
+    int 10h
 
 ; =====================================================
-; BUCLE PRINCIPAL
+; BUCLE PRINCIPAL CON DOBLE BUFFER
 ; =====================================================
 bucle_juego:
     ; Verificar tecla
@@ -218,7 +235,28 @@ bucle_juego:
     ; Mover
     call mover_jugador
     call actualizar_camara
+    
+    ; Calcular offset de página de dibujo
+    mov al, pagina_dibujo
+    cmp al, 0
+    je offset_pagina_0
+    mov offset_pagina, 8000h
+    jmp dibujar_frame
+offset_pagina_0:
+    mov offset_pagina, 0
+    
+dibujar_frame:
+    ; Dibujar en página oculta
     call renderizar_todo
+    
+    ; Mostrar la página que acabamos de dibujar
+    mov ah, 5
+    mov al, pagina_dibujo
+    int 10h
+    
+    ; Intercambiar páginas
+    xor pagina_dibujo, 1
+    xor pagina_visible, 1
     
     jmp bucle_juego
 
@@ -236,23 +274,17 @@ fin_juego:
     int 21h
 
 ; =====================================================
-; RENDERIZAR TODO (RÁPIDO!)
+; RENDERIZAR TODO
 ; =====================================================
 renderizar_todo PROC
     push ax
     push es
     
-    ; ES = segmento de video
     mov ax, VIDEO_SEG
     mov es, ax
     
-    ; Limpiar viewport rápido
     call limpiar_viewport
-    
-    ; Dibujar mapa
     call dibujar_mapa_rapido
-    
-    ; Dibujar jugador
     call dibujar_jugador_rapido
     
     pop es
@@ -261,49 +293,45 @@ renderizar_todo PROC
 renderizar_todo ENDP
 
 ; =====================================================
-; LIMPIAR VIEWPORT (Negro)
+; LIMPIAR VIEWPORT
 ; =====================================================
 limpiar_viewport PROC
     push ax
-    push cx
-    push di
-    push es
-    
-    mov ax, VIDEO_SEG
-    mov es, ax
-    
-    mov cx, VIEWPORT_H
-    mov di, 0
-    
-lv_fila:
+    push bx
     push cx
     push di
     
-    ; Calcular offset
-    mov ax, viewport_y
-    add ax, di
-    mov bx, 80          ; 640/8 bytes por línea
-    mul bx
+    mov bx, viewport_y
+    mov cx, VIEWPORT_H * 16
+    
+lv_loop:
+    push cx
+    
+    ; Calcular offset en VRAM con página actual
+    mov ax, bx
+    mov di, 80
+    mul di
+    add ax, offset_pagina
     mov di, ax
     
-    ; Añadir X
     mov ax, viewport_x
-    shr ax, 3           ; /8
+    shr ax, 3
     add di, ax
     
-    ; Escribir 40 bytes (320 píxeles / 8)
+    ; Limpiar 40 bytes (320 píxeles)
+    push di
     mov cx, 40
     xor al, al
     rep stosb
+    pop di
+    
+    inc bx
+    pop cx
+    loop lv_loop
     
     pop di
     pop cx
-    inc di
-    loop lv_fila
-    
-    pop es
-    pop di
-    pop cx
+    pop bx
     pop ax
     ret
 limpiar_viewport ENDP
@@ -320,21 +348,19 @@ dibujar_mapa_rapido PROC
     push di
     push bp
     
-    xor bp, bp          ; BP = fila viewport
+    xor bp, bp
     
 dmr_fila:
     cmp bp, VIEWPORT_H
-    jb dmr_fila_loop
-    jmp dmr_fin
-
-dmr_fila_loop:
-    xor si, si          ; SI = columna viewport
+    jae dmr_fin
+    
+    xor si, si
     
 dmr_col:
     cmp si, VIEWPORT_W
     jae dmr_next_fila
     
-    ; Calcular posición en mapa
+    ; Posición en mapa
     mov ax, camara_y
     add ax, bp
     cmp ax, 50
@@ -345,7 +371,7 @@ dmr_col:
     cmp bx, 50
     jae dmr_next_col
     
-    ; Índice en mapa
+    ; Índice
     push dx
     mov dx, 50
     mul dx
@@ -382,19 +408,18 @@ dmr_check_tree:
     mov di, OFFSET sprite_tree
 
 dmr_draw:
-    ; Calcular posición en pantalla
     push si
     push bp
     
     mov ax, si
-    shl ax, 4           ; *16
+    shl ax, 4
     add ax, viewport_x
-    mov cx, ax          ; CX = X
+    mov cx, ax
     
     mov ax, bp
-    shl ax, 4           ; *16
+    shl ax, 4
     add ax, viewport_y
-    mov dx, ax          ; DX = Y
+    mov dx, ax
     
     call dibujar_sprite_16x16_vram
     
@@ -429,7 +454,6 @@ dibujar_jugador_rapido PROC
     push cx
     push dx
     
-    ; Posición relativa
     mov ax, jugador_x
     sub ax, camara_x
     cmp ax, VIEWPORT_W
@@ -440,10 +464,9 @@ dibujar_jugador_rapido PROC
     cmp bx, VIEWPORT_H
     jae djr_fin
     
-    ; Calcular pantalla
     shl ax, 4
     add ax, viewport_x
-    add ax, 4           ; Centrar 8x8 en tile 16x16
+    add ax, 4
     mov cx, ax
     
     mov ax, bx
@@ -464,8 +487,8 @@ djr_fin:
 dibujar_jugador_rapido ENDP
 
 ; =====================================================
-; DIBUJAR SPRITE 16x16 EN VRAM
-; CX=X, DX=Y, DI=sprite, ES=A000h
+; DIBUJAR SPRITE 16x16 EN VRAM (CON OFFSET DE PÁGINA)
+; CX=X, DX=Y, DI=sprite
 ; =====================================================
 dibujar_sprite_16x16_vram PROC
     push ax
@@ -477,19 +500,18 @@ dibujar_sprite_16x16_vram PROC
     push bp
     
     mov si, di
-    mov bp, 16          ; Filas
+    mov bp, 16
     
 ds16v_fila:
     push cx
     push bp
-    mov bp, 16          ; Columnas
+    mov bp, 16
     
 ds16v_pixel:
     lodsb
     cmp al, 0
     je ds16v_skip
     
-    ; Escribir píxel en VRAM (modo planar)
     call escribir_pixel_ega
     
 ds16v_skip:
@@ -515,7 +537,6 @@ dibujar_sprite_16x16_vram ENDP
 
 ; =====================================================
 ; DIBUJAR SPRITE 8x8 EN VRAM
-; CX=X, DX=Y, SI=sprite, ES=A000h
 ; =====================================================
 dibujar_sprite_8x8_vram PROC
     push ax
@@ -560,8 +581,8 @@ ds8v_skip:
 dibujar_sprite_8x8_vram ENDP
 
 ; =====================================================
-; ESCRIBIR PÍXEL EGA (Modo Planar 16 colores)
-; CX=X, DX=Y, AL=color, ES=A000h
+; ESCRIBIR PÍXEL EGA (Modo Planar con offset de página)
+; CX=X, DX=Y, AL=color
 ; =====================================================
 escribir_pixel_ega PROC
     push ax
@@ -570,10 +591,12 @@ escribir_pixel_ega PROC
     push dx
     push di
     
-    ; Calcular offset = (Y * 80) + (X / 8)
+    ; Calcular offset en VRAM con página
+    push ax
     mov ax, dx
     mov bx, 80
     mul bx
+    add ax, offset_pagina    ; Añadir offset de página
     mov di, ax
     
     mov ax, cx
@@ -581,41 +604,37 @@ escribir_pixel_ega PROC
     shr ax, 3
     add di, ax
     
-    ; Bit dentro del byte
     and bx, 7
     mov cl, bl
     mov bl, 80h
-    shr bl, cl          ; Máscara de bit
+    shr bl, cl
+    pop ax
     
-    ; AL = color a escribir
-    pop dx
-    push dx
-    mov al, dl
+    ; Configurar EGA
+    push ax
+    mov dx, 3CEh
     
-    ; Configurar registros EGA
-    mov dx, 3CEh        ; Graphics Controller
-    
-    ; Set/Reset Register (índice 0)
+    pop ax
+    push ax
     mov ah, al
     mov al, 0
     out dx, ax
     
-    ; Enable Set/Reset (índice 1) - todos los planos
     mov ax, 0F01h
     out dx, ax
     
-    ; Bit Mask (índice 8)
+    pop ax
+    push ax
     mov ah, bl
     mov al, 8
     out dx, ax
     
-    ; Escribir (lee-modifica-escribe automático)
     mov al, es:[di]
     mov es:[di], al
     
-    ; Restaurar Bit Mask
     mov ax, 0FF08h
     out dx, ax
+    pop ax
     
     pop di
     pop dx
@@ -748,11 +767,11 @@ actualizar_camara PROC
     push bx
     
     mov ax, jugador_x
-    sub ax, 10          ; VIEWPORT_W / 2
+    sub ax, 10
     jge ac_x_ok
     xor ax, ax
 ac_x_ok:
-    mov bx, 30          ; 50 - 20
+    mov bx, 30
     cmp ax, bx
     jle ac_x_fin
     mov ax, bx
@@ -760,11 +779,11 @@ ac_x_fin:
     mov camara_x, ax
     
     mov ax, jugador_y
-    sub ax, 6           ; VIEWPORT_H / 2
+    sub ax, 6
     jge ac_y_ok
     xor ax, ax
 ac_y_ok:
-    mov bx, 38          ; 50 - 12
+    mov bx, 38
     cmp ax, bx
     jle ac_y_fin
     mov ax, bx
