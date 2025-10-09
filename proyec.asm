@@ -41,6 +41,10 @@ camara_y    dw 0
 pagina_visible db 0     ; Página que se muestra
 pagina_dibujo  db 1     ; Página donde se dibuja
 
+; === VARIABLES TEMPORALES ===
+temp_x         dw 0
+temp_y         dw 0
+
 ; === BUFFER ARCHIVO ===
 buffer_archivo db 20000 dup(0)
 handle_arch dw 0
@@ -716,40 +720,68 @@ dv_fin:
     ret
 dibujar_viewport ENDP
 
- Map Mask
-    mov cl, 1           ; Máscara de plano
-    
-dtr_planos:
-    out dx, ax
-    test ah, cl
-    jz dtr_skip_plano
-    
-    mov byte ptr es:[di], 0FFh
+; ========================================
+; DIBUJAR TILE (16x16) RELLENO
+; AL = color, CX = X (píxeles), DX = Y (píxeles)
+; ========================================
+dibujar_tile PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov dl, al              ; Guardar color
+    mov temp_x, cx
+    mov temp_y, dx
+
+    xor si, si              ; Offset Y dentro del tile
+
+dt_y_loop:
+    cmp si, TILE_SIZE
+    jae dt_fin
+
+    xor di, di              ; Offset X dentro del tile
+
+dt_x_loop:
+    cmp di, TILE_SIZE
+    jae dt_siguiente_fila
+
+    mov ax, temp_x
+    add ax, di
+    cmp ax, SCREEN_W
+    jae dt_siguiente_pixel
+    mov cx, ax
+
+    mov ax, temp_y
+    add ax, si
+    cmp ax, SCREEN_H
+    jae dt_siguiente_pixel
+    mov dx, ax
+
+    mov ah, 0Ch
+    mov al, dl
+    mov bh, pagina_dibujo
+    int 10h
+
+dt_siguiente_pixel:
     inc di
-    mov byte ptr es:[di], 0FFh
-    dec di
-    
-dtr_skip_plano:
-    shl cl, 1
-    cmp cl, 10h
-    jb dtr_planos
-    
-    pop dx
-    pop cx
-    pop ax
-    
+    jmp dt_x_loop
+
+dt_siguiente_fila:
     inc si
-    jmp dtr_y_loop
-    
-dtr_fin:
-    pop si
+    jmp dt_y_loop
+
+dt_fin:
     pop di
+    pop si
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-dibujar_tile_rapido ENDP
+dibujar_tile ENDP
 
 ; ========================================
 ; DIBUJAR JUGADOR
