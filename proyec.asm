@@ -139,6 +139,9 @@ renderizar PROC
     mov ax, VIDEO_SEG
     mov es, ax
     
+    ; ✅ Limpiar área del viewport antes de dibujar
+    call limpiar_viewport
+    
     call dibujar_mapa_rapido
     call dibujar_jugador_rapido
     
@@ -146,6 +149,53 @@ renderizar PROC
     pop ax
     ret
 renderizar ENDP
+
+; =====================================================
+; LIMPIAR VIEWPORT
+; =====================================================
+limpiar_viewport PROC
+    push ax
+    push cx
+    push dx
+    push di
+    
+    ; Habilitar todos los planos
+    mov dx, SC_INDEX
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    
+    ; Limpiar área 320x192 centrada
+    mov dx, 111         ; Y inicial
+    mov cx, 192         ; Líneas a limpiar
+    
+lv_linea:
+    push cx
+    
+    ; Offset: Y * 80 + X_inicial/8
+    mov ax, dx
+    mov cx, 80
+    mul cx
+    add ax, 30          ; X inicial 240/8 = 30
+    mov di, ax
+    
+    ; Limpiar 160 píxeles = 20 bytes
+    mov cx, 20
+    xor ax, ax
+    rep stosb
+    
+    pop cx
+    inc dx
+    loop lv_linea
+    
+    pop di
+    pop dx
+    pop cx
+    pop ax
+    ret
+limpiar_viewport ENDP
 
 ; =====================================================
 ; DIBUJAR MAPA RÁPIDO
@@ -163,35 +213,23 @@ dibujar_mapa_rapido PROC
     
 dmr_fila:
     cmp bp, VIEWPORT_H
-    jb  dmr_fila_cont
-    jmp dmr_fin
-
-dmr_fila_cont:
+    jae dmr_fin
     
     xor si, si
     
 dmr_col:
     cmp si, VIEWPORT_W
-    jb  dmr_col_cont
-    jmp dmr_nf
-
-dmr_col_cont:
+    jae dmr_nf
     
     mov ax, camara_y
     add ax, bp
     cmp ax, 50
-    jb  dmr_y_ok
-    jmp dmr_nc
-
-dmr_y_ok:
+    jae dmr_nc
     
     mov bx, camara_x
     add bx, si
     cmp bx, 50
-    jb  dmr_x_ok
-    jmp dmr_nc
-
-dmr_x_ok:
+    jae dmr_nc
     
     push dx
     mov dx, 50
@@ -200,10 +238,7 @@ dmr_x_ok:
     pop dx
     
     cmp ax, 2500
-    jb  dmr_idx_ok
-    jmp dmr_nc
-
-dmr_idx_ok:
+    jae dmr_nc
     
     push si
     push di
@@ -281,7 +316,7 @@ dmr_fin:
 dibujar_mapa_rapido ENDP
 
 ; =====================================================
-; DIBUJAR TILE RÁPIDO (16x16)
+; DIBUJAR TILE RÁPIDO (16x16) - VERSIÓN SIMPLE Y CORRECTA
 ; CX=X, DX=Y, DI=sprite
 ; =====================================================
 draw_tile_fast PROC
@@ -291,87 +326,80 @@ draw_tile_fast PROC
     push dx
     push si
     push bp
+    push di
     
     mov si, di
-    mov bp, 16
+    xor bp, bp          ; Contador de fila
     
 dtf_row:
-    mov ax, dx
-    mov bx, 80
-    mul bx
-    mov bx, cx
-    shr bx, 3
-    add ax, bx
-    mov di, ax
+    cmp bp, 16
+    jae dtf_fin
     
-    mov bx, cx
-    and bx, 7
-    mov cl, bl
-    
-    push bp
-    mov bp, 16
+    push cx             ; Guardar X inicial
+    mov bx, 16          ; Contador de columna
     
 dtf_col:
-    lodsb
+    lodsb               ; AL = color del sprite
     cmp al, 0
     je dtf_skip
     
+    ; Calcular offset en memoria de video
+    push ax
+    mov ax, dx
     push bx
-    push cx
-    push dx
+    mov bx, 80
+    mul bx
+    pop bx
+    mov di, ax
     
-    ; Configurar planos según color
+    mov ax, cx
+    push bx
+    mov bx, ax
+    shr bx, 3
+    add di, bx
+    pop bx
+    
+    ; Calcular máscara de bit
+    and ax, 7
+    push cx
+    mov cl, al
+    mov al, 80h
+    shr al, cl
+    pop cx
     mov ah, al
+    
+    ; Recuperar color
+    pop ax
+    
+    ; ✅ CLAVE: Map Mask = color directamente
+    push dx
+    push ax
     mov dx, SC_INDEX
     mov al, 2
     out dx, al
     inc dx
+    pop ax
+    push ax
+    out dx, al          ; Escribir color como Map Mask
+    pop ax
+    pop dx
     
-    mov al, 1
-    test ah, 1
-    jz dtf_p0
-    out dx, al
-dtf_p0:
-    mov al, 2
-    test ah, 2
-    jz dtf_p1
-    out dx, al
-dtf_p1:
-    mov al, 4
-    test ah, 4
-    jz dtf_p2
-    out dx, al
-dtf_p2:
-    mov al, 8
-    test ah, 8
-    jz dtf_p3
-    out dx, al
-dtf_p3:
-    
-    ; Escribir píxel
-    mov al, 80h
-    shr al, cl
+    ; Escribir bit
+    mov al, ah
     or es:[di], al
     
-    pop dx
-    pop cx
-    pop bx
-    
 dtf_skip:
-    inc cl
-    and cl, 7
-    jnz dtf_same_byte
-    inc di
-dtf_same_byte:
-    
-    dec bp
+    inc cx              ; Siguiente X
+    dec bx
     jnz dtf_col
     
-    pop bp
-    inc dx
-    dec bp
-    jnz dtf_row
+    pop cx              ; Restaurar X inicial
+    inc dx              ; Siguiente Y
+    inc bp
+    jmp dtf_row
     
+dtf_fin:
+    pop di
     pop bp
     pop si
     pop dx
@@ -435,13 +463,10 @@ djr_x:
     out dx, al
     pop dx
     
-    push cx
     mov bx, cx
     and bx, 7
     mov al, 80h
-    mov cl, bl
-    shr al, cl
-    pop cx
+    shr al, bl
     or es:[di], al
     
     inc cx
