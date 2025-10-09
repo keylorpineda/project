@@ -207,7 +207,10 @@ cargar_mapa_seguro PROC
     mov dx, OFFSET archivo_mapa
     mov ax, 3D00h
     int 21h
-    jc cms_no_encontrado
+    jnc cms_abrir_ok
+    jmp cms_no_encontrado
+
+cms_abrir_ok:
     
     mov handle_arch, ax
     mov dx, OFFSET msg_archivo_ok
