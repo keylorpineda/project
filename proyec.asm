@@ -102,7 +102,9 @@ inicio:
     mov ah, 9
     int 21h
     call cargar_mapa
-    jc error_carga
+    jnc cargar_mapa_ok
+    jmp error_carga
+cargar_mapa_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -114,7 +116,9 @@ inicio:
     mov dx, OFFSET archivo_grass
     mov di, OFFSET sprite_grass
     call cargar_sprite_16x16
-    jc error_carga
+    jnc cargar_grass_ok
+    jmp error_carga
+cargar_grass_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -126,7 +130,9 @@ inicio:
     mov dx, OFFSET archivo_wall
     mov di, OFFSET sprite_wall
     call cargar_sprite_16x16
-    jc error_carga
+    jnc cargar_wall_ok
+    jmp error_carga
+cargar_wall_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -138,7 +144,9 @@ inicio:
     mov dx, OFFSET archivo_path
     mov di, OFFSET sprite_path
     call cargar_sprite_16x16
-    jc error_carga
+    jnc cargar_path_ok
+    jmp error_carga
+cargar_path_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -150,7 +158,9 @@ inicio:
     mov dx, OFFSET archivo_water
     mov di, OFFSET sprite_water
     call cargar_sprite_16x16
-    jc error_carga
+    jnc cargar_water_ok
+    jmp error_carga
+cargar_water_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -162,7 +172,9 @@ inicio:
     mov dx, OFFSET archivo_tree
     mov di, OFFSET sprite_tree
     call cargar_sprite_16x16
-    jc error_carga
+    jnc cargar_tree_ok
+    jmp error_carga
+cargar_tree_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -174,7 +186,9 @@ inicio:
     mov dx, OFFSET archivo_player
     mov di, OFFSET sprite_player
     call cargar_sprite_8x8
-    jc error_carga
+    jnc cargar_player_ok
+    jmp error_carga
+cargar_player_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -372,29 +386,35 @@ dibujar_mapa PROC
     
 dm_fila:
     cmp bp, VIEWPORT_H
-    jae dm_fin_temp
-    jmp dm_fila_ok
-    
-dm_fin_temp:
+    jb dm_fila_ok
     jmp dm_fin
-    
+
 dm_fila_ok:
     xor si, si              ; Columna viewport (0-9)
     
 dm_columna:
     cmp si, VIEWPORT_W
-    jae dm_next_fila
+    jb dm_columna_ok
+    jmp dm_next_fila
+
+dm_columna_ok:
     
     ; Calcular posición en mapa
     mov ax, camara_y
     add ax, bp
     cmp ax, 50
-    jae dm_next_col
+    jb dm_y_ok
+    jmp dm_next_col
+
+dm_y_ok:
     
     mov bx, camara_x
     add bx, si
     cmp bx, 50
-    jae dm_next_col
+    jb dm_coords_ok
+    jmp dm_next_col
+
+dm_coords_ok:
     
     ; Índice en mapa: Y * 50 + X
     push dx
@@ -404,7 +424,10 @@ dm_columna:
     pop dx
     
     cmp ax, 2500
-    jae dm_next_col
+    jb dm_get_tile
+    jmp dm_next_col
+
+dm_get_tile:
     
     ; Obtener tile del mapa
     push si
@@ -871,6 +894,7 @@ cargar_mapa PROC
     push dx
     push si
     push di
+    push bp
     
     ; Abrir archivo
     mov ax, 3D00h
@@ -888,7 +912,7 @@ cargar_mapa PROC
     
     ; Leer datos del mapa
     mov di, OFFSET mapa_datos
-    xor si, si
+    xor bp, bp
     
 cm_leer:
     mov ah, 3Fh
@@ -900,14 +924,14 @@ cm_leer:
     je cm_cerrar
     
     mov cx, ax
-    xor dx, dx
-    
+    xor si, si
+
 cm_procesar:
-    cmp dx, cx
+    cmp si, cx
     jae cm_leer
-    
-    mov al, buffer_temp[dx]
-    inc dx
+
+    mov al, [buffer_temp + si]
+    inc si
     
     ; Filtrar espacios
     cmp al, ' '
@@ -926,9 +950,9 @@ cm_procesar:
     sub al, '0'
     mov [di], al
     inc di
-    inc si
-    
-    cmp si, 2500
+    inc bp
+
+    cmp bp, 2500
     jb cm_procesar
     
 cm_cerrar:
@@ -941,6 +965,7 @@ cm_error:
     stc
     
 cm_fin:
+    pop bp
     pop di
     pop si
     pop dx
@@ -959,6 +984,7 @@ cargar_sprite_16x16 PROC
     push bx
     push cx
     push si
+    push bp
     
     ; Abrir archivo
     mov ax, 3D00h
@@ -975,7 +1001,7 @@ cargar_sprite_16x16 PROC
     int 21h
     pop dx
     
-    xor si, si
+    xor bp, bp
     
 cs16_leer:
     mov ah, 3Fh
@@ -989,14 +1015,14 @@ cs16_leer:
     je cs16_cerrar
     
     mov cx, ax
-    xor dx, dx
-    
+    xor si, si
+
 cs16_proc:
-    cmp dx, cx
+    cmp si, cx
     jae cs16_leer
-    
-    mov al, buffer_temp[dx]
-    inc dx
+
+    mov al, [buffer_temp + si]
+    inc si
     
     cmp al, ' '
     je cs16_proc
@@ -1013,9 +1039,9 @@ cs16_proc:
     sub al, '0'
     mov [di], al
     inc di
-    inc si
-    
-    cmp si, 256
+    inc bp
+
+    cmp bp, 256
     jb cs16_proc
     
 cs16_cerrar:
@@ -1028,6 +1054,7 @@ cs16_error:
     stc
     
 cs16_fin:
+    pop bp
     pop si
     pop cx
     pop bx
@@ -1044,6 +1071,7 @@ cargar_sprite_8x8 PROC
     push bx
     push cx
     push si
+    push bp
     
     mov ax, 3D00h
     int 21h
@@ -1059,7 +1087,7 @@ cargar_sprite_8x8 PROC
     int 21h
     pop dx
     
-    xor si, si
+    xor bp, bp
     
 cs8_leer:
     mov ah, 3Fh
@@ -1073,14 +1101,14 @@ cs8_leer:
     je cs8_cerrar
     
     mov cx, ax
-    xor dx, dx
-    
+    xor si, si
+
 cs8_proc:
-    cmp dx, cx
+    cmp si, cx
     jae cs8_leer
-    
-    mov al, buffer_temp[dx]
-    inc dx
+
+    mov al, [buffer_temp + si]
+    inc si
     
     cmp al, ' '
     je cs8_proc
@@ -1097,9 +1125,9 @@ cs8_proc:
     sub al, '0'
     mov [di], al
     inc di
-    inc si
-    
-    cmp si, 64
+    inc bp
+
+    cmp bp, 64
     jb cs8_proc
     
 cs8_cerrar:
@@ -1112,6 +1140,7 @@ cs8_error:
     stc
     
 cs8_fin:
+    pop bp
     pop si
     pop cx
     pop bx
