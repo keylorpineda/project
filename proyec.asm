@@ -710,13 +710,19 @@ dibujar_mapa_sprites PROC
 
 dms_y:
     cmp di, VIEWPORT_H      ; 8
-    jae dms_fin
+    jb dms_y_continue
+    jmp dms_fin
+
+dms_y_continue:
     
     xor si, si              ; X viewport (0-11)
     
 dms_x:
     cmp si, VIEWPORT_W      ; 12
-    jae dms_ny
+    jb dms_x_continue
+    jmp dms_ny
+
+dms_x_continue:
     
     ; ✅ VERIFICAR LÍMITES DEL MAPA
     mov ax, camara_y
@@ -959,17 +965,18 @@ dibujar_rect_8x8 PROC
     push cx
     push dx
     push di
-    
+    push si
+
     mov bl, al              ; Color
-    xor bh, bh              ; Contador Y
+    xor si, si              ; Contador Y
     
 dr8_y:
-    cmp bh, 8
+    cmp si, 8
     jae dr8_fin
-    
+
     ; Calcular dirección de video
     mov ax, dx
-    add ax, bh              ; Y actual
+    add ax, si              ; Y actual
     mov di, SCREEN_W
     mul di
     add ax, cx              ; + X
@@ -1007,10 +1014,11 @@ dr8_skip:
     pop bx
     pop cx
     
-    inc bh
+    inc si
     jmp dr8_y
-    
+
 dr8_fin:
+    pop si
     pop di
     pop dx
     pop cx
