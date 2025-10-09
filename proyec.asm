@@ -8,6 +8,10 @@
 .MODEL SMALL
 .STACK 4096
 
+.FARDATA?
+back_buffer  db 64000 dup(0)
+back_buffer_end LABEL BYTE
+
 ; === CONSTANTES ===
 TILE_GRASS  EQU 0
 TILE_WALL   EQU 1
@@ -28,6 +32,11 @@ GC_INDEX    EQU 3CEh
 GC_DATA     EQU 3CFh
 
 .DATA
+; === BUFFER CONFIG ===
+buffer_seg   dw SEG back_buffer
+buffer_off   dw OFFSET back_buffer
+buffer_end   dw OFFSET back_buffer_end
+
 ; === ARCHIVOS ===
 archivo_mapa db 'MAPA.TXT',0
 
@@ -50,10 +59,6 @@ camara_y    dw 0
 buffer_archivo db 20000 dup(0)
 handle_arch dw 0
 
-; === DOBLE BUFFER ===
-back_buffer db 64000 dup(0)
-buffer_end  dw 0        ; Marca el fin del buffer
-
 ; === MENSAJES ===
 msg_titulo  db 'JUEGO DE EXPLORACION - EGA',13,10
            db '==========================',13,10,'$'
@@ -73,11 +78,6 @@ inicio:
     mov ax, @data
     mov ds, ax
     mov es, ax
-
-    ; Calcular fin del buffer
-    mov ax, OFFSET back_buffer
-    add ax, 64000
-    mov buffer_end, ax
 
     ; Mostrar título
     mov dx, OFFSET msg_titulo
@@ -511,7 +511,7 @@ colision PROC
     jae col_bloquear
     
     mov bx, ax
-    mov al, mapa_datos[bx]
+    mov al, [bx+mapa_datos]
     cmp al, TILE_GRASS
     je col_ok
     cmp al, TILE_PATH
@@ -564,11 +564,11 @@ actualizar_camara ENDP
 renderizar PROC
     push ax
     push es
-    
+
     ; Limpiar buffer
-    push ds
-    pop es
-    mov di, OFFSET back_buffer
+    mov ax, buffer_seg
+    mov es, ax
+    mov di, buffer_off
     mov cx, 32000
     xor ax, ax
     rep stosw
@@ -596,10 +596,10 @@ dibujar_mapa PROC
     push si
     push di
     push es
-    
-    push ds
-    pop es
-    
+
+    mov ax, buffer_seg
+    mov es, ax
+
     xor di, di
 dm_y_loop:
     cmp di, VIEWPORT_H
@@ -633,7 +633,7 @@ dm_x_loop:
     
     push bx
     mov bx, ax
-    mov al, mapa_datos[bx]
+    mov al, [bx+mapa_datos]
     pop bx
     
     mov cl, 2
@@ -694,7 +694,12 @@ dibujar_tile_buffer PROC
     push di
     push si
     push bp
-    
+    push es
+
+    mov ax, buffer_seg
+    mov es, ax
+    mov bp, buffer_end
+
     mov si, 0
 dtb_y:
     cmp si, 16
@@ -712,17 +717,16 @@ dtb_y:
     add di, ax
     pop ax
     add di, cx
-    add di, OFFSET back_buffer
-    
+    add di, buffer_off
+
     push cx
     mov cx, 16
     mov al, dl
-    mov bp, buffer_end
 dtb_x:
     ; CORREGIDO: comparar con variable
     cmp di, bp
     jae dtb_skip
-    mov [di], al
+    mov es:[di], al
 dtb_skip:
     inc di
     loop dtb_x
@@ -732,6 +736,7 @@ dtb_next_y:
     inc si
     jmp dtb_y
 dtb_done:
+    pop es
     pop bp
     pop si
     pop di
@@ -770,9 +775,9 @@ dibujar_player PROC
     shl ax, 4
     add ax, 4
     mov dx, ax
-    
-    push ds
-    pop es
+
+    mov ax, buffer_seg
+    mov es, ax
     mov al, 14
     call sprite_buffer
     
@@ -797,7 +802,10 @@ sprite_buffer PROC
     push di
     push si
     push bp
-    
+    push es
+
+    mov ax, buffer_seg
+    mov es, ax
     mov bl, al
     mov si, 0
     mov bp, buffer_end
@@ -816,8 +824,8 @@ spb_y:
     add di, ax
     pop ax
     add di, cx
-    add di, OFFSET back_buffer
-    
+    add di, buffer_off
+
     push cx
     mov cx, 8
     mov al, bl
@@ -825,7 +833,7 @@ spb_x:
     ; CORREGIDO: comparar con variable
     cmp di, bp
     jae spb_skip
-    mov [di], al
+    mov es:[di], al
 spb_skip:
     inc di
     loop spb_x
@@ -835,6 +843,7 @@ spb_next_y:
     inc si
     jmp spb_y
 spb_done:
+    pop es
     pop bp
     pop si
     pop di
@@ -857,9 +866,11 @@ flip_buffer PROC
     push di
     push ds
     push es
-    
-    mov ax, @data
+
+    mov bx, buffer_off
+    mov ax, buffer_seg
     mov ds, ax
+    mov si, bx
     mov ax, 0A000h
     mov es, ax
     
@@ -870,7 +881,6 @@ flip_buffer PROC
     mov al, 0Fh
     out dx, al
     
-    mov si, OFFSET back_buffer
     xor di, di
     mov cx, 32000
     rep movsw
