@@ -50,8 +50,8 @@ camara_y    dw 0
 buffer_archivo db 20000 dup(0)
 handle_arch dw 0
 
-; === DOBLE BUFFER (inicializado a 0) ===
-back_buffer db 64000 dup(0)
+; === DOBLE BUFFER (puntero asignado dinámicamente) ===
+back_buffer_seg dw 0
 
 ; === MENSAJES ===
 msg_titulo  db 'JUEGO DE EXPLORACION - EGA',13,10
@@ -66,6 +66,7 @@ msg_listo  db 13,10,'Sistema listo con DOBLE BUFFER',13,10
            db 'Presiona tecla...$'
 msg_archivo_ok db 'MAPA.TXT encontrado!',13,10,'$'
 msg_no_archivo db 'No se pudo abrir MAPA.TXT',13,10,'$'
+msg_mem_fail  db 'No hay memoria para el doble buffer.',13,10,'$'
 
 .CODE
 inicio:
@@ -83,7 +84,11 @@ inicio:
     mov ah, 9
     int 21h
     call cargar_mapa
-    
+
+    ; Inicializar buffer de doble búfer
+    call init_back_buffer
+    jc sin_memoria
+
     ; Mensaje de listo
     mov dx, OFFSET msg_listo
     mov ah, 9
@@ -120,9 +125,15 @@ bucle_juego:
     
     jmp bucle_juego
 
+sin_memoria:
+    mov dx, OFFSET msg_mem_fail
+    mov ah, 9
+    int 21h
+
 terminar:
     mov ax, 3
     int 10h
+    call liberar_back_buffer
     mov ax, 4C00h
     int 21h
 
@@ -151,6 +162,52 @@ init_ega PROC
     pop ax
     ret
 init_ega ENDP
+
+; =====================================================
+; INICIALIZAR DOBLE BUFFER DINÁMICO
+; =====================================================
+init_back_buffer PROC
+    push ax
+    push bx
+
+    mov ah, 48h
+    mov bx, 4000           ; 64000 bytes / 16
+    int 21h
+    jc ib_error
+
+    mov back_buffer_seg, ax
+    clc
+    jmp ib_done
+
+ib_error:
+    stc
+
+ib_done:
+    pop bx
+    pop ax
+    ret
+init_back_buffer ENDP
+
+liberar_back_buffer PROC
+    push ax
+    push bx
+    push es
+
+    mov ax, back_buffer_seg
+    cmp ax, 0
+    je lb_done
+
+    mov es, ax
+    mov ah, 49h
+    int 21h
+    mov back_buffer_seg, 0
+
+lb_done:
+    pop es
+    pop bx
+    pop ax
+    ret
+liberar_back_buffer ENDP
 
 ; =====================================================
 ; CARGAR MAPA
@@ -556,13 +613,15 @@ renderizar PROC
     push cx
     push di
     push es
-    
-    ; ES = DS para trabajar con el buffer
-    mov ax, ds
+
+    ; ES = buffer de respaldo
+    mov ax, back_buffer_seg
+    or ax, ax
+    jz rend_fin
     mov es, ax
-    
+
     ; Limpiar buffer completamente
-    mov di, OFFSET back_buffer
+    xor di, di
     mov cx, 32000
     xor ax, ax
     cld
@@ -574,7 +633,8 @@ renderizar PROC
     
     ; Copiar a VRAM
     call flip_buffer
-    
+
+rend_fin:
     pop es
     pop di
     pop cx
@@ -726,7 +786,7 @@ dtb_x:
     jae dtb_skip_pixel
     
     ; Escribir en buffer
-    mov back_buffer[di], al
+    mov es:[di], al
     
 dtb_skip_pixel:
     inc di
@@ -833,7 +893,7 @@ spb_x:
     cmp di, 64000
     jae spb_skip
     
-    mov back_buffer[di], al
+    mov es:[di], al
     
 spb_skip:
     inc di
@@ -876,19 +936,22 @@ flip_buffer PROC
     mov al, 0Fh
     out dx, al
     
-    ; DS = datos, ES = VRAM
-    mov ax, @data
+    ; DS = buffer, ES = VRAM
+    mov ax, back_buffer_seg
+    or ax, ax
+    jz fb_done
     mov ds, ax
     mov ax, 0A000h
     mov es, ax
-    
+
     ; Copiar buffer
-    mov si, OFFSET back_buffer
+    xor si, si
     xor di, di
     mov cx, 32000
     cld
     rep movsw
-    
+
+fb_done:
     pop es
     pop ds
     pop di
