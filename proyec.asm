@@ -735,26 +735,38 @@ dibujar_mapa PROC
     
 dm_y:
     cmp di, VIEWPORT_H
-    jae dm_done
+    jb dm_y_continue
+    jmp dm_done
+
+dm_y_continue:
     
     xor si, si      ; X viewport
     
 dm_x:
     cmp si, VIEWPORT_W
-    jae dm_next_y
+    jb dm_x_continue
+    jmp dm_next_y
+
+dm_x_continue:
     
     ; Calcular Y en mapa
     mov ax, camara_y
     add ax, di
     cmp ax, mapa_alto
-    jae dm_next_x
+    jb dm_mapa_y_ok
+    jmp dm_next_x
+
+dm_mapa_y_ok:
     mov bp, ax          ; BP = Y en mapa
     
     ; Calcular X en mapa
     mov bx, camara_x
     add bx, si
     cmp bx, mapa_ancho
-    jae dm_next_x
+    jb dm_mapa_x_ok
+    jmp dm_next_x
+
+dm_mapa_x_ok:
     ; BX = X en mapa
     
     ; Calcular índice: Y * 100 + X
@@ -784,7 +796,10 @@ dm_x:
     
     ; Verificar límite
     cmp ax, 10000
-    jae dm_next_x
+    jb dm_in_bounds
+    jmp dm_next_x
+
+dm_in_bounds:
     
     ; Obtener tile
     push bx
