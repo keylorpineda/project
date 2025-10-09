@@ -216,7 +216,10 @@ bucle_juego:
     int 16h
     
     cmp al, 27
-    je fin_juego
+    jne continuar_juego
+    jmp fin_juego
+
+continuar_juego:
     
     ; Guardar posición anterior
     mov ax, jugador_x
