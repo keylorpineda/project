@@ -1,203 +1,308 @@
 ; =====================================================
-; JUEGO EGA - VERSIÓN FUNCIONAL Y RÁPIDA
-; Escribe DIRECTO a memoria de video
+; JUEGO EGA RÁPIDO - Acceso Directo a Memoria de Video
+; Universidad Nacional - Proyecto II Ciclo 2025
+; Modo 10h (640x350, 16 colores) OPTIMIZADO
 ; =====================================================
 
 .MODEL SMALL
 .STACK 2048
 
-TILE_SIZE EQU 16
-VIEWPORT_W EQU 10
-VIEWPORT_H EQU 8
+; =====================================================
+; CONSTANTES
+; =====================================================
+TILE_GRASS  EQU 0
+TILE_WALL   EQU 1
+TILE_PATH   EQU 2
+TILE_WATER  EQU 3
+TILE_TREE   EQU 4
 
-VIDEO_SEG EQU 0A000h
-SC_INDEX EQU 3C4h
-GC_INDEX EQU 3CEh
+TILE_SIZE   EQU 16
+VIEWPORT_W  EQU 20      ; 20 tiles × 16px = 320px
+VIEWPORT_H  EQU 12      ; 12 tiles × 16px = 192px
+
+VIDEO_SEG   EQU 0A000h  ; Segmento de video EGA
 
 .DATA
-archivo_mapa db 'MAPA.TXT',0
-archivo_grass db 'GRASS.TXT',0
-archivo_wall db 'WALL.TXT',0
-archivo_path db 'PATH.TXT',0
-archivo_water db 'WATER.TXT',0
-archivo_tree db 'TREE.TXT',0
+; === ARCHIVOS ===
+archivo_mapa   db 'MAPA.TXT',0
+archivo_grass  db 'GRASS.TXT',0
+archivo_wall   db 'WALL.TXT',0
+archivo_path   db 'PATH.TXT',0
+archivo_water  db 'WATER.TXT',0
+archivo_tree   db 'TREE.TXT',0
 archivo_player db 'PLAYER.TXT',0
 
-mapa_datos db 2500 dup(0)
-sprite_grass db 256 dup(0)
-sprite_wall db 256 dup(0)
-sprite_path db 256 dup(0)
-sprite_water db 256 dup(0)
-sprite_tree db 256 dup(0)
+; === MAPA 50x50 ===
+mapa_datos  db 2500 dup(0)
+
+; === SPRITES ===
+sprite_grass  db 256 dup(0)
+sprite_wall   db 256 dup(0)
+sprite_path   db 256 dup(0)
+sprite_water  db 256 dup(0)
+sprite_tree   db 256 dup(0)
 sprite_player db 64 dup(0)
+
 buffer_temp db 300 dup(0)
 
-sprite_table dw OFFSET sprite_grass
-             dw OFFSET sprite_wall
-             dw OFFSET sprite_path
-             dw OFFSET sprite_water
-             dw OFFSET sprite_tree
+; === JUGADOR ===
+jugador_x   dw 25
+jugador_y   dw 25
 
-jugador_x dw 25
-jugador_y dw 25
-camara_x dw 0
-camara_y dw 0
+; === CÁMARA ===
+camara_x    dw 0
+camara_y    dw 0
 
-msg_titulo db 'JUEGO EGA - Modo Rapido',13,10,'$'
-msg_cargando db 'Cargando...',13,10,'$'
-msg_ok db 'OK',13,10,'$'
-msg_error db 'ERROR',13,10,'$'
-msg_controles db 'WASD/Flechas=Mover ESC=Salir',13,10,'Presiona tecla...$'
+; === OFFSET EN PANTALLA ===
+viewport_x  dw 160      ; Centrado (640-320)/2
+viewport_y  dw 79       ; Centrado (350-192)/2
+
+; === MENSAJES ===
+msg_titulo  db 'JUEGO EGA - Motor Rapido VRAM',13,10,'$'
+msg_cargando db 'Cargando archivos...',13,10,'$'
+msg_mapa    db 'Mapa: $'
+msg_grass   db 'Grass: $'
+msg_wall    db 'Wall: $'
+msg_path    db 'Path: $'
+msg_water   db 'Water: $'
+msg_tree    db 'Tree: $'
+msg_player  db 'Player: $'
+msg_ok      db 'OK',13,10,'$'
+msg_error   db 'ERROR - Archivo no encontrado',13,10,'$'
+msg_controles db 13,10,'WASD o Flechas = Mover, ESC = Salir',13,10
+              db 'Presiona tecla...$'
 
 .CODE
 inicio:
     mov ax, @data
     mov ds, ax
     
+    ; Título
     mov dx, OFFSET msg_titulo
     mov ah, 9
     int 21h
     
+    ; Cargar archivos
     mov dx, OFFSET msg_cargando
     mov ah, 9
     int 21h
     
+    ; MAPA
+    mov dx, OFFSET msg_mapa
+    mov ah, 9
+    int 21h
     call cargar_mapa
-    jc error
-    call cargar_sprites
-    jc error
+    jnc mapa_ok
+    jmp error_carga
+mapa_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
     
+    ; GRASS
+    mov dx, OFFSET msg_grass
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_grass
+    mov di, OFFSET sprite_grass
+    call cargar_sprite_16x16
+    jnc grass_ok
+    jmp error_carga
+grass_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+    
+    ; WALL
+    mov dx, OFFSET msg_wall
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_wall
+    mov di, OFFSET sprite_wall
+    call cargar_sprite_16x16
+    jnc wall_ok
+    jmp error_carga
+wall_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+    
+    ; PATH
+    mov dx, OFFSET msg_path
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_path
+    mov di, OFFSET sprite_path
+    call cargar_sprite_16x16
+    jnc path_ok
+    jmp error_carga
+path_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+    
+    ; WATER
+    mov dx, OFFSET msg_water
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_water
+    mov di, OFFSET sprite_water
+    call cargar_sprite_16x16
+    jnc water_ok
+    jmp error_carga
+water_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+    
+    ; TREE
+    mov dx, OFFSET msg_tree
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_tree
+    mov di, OFFSET sprite_tree
+    call cargar_sprite_16x16
+    jnc tree_ok
+    jmp error_carga
+tree_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+    
+    ; PLAYER
+    mov dx, OFFSET msg_player
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_player
+    mov di, OFFSET sprite_player
+    call cargar_sprite_8x8
+    jnc player_ok
+    jmp error_carga
+player_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+    
+    ; Esperar
     mov dx, OFFSET msg_controles
     mov ah, 9
     int 21h
     mov ah, 0
     int 16h
     
+    ; Activar modo EGA
     mov ax, 10h
     int 10h
     
-    call config_ega
+    ; Primera renderización
     call actualizar_camara
-    call renderizar
+    call renderizar_todo
 
-bucle:
+; =====================================================
+; BUCLE PRINCIPAL
+; =====================================================
+bucle_juego:
+    ; Verificar tecla
     mov ah, 1
     int 16h
-    jz bucle
+    jz bucle_juego
     
+    ; Leer tecla
     mov ah, 0
     int 16h
     
+    ; ESC
     cmp al, 27
-    je fin
+    je fin_juego
     
-    call mover
+    ; Mover
+    call mover_jugador
     call actualizar_camara
-    call renderizar
-    jmp bucle
+    call renderizar_todo
+    
+    jmp bucle_juego
 
-error:
+error_carga:
     mov dx, OFFSET msg_error
     mov ah, 9
     int 21h
     mov ah, 0
     int 16h
 
-fin:
+fin_juego:
     mov ax, 3
     int 10h
     mov ax, 4C00h
     int 21h
 
 ; =====================================================
-; CONFIGURAR EGA
+; RENDERIZAR TODO (RÁPIDO!)
 ; =====================================================
-config_ega PROC
-    push ax
-    push dx
-    
-    mov dx, SC_INDEX
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 0Fh
-    out dx, al
-    
-    mov dx, GC_INDEX
-    mov al, 5
-    out dx, al
-    inc dx
-    mov al, 0
-    out dx, al
-    
-    pop dx
-    pop ax
-    ret
-config_ega ENDP
-
-; =====================================================
-; RENDERIZAR (RÁPIDO)
-; =====================================================
-renderizar PROC
+renderizar_todo PROC
     push ax
     push es
     
+    ; ES = segmento de video
     mov ax, VIDEO_SEG
     mov es, ax
     
-    ; ✅ Limpiar área del viewport antes de dibujar
+    ; Limpiar viewport rápido
     call limpiar_viewport
     
+    ; Dibujar mapa
     call dibujar_mapa_rapido
+    
+    ; Dibujar jugador
     call dibujar_jugador_rapido
     
     pop es
     pop ax
     ret
-renderizar ENDP
+renderizar_todo ENDP
 
 ; =====================================================
-; LIMPIAR VIEWPORT
+; LIMPIAR VIEWPORT (Negro)
 ; =====================================================
 limpiar_viewport PROC
     push ax
     push cx
-    push dx
+    push di
+    push es
+    
+    mov ax, VIDEO_SEG
+    mov es, ax
+    
+    mov cx, VIEWPORT_H
+    mov di, 0
+    
+lv_fila:
+    push cx
     push di
     
-    ; Habilitar todos los planos
-    mov dx, SC_INDEX
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 0Fh
-    out dx, al
-    
-    ; Limpiar área 320x192 centrada
-    mov dx, 111         ; Y inicial
-    mov cx, 192         ; Líneas a limpiar
-    
-lv_linea:
-    push cx
-    
-    ; Offset: Y * 80 + X_inicial/8
-    mov ax, dx
-    mov cx, 80
-    mul cx
-    add ax, 30          ; X inicial 240/8 = 30
+    ; Calcular offset
+    mov ax, viewport_y
+    add ax, di
+    mov bx, 80          ; 640/8 bytes por línea
+    mul bx
     mov di, ax
     
-    ; Limpiar 160 píxeles = 20 bytes
-    mov cx, 20
-    xor ax, ax
+    ; Añadir X
+    mov ax, viewport_x
+    shr ax, 3           ; /8
+    add di, ax
+    
+    ; Escribir 40 bytes (320 píxeles / 8)
+    mov cx, 40
+    xor al, al
     rep stosb
     
-    pop cx
-    inc dx
-    loop lv_linea
-    
     pop di
-    pop dx
+    pop cx
+    inc di
+    loop lv_fila
+    
+    pop es
+    pop di
     pop cx
     pop ax
     ret
@@ -215,80 +320,90 @@ dibujar_mapa_rapido PROC
     push di
     push bp
     
-    xor bp, bp
+    xor bp, bp          ; BP = fila viewport
     
 dmr_fila:
     cmp bp, VIEWPORT_H
     jae dmr_fin
     
-    xor si, si
+    xor si, si          ; SI = columna viewport
     
 dmr_col:
     cmp si, VIEWPORT_W
-    jae dmr_nf
+    jae dmr_next_fila
     
+    ; Calcular posición en mapa
     mov ax, camara_y
     add ax, bp
     cmp ax, 50
-    jae dmr_nc
+    jae dmr_next_col
     
     mov bx, camara_x
     add bx, si
     cmp bx, 50
-    jae dmr_nc
+    jae dmr_next_col
     
+    ; Índice en mapa
     push dx
     mov dx, 50
     mul dx
     add ax, bx
     pop dx
     
-    cmp ax, 2500
-    jae dmr_nc
+    ; Obtener tile
+    mov bx, ax
+    mov al, [mapa_datos + bx]
     
-    push si
-    push di
-    push bx
-    mov bx, OFFSET mapa_datos
-    add bx, ax
-    mov al, [bx]
-    pop bx
-    pop di
-    pop si
+    ; Seleccionar sprite
+    mov di, OFFSET sprite_grass
     
+    cmp al, TILE_WALL
+    jne dmr_check_path
+    mov di, OFFSET sprite_wall
+    jmp dmr_draw
+
+dmr_check_path:
+    cmp al, TILE_PATH
+    jne dmr_check_water
+    mov di, OFFSET sprite_path
+    jmp dmr_draw
+
+dmr_check_water:
+    cmp al, TILE_WATER
+    jne dmr_check_tree
+    mov di, OFFSET sprite_water
+    jmp dmr_draw
+
+dmr_check_tree:
+    cmp al, TILE_TREE
+    jne dmr_draw
+    mov di, OFFSET sprite_tree
+
+dmr_draw:
+    ; Calcular posición en pantalla
     push si
     push bp
-
-    mov di, OFFSET sprite_grass
-    cmp al, 4
-    ja dmr_draw
-
-    mov bl, al
-    xor bh, bh
-    shl bx, 1
-    mov di, [sprite_table + bx]
     
-dmr_draw:
+    mov ax, si
+    shl ax, 4           ; *16
+    add ax, viewport_x
+    mov cx, ax          ; CX = X
+    
+    mov ax, bp
+    shl ax, 4           ; *16
+    add ax, viewport_y
+    mov dx, ax          ; DX = Y
+    
+    call dibujar_sprite_16x16_vram
+    
     pop bp
     pop si
     
-    mov ax, si
-    shl ax, 4
-    add ax, 240
-    mov cx, ax
-    
-    mov ax, bp
-    shl ax, 4
-    add ax, 111
-    mov dx, ax
-    
-    call draw_tile_fast
-    
-dmr_nc:
+dmr_next_col:
     inc si
     jmp dmr_col
     
-dmr_nf:
+dmr_next_fila:
     inc bp
     jmp dmr_fila
     
@@ -304,100 +419,6 @@ dmr_fin:
 dibujar_mapa_rapido ENDP
 
 ; =====================================================
-; DIBUJAR TILE RÁPIDO (16x16) - VERSIÓN SIMPLE Y CORRECTA
-; CX=X, DX=Y, DI=sprite
-; =====================================================
-draw_tile_fast PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push bp
-    push di
-    
-    mov si, di
-    xor bp, bp          ; Contador de fila
-    
-dtf_row:
-    cmp bp, 16
-    jae dtf_fin
-    
-    push cx             ; Guardar X inicial
-    mov bx, 16          ; Contador de columna
-    
-dtf_col:
-    lodsb               ; AL = color del sprite
-    cmp al, 0
-    je dtf_skip
-    
-    ; Calcular offset en memoria de video
-    push ax
-    mov ax, dx
-    push bx
-    mov bx, 80
-    mul bx
-    pop bx
-    mov di, ax
-    
-    mov ax, cx
-    push bx
-    mov bx, ax
-    shr bx, 3
-    add di, bx
-    pop bx
-    
-    ; Calcular máscara de bit
-    and ax, 7
-    push cx
-    mov cl, al
-    mov al, 80h
-    shr al, cl
-    pop cx
-    mov ah, al
-    
-    ; Recuperar color
-    pop ax
-    
-    ; ✅ CLAVE: Map Mask = color directamente
-    push dx
-    push ax
-    mov dx, SC_INDEX
-    mov al, 2
-    out dx, al
-    inc dx
-    pop ax
-    push ax
-    out dx, al          ; Escribir color como Map Mask
-    pop ax
-    pop dx
-    
-    ; Escribir bit
-    mov al, ah
-    or es:[di], al
-    
-dtf_skip:
-    inc cx              ; Siguiente X
-    dec bx
-    jnz dtf_col
-    
-    pop cx              ; Restaurar X inicial
-    inc dx              ; Siguiente Y
-    inc bp
-    jmp dtf_row
-    
-dtf_fin:
-    pop di
-    pop bp
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-draw_tile_fast ENDP
-
-; =====================================================
 ; DIBUJAR JUGADOR RÁPIDO
 ; =====================================================
 dibujar_jugador_rapido PROC
@@ -406,73 +427,31 @@ dibujar_jugador_rapido PROC
     push cx
     push dx
     
+    ; Posición relativa
     mov ax, jugador_x
     sub ax, camara_x
-    js djr_fin
     cmp ax, VIEWPORT_W
     jae djr_fin
     
     mov bx, jugador_y
     sub bx, camara_y
-    js djr_fin
     cmp bx, VIEWPORT_H
     jae djr_fin
     
+    ; Calcular pantalla
     shl ax, 4
-    add ax, 244
+    add ax, viewport_x
+    add ax, 4           ; Centrar 8x8 en tile 16x16
     mov cx, ax
     
-    shl bx, 4
-    add bx, 115
-    mov dx, bx
+    mov ax, bx
+    shl ax, 4
+    add ax, viewport_y
+    add ax, 4
+    mov dx, ax
     
-    ; Dibujar cuadrado 8x8 color 14 (amarillo)
-    mov bp, 8
-djr_y:
-    mov ax, dx
-    mov bx, 80
-    mul bx
-    mov bx, cx
-    shr bx, 3
-    add ax, bx
-    mov di, ax
-    
-    push bp
-    mov bp, 8
-djr_x:
-    ; Color 14 = planos 1,2,3 activos
-    mov al, 0Eh
-    push dx
-    mov dx, SC_INDEX
-    mov ah, 2
-    out dx, al
-    inc dx
-    mov al, 0Eh
-    out dx, al
-    pop dx
-    
-    mov bx, cx
-    and bx, 7
-    push cx
-    mov al, 80h
-    mov cl, bl
-    shr al, cl
-    pop cx
-    or es:[di], al
-    
-    inc cx
-    and cl, 7
-    jnz djr_sb
-    inc di
-djr_sb:
-    dec bp
-    jnz djr_x
-    
-    pop bp
-    sub cx, 8
-    inc dx
-    dec bp
-    jnz djr_y
+    mov si, OFFSET sprite_player
+    call dibujar_sprite_8x8_vram
     
 djr_fin:
     pop dx
@@ -483,85 +462,247 @@ djr_fin:
 dibujar_jugador_rapido ENDP
 
 ; =====================================================
-; MOVER
+; DIBUJAR SPRITE 16x16 EN VRAM
+; CX=X, DX=Y, DI=sprite, ES=A000h
 ; =====================================================
-mover PROC
+dibujar_sprite_16x16_vram PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+    
+    mov si, di
+    mov bp, 16          ; Filas
+    
+ds16v_fila:
+    push cx
+    push bp
+    mov bp, 16          ; Columnas
+    
+ds16v_pixel:
+    lodsb
+    cmp al, 0
+    je ds16v_skip
+    
+    ; Escribir píxel en VRAM (modo planar)
+    call escribir_pixel_ega
+    
+ds16v_skip:
+    inc cx
+    dec bp
+    jnz ds16v_pixel
+    
+    pop bp
+    pop cx
+    inc dx
+    dec bp
+    jnz ds16v_fila
+    
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_sprite_16x16_vram ENDP
+
+; =====================================================
+; DIBUJAR SPRITE 8x8 EN VRAM
+; CX=X, DX=Y, SI=sprite, ES=A000h
+; =====================================================
+dibujar_sprite_8x8_vram PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push bp
+    
+    mov bp, 8
+    
+ds8v_fila:
+    push cx
+    push bp
+    mov bp, 8
+    
+ds8v_pixel:
+    lodsb
+    cmp al, 0
+    je ds8v_skip
+    
+    call escribir_pixel_ega
+    
+ds8v_skip:
+    inc cx
+    dec bp
+    jnz ds8v_pixel
+    
+    pop bp
+    pop cx
+    inc dx
+    dec bp
+    jnz ds8v_fila
+    
+    pop bp
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_sprite_8x8_vram ENDP
+
+; =====================================================
+; ESCRIBIR PÍXEL EGA (Modo Planar 16 colores)
+; CX=X, DX=Y, AL=color, ES=A000h
+; =====================================================
+escribir_pixel_ega PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push di
+    
+    ; Calcular offset = (Y * 80) + (X / 8)
+    mov ax, dx
+    mov bx, 80
+    mul bx
+    mov di, ax
+    
+    mov ax, cx
+    mov bx, ax
+    shr ax, 3
+    add di, ax
+    
+    ; Bit dentro del byte
+    and bx, 7
+    mov cl, bl
+    mov bl, 80h
+    shr bl, cl          ; Máscara de bit
+    
+    ; AL = color a escribir
+    pop dx
+    push dx
+    mov al, dl
+    
+    ; Configurar registros EGA
+    mov dx, 3CEh        ; Graphics Controller
+    
+    ; Set/Reset Register (índice 0)
+    mov ah, al
+    mov al, 0
+    out dx, ax
+    
+    ; Enable Set/Reset (índice 1) - todos los planos
+    mov ax, 0F01h
+    out dx, ax
+    
+    ; Bit Mask (índice 8)
+    mov ah, bl
+    mov al, 8
+    out dx, ax
+    
+    ; Escribir (lee-modifica-escribe automático)
+    mov al, es:[di]
+    mov es:[di], al
+    
+    ; Restaurar Bit Mask
+    mov ax, 0FF08h
+    out dx, ax
+    
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+escribir_pixel_ega ENDP
+
+; =====================================================
+; MOVER JUGADOR
+; =====================================================
+mover_jugador PROC
     push ax
     
     cmp ah, 48h
-    je m_arr
+    je mj_arr
     cmp al, 'w'
-    je m_arr
+    je mj_arr
     cmp al, 'W'
-    je m_arr
+    je mj_arr
     
     cmp ah, 50h
-    je m_aba
+    je mj_aba
     cmp al, 's'
-    je m_aba
+    je mj_aba
     cmp al, 'S'
-    je m_aba
+    je mj_aba
     
     cmp ah, 4Bh
-    je m_izq
+    je mj_izq
     cmp al, 'a'
-    je m_izq
+    je mj_izq
     cmp al, 'A'
-    je m_izq
+    je mj_izq
     
     cmp ah, 4Dh
-    je m_der
+    je mj_der
     cmp al, 'd'
-    je m_der
+    je mj_der
     cmp al, 'D'
-    je m_der
+    je mj_der
     
-    jmp m_fin
+    jmp mj_fin
 
-m_arr:
+mj_arr:
     cmp jugador_y, 1
-    jbe m_fin
+    jbe mj_fin
     dec jugador_y
-    call verificar_col
-    jnc m_fin
+    call verificar_colision
+    jnc mj_fin
     inc jugador_y
-    jmp m_fin
+    jmp mj_fin
 
-m_aba:
+mj_aba:
     cmp jugador_y, 48
-    jae m_fin
+    jae mj_fin
     inc jugador_y
-    call verificar_col
-    jnc m_fin
+    call verificar_colision
+    jnc mj_fin
     dec jugador_y
-    jmp m_fin
+    jmp mj_fin
 
-m_izq:
+mj_izq:
     cmp jugador_x, 1
-    jbe m_fin
+    jbe mj_fin
     dec jugador_x
-    call verificar_col
-    jnc m_fin
+    call verificar_colision
+    jnc mj_fin
     inc jugador_x
-    jmp m_fin
+    jmp mj_fin
 
-m_der:
+mj_der:
     cmp jugador_x, 48
-    jae m_fin
+    jae mj_fin
     inc jugador_x
-    call verificar_col
-    jnc m_fin
+    call verificar_colision
+    jnc mj_fin
     dec jugador_x
 
-m_fin:
+mj_fin:
     pop ax
     ret
-mover ENDP
+mover_jugador ENDP
 
 ; =====================================================
 ; VERIFICAR COLISIÓN
 ; =====================================================
-verificar_col PROC
+verificar_colision PROC
     push ax
     push bx
     push si
@@ -578,9 +719,9 @@ verificar_col PROC
     add si, ax
     mov al, [si]
     
-    cmp al, 0
+    cmp al, TILE_GRASS
     je vc_ok
-    cmp al, 2
+    cmp al, TILE_PATH
     je vc_ok
     
 vc_col:
@@ -595,7 +736,7 @@ vc_fin:
     pop bx
     pop ax
     ret
-verificar_col ENDP
+verificar_colision ENDP
 
 ; =====================================================
 ; ACTUALIZAR CÁMARA
@@ -605,27 +746,27 @@ actualizar_camara PROC
     push bx
     
     mov ax, jugador_x
-    sub ax, 5
-    jge ac_x1
+    sub ax, 10          ; VIEWPORT_W / 2
+    jge ac_x_ok
     xor ax, ax
-ac_x1:
-    mov bx, 40
+ac_x_ok:
+    mov bx, 30          ; 50 - 20
     cmp ax, bx
-    jle ac_x2
+    jle ac_x_fin
     mov ax, bx
-ac_x2:
+ac_x_fin:
     mov camara_x, ax
     
     mov ax, jugador_y
-    sub ax, 4
-    jge ac_y1
+    sub ax, 6           ; VIEWPORT_H / 2
+    jge ac_y_ok
     xor ax, ax
-ac_y1:
-    mov bx, 42
+ac_y_ok:
+    mov bx, 38          ; 50 - 12
     cmp ax, bx
-    jle ac_y2
+    jle ac_y_fin
     mov ax, bx
-ac_y2:
+ac_y_fin:
     mov camara_y, ax
     
     pop bx
@@ -648,32 +789,29 @@ cargar_mapa PROC
     mov ax, 3D00h
     mov dx, OFFSET archivo_mapa
     int 21h
-    jc cm_err
+    jc cm_error
     
     mov bx, ax
-    mov ah, 3Fh
-    mov cx, 20
-    mov dx, OFFSET buffer_temp
-    int 21h
+    call saltar_linea
     
     mov di, OFFSET mapa_datos
     xor bp, bp
     
-cm_read:
+cm_leer:
     mov ah, 3Fh
     mov cx, 200
     mov dx, OFFSET buffer_temp
     int 21h
     
     cmp ax, 0
-    je cm_close
+    je cm_cerrar
     
     mov cx, ax
     xor si, si
 
 cm_proc:
     cmp si, cx
-    jae cm_read
+    jae cm_leer
 
     mov al, [buffer_temp + si]
     inc si
@@ -699,13 +837,13 @@ cm_proc:
     cmp bp, 2500
     jb cm_proc
     
-cm_close:
+cm_cerrar:
     mov ah, 3Eh
     int 21h
     clc
     jmp cm_fin
     
-cm_err:
+cm_error:
     stc
     
 cm_fin:
@@ -720,55 +858,9 @@ cm_fin:
 cargar_mapa ENDP
 
 ; =====================================================
-; CARGAR SPRITES
+; CARGAR SPRITE 16x16
 ; =====================================================
-cargar_sprites PROC
-    push dx
-    push di
-    
-    mov dx, OFFSET archivo_grass
-    mov di, OFFSET sprite_grass
-    call load_spr16
-    jc cs_err
-    
-    mov dx, OFFSET archivo_wall
-    mov di, OFFSET sprite_wall
-    call load_spr16
-    jc cs_err
-    
-    mov dx, OFFSET archivo_path
-    mov di, OFFSET sprite_path
-    call load_spr16
-    jc cs_err
-    
-    mov dx, OFFSET archivo_water
-    mov di, OFFSET sprite_water
-    call load_spr16
-    jc cs_err
-    
-    mov dx, OFFSET archivo_tree
-    mov di, OFFSET sprite_tree
-    call load_spr16
-    jc cs_err
-    
-    mov dx, OFFSET archivo_player
-    mov di, OFFSET sprite_player
-    call load_spr8
-    jc cs_err
-    
-    clc
-    jmp cs_fin
-
-cs_err:
-    stc
-
-cs_fin:
-    pop di
-    pop dx
-    ret
-cargar_sprites ENDP
-
-load_spr16 PROC
+cargar_sprite_16x16 PROC
     push ax
     push bx
     push cx
@@ -777,19 +869,14 @@ load_spr16 PROC
     
     mov ax, 3D00h
     int 21h
-    jc ls16_err
+    jc cs16_error
     
     mov bx, ax
-    mov ah, 3Fh
-    mov cx, 20
-    push dx
-    mov dx, OFFSET buffer_temp
-    int 21h
-    pop dx
+    call saltar_linea
     
     xor bp, bp
     
-ls16_read:
+cs16_leer:
     mov ah, 3Fh
     mov cx, 200
     push dx
@@ -798,30 +885,30 @@ ls16_read:
     pop dx
     
     cmp ax, 0
-    je ls16_close
+    je cs16_cerrar
     
     mov cx, ax
     xor si, si
 
-ls16_proc:
+cs16_proc:
     cmp si, cx
-    jae ls16_read
+    jae cs16_leer
 
     mov al, [buffer_temp + si]
     inc si
     
     cmp al, ' '
-    je ls16_proc
+    je cs16_proc
     cmp al, 13
-    je ls16_proc
+    je cs16_proc
     cmp al, 10
-    je ls16_proc
+    je cs16_proc
     cmp al, 9
-    je ls16_proc
+    je cs16_proc
     cmp al, '0'
-    jb ls16_proc
+    jb cs16_proc
     cmp al, '9'
-    ja ls16_proc
+    ja cs16_proc
     
     sub al, '0'
     mov [di], al
@@ -829,27 +916,30 @@ ls16_proc:
     inc bp
 
     cmp bp, 256
-    jb ls16_proc
+    jb cs16_proc
     
-ls16_close:
+cs16_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp ls16_fin
+    jmp cs16_fin
     
-ls16_err:
+cs16_error:
     stc
     
-ls16_fin:
+cs16_fin:
     pop bp
     pop si
     pop cx
     pop bx
     pop ax
     ret
-load_spr16 ENDP
+cargar_sprite_16x16 ENDP
 
-load_spr8 PROC
+; =====================================================
+; CARGAR SPRITE 8x8
+; =====================================================
+cargar_sprite_8x8 PROC
     push ax
     push bx
     push cx
@@ -858,19 +948,14 @@ load_spr8 PROC
     
     mov ax, 3D00h
     int 21h
-    jc ls8_err
+    jc cs8_error
     
     mov bx, ax
-    mov ah, 3Fh
-    mov cx, 20
-    push dx
-    mov dx, OFFSET buffer_temp
-    int 21h
-    pop dx
+    call saltar_linea
     
     xor bp, bp
     
-ls8_read:
+cs8_leer:
     mov ah, 3Fh
     mov cx, 100
     push dx
@@ -879,30 +964,30 @@ ls8_read:
     pop dx
     
     cmp ax, 0
-    je ls8_close
+    je cs8_cerrar
     
     mov cx, ax
     xor si, si
 
-ls8_proc:
+cs8_proc:
     cmp si, cx
-    jae ls8_read
+    jae cs8_leer
 
     mov al, [buffer_temp + si]
     inc si
     
     cmp al, ' '
-    je ls8_proc
+    je cs8_proc
     cmp al, 13
-    je ls8_proc
+    je cs8_proc
     cmp al, 10
-    je ls8_proc
+    je cs8_proc
     cmp al, 9
-    je ls8_proc
+    je cs8_proc
     cmp al, '0'
-    jb ls8_proc
+    jb cs8_proc
     cmp al, '9'
-    ja ls8_proc
+    ja cs8_proc
     
     sub al, '0'
     mov [di], al
@@ -910,24 +995,54 @@ ls8_proc:
     inc bp
 
     cmp bp, 64
-    jb ls8_proc
+    jb cs8_proc
     
-ls8_close:
+cs8_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp ls8_fin
+    jmp cs8_fin
     
-ls8_err:
+cs8_error:
     stc
     
-ls8_fin:
+cs8_fin:
     pop bp
     pop si
     pop cx
     pop bx
     pop ax
     ret
-load_spr8 ENDP
+cargar_sprite_8x8 ENDP
+
+; =====================================================
+; SALTAR LÍNEA
+; =====================================================
+saltar_linea PROC
+    push ax
+    push cx
+    push dx
+    
+sl_loop:
+    mov ah, 3Fh
+    mov cx, 1
+    mov dx, OFFSET buffer_temp
+    int 21h
+    
+    cmp ax, 0
+    je sl_fin
+    
+    mov al, [buffer_temp]
+    cmp al, 10
+    je sl_fin
+    cmp al, 13
+    jne sl_loop
+    
+sl_fin:
+    pop dx
+    pop cx
+    pop ax
+    ret
+saltar_linea ENDP
 
 END inicio
