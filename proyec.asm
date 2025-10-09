@@ -9,7 +9,7 @@
 .STACK 4096
 
 .FARDATA?
-back_buffer  db 64000 dup(0)
+back_buffer  db 64000 dup(?)
 back_buffer_end LABEL BYTE
 
 ; === CONSTANTES ===
