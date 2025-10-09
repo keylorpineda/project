@@ -223,7 +223,10 @@ bucle_juego:
     
     ; ESC?
     cmp al, 27
-    je fin_juego
+    jne continuar_juego
+    jmp fin_juego
+
+continuar_juego:
     
     ; Guardar posición
     mov ax, jugador_x
@@ -282,7 +285,10 @@ mov_izq:
 
 mov_der:
     cmp jugador_x, 48
-    jae bucle_juego
+    jb mov_der_continuar
+    jmp bucle_juego
+
+mov_der_continuar:
     inc jugador_x
 
 verificar_mov:
@@ -371,7 +377,10 @@ dibujar_mapa PROC
     
 dm_fila:
     cmp bp, VIEWPORT_H
-    jae dm_fin
+    jb dm_fila_continuar
+    jmp dm_fin
+
+dm_fila_continuar:
     
     xor si, si
     
