@@ -49,9 +49,11 @@ buffer_temp db 300 dup(0)
 jugador_x   dw 25
 jugador_y   dw 25
 
-; === CÁMARA ===
-camara_x    dw 0
-camara_y    dw 0
+; === CÁMARA CON SCROLL SUAVE ===
+camara_x        dw 0
+camara_y        dw 0
+camara_x_pixel  dw 0    ; Posición en píxeles para scroll suave
+camara_y_pixel  dw 0
 
 ; === DOBLE BUFFER ===
 pagina_visible db 0
@@ -61,6 +63,8 @@ offset_pagina  dw 0        ; Offset para página actual
 ; === VIEWPORT ===
 viewport_x  dw 160
 viewport_y  dw 79
+scroll_offset_x dw 0    ; Offset de píxeles para scroll suave
+scroll_offset_y dw 0
 
 ; === MENSAJES ===
 msg_titulo  db 'JUEGO EGA - VRAM + Doble Buffer',13,10,'$'
@@ -205,9 +209,11 @@ player_ok:
     mov pagina_dibujo, 1
     mov offset_pagina, 8000h
     
+    ; Inicializar cámara con scroll suave
+    call actualizar_camara
+    
     ; Primera renderización en página 0
     mov offset_pagina, 0
-    call actualizar_camara
     call renderizar_todo
     
     ; Mostrar página 0
@@ -216,7 +222,7 @@ player_ok:
     int 10h
 
 ; =====================================================
-; BUCLE PRINCIPAL CON DOBLE BUFFER OPTIMIZADO
+; BUCLE PRINCIPAL CON SCROLL SUAVE
 ; =====================================================
 bucle_juego:
     ; Verificar tecla SIN BLOQUEAR
@@ -234,10 +240,10 @@ bucle_juego:
     
     ; Procesar movimiento
     call mover_jugador
-    call actualizar_camara
     
 sin_tecla:
-    ; SIEMPRE redibujar (fluido)
+    ; SIEMPRE actualizar cámara (para interpolación suave)
+    call actualizar_camara
     
     ; Calcular offset de página de dibujo
     mov al, pagina_dibujo
@@ -261,8 +267,8 @@ dibujar_frame:
     xor pagina_dibujo, 1
     xor pagina_visible, 1
     
-    ; Pequeño delay para estabilidad (~30 FPS)
-    mov cx, 300
+    ; Pequeño delay para ~60 FPS
+    mov cx, 150
 delay_loop:
     nop
     loop delay_loop
@@ -365,19 +371,13 @@ dibujar_mapa_rapido PROC
     
 dmr_fila:
     cmp bp, VIEWPORT_H
-    jb dmr_fila_cont
-    jmp dmr_fin
-
-dmr_fila_cont:
-
+    jae dmr_fin
+    
     xor si, si
-
+    
 dmr_col:
     cmp si, VIEWPORT_W
-    jb dmr_col_cont
-    jmp dmr_next_fila
-
-dmr_col_cont:
+    jae dmr_next_fila
     
     ; Posición en mapa
     mov ax, camara_y
@@ -465,7 +465,7 @@ dmr_fin:
 dibujar_mapa_rapido ENDP
 
 ; =====================================================
-; DIBUJAR JUGADOR RÁPIDO
+; DIBUJAR JUGADOR CON SCROLL SUAVE
 ; =====================================================
 dibujar_jugador_rapido PROC
     push ax
@@ -473,23 +473,28 @@ dibujar_jugador_rapido PROC
     push cx
     push dx
     
+    ; Posición del jugador en píxeles
     mov ax, jugador_x
-    sub ax, camara_x
-    cmp ax, VIEWPORT_W
+    shl ax, 4           ; *16 píxeles
+    
+    ; Restar posición cámara en píxeles
+    sub ax, camara_x_pixel
+    js djr_fin          ; Fuera del viewport
+    cmp ax, 320         ; Ancho viewport en píxeles
     jae djr_fin
     
-    mov bx, jugador_y
-    sub bx, camara_y
-    cmp bx, VIEWPORT_H
-    jae djr_fin
-    
-    shl ax, 4
     add ax, viewport_x
-    add ax, 4
+    add ax, 4           ; Centrar sprite 8x8 en tile 16x16
     mov cx, ax
     
-    mov ax, bx
+    ; Y del jugador
+    mov ax, jugador_y
     shl ax, 4
+    sub ax, camara_y_pixel
+    js djr_fin
+    cmp ax, 192         ; Alto viewport en píxeles
+    jae djr_fin
+    
     add ax, viewport_y
     add ax, 4
     mov dx, ax
@@ -781,14 +786,17 @@ vc_fin:
 verificar_colision ENDP
 
 ; =====================================================
-; ACTUALIZAR CÁMARA
+; ACTUALIZAR CÁMARA CON SCROLL SUAVE
 ; =====================================================
 actualizar_camara PROC
     push ax
     push bx
+    push cx
+    push dx
     
+    ; Calcular posición objetivo en píxeles
     mov ax, jugador_x
-    sub ax, 10
+    sub ax, 10          ; Centrar (VIEWPORT_W/2)
     jge ac_x_ok
     xor ax, ax
 ac_x_ok:
@@ -797,10 +805,37 @@ ac_x_ok:
     jle ac_x_fin
     mov ax, bx
 ac_x_fin:
+    shl ax, 4           ; Convertir a píxeles (*16)
+    mov bx, ax          ; BX = objetivo_x_pixel
+    
+    ; Interpolación suave en X
+    mov ax, camara_x_pixel
+    cmp ax, bx
+    je ac_x_done
+    jl ac_x_increase
+    ; Disminuir
+    sub ax, 4           ; Velocidad de scroll (píxeles por frame)
+    cmp ax, bx
+    jge ac_x_set
+    mov ax, bx
+    jmp ac_x_set
+ac_x_increase:
+    add ax, 4
+    cmp ax, bx
+    jle ac_x_set
+    mov ax, bx
+ac_x_set:
+    mov camara_x_pixel, ax
+    
+ac_x_done:
+    ; Actualizar camara_x en tiles
+    mov ax, camara_x_pixel
+    shr ax, 4
     mov camara_x, ax
     
+    ; Calcular posición objetivo en Y
     mov ax, jugador_y
-    sub ax, 6
+    sub ax, 6           ; Centrar (VIEWPORT_H/2)
     jge ac_y_ok
     xor ax, ax
 ac_y_ok:
@@ -809,8 +844,36 @@ ac_y_ok:
     jle ac_y_fin
     mov ax, bx
 ac_y_fin:
+    shl ax, 4           ; Convertir a píxeles
+    mov bx, ax          ; BX = objetivo_y_pixel
+    
+    ; Interpolación suave en Y
+    mov ax, camara_y_pixel
+    cmp ax, bx
+    je ac_y_done
+    jl ac_y_increase
+    ; Disminuir
+    sub ax, 4
+    cmp ax, bx
+    jge ac_y_set
+    mov ax, bx
+    jmp ac_y_set
+ac_y_increase:
+    add ax, 4
+    cmp ax, bx
+    jle ac_y_set
+    mov ax, bx
+ac_y_set:
+    mov camara_y_pixel, ax
+    
+ac_y_done:
+    ; Actualizar camara_y en tiles
+    mov ax, camara_y_pixel
+    shr ax, 4
     mov camara_y, ax
     
+    pop dx
+    pop cx
     pop bx
     pop ax
     ret
