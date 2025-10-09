@@ -1,7 +1,7 @@
 ; =====================================================
 ; JUEGO DE EXPLORACIÓN - MODO EGA 0Dh (320x200x16)
 ; Universidad Nacional - Proyecto II Ciclo 2025
-; Viewport pequeño con movimiento visible
+; Código optimizado con doble buffer
 ; =====================================================
 
 .MODEL SMALL
@@ -14,42 +14,52 @@ TILE_PATH   EQU 2
 TILE_WATER  EQU 3
 TILE_TREE   EQU 4
 
-TILE_SIZE   EQU 20      ; Tiles más grandes
+TILE_SIZE   EQU 16
 SCREEN_W    EQU 320
 SCREEN_H    EQU 200
-VIEWPORT_W  EQU 10      ; Solo 10 tiles horizontales (200 píxeles)
-VIEWPORT_H  EQU 8       ; Solo 8 tiles verticales (160 píxeles)
+VIEWPORT_W  EQU 12      ; 12 tiles horizontales
+VIEWPORT_H  EQU 10      ; 10 tiles verticales
 
 .DATA
+; === ARCHIVOS ===
+archivo_mapa db 'MAPA.TXT',0
+
 ; === MAPA ===
-mapa_ancho  dw 50       ; Mapa más pequeño para mejor rendimiento
-mapa_alto   dw 50
-mapa_datos  db 2500 dup(0)
+mapa_ancho  dw 100
+mapa_alto   dw 100
+mapa_datos  db 10000 dup(0)
 
 ; === JUGADOR ===
-jugador_x   dw 25       ; Centro del mapa
-jugador_y   dw 25
-jugador_x_ant dw 25
-jugador_y_ant dw 25
+jugador_x   dw 15       ; Centro del mapa 100x100
+jugador_y   dw 15
+jugador_x_ant dw 15
+jugador_y_ant dw 15
 
 ; === CÁMARA ===
-camara_x    dw 20
-camara_y    dw 21
+camara_x    dw 0
+camara_y    dw 0
 
 ; === DOBLE BUFFER ===
 pagina_visible db 0
 pagina_dibujo  db 1
 
+; === BUFFER ARCHIVO ===
+buffer_archivo db 20000 dup(0)
+handle_arch dw 0
+
 ; === MENSAJES ===
 msg_titulo  db 'JUEGO DE EXPLORACION',13,10
            db '====================',13,10,'$'
-msg_generando db 'Generando mapa 50x50...$'
+msg_cargando db 'Cargando mapa...$'
+msg_generando db 'Generando mapa 100x100...$'
 msg_ok     db 'OK',13,10,'$'
-msg_listo  db 13,10,'Viewport: 10x8 tiles (200x160 pixels)',13,10
-           db 'El mapa se mueve alrededor del jugador',13,10
-           db 'Controles: Flechas/WASD = Mover, ESC = Salir',13,10
+msg_dim    db 'Mapa: $'
+msg_x      db 'x$'
+msg_listo  db 13,10,'Sistema listo. Viewport: 12x10 tiles',13,10
+           db 'Controles: Flechas o WASD = Mover, ESC = Salir',13,10
            db 'Presiona tecla para iniciar...$'
-
+msg_archivo_ok db 'MAPA.TXT encontrado y abierto!',13,10,'$'
+msg_no_archivo db 'No se pudo abrir MAPA.TXT',13,10,'$'
 .CODE
 inicio:
     mov ax, @data
@@ -60,15 +70,11 @@ inicio:
     mov ah, 9
     int 21h
 
-    ; Generar mapa
-    mov dx, OFFSET msg_generando
+    ; Cargar/generar mapa
+    mov dx, OFFSET msg_cargando
     mov ah, 9
     int 21h
-    call generar_mapa_simple
-    
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
+    call cargar_mapa
     
     ; Mensaje de listo
     mov dx, OFFSET msg_listo
@@ -105,12 +111,28 @@ bucle_juego:
     mov ah, 0
     int 16h
     
+    ; Limpiar buffer de teclado
+vaciar_buffer:
+    push ax
+    mov ah, 1
+    int 16h
+    jz buffer_vacio
+    mov ah, 0
+    int 16h
+    jmp vaciar_buffer
+    
+buffer_vacio:
+    pop ax
+    
     ; ESC = salir
     cmp al, 27
     je terminar
 
     ; Procesar movimiento
     call mover_jugador
+    
+    ; Renderizar
+    call renderizar
     
     jmp bucle_juego
 
@@ -124,97 +146,285 @@ terminar:
     int 21h
 
 ; =====================================================
-; GENERAR MAPA SIMPLE CON PATRONES CLAROS
+; CARGAR MAPA
 ; =====================================================
-generar_mapa_simple PROC
+cargar_mapa PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    
+    ; Intentar abrir archivo
+    mov dx, OFFSET archivo_mapa
+    mov ax, 3D00h
+    int 21h
+    jc archivo_no_encontrado
+    
+    ; Archivo abierto exitosamente
+    push ax
+    mov dx, OFFSET msg_archivo_ok
+    mov ah, 9
+    int 21h
+    pop ax
+    
+    ; Leer archivo
+    mov bx, ax
+    mov handle_arch, ax
+    mov cx, 20000
+    mov dx, OFFSET buffer_archivo
+    mov ah, 3Fh
+    int 21h
+    jc cerrar_generar
+    
+    ; Parsear dimensiones
+    mov si, OFFSET buffer_archivo
+    call parsear_num
+    mov mapa_ancho, ax
+    push ax
+    call parsear_num
+    mov mapa_alto, ax
+    
+    ; Mostrar dimensiones
+    mov dx, OFFSET msg_dim
+    mov ah, 9
+    int 21h
+    pop ax
+    push ax
+    call imprimir_num
+    mov dx, OFFSET msg_x
+    mov ah, 9
+    int 21h
+    mov ax, mapa_alto
+    call imprimir_num
+    mov dl, ' '
+    mov ah, 2
+    int 21h
+    pop ax
+    
+    ; Leer tiles
+    mov di, OFFSET mapa_datos
+    mov ax, mapa_alto
+    mov bx, mapa_ancho
+    mul bx
+    mov cx, ax
+    
+leer_tiles:
+    call parsear_num
+    mov [di], al
+    inc di
+    loop leer_tiles
+    
+    ; Cerrar archivo
+    mov bx, handle_arch
+    mov ah, 3Eh
+    int 21h
+    
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+    jmp fin_cargar
+    
+cerrar_generar:
+    mov bx, handle_arch
+    mov ah, 3Eh
+    int 21h
+    jmp generar_mapa
+    
+archivo_no_encontrado:
+    mov dx, OFFSET msg_no_archivo
+    mov ah, 9
+    int 21h
+    
+generar_mapa:
+    mov dx, OFFSET msg_generando
+    mov ah, 9
+    int 21h
+    call generar_procedural
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+    
+fin_cargar:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+cargar_mapa ENDP
+; =====================================================
+; PARSEAR NÚMERO
+; =====================================================
+parsear_num PROC
+    push bx
+    push cx
+    push dx
+    
+    xor ax, ax
+    xor bx, bx
+    
+skip_ws:
+    mov bl, [si]
+    inc si
+    cmp bl, ' '
+    je skip_ws
+    cmp bl, 9
+    je skip_ws
+    cmp bl, 13
+    je skip_ws
+    cmp bl, 10
+    je skip_ws
+    
+parse_dig:
+    cmp bl, '0'
+    jb done_parse
+    cmp bl, '9'
+    ja done_parse
+    
+    sub bl, '0'
+    mov cx, 10
+    mul cx
+    add ax, bx
+    
+    mov bl, [si]
+    inc si
+    jmp parse_dig
+    
+done_parse:
+    pop dx
+    pop cx
+    pop bx
+    ret
+parsear_num ENDP
+
+; =====================================================
+; IMPRIMIR NÚMERO
+; =====================================================
+imprimir_num PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    
+    mov cx, 0
+    mov bx, 10
+    
+    cmp ax, 0
+    jne dividir
+    push ax
+    inc cx
+    jmp imprimir
+    
+dividir:
+    xor dx, dx
+    div bx
+    push dx
+    inc cx
+    cmp ax, 0
+    jne dividir
+    
+imprimir:
+    pop dx
+    add dl, '0'
+    mov ah, 2
+    int 21h
+    loop imprimir
+    
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+imprimir_num ENDP
+
+; =====================================================
+; GENERAR MAPA PROCEDURAL
+; =====================================================
+generar_procedural PROC
     push ax
     push bx
     push cx
     push dx
     push di
     
+    mov mapa_ancho, 100
+    mov mapa_alto, 100
+    
     mov di, OFFSET mapa_datos
-    xor dx, dx      ; Y = 0
+    mov cx, 10000
+    xor bx, bx
     
-gen_y:
-    cmp dx, 50
-    jae gen_done
+gen_loop:
+    ; Verificar bordes
+    cmp bx, 100
+    jb gen_wall
     
-    xor cx, cx      ; X = 0
-gen_x:
-    cmp cx, 50
-    jae gen_next_y
+    mov ax, bx
+    xor dx, dx
+    mov si, 100
+    div si
     
-    ; Bordes = muros
+    cmp ax, 99
+    je gen_wall
     cmp dx, 0
-    je gen_muro
-    cmp dx, 49
-    je gen_muro
-    cmp cx, 0
-    je gen_muro
-    cmp cx, 49
-    je gen_muro
+    je gen_wall
+    cmp dx, 99
+    je gen_wall
     
-    ; Centro (23-27, 23-27) = césped limpio
-    cmp dx, 23
-    jb gen_pattern
-    cmp dx, 27
-    ja gen_pattern
-    cmp cx, 23
-    jb gen_pattern
-    cmp cx, 27
-    ja gen_pattern
+    ; Zona inicio (48-52, 48-52)
+    cmp ax, 48
+    jb gen_terrain
+    cmp ax, 52
+    ja gen_terrain
+    cmp dx, 48
+    jb gen_terrain
+    cmp dx, 52
+    ja gen_terrain
     mov al, TILE_GRASS
-    jmp gen_store
+    jmp gen_save
     
-gen_pattern:
-    ; Crear patrón de tablero de ajedrez para ver movimiento
-    mov ax, dx
-    add ax, cx
-    and ax, 3
+gen_terrain:
+    ; Pseudo-aleatorio
+    mov ax, bx
+    and ax, 1Fh
     
-    cmp ax, 0
-    je gen_agua
-    cmp ax, 1
-    je gen_arbol
-    cmp ax, 2
-    je gen_camino
+    cmp ax, 3
+    jb gen_water
+    cmp ax, 7
+    jb gen_tree
+    cmp ax, 12
+    jb gen_path
     mov al, TILE_GRASS
-    jmp gen_store
+    jmp gen_save
     
-gen_agua:
-    mov al, TILE_WATER
-    jmp gen_store
-    
-gen_arbol:
-    mov al, TILE_TREE
-    jmp gen_store
-    
-gen_camino:
-    mov al, TILE_PATH
-    jmp gen_store
-    
-gen_muro:
+gen_wall:
     mov al, TILE_WALL
+    jmp gen_save
+gen_water:
+    mov al, TILE_WATER
+    jmp gen_save
+gen_tree:
+    mov al, TILE_TREE
+    jmp gen_save
+gen_path:
+    mov al, TILE_PATH
     
-gen_store:
+gen_save:
     mov [di], al
     inc di
-    inc cx
-    jmp gen_x
+    inc bx
+    loop gen_loop
     
-gen_next_y:
-    inc dx
-    jmp gen_y
-    
-gen_done:
     pop di
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-generar_mapa_simple ENDP
+generar_procedural ENDP
 
 ; =====================================================
 ; MOVER JUGADOR
@@ -223,7 +433,7 @@ mover_jugador PROC
     push ax
     push bx
     
-    ; Guardar posición anterior
+    ; Guardar posición
     mov ax, jugador_x
     mov jugador_x_ant, ax
     mov ax, jugador_y
@@ -261,36 +471,37 @@ mover_jugador PROC
     jmp mv_fin
     
 mv_arriba:
-    cmp jugador_y, 1
-    jle mv_fin
+    cmp jugador_y, 0
+    je mv_fin
     dec jugador_y
     jmp mv_check
     
 mv_abajo:
-    cmp jugador_y, 48
-    jge mv_fin
-    inc jugador_y
+    mov ax, jugador_y
+    inc ax
+    cmp ax, mapa_alto
+    jae mv_fin
+    mov jugador_y, ax
     jmp mv_check
     
 mv_izq:
-    cmp jugador_x, 1
-    jle mv_fin
+    cmp jugador_x, 0
+    je mv_fin
     dec jugador_x
     jmp mv_check
     
 mv_der:
-    cmp jugador_x, 48
-    jge mv_fin
-    inc jugador_x
+    mov ax, jugador_x
+    inc ax
+    cmp ax, mapa_ancho
+    jae mv_fin
+    mov jugador_x, ax
     jmp mv_check
     
 mv_check:
-    call verificar_colision
+    call colision
     jc mv_restaurar
-    
-    ; Actualizar cámara y renderizar
-    call actualizar_camara
-    call renderizar
+    ;call actualizar_camara
     jmp mv_fin
     
 mv_restaurar:
@@ -306,15 +517,15 @@ mv_fin:
 mover_jugador ENDP
 
 ; =====================================================
-; VERIFICAR COLISIÓN
+; COLISIÓN
 ; =====================================================
-verificar_colision PROC
+colision PROC
     push ax
     push bx
     push si
     
     mov ax, jugador_y
-    mov bx, 50      ; ancho del mapa
+    mov bx, mapa_ancho
     mul bx
     add ax, jugador_x
     
@@ -322,60 +533,65 @@ verificar_colision PROC
     add si, ax
     mov al, [si]
     
-    ; Solo césped y camino son transitables
     cmp al, TILE_GRASS
-    je vc_ok
+    je col_ok
     cmp al, TILE_PATH
-    je vc_ok
+    je col_ok
     
-    stc     ; Colisión
-    jmp vc_fin
+    stc
+    jmp col_fin
     
-vc_ok:
-    clc     ; Sin colisión
+col_ok:
+    clc
     
-vc_fin:
+col_fin:
     pop si
     pop bx
     pop ax
     ret
-verificar_colision ENDP
+colision ENDP
 
 ; =====================================================
-; ACTUALIZAR CÁMARA (SEGUIR AL JUGADOR)
+; ACTUALIZAR CÁMARA
 ; =====================================================
 actualizar_camara PROC
     push ax
     push bx
     
-    ; Centrar cámara en jugador X
+    ; Centrar X
     mov ax, jugador_x
     sub ax, VIEWPORT_W/2
-    cmp ax, 0
-    jge ac_x1
+    jge cam_x1
     xor ax, ax
-ac_x1:
-    mov bx, 50          ; ancho mapa
+cam_x1:
+    mov bx, mapa_ancho
     sub bx, VIEWPORT_W
+    jle cam_x2
     cmp ax, bx
-    jle ac_x2
+    jle cam_x3
     mov ax, bx
-ac_x2:
+    jmp cam_x3
+cam_x2:
+    xor ax, ax
+cam_x3:
     mov camara_x, ax
     
-    ; Centrar cámara en jugador Y
+    ; Centrar Y
     mov ax, jugador_y
     sub ax, VIEWPORT_H/2
-    cmp ax, 0
-    jge ac_y1
+    jge cam_y1
     xor ax, ax
-ac_y1:
-    mov bx, 50          ; alto mapa
+cam_y1:
+    mov bx, mapa_alto
     sub bx, VIEWPORT_H
+    jle cam_y2
     cmp ax, bx
-    jle ac_y2
+    jle cam_y3
     mov ax, bx
-ac_y2:
+    jmp cam_y3
+cam_y2:
+    xor ax, ax
+cam_y3:
     mov camara_y, ax
     
     pop bx
@@ -394,28 +610,10 @@ renderizar PROC
     mov ah, 05h
     int 10h
     
-    ; Limpiar pantalla con borde
-    call limpiar_con_borde
-    
-    ; Dibujar viewport
-    call dibujar_viewport
-    
-    ; Dibujar jugador (siempre en el centro del viewport)
-    call dibujar_jugador
-    
-    ; Mostrar info
-    call mostrar_info
-    
-    ; Esperar vsync
-    mov dx, 03DAh
-vs1:
-    in al, dx
-    test al, 8
-    jnz vs1
-vs2:
-    in al, dx
-    test al, 8
-    jz vs2
+    ; Dibujar
+    call dibujar_mapa
+    call dibujar_player
+    call mostrar_coordenadas 
     
     ; Intercambiar páginas
     mov al, pagina_dibujo
@@ -423,7 +621,7 @@ vs2:
     mov pagina_visible, al
     mov pagina_dibujo, bl
     
-    ; Mostrar página visible
+    ; Mostrar
     mov al, pagina_visible
     mov ah, 05h
     int 10h
@@ -433,49 +631,9 @@ vs2:
 renderizar ENDP
 
 ; =====================================================
-; LIMPIAR CON BORDE
+; DIBUJAR MAPA
 ; =====================================================
-limpiar_con_borde PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    
-    ; Llenar toda la pantalla con color de borde (gris oscuro)
-    xor dx, dx
-lcb_y:
-    cmp dx, SCREEN_H
-    jae lcb_done
-    
-    xor cx, cx
-lcb_x:
-    cmp cx, SCREEN_W
-    jae lcb_ny
-    
-    mov ah, 0Ch
-    mov al, 8       ; Gris oscuro para el borde
-    mov bh, pagina_dibujo
-    int 10h
-    
-    inc cx
-    jmp lcb_x
-    
-lcb_ny:
-    inc dx
-    jmp lcb_y
-    
-lcb_done:
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-limpiar_con_borde ENDP
-
-; =====================================================
-; DIBUJAR VIEWPORT (VENTANA DEL MUNDO)
-; =====================================================
-dibujar_viewport PROC
+dibujar_mapa PROC
     push ax
     push bx
     push cx
@@ -483,60 +641,82 @@ dibujar_viewport PROC
     push si
     push di
     
-    ; Offset para centrar viewport en pantalla
-    mov bp, 60      ; Offset X (centrar 200 píxeles en 320)
+    xor di, di      ; Y viewport
     
-    xor di, di      ; Tile Y
-dv_y:
+dm_y:
     cmp di, VIEWPORT_H
-    jae dv_done
+    jae dm_done
     
-    xor si, si      ; Tile X
-dv_x:
+    xor si, si      ; X viewport
+    
+dm_x:
     cmp si, VIEWPORT_W
-    jae dv_ny
+    jae dm_next_y
     
-    ; Calcular posición en el mapa
+    ; Posición en mapa
     mov ax, camara_y
     add ax, di
-    mov bx, 50      ; ancho mapa
+    cmp ax, mapa_alto
+    jae dm_next_x
+    
+    mov bx, mapa_ancho
     mul bx
-    add ax, camara_x
-    add ax, si
+    mov bx, camara_x
+    add bx, si
+    add ax, bx
     
     ; Obtener tile
-    mov bx, OFFSET mapa_datos
-    add bx, ax
-    mov al, [bx]
+    push si
+    push di
+    mov si, OFFSET mapa_datos
+    add si, ax
+    mov al, [si]
+    pop di
+    pop si
     
-    ; Calcular posición en pantalla
-    mov cx, si
-    mov dx, TILE_SIZE
-    push ax
-    mov ax, cx
-    mul dx
-    add ax, bp      ; Añadir offset X
-    mov cx, ax
-    pop ax
+    ; Color según tile
+    mov bl, 2       ; Verde (grass)
+    cmp al, TILE_GRASS
+    je dm_color
+    mov bl, 6       ; Marrón (wall)
+    cmp al, TILE_WALL
+    je dm_color
+    mov bl, 7       ; Gris (path)
+    cmp al, TILE_PATH
+    je dm_color
+    mov bl, 1       ; Azul (water)
+    cmp al, TILE_WATER
+    je dm_color
+    mov bl, 10      ; Verde claro (tree)
     
-    push ax
-    mov ax, di
-    mul dx
-    add ax, 20      ; Offset Y
-    mov dx, ax
-    pop ax
-    
+dm_color:
     ; Dibujar tile
-    call dibujar_tile
+    push si
+    push di
     
+    mov ax, si
+    shl ax, 4       ; *16
+    mov cx, ax
+    
+    mov ax, di
+    shl ax, 4       ; *16
+    mov dx, ax
+    
+    mov al, bl
+    call tile_solido
+    
+    pop di
+    pop si
+    
+dm_next_x:
     inc si
-    jmp dv_x
+    jmp dm_x
     
-dv_ny:
+dm_next_y:
     inc di
-    jmp dv_y
+    jmp dm_y
     
-dv_done:
+dm_done:
     pop di
     pop si
     pop dx
@@ -544,13 +724,13 @@ dv_done:
     pop bx
     pop ax
     ret
-dibujar_viewport ENDP
+dibujar_mapa ENDP
 
 ; =====================================================
-; DIBUJAR TILE
-; AL = tipo, CX = X, DX = Y
+; TILE SÓLIDO (16x16)
+; AL = color, CX = X, DX = Y
 ; =====================================================
-dibujar_tile PROC
+tile_solido PROC
     push ax
     push bx
     push cx
@@ -558,60 +738,151 @@ dibujar_tile PROC
     push si
     push di
     
-    ; Seleccionar color
-    mov bl, 2       ; Verde (grass)
-    cmp al, TILE_GRASS
-    je dt_color
-    mov bl, 6       ; Marrón (wall)
-    cmp al, TILE_WALL
-    je dt_color
-    mov bl, 7       ; Gris (path)
-    cmp al, TILE_PATH
-    je dt_color
-    mov bl, 1       ; Azul (water)
-    cmp al, TILE_WATER    ; Continuación de dibujar_tile
-    je dt_color
-    mov bl, 10      ; Verde claro (tree)
+    mov bl, al      ; Color
+    mov si, 0       ; Y offset
     
-dt_color:
-    ; Dibujar tile de 20x20
-    mov si, 0
-dt_y:
+ts_y:
     cmp si, TILE_SIZE
-    jae dt_done
+    jae ts_done
+    
+    mov di, 0       ; X offset
+    
+ts_x:
+    cmp di, TILE_SIZE
+    jae ts_next_y
+    
+    ; Calcular posición
+    push cx
+    push dx
+    add cx, di
+    add dx, si
+    
+    cmp cx, SCREEN_W
+    jae ts_skip
+    cmp dx, SCREEN_H
+    jae ts_skip
+    
+    ; Dibujar píxel
+    mov ah, 0Ch
+    mov al, bl
+    mov bh, pagina_dibujo
+    int 10h
+    
+ts_skip:
+    pop dx
+    pop cx
+    inc di
+    jmp ts_x
+    
+ts_next_y:
+    inc si
+    jmp ts_y
+    
+ts_done:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+tile_solido ENDP
+
+; =====================================================
+; DIBUJAR JUGADOR
+; =====================================================
+dibujar_player PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    
+    ; Verificar si está visible
+    mov ax, jugador_x
+    sub ax, camara_x
+    js dp_fin
+    cmp ax, VIEWPORT_W
+    jae dp_fin
+    
+    mov bx, jugador_y
+    sub bx, camara_y
+    js dp_fin
+    cmp bx, VIEWPORT_H
+    jae dp_fin
+    
+    ; Convertir a píxeles (centrado)
+    shl ax, 4
+    add ax, 4
+    mov cx, ax
+    
+    mov ax, bx
+    shl ax, 4
+    add ax, 4
+    mov dx, ax
+    
+    ; Dibujar sprite 8x8
+    mov al, 14      ; Amarillo
+    call sprite_8x8
+    
+dp_fin:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_player ENDP
+
+; =====================================================
+; SPRITE 8x8
+; AL = color, CX = X, DX = Y
+; =====================================================
+sprite_8x8 PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    
+    mov bl, al
+    mov si, 0
+    
+s8_y:
+    cmp si, 8
+    jae s8_done
     
     mov di, 0
-dt_x:
-    cmp di, TILE_SIZE
-    jae dt_ny
+    
+s8_x:
+    cmp di, 8
+    jae s8_next_y
     
     push cx
     push dx
     add cx, di
     add dx, si
     
-    ; Verificar límites
     cmp cx, SCREEN_W
-    jae dt_skip
+    jae s8_skip
     cmp dx, SCREEN_H
-    jae dt_skip
+    jae s8_skip
     
     mov ah, 0Ch
     mov al, bl
     mov bh, pagina_dibujo
     int 10h
     
-dt_skip:
+s8_skip:
     pop dx
     pop cx
     inc di
-    jmp dt_x
+    jmp s8_x
     
-dt_ny:
+s8_next_y:
     inc si
-    jmp dt_y
+    jmp s8_y
     
-dt_done:
+s8_done:
     pop di
     pop si
     pop dx
@@ -619,473 +890,172 @@ dt_done:
     pop bx
     pop ax
     ret
-dibujar_tile ENDP
+sprite_8x8 ENDP
 
-; =====================================================
-; DIBUJAR JUGADOR (SIEMPRE EN CENTRO DEL VIEWPORT)
-; =====================================================
-dibujar_jugador PROC
+mostrar_coordenadas PROC
     push ax
     push bx
     push cx
     push dx
     push si
-    push di
     
-    ; Calcular posición del jugador relativa a la cámara
+    ; Dibujar recuadro negro para las coordenadas
+    mov cx, 250
+    mov dx, 5
+    mov si, 0
+mc_fondo:
+    cmp si, 10
+    jae mc_numeros
+    
+    push cx
+    mov di, 0
+mc_fondo_x:
+    cmp di, 60
+    jae mc_fondo_ny
+    
+    mov ah, 0Ch
+    mov al, 0  ; Negro
+    mov bh, pagina_dibujo
+    int 10h
+    
+    inc cx
+    inc di
+    jmp mc_fondo_x
+    
+mc_fondo_ny:
+    pop cx
+    inc dx
+    inc si
+    jmp mc_fondo
+    
+mc_numeros:
+    ; Mostrar X
+    mov cx, 255
+    mov dx, 5
+    
+    ; Dibujar "X:"
+    mov ah, 0Ch
+    mov al, 15  ; Blanco
+    mov bh, pagina_dibujo
+    int 10h
+    add cx, 2
+    int 10h
+    add cx, 2
+    int 10h
+    
+    ; Mostrar valor de X
+    add cx, 5
     mov ax, jugador_x
-    sub ax, camara_x
+    mov bl, 10
+    div bl
     
-    ; Si el jugador está visible en el viewport
-    cmp ax, 0
-    jl dj_no_visible
-    cmp ax, VIEWPORT_W
-    jge dj_no_visible
+    ; Decenas
+    push ax
+    add al, '0'
+    sub al, '0'
+    mov si, 0
+mc_x_dec:
+    cmp si, al
+    jae mc_x_uni
     
-    mov bx, jugador_y
-    sub bx, camara_y
-    
-    cmp bx, 0
-    jl dj_no_visible
-    cmp bx, VIEWPORT_H
-    jge dj_no_visible
-
-    jmp dj_visible
-
-dj_no_visible:
-    jmp dj_fin
-
-dj_visible:
-    
-    ; Convertir a píxeles y centrar en tile
-    mov cx, TILE_SIZE
-    mul cx
-    add ax, 60      ; Offset X del viewport
-    add ax, 6       ; Centrar en tile
-    mov cx, ax
-    
-    mov ax, bx
-    mov dx, TILE_SIZE
-    mul dx
-    add ax, 20      ; Offset Y del viewport
-    add ax, 6       ; Centrar en tile
-    mov dx, ax
-    
-    ; Dibujar jugador como círculo/diamante
-    ; Parte superior
     push cx
-    push dx
-    add cx, 4
-    call pixel_jugador
-    pop dx
+    mov ah, 0Ch
+    mov al, 15
+    mov bh, pagina_dibujo
+    int 10h
     pop cx
+    add cx, 2
+    inc si
+    jmp mc_x_dec
     
-    ; Segunda línea
-    push dx
-    add dx, 1
+mc_x_uni:
+    ; Unidades
+    pop ax
+    mov al, ah
+    add cx, 5
+    mov si, 0
+mc_x_uni_loop:
+    cmp si, al
+    jae mc_y
+    
     push cx
+    mov ah, 0Ch
+    mov al, 15
+    mov bh, pagina_dibujo
+    int 10h
+    pop cx
+    add cx, 2
+    inc si
+    jmp mc_x_uni_loop
+    
+mc_y:
+    ; Mostrar Y
+    mov cx, 255
+    mov dx, 10
+    
+    ; Dibujar "Y:"
+    mov ah, 0Ch
+    mov al, 15
+    mov bh, pagina_dibujo
+    int 10h
+    add cx, 2
+    int 10h
+    add cx, 2
+    int 10h
+    add cx, 2
+    int 10h
+    
+    ; Mostrar valor de Y
     add cx, 3
-    call pixel_jugador
+    mov ax, jugador_y
+    mov bl, 10
+    div bl
+    
+    ; Decenas
+    push ax
+    add al, '0'
+    sub al, '0'
+    mov si, 0
+mc_y_dec:
+    cmp si, al
+    jae mc_y_uni
+    
+    push cx
+    mov ah, 0Ch
+    mov al, 15
+    mov bh, pagina_dibujo
+    int 10h
+    pop cx
     add cx, 2
-    call pixel_jugador
-    pop cx
-    pop dx
+    inc si
+    jmp mc_y_dec
     
-    ; Tercera línea
-    push dx
-    add dx, 2
+mc_y_uni:
+    ; Unidades
+    pop ax
+    mov al, ah
+    add cx, 5
+    mov si, 0
+mc_y_uni_loop:
+    cmp si, al
+    jae mc_fin
+    
     push cx
+    mov ah, 0Ch
+    mov al, 15
+    mov bh, pagina_dibujo
+    int 10h
+    pop cx
     add cx, 2
-    call pixel_jugador
-    add cx, 4
-    call pixel_jugador
-    pop cx
-    pop dx
+    inc si
+    jmp mc_y_uni_loop
     
-    ; Línea central (más ancha)
-    push dx
-    add dx, 3
-    push cx
-    add cx, 1
-    mov si, 6
-dj_centro:
-    call pixel_jugador
-    inc cx
-    dec si
-    jnz dj_centro
-    pop cx
-    pop dx
-    
-    ; Línea inferior central
-    push dx
-    add dx, 4
-    push cx
-    add cx, 1
-    mov si, 6
-dj_centro2:
-    call pixel_jugador
-    inc cx
-    dec si
-    jnz dj_centro2
-    pop cx
-    pop dx
-    
-    ; Penúltima línea
-    push dx
-    add dx, 5
-    push cx
-    add cx, 2
-    call pixel_jugador
-    add cx, 4
-    call pixel_jugador
-    pop cx
-    pop dx
-    
-    ; Última línea
-    push dx
-    add dx, 6
-    push cx
-    add cx, 3
-    call pixel_jugador
-    add cx, 2
-    call pixel_jugador
-    pop cx
-    pop dx
-    
-    ; Parte inferior
-    add dx, 7
-    add cx, 4
-    call pixel_jugador
-    
-dj_fin:
-    pop di
+mc_fin:
     pop si
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-dibujar_jugador ENDP
-
-; =====================================================
-; PIXEL JUGADOR
-; CX = X, DX = Y
-; =====================================================
-pixel_jugador PROC
-    push ax
-    push bx
-    
-    mov ah, 0Ch
-    mov al, 14      ; Amarillo brillante
-    mov bh, pagina_dibujo
-    int 10h
-    
-    ; Dibujar borde negro para resaltar
-    push cx
-    push dx
-    dec cx
-    mov al, 0
-    int 10h
-    add cx, 2
-    int 10h
-    pop dx
-    pop cx
-    
-    push cx
-    push dx
-    dec dx
-    mov al, 0
-    int 10h
-    add dx, 2
-    int 10h
-    pop dx
-    pop cx
-    
-    pop bx
-    pop ax
-    ret
-pixel_jugador ENDP
-
-; =====================================================
-; MOSTRAR INFO (POSICIÓN Y VIEWPORT)
-; =====================================================
-mostrar_info PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    
-    ; Mostrar "POS:" en la parte superior
-    mov cx, 5
-    mov dx, 5
-    mov al, 15      ; Blanco
-    
-    ; P
-    call draw_letra_P
-    add cx, 6
-    
-    ; O
-    call draw_letra_O
-    add cx, 6
-    
-    ; S
-    call draw_letra_S
-    add cx, 6
-    
-    ; :
-    call draw_dos_puntos
-    add cx, 6
-    
-    ; Mostrar coordenadas X,Y
-    mov ax, jugador_x
-    call mostrar_numero_simple
-    
-    add cx, 15
-    mov al, 15
-    call draw_coma
-    add cx, 5
-    
-    mov ax, jugador_y
-    call mostrar_numero_simple
-    
-    ; Dibujar marco del viewport
-    call dibujar_marco_viewport
-    
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-mostrar_info ENDP
-
-; =====================================================
-; DIBUJAR MARCO DEL VIEWPORT
-; =====================================================
-dibujar_marco_viewport PROC
-    push ax
-    push cx
-    push dx
-    
-    ; Marco superior
-    mov cx, 59
-    mov dx, 19
-    mov al, 15
-dmv_top:
-    cmp cx, 261
-    jae dmv_left
-    call draw_pixel_simple
-    inc cx
-    jmp dmv_top
-    
-dmv_left:
-    ; Marco izquierdo
-    mov cx, 59
-    mov dx, 19
-dmv_left_loop:
-    cmp dx, 181
-    jae dmv_right
-    call draw_pixel_simple
-    inc dx
-    jmp dmv_left_loop
-    
-dmv_right:
-    ; Marco derecho
-    mov cx, 260
-    mov dx, 19
-dmv_right_loop:
-    cmp dx, 181
-    jae dmv_bottom
-    call draw_pixel_simple
-    inc dx
-    jmp dmv_right_loop
-    
-dmv_bottom:
-    ; Marco inferior
-    mov cx, 59
-    mov dx, 180
-dmv_bottom_loop:
-    cmp cx, 261
-    jae dmv_done
-    call draw_pixel_simple
-    inc cx
-    jmp dmv_bottom_loop
-    
-dmv_done:
-    pop dx
-    pop cx
-    pop ax
-    ret
-dibujar_marco_viewport ENDP
-
-; =====================================================
-; FUNCIONES DE DIBUJO DE TEXTO SIMPLE
-; =====================================================
-draw_pixel_simple PROC
-    push ax
-    push bx
-    mov ah, 0Ch
-    mov bh, pagina_dibujo
-    int 10h
-    pop bx
-    pop ax
-    ret
-draw_pixel_simple ENDP
-
-draw_letra_P PROC
-    push cx
-    push dx
-    ; Dibujar P simple (5x5)
-    call draw_pixel_simple
-    inc dx
-    call draw_pixel_simple
-    inc dx
-    call draw_pixel_simple
-    inc dx
-    call draw_pixel_simple
-    inc dx
-    call draw_pixel_simple
-    sub dx, 4
-    inc cx
-    call draw_pixel_simple
-    inc cx
-    call draw_pixel_simple
-    inc dx
-    inc dx
-    call draw_pixel_simple
-    dec cx
-    call draw_pixel_simple
-    pop dx
-    pop cx
-    ret
-draw_letra_P ENDP
-
-draw_letra_O PROC
-    push cx
-    push dx
-    ; Dibujar O simple (5x5)
-    inc cx
-    call draw_pixel_simple
-    inc cx
-    call draw_pixel_simple
-    dec cx
-    dec cx
-    inc dx
-    call draw_pixel_simple
-    add cx, 3
-    call draw_pixel_simple
-    inc dx
-    call draw_pixel_simple
-    sub cx, 3
-    call draw_pixel_simple
-    inc dx
-    call draw_pixel_simple
-    add cx, 3
-    call draw_pixel_simple
-    inc dx
-    inc cx
-    call draw_pixel_simple
-    dec cx
-    call draw_pixel_simple
-    pop dx
-    pop cx
-    ret
-draw_letra_O ENDP
-
-draw_letra_S PROC
-    push cx
-    push dx
-    ; Dibujar S simple
-    inc cx
-    call draw_pixel_simple
-    inc cx
-    call draw_pixel_simple
-    sub cx, 2
-    inc dx
-    call draw_pixel_simple
-    inc dx
-    inc cx
-    call draw_pixel_simple
-    inc dx
-    inc cx
-    call draw_pixel_simple
-    inc dx
-    sub cx, 2
-    call draw_pixel_simple
-    inc cx
-    call draw_pixel_simple
-    pop dx
-    pop cx
-    ret
-draw_letra_S ENDP
-
-draw_dos_puntos PROC
-    push dx
-    add dx, 1
-    call draw_pixel_simple
-    add dx, 2
-    call draw_pixel_simple
-    pop dx
-    ret
-draw_dos_puntos ENDP
-
-draw_coma PROC
-    push dx
-    add dx, 3
-    call draw_pixel_simple
-    inc dx
-    call draw_pixel_simple
-    pop dx
-    ret
-draw_coma ENDP
-
-mostrar_numero_simple PROC
-    push ax
-    push cx
-    push dx
-    
-    ; Mostrar solo decenas y unidades
-    push ax
-    mov bl, 10
-    div bl
-    
-    ; Decenas
-    add al, '0'
-    cmp al, '0'
-    je mns_unidades
-    sub al, '0'
-    call draw_digito_simple
-    
-mns_unidades:
-    add cx, 5
-    mov al, ah
-    add al, '0'
-    sub al, '0'
-    call draw_digito_simple
-    
-    pop ax
-    pop dx
-    pop cx
-    pop ax
-    ret
-mostrar_numero_simple ENDP
-
-draw_digito_simple PROC
-    ; Simplificado: solo puntos para representar dígitos
-    push cx
-    push dx
-    push ax
-    
-    mov al, 15
-    call draw_pixel_simple
-    inc cx
-    call draw_pixel_simple
-    inc cx
-    call draw_pixel_simple
-    
-    pop ax
-    pop dx
-    pop cx
-    ret
-draw_digito_simple ENDP
-
+mostrar_coordenadas ENDP
 END inicio
