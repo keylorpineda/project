@@ -324,8 +324,10 @@ dibujar_mapa_rapido PROC
     
 dmr_fila:
     cmp bp, VIEWPORT_H
-    jae dmr_fin
-    
+    jb dmr_fila_loop
+    jmp dmr_fin
+
+dmr_fila_loop:
     xor si, si          ; SI = columna viewport
     
 dmr_col:
