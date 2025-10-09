@@ -464,7 +464,10 @@ dmr_fila_procesar:
     
 dmr_col:
     cmp si, VIEWPORT_W + 1
-    jae dmr_next_fila
+    jb dmr_col_procesar
+    jmp dmr_next_fila
+
+dmr_col_procesar:
     
     ; Calcular posición en el mapa
     mov ax, camara_y
@@ -498,19 +501,19 @@ dmr_col:
     cmp al, TILE_WALL
     jne dmr_check_path
     mov di, OFFSET sprite_wall
-    jmp dmr_draw
+    jmp short dmr_draw
 
 dmr_check_path:
     cmp al, TILE_PATH
     jne dmr_check_water
     mov di, OFFSET sprite_path
-    jmp dmr_draw
+    jmp short dmr_draw
 
 dmr_check_water:
     cmp al, TILE_WATER
     jne dmr_check_tree
     mov di, OFFSET sprite_water
-    jmp dmr_draw
+    jmp short dmr_draw
 
 dmr_check_tree:
     cmp al, TILE_TREE
@@ -1000,28 +1003,44 @@ mover_suave PROC
     
     ; ARRIBA
     cmp ah, 48h
-    je ms_arr
+    jne ms_check_w
+    jmp ms_arr
+
+ms_check_w:
     cmp ah, 11h         ; W
-    je ms_arr
-    
-    ; ABAJO  
+    jne ms_check_down
+    jmp ms_arr
+
+ms_check_down:
     cmp ah, 50h
-    je ms_aba
+    jne ms_check_s
+    jmp ms_aba
+
+ms_check_s:
     cmp ah, 1Fh         ; S
-    je ms_aba
-    
-    ; IZQUIERDA
+    jne ms_check_left
+    jmp ms_aba
+
+ms_check_left:
     cmp ah, 4Bh
-    je ms_izq
+    jne ms_check_a
+    jmp ms_izq
+
+ms_check_a:
     cmp ah, 1Eh         ; A
-    je ms_izq
-    
-    ; DERECHA
+    jne ms_check_right
+    jmp ms_izq
+
+ms_check_right:
     cmp ah, 4Dh
-    je ms_der
+    jne ms_check_d
+    jmp ms_der
+
+ms_check_d:
     cmp ah, 20h         ; D
-    je ms_der
-    
+    jne ms_fin
+    jmp ms_der
+
     jmp ms_fin
 
 ms_arr:
