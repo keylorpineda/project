@@ -163,23 +163,35 @@ dibujar_mapa_rapido PROC
     
 dmr_fila:
     cmp bp, VIEWPORT_H
-    jae dmr_fin
+    jb  dmr_fila_cont
+    jmp dmr_fin
+
+dmr_fila_cont:
     
     xor si, si
     
 dmr_col:
     cmp si, VIEWPORT_W
-    jae dmr_nf
+    jb  dmr_col_cont
+    jmp dmr_nf
+
+dmr_col_cont:
     
     mov ax, camara_y
     add ax, bp
     cmp ax, 50
-    jae dmr_nc
+    jb  dmr_y_ok
+    jmp dmr_nc
+
+dmr_y_ok:
     
     mov bx, camara_x
     add bx, si
     cmp bx, 50
-    jae dmr_nc
+    jb  dmr_x_ok
+    jmp dmr_nc
+
+dmr_x_ok:
     
     push dx
     mov dx, 50
@@ -188,7 +200,10 @@ dmr_col:
     pop dx
     
     cmp ax, 2500
-    jae dmr_nc
+    jb  dmr_idx_ok
+    jmp dmr_nc
+
+dmr_idx_ok:
     
     push si
     push di
@@ -420,10 +435,13 @@ djr_x:
     out dx, al
     pop dx
     
+    push cx
     mov bx, cx
     and bx, 7
     mov al, 80h
-    shr al, bl
+    mov cl, bl
+    shr al, cl
+    pop cx
     or es:[di], al
     
     inc cx
