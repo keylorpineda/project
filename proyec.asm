@@ -297,7 +297,10 @@ dibujar_mapa PROC
     
 dm_fila:
     cmp bp, VIEWPORT_H
-    jae dm_fin
+    jb dm_fila_body
+    jmp dm_fin
+
+dm_fila_body:
     
     xor si, si
     
