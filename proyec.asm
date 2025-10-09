@@ -32,6 +32,12 @@ sprite_tree db 256 dup(0)
 sprite_player db 64 dup(0)
 buffer_temp db 300 dup(0)
 
+sprite_table dw OFFSET sprite_grass
+             dw OFFSET sprite_wall
+             dw OFFSET sprite_path
+             dw OFFSET sprite_water
+             dw OFFSET sprite_tree
+
 jugador_x dw 25
 jugador_y dw 25
 camara_x dw 0
@@ -252,33 +258,15 @@ dmr_col:
     
     push si
     push bp
-    
-    cmp al, 0
-    jne dmr_t1
+
     mov di, OFFSET sprite_grass
-    jmp NEAR PTR dmr_draw
-dmr_t1:
-    cmp al, 1
-    jne dmr_t2
-    mov di, OFFSET sprite_wall
-    jmp NEAR PTR dmr_draw
-dmr_t2:
-    cmp al, 2
-    jne dmr_t3
-    mov di, OFFSET sprite_path
-    jmp NEAR PTR dmr_draw
-dmr_t3:
-    cmp al, 3
-    jne dmr_t4
-    mov di, OFFSET sprite_water
-    jmp NEAR PTR dmr_draw
-dmr_t4:
     cmp al, 4
-    jne dmr_t5
-    mov di, OFFSET sprite_tree
-    jmp NEAR PTR dmr_draw
-dmr_t5:
-    mov di, OFFSET sprite_grass
+    ja dmr_draw
+
+    mov bl, al
+    xor bh, bh
+    shl bx, 1
+    mov di, [sprite_table + bx]
     
 dmr_draw:
     pop bp
