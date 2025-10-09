@@ -195,6 +195,11 @@ player_ok:
     mov ax, 10h
     int 10h
     
+    ; ✅ Limpiar pantalla UNA SOLA VEZ al inicio
+    mov ah, 0
+    mov al, 10h
+    int 10h
+    
     ; Configurar página inicial
     mov pagina_activa, 0
     
@@ -266,58 +271,15 @@ renderizar_juego PROC
     xor al, 1
     int 10h
     
-    call dibujar_fondo
+    ; ✅ NO limpiar fondo - es demasiado lento
+    ; Los tiles cubren todo el viewport de todos modos
+    
     call dibujar_mapa
     call dibujar_jugador
     
     pop ax
     ret
 renderizar_juego ENDP
-
-; =====================================================
-; DIBUJAR FONDO NEGRO
-; =====================================================
-dibujar_fondo PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    
-    mov cx, 240         ; X inicial viewport
-    mov dx, 111         ; Y inicial viewport
-    
-df_linea:
-    push cx
-    mov bx, 160         ; Ancho viewport
-    
-df_pixel:
-    push cx
-    push dx
-    
-    mov ah, 0Ch
-    mov al, 0           ; Negro
-    xor bh, bh
-    int 10h
-    
-    pop dx
-    pop cx
-    
-    inc cx
-    dec bx
-    jnz df_pixel
-    
-    pop cx
-    inc dx
-    
-    cmp dx, 239         ; Y final (111 + 128)
-    jb df_linea
-    
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-dibujar_fondo ENDP
 
 ; =====================================================
 ; DIBUJAR MAPA
@@ -378,28 +340,29 @@ dm_col:
     ; Seleccionar sprite
     push si
     push bp
-
-    mov di, OFFSET sprite_grass
-
+    
     cmp al, TILE_WALL
-    jne dm_check_path
+    jne dm_t2
     mov di, OFFSET sprite_wall
-
-dm_check_path:
+    jmp dm_draw
+dm_t2:
     cmp al, TILE_PATH
-    jne dm_check_water
+    jne dm_t3
     mov di, OFFSET sprite_path
-
-dm_check_water:
+    jmp dm_draw
+dm_t3:
     cmp al, TILE_WATER
-    jne dm_check_tree
+    jne dm_t4
     mov di, OFFSET sprite_water
-
-dm_check_tree:
+    jmp dm_draw
+dm_t4:
     cmp al, TILE_TREE
-    jne dm_draw
+    jne dm_t5
     mov di, OFFSET sprite_tree
-
+    jmp dm_draw
+dm_t5:
+    mov di, OFFSET sprite_grass
+    
 dm_draw:
     pop bp
     pop si
@@ -482,7 +445,7 @@ dj_fin:
 dibujar_jugador ENDP
 
 ; =====================================================
-; DIBUJAR SPRITE 16x16 CON BIOS
+; DIBUJAR SPRITE 16x16 CON BIOS (OPTIMIZADO)
 ; CX=X, DX=Y, DI=sprite
 ; =====================================================
 dibujar_sprite_16x16 PROC
@@ -501,16 +464,14 @@ ds16_fila:
     jae ds16_fin
     
     push cx
-    push bp
-    mov bp, 16
+    mov bx, 16
     
 ds16_pixel:
     lodsb
     cmp al, 0
     je ds16_skip
     
-    push ax
-    push bp
+    ; Solo guardar lo mínimo necesario
     push cx
     push dx
     
@@ -520,15 +481,12 @@ ds16_pixel:
     
     pop dx
     pop cx
-    pop bp
-    pop ax
     
 ds16_skip:
     inc cx
-    dec bp
+    dec bx
     jnz ds16_pixel
     
-    pop bp
     pop cx
     
     inc dx
@@ -546,7 +504,7 @@ ds16_fin:
 dibujar_sprite_16x16 ENDP
 
 ; =====================================================
-; DIBUJAR SPRITE 8x8 CON BIOS
+; DIBUJAR SPRITE 8x8 CON BIOS (OPTIMIZADO)
 ; CX=X, DX=Y, DI=sprite
 ; =====================================================
 dibujar_sprite_8x8 PROC
@@ -565,16 +523,13 @@ ds8_fila:
     jae ds8_fin
     
     push cx
-    push bp
-    mov bp, 8
+    mov bx, 8
     
 ds8_pixel:
     lodsb
     cmp al, 0
     je ds8_skip
     
-    push ax
-    push bp
     push cx
     push dx
     
@@ -584,15 +539,12 @@ ds8_pixel:
     
     pop dx
     pop cx
-    pop bp
-    pop ax
     
 ds8_skip:
     inc cx
-    dec bp
+    dec bx
     jnz ds8_pixel
     
-    pop bp
     pop cx
     
     inc dx
