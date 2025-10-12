@@ -109,7 +109,9 @@ inicio:
     mov ah, 9
     int 21h
     call cargar_mapa
-    jc error_carga
+    jnc cm_ok
+    jmp error_carga
+cm_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -121,7 +123,9 @@ inicio:
     mov dx, OFFSET archivo_grass
     mov di, OFFSET sprite_grass
     call cargar_sprite_16x16
-    jc error_carga
+    jnc grass_ok
+    jmp error_carga
+grass_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -133,7 +137,9 @@ inicio:
     mov dx, OFFSET archivo_wall
     mov di, OFFSET sprite_wall
     call cargar_sprite_16x16
-    jc error_carga
+    jnc wall_ok
+    jmp error_carga
+wall_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -145,7 +151,9 @@ inicio:
     mov dx, OFFSET archivo_path
     mov di, OFFSET sprite_path
     call cargar_sprite_16x16
-    jc error_carga
+    jnc path_ok
+    jmp error_carga
+path_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -157,7 +165,9 @@ inicio:
     mov dx, OFFSET archivo_water
     mov di, OFFSET sprite_water
     call cargar_sprite_16x16
-    jc error_carga
+    jnc water_ok
+    jmp error_carga
+water_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -169,7 +179,9 @@ inicio:
     mov dx, OFFSET archivo_tree
     mov di, OFFSET sprite_tree
     call cargar_sprite_16x16
-    jc error_carga
+    jnc tree_ok
+    jmp error_carga
+tree_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -181,7 +193,9 @@ inicio:
     mov dx, OFFSET archivo_player
     mov di, OFFSET sprite_player
     call cargar_sprite_8x8
-    jc error_carga
+    jnc player_ok
+    jmp error_carga
+player_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -219,7 +233,7 @@ bucle_juego:
     cmp ah, 0
     je procesar_movimiento
     mov tecla_presionada, ah
-    jmp SHORT procesar_movimiento
+    jmp procesar_movimiento
 
 no_hay_tecla:
     mov tecla_presionada, 0
@@ -232,7 +246,7 @@ procesar_movimiento:
     test al, 1
     jz render_p0
     call renderizar_en_pagina_1
-    jmp SHORT mostrar
+    jmp mostrar
     
 render_p0:
     call renderizar_en_pagina_0
@@ -276,7 +290,10 @@ mover_jugador_suave PROC
     
     mov al, tecla_presionada
     test al, al
-    jz mjs_fin
+    jnz mjs_continuar
+    jmp mjs_fin
+
+mjs_continuar:
     
     cmp al, 48h
     je mjs_arr
@@ -306,46 +323,58 @@ mover_jugador_suave PROC
     cmp al, 'D'
     je mjs_der
     
-    jmp SHORT mjs_fin
+    jmp mjs_fin
 
 mjs_arr:
     mov ax, jugador_py
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb mjs_fin
+    jae mjs_arr_move
+    jmp mjs_fin
+
+mjs_arr_move:
     mov jugador_py, ax
     call verificar_colision_px
     jnc mjs_fin
     add jugador_py, VELOCIDAD
-    jmp SHORT mjs_fin
+    jmp mjs_fin
 
 mjs_aba:
     mov ax, jugador_py
     add ax, VELOCIDAD
     cmp ax, 768
-    ja mjs_fin
+    jbe mjs_aba_move
+    jmp mjs_fin
+
+mjs_aba_move:
     mov jugador_py, ax
     call verificar_colision_px
     jnc mjs_fin
     sub jugador_py, VELOCIDAD
-    jmp SHORT mjs_fin
+    jmp mjs_fin
 
 mjs_izq:
     mov ax, jugador_px
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb mjs_fin
+    jae mjs_izq_move
+    jmp mjs_fin
+
+mjs_izq_move:
     mov jugador_px, ax
     call verificar_colision_px
     jnc mjs_fin
     add jugador_px, VELOCIDAD
-    jmp SHORT mjs_fin
+    jmp mjs_fin
 
 mjs_der:
     mov ax, jugador_px
     add ax, VELOCIDAD
     cmp ax, 768
-    ja mjs_fin
+    jbe mjs_der_move
+    jmp mjs_fin
+
+mjs_der_move:
     mov jugador_px, ax
     call verificar_colision_px
     jnc mjs_fin
@@ -399,7 +428,7 @@ verificar_colision_px PROC
     
 vcp_col:
     stc
-    jmp SHORT vcp_fin
+    jmp vcp_fin
     
 vcp_ok:
     clc
@@ -606,23 +635,35 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, 13
-    jae dmo_fin
+    jb dmo_fila_continue
+    jmp dmo_fin
+
+dmo_fila_continue:
     
     xor si, si
     
 dmo_col:
     cmp si, 21
-    jae dmo_next_fila
+    jb dmo_procesar_col
+    jmp dmo_next_fila
+
+dmo_procesar_col:
     
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 50
-    jae dmo_next_col
+    jb dmo_check_x
+    jmp dmo_next_col
+
+dmo_check_x:
     
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 50
-    jae dmo_next_col
+    jb dmo_in_range
+    jmp dmo_next_col
+
+dmo_in_range:
     
     push dx
     mov dx, 50
@@ -638,19 +679,19 @@ dmo_col:
     cmp al, TILE_WALL
     jne dmo_check_path
     mov di, OFFSET sprite_wall
-    jmp SHORT dmo_draw
+    jmp dmo_draw
 
 dmo_check_path:
     cmp al, TILE_PATH
     jne dmo_check_water
     mov di, OFFSET sprite_path
-    jmp SHORT dmo_draw
+    jmp dmo_draw
 
 dmo_check_water:
     cmp al, TILE_WATER
     jne dmo_check_tree
     mov di, OFFSET sprite_water
-    jmp SHORT dmo_draw
+    jmp dmo_draw
 
 dmo_check_tree:
     cmp al, TILE_TREE
@@ -960,7 +1001,7 @@ cm_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp SHORT cm_fin
+    jmp cm_fin
     
 cm_error:
     stc
@@ -1041,7 +1082,7 @@ cs16_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp SHORT cs16_fin
+    jmp cs16_fin
     
 cs16_error:
     stc
@@ -1120,7 +1161,7 @@ cs8_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp SHORT cs8_fin
+    jmp cs8_fin
     
 cs8_error:
     stc
