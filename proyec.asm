@@ -305,37 +305,49 @@ usar_scan:
 verificar_tecla:
     ; ARRIBA
     cmp al, 48h
-    je pti_arr
+    je goto_pti_arr
     cmp al, 'w'
-    je pti_arr
+    je goto_pti_arr
     cmp al, 'W'
-    je pti_arr
+    je goto_pti_arr
     
     ; ABAJO
     cmp al, 50h
-    je pti_aba
+    je goto_pti_aba
     cmp al, 's'
-    je pti_aba
+    je goto_pti_aba
     cmp al, 'S'
-    je pti_aba
+    je goto_pti_aba
     
     ; IZQUIERDA
     cmp al, 4Bh
-    je pti_izq
+    je goto_pti_izq
     cmp al, 'a'
-    je pti_izq
+    je goto_pti_izq
     cmp al, 'A'
-    je pti_izq
+    je goto_pti_izq
     
     ; DERECHA
     cmp al, 4Dh
-    je pti_der
+    je goto_pti_der
     cmp al, 'd'
-    je pti_der
+    je goto_pti_der
     cmp al, 'D'
-    je pti_der
+    je goto_pti_der
     
     jmp SHORT pti_fin
+
+goto_pti_arr:
+    jmp pti_arr
+
+goto_pti_aba:
+    jmp pti_aba
+
+goto_pti_izq:
+    jmp pti_izq
+
+goto_pti_der:
+    jmp pti_der
 
 pti_arr:
     ; Calcular nueva posición
