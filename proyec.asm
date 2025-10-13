@@ -561,23 +561,35 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, 13
-    jae dmo_fin
+    jb dmo_fila_cont
+    jmp dmo_fin
+
+dmo_fila_cont:
     
     xor si, si
-    
+
 dmo_col:
     cmp si, 21
-    jae dmo_next_fila
-    
+    jb dmo_col_cont
+    jmp dmo_next_fila
+
+dmo_col_cont:
+
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 50
-    jae dmo_next_col
-    
+    jb dmo_tile_y_ok
+    jmp dmo_next_col
+
+dmo_tile_y_ok:
+
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 50
-    jae dmo_next_col
+    jb dmo_tile_x_ok
+    jmp dmo_next_col
+
+dmo_tile_x_ok:
     
     push dx
     mov dx, 50
