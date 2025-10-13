@@ -50,6 +50,11 @@ buffer_temp db 300 dup(0)
 jugador_px  dw 80
 jugador_py  dw 80
 
+; === ANIMACIÓN DEL JUGADOR ===
+jugador_dir db 0        ; 0=abajo, 1=arriba, 2=izq, 3=der
+jugador_frame db 0      ; Frame de animación (0-3)
+frame_counter db 0      ; Contador para cambiar frames
+
 ; === CÁMARA (en píxeles) ===
 camara_px   dw 0
 camara_py   dw 0
@@ -214,35 +219,28 @@ player_ok:
     int 10h
 
 ; =====================================================
-; BUCLE PRINCIPAL - MÁXIMA RESPONSIVIDAD
+; BUCLE PRINCIPAL - ULTRA RESPONSIVO
 ; =====================================================
 bucle_juego:
-    ; Verificar si hay tecla (NO bloqueante)
+    ; 1. ESPERAR RETRACE PRIMERO (mientras no hay nada que hacer)
+    call esperar_retrace
+    
+    ; 2. VERIFICAR TECLA inmediatamente después del retrace
     mov ah, 1
     int 16h
-    jz solo_actualizar
+    jz sin_tecla
     
-    ; HAY TECLA - Leer inmediatamente
+    ; 3. LEER Y PROCESAR TECLA INSTANTÁNEAMENTE
     mov ah, 0
     int 16h
     
-    ; Verificar ESC
     cmp al, 27
     je fin_juego
     
-    ; Procesar tecla y mover INMEDIATAMENTE
     call procesar_tecla_inmediata
-    
-    ; Actualizar cámara INSTANTÁNEAMENTE después del movimiento
     call centrar_camara_directo
     
-    jmp renderizar
-    
-solo_actualizar:
-    ; Si no hay tecla, mantener cámara donde está
-    
-renderizar:
-    ; Renderizar en página oculta
+    ; 4. RENDERIZAR en página oculta (NO esperar retrace aquí)
     mov al, pagina_dibujo
     test al, 1
     jz render_p0
@@ -253,18 +251,21 @@ render_p0:
     call renderizar_en_pagina_0
     
 cambiar_pagina:
-    ; Sincronizar con retrace
-    call esperar_retrace
-    
-    ; Cambiar página visible
+    ; 5. CAMBIAR PÁGINA inmediatamente (sin esperar retrace extra)
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
     
-    ; Alternar páginas
     xor pagina_dibujo, 1
     xor pagina_visible, 1
     
+    jmp bucle_juego
+
+sin_tecla:
+    ; Si no hay tecla, solo cambiar página sin renderizar
+    mov ah, 5
+    mov al, pagina_visible
+    int 10h
     jmp bucle_juego
 
 error_carga:
@@ -305,49 +306,37 @@ usar_scan:
 verificar_tecla:
     ; ARRIBA
     cmp al, 48h
-    je goto_pti_arr
+    je pti_arr
     cmp al, 'w'
-    je goto_pti_arr
+    je pti_arr
     cmp al, 'W'
-    je goto_pti_arr
+    je pti_arr
     
     ; ABAJO
     cmp al, 50h
-    je goto_pti_aba
+    je pti_aba
     cmp al, 's'
-    je goto_pti_aba
+    je pti_aba
     cmp al, 'S'
-    je goto_pti_aba
+    je pti_aba
     
     ; IZQUIERDA
     cmp al, 4Bh
-    je goto_pti_izq
+    je pti_izq
     cmp al, 'a'
-    je goto_pti_izq
+    je pti_izq
     cmp al, 'A'
-    je goto_pti_izq
+    je pti_izq
     
     ; DERECHA
     cmp al, 4Dh
-    je goto_pti_der
+    je pti_der
     cmp al, 'd'
-    je goto_pti_der
+    je pti_der
     cmp al, 'D'
-    je goto_pti_der
+    je pti_der
     
-    jmp pti_fin
-
-goto_pti_arr:
-    jmp pti_arr
-
-goto_pti_aba:
-    jmp pti_aba
-
-goto_pti_izq:
-    jmp pti_izq
-
-goto_pti_der:
-    jmp pti_der
+    jmp SHORT pti_fin
 
 pti_arr:
     ; Calcular nueva posición
@@ -356,7 +345,7 @@ pti_arr:
     
     ; Verificar límites
     cmp ax, 16
-    jb pti_skip_arr
+    jb pti_fin
     
     ; Verificar colisión ANTES de mover
     mov cx, jugador_px
@@ -364,75 +353,61 @@ pti_arr:
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_skip_arr         ; Si no es transitable, no mover
+    jnc pti_fin         ; Si no es transitable, no mover
     
     ; Mover si es válido
     mov jugador_py, ax
-    jmp pti_fin
-
-pti_skip_arr:
-    jmp pti_fin
+    jmp SHORT pti_fin
 
 pti_aba:
     mov ax, jugador_py
     add ax, VELOCIDAD
     
     cmp ax, 784
-    ja pti_skip_aba
+    ja pti_fin
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_skip_aba
+    jnc pti_fin
     
     mov jugador_py, ax
-    jmp pti_fin
-
-pti_skip_aba:
-    jmp pti_fin
+    jmp SHORT pti_fin
 
 pti_izq:
     mov ax, jugador_px
     sub ax, VELOCIDAD
     
     cmp ax, 16
-    jb pti_skip_izq
+    jb pti_fin
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_skip_izq
+    jnc pti_fin
     
     mov jugador_px, ax
-    jmp pti_fin
-
-pti_skip_izq:
-    jmp pti_fin
+    jmp SHORT pti_fin
 
 pti_der:
     mov ax, jugador_px
     add ax, VELOCIDAD
     
     cmp ax, 784
-    ja pti_skip_der
+    ja pti_fin
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_skip_der
+    jnc pti_fin
     
     mov jugador_px, ax
-
-    jmp pti_fin
-
-pti_skip_der:
-    jmp pti_fin
 
 pti_fin:
     pop dx
@@ -441,6 +416,34 @@ pti_fin:
     pop ax
     ret
 procesar_tecla_inmediata ENDP
+
+; =====================================================
+; ACTUALIZAR FRAME DE ANIMACIÓN
+; =====================================================
+actualizar_frame_animacion PROC
+    push ax
+    
+    ; Incrementar contador de frames
+    inc frame_counter
+    mov al, frame_counter
+    
+    ; Cambiar frame cada 4 movimientos (ajustar para velocidad de animación)
+    cmp al, 4
+    jb afr_no_cambiar
+    
+    ; Reset contador
+    mov frame_counter, 0
+    
+    ; Avanzar al siguiente frame (0->1->2->3->0)
+    inc jugador_frame
+    mov al, jugador_frame
+    and al, 3           ; Mantener en rango 0-3
+    mov jugador_frame, al
+    
+afr_no_cambiar:
+    pop ax
+    ret
+actualizar_frame_animacion ENDP
 
 ; =====================================================
 ; VERIFICAR SI TILE ES TRANSITABLE
@@ -740,6 +743,30 @@ dibujar_jugador_en_offset PROC
     add ax, viewport_y
     mov dx, ax
     
+    ; SISTEMA DE ANIMACIÓN:
+    ; Cuando tengas sprites diferentes, selecciona aquí según:
+    ; - jugador_dir (0=abajo, 1=arriba, 2=izq, 3=der)
+    ; - jugador_frame (0-3 para ciclo de animación)
+    ;
+    ; Ejemplo con múltiples sprites:
+    ; mov al, jugador_dir
+    ; cmp al, 0
+    ; je usar_sprite_abajo
+    ; cmp al, 1
+    ; je usar_sprite_arriba
+    ; cmp al, 2
+    ; je usar_sprite_izq
+    ; cmp al, 3
+    ; je usar_sprite_der
+    ;
+    ; usar_sprite_abajo:
+    ;   mov al, jugador_frame
+    ;   ; Calcular offset del sprite según frame
+    ;   mov si, OFFSET sprite_player_abajo_base
+    ;   ; ... añadir offset según frame
+    ;   jmp dibujar
+    ;
+    ; Por ahora, usa el sprite único:
     mov si, OFFSET sprite_player
     call dibujar_sprite_8x8_en_offset
     
