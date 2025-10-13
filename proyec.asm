@@ -298,7 +298,7 @@ procesar_tecla_inmediata PROC
     test bl, bl
     jz usar_scan
     mov al, bl
-    jmp SHORT verificar_tecla
+    jmp verificar_tecla
     
 usar_scan:
     mov al, bh
@@ -330,13 +330,19 @@ verificar_tecla:
     
     ; DERECHA
     cmp al, 4Dh
-    je pti_der
+    jne ptc_chk_d_min
+    jmp pti_der
+ptc_chk_d_min:
     cmp al, 'd'
-    je pti_der
+    jne ptc_chk_d_may
+    jmp pti_der
+ptc_chk_d_may:
     cmp al, 'D'
-    je pti_der
-    
-    jmp SHORT pti_fin
+    jne ptc_no_match
+    jmp pti_der
+ptc_no_match:
+
+    jmp pti_fin
 
 pti_arr:
     ; Calcular nueva posición
@@ -345,7 +351,7 @@ pti_arr:
     
     ; Verificar límites
     cmp ax, 16
-    jb pti_fin
+    jb pti_arr_no_mover
     
     ; Verificar colisión ANTES de mover
     mov cx, jugador_px
@@ -353,62 +359,74 @@ pti_arr:
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin         ; Si no es transitable, no mover
+    jnc pti_arr_no_mover         ; Si no es transitable, no mover
     
     ; Mover si es válido
     mov jugador_py, ax
-    jmp SHORT pti_fin
+    jmp pti_fin
+
+pti_arr_no_mover:
+    jmp pti_fin
 
 pti_aba:
     mov ax, jugador_py
     add ax, VELOCIDAD
     
     cmp ax, 784
-    ja pti_fin
+    ja pti_aba_no_mover
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jnc pti_aba_no_mover
     
     mov jugador_py, ax
-    jmp SHORT pti_fin
+    jmp pti_fin
+
+pti_aba_no_mover:
+    jmp pti_fin
 
 pti_izq:
     mov ax, jugador_px
     sub ax, VELOCIDAD
     
     cmp ax, 16
-    jb pti_fin
+    jb pti_izq_no_mover
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jnc pti_izq_no_mover
     
     mov jugador_px, ax
-    jmp SHORT pti_fin
+    jmp pti_fin
+
+pti_izq_no_mover:
+    jmp pti_fin
 
 pti_der:
     mov ax, jugador_px
     add ax, VELOCIDAD
     
     cmp ax, 784
-    ja pti_fin
+    ja pti_der_no_mover
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jnc pti_der_no_mover
     
     mov jugador_px, ax
+    jmp pti_fin
 
+pti_der_no_mover:
+    
 pti_fin:
     pop dx
     pop cx
