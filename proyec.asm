@@ -335,7 +335,7 @@ verificar_tecla:
     cmp al, 'D'
     je goto_pti_der
     
-    jmp SHORT pti_fin
+    jmp pti_fin
 
 goto_pti_arr:
     jmp pti_arr
@@ -356,7 +356,7 @@ pti_arr:
     
     ; Verificar límites
     cmp ax, 16
-    jb pti_fin
+    jb pti_skip_arr
     
     ; Verificar colisión ANTES de mover
     mov cx, jugador_px
@@ -364,61 +364,75 @@ pti_arr:
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin         ; Si no es transitable, no mover
+    jnc pti_skip_arr         ; Si no es transitable, no mover
     
     ; Mover si es válido
     mov jugador_py, ax
-    jmp SHORT pti_fin
+    jmp pti_fin
+
+pti_skip_arr:
+    jmp pti_fin
 
 pti_aba:
     mov ax, jugador_py
     add ax, VELOCIDAD
     
     cmp ax, 784
-    ja pti_fin
+    ja pti_skip_aba
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jnc pti_skip_aba
     
     mov jugador_py, ax
-    jmp SHORT pti_fin
+    jmp pti_fin
+
+pti_skip_aba:
+    jmp pti_fin
 
 pti_izq:
     mov ax, jugador_px
     sub ax, VELOCIDAD
     
     cmp ax, 16
-    jb pti_fin
+    jb pti_skip_izq
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jnc pti_skip_izq
     
     mov jugador_px, ax
-    jmp SHORT pti_fin
+    jmp pti_fin
+
+pti_skip_izq:
+    jmp pti_fin
 
 pti_der:
     mov ax, jugador_px
     add ax, VELOCIDAD
     
     cmp ax, 784
-    ja pti_fin
+    ja pti_skip_der
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jnc pti_skip_der
     
     mov jugador_px, ax
+
+    jmp pti_fin
+
+pti_skip_der:
+    jmp pti_fin
 
 pti_fin:
     pop dx
