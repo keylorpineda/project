@@ -555,10 +555,12 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, 13
-    jae dmo_fin
-    
+    jb dmo_init_col
+    jmp dmo_fin
+
+dmo_init_col:
     xor si, si
-    
+
 dmo_col:
     cmp si, 21
     jae dmo_next_fila
