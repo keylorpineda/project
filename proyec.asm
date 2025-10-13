@@ -1,5 +1,5 @@
 ; =====================================================
-; JUEGO EGA - MOVIMIENTO CONTINUO ULTRA FLUIDO
+; JUEGO EGA - MOVIMIENTO DISCRETO ULTRA RESPONSIVO
 ; Universidad Nacional - Proyecto II Ciclo 2025
 ; Modo 10h (640x350, 16 colores)
 ; =====================================================
@@ -21,7 +21,7 @@ VIEWPORT_W  EQU 20
 VIEWPORT_H  EQU 12
 
 VIDEO_SEG   EQU 0A000h
-VELOCIDAD   EQU 3        ; Píxeles por frame
+VELOCIDAD   EQU 4        ; Píxeles por tecla (más rápido)
 
 .DATA
 ; === ARCHIVOS ===
@@ -62,9 +62,6 @@ pagina_dibujo  db 1
 viewport_x  dw 160
 viewport_y  dw 79
 
-; === CONTROL ===
-tecla_presionada db 0
-
 ; === VARIABLES AUXILIARES ===
 temp_offset     dw 0
 inicio_tile_x   dw 0
@@ -73,7 +70,7 @@ offset_px_x     dw 0
 offset_px_y     dw 0
 
 ; === MENSAJES ===
-msg_titulo  db 'JUEGO EGA - Movimiento Fluido',13,10,'$'
+msg_titulo  db 'JUEGO EGA - Movimiento Responsivo',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
 msg_mapa    db 'Mapa: $'
 msg_grass   db 'Grass: $'
@@ -213,50 +210,35 @@ player_ok:
     int 10h
 
 ; =====================================================
-; BUCLE PRINCIPAL
+; BUCLE PRINCIPAL - MÁXIMA RESPONSIVIDAD
 ; =====================================================
 bucle_juego:
-    ; Verificar si hay tecla nueva
+    ; Verificar si hay tecla (NO bloqueante)
     mov ah, 1
     int 16h
-    jz usar_tecla_anterior
+    jz solo_actualizar
     
-    ; Leer tecla nueva
+    ; HAY TECLA - Leer inmediatamente
     mov ah, 0
     int 16h
     
+    ; Verificar ESC
     cmp al, 27
     je fin_juego
     
-    ; Guardar tecla
-    test al, al
-    jz guardar_scan
-    mov tecla_presionada, al
-    jmp mover
-
-guardar_scan:
-    mov tecla_presionada, ah
-    jmp mover
-
-usar_tecla_anterior:
-    ; Seguir usando la tecla anterior
-    cmp tecla_presionada, 0
-    je solo_renderizar
-
-mover:
-    ; Mover jugador
-    call mover_jugador_continuo
+    ; Procesar tecla y mover INMEDIATAMENTE
+    call procesar_tecla_inmediata
     
-solo_renderizar:
+solo_actualizar:
     ; Actualizar cámara suavemente
-    call actualizar_camara_suave
+    call actualizar_camara_rapida
     
     ; Renderizar en página oculta
     mov al, pagina_dibujo
     test al, 1
     jz render_p0
     call renderizar_en_pagina_1
-    jmp cambiar_pagina
+    jmp SHORT cambiar_pagina
     
 render_p0:
     call renderizar_en_pagina_0
@@ -290,128 +272,140 @@ fin_juego:
     int 21h
 
 ; =====================================================
-; MOVER JUGADOR CONTINUAMENTE
+; PROCESAR TECLA INMEDIATAMENTE
 ; =====================================================
-mover_jugador_continuo PROC
+procesar_tecla_inmediata PROC
     push ax
+    push bx
     
-    mov al, tecla_presionada
-    test al, al
-    jz mjc_fin
+    ; Guardar tecla
+    mov bl, al
+    mov bh, ah
     
+    ; Determinar qué tecla es
+    test bl, bl
+    jz usar_scan
+    mov al, bl
+    jmp SHORT verificar_tecla
+    
+usar_scan:
+    mov al, bh
+    
+verificar_tecla:
     ; ARRIBA
     cmp al, 48h
-    je mjc_arr
+    je pti_arr
     cmp al, 'w'
-    je mjc_arr
+    je pti_arr
     cmp al, 'W'
-    je mjc_arr
+    je pti_arr
     
     ; ABAJO
     cmp al, 50h
-    je mjc_aba
+    je pti_aba
     cmp al, 's'
-    je mjc_aba
+    je pti_aba
     cmp al, 'S'
-    je mjc_aba
+    je pti_aba
     
     ; IZQUIERDA
     cmp al, 4Bh
-    je mjc_izq
+    je pti_izq
     cmp al, 'a'
-    je mjc_izq
+    je pti_izq
     cmp al, 'A'
-    je mjc_izq
+    je pti_izq
     
     ; DERECHA
     cmp al, 4Dh
-    je mjc_der
+    je pti_der
     cmp al, 'd'
-    je mjc_der
+    je pti_der
     cmp al, 'D'
-    je mjc_der
+    je pti_der
     
-    jmp mjc_fin
+    jmp SHORT pti_fin
 
-mjc_arr:
+pti_arr:
     mov ax, jugador_py
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb mjc_fin
+    jb pti_fin
     mov jugador_py, ax
-    jmp mjc_fin
+    jmp SHORT pti_fin
 
-mjc_aba:
+pti_aba:
     mov ax, jugador_py
     add ax, VELOCIDAD
     cmp ax, 784
-    ja mjc_fin
+    ja pti_fin
     mov jugador_py, ax
-    jmp mjc_fin
+    jmp SHORT pti_fin
 
-mjc_izq:
+pti_izq:
     mov ax, jugador_px
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb mjc_fin
+    jb pti_fin
     mov jugador_px, ax
-    jmp mjc_fin
+    jmp SHORT pti_fin
 
-mjc_der:
+pti_der:
     mov ax, jugador_px
     add ax, VELOCIDAD
     cmp ax, 784
-    ja mjc_fin
+    ja pti_fin
     mov jugador_px, ax
 
-mjc_fin:
+pti_fin:
+    pop bx
     pop ax
     ret
-mover_jugador_continuo ENDP
+procesar_tecla_inmediata ENDP
 
 ; =====================================================
-; ACTUALIZAR CÁMARA CON INTERPOLACIÓN
+; ACTUALIZAR CÁMARA RÁPIDA (Interpolación más ágil)
 ; =====================================================
-actualizar_camara_suave PROC
+actualizar_camara_rapida PROC
     push ax
     push bx
     
     ; Objetivo X
     mov ax, jugador_px
     sub ax, 160
-    jge acs_x_pos
+    jge acr_x_pos
     xor ax, ax
-acs_x_pos:
+acr_x_pos:
     cmp ax, 480
-    jle acs_x_ok
+    jle acr_x_ok
     mov ax, 480
-acs_x_ok:
+acr_x_ok:
     
-    ; Interpolación X
+    ; Interpolación X más rápida (dividir por 2)
     sub ax, camara_px
-    sar ax, 2
+    sar ax, 1
     add camara_px, ax
     
     ; Objetivo Y
     mov ax, jugador_py
     sub ax, 96
-    jge acs_y_pos
+    jge acr_y_pos
     xor ax, ax
-acs_y_pos:
+acr_y_pos:
     cmp ax, 608
-    jle acs_y_ok
+    jle acr_y_ok
     mov ax, 608
-acs_y_ok:
+acr_y_ok:
     
-    ; Interpolación Y
+    ; Interpolación Y más rápida
     sub ax, camara_py
-    sar ax, 2
+    sar ax, 1
     add camara_py, ax
     
     pop bx
     pop ax
     ret
-actualizar_camara_suave ENDP
+actualizar_camara_rapida ENDP
 
 ; =====================================================
 ; CENTRAR CÁMARA DIRECTO
@@ -541,10 +535,8 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, 13
-    jb dmo_fila_loop
-    jmp dmo_fin
-
-dmo_fila_loop:
+    jae dmo_fin
+    
     xor si, si
     
 dmo_col:
@@ -575,19 +567,19 @@ dmo_col:
     cmp al, TILE_WALL
     jne dmo_chk_path
     mov di, OFFSET sprite_wall
-    jmp dmo_draw
+    jmp SHORT dmo_draw
 
 dmo_chk_path:
     cmp al, TILE_PATH
     jne dmo_chk_water
     mov di, OFFSET sprite_path
-    jmp dmo_draw
+    jmp SHORT dmo_draw
 
 dmo_chk_water:
     cmp al, TILE_WATER
     jne dmo_chk_tree
     mov di, OFFSET sprite_water
-    jmp dmo_draw
+    jmp SHORT dmo_draw
 
 dmo_chk_tree:
     cmp al, TILE_TREE
@@ -617,11 +609,11 @@ dmo_draw:
     
 dmo_next_col:
     inc si
-    jmp dmo_col
+    jmp SHORT dmo_col
     
 dmo_next_fila:
     inc bp
-    jmp dmo_fila
+    jmp SHORT dmo_fila
     
 dmo_fin:
     pop bp
@@ -879,7 +871,7 @@ cm_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp cm_fin
+    jmp SHORT cm_fin
     
 cm_error:
     stc
@@ -955,7 +947,7 @@ cs16_proc:
     cmp al, 'F'
     ja cs16_proc
     sub al, 'A' - 10
-    jmp cs16_guardar
+    jmp SHORT cs16_guardar
 
 cs16_decimal:
     sub al, '0'
@@ -972,7 +964,7 @@ cs16_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp cs16_fin
+    jmp SHORT cs16_fin
     
 cs16_error:
     stc
@@ -1051,7 +1043,7 @@ cs8_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp cs8_fin
+    jmp SHORT cs8_fin
     
 cs8_error:
     stc
