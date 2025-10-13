@@ -338,7 +338,10 @@ mover_jugador_suave PROC
     
     mov al, tecla_presionada
     test al, al
-    jz mjs_fin
+    jnz mjs_procesar
+    jmp mjs_fin
+
+mjs_procesar:
 
     ; Tecla ARRIBA (↑ o W)
     cmp al, 48h
@@ -686,8 +689,10 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, 13         ; VIEWPORT_H + 1
-    jae dmo_fin
-    
+    jb dmo_fila_body
+    jmp dmo_fin
+
+dmo_fila_body:
     xor si, si         ; Columna actual
     
 dmo_col:
