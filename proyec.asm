@@ -21,7 +21,7 @@ VIEWPORT_W  EQU 20
 VIEWPORT_H  EQU 12
 
 VIDEO_SEG   EQU 0A000h
-VELOCIDAD   EQU 4        ; Píxeles por tecla (más rápido)
+VELOCIDAD   EQU 16       ; ¡MOVIMIENTO COMPLETO DE 1 TILE!
 
 .DATA
 ; === ARCHIVOS ===
@@ -69,8 +69,12 @@ inicio_tile_y   dw 0
 offset_px_x     dw 0
 offset_px_y     dw 0
 
+; === ANTI-REPETICIÓN DE TECLAS ===
+ultima_tecla db 0
+tecla_procesada db 0
+
 ; === MENSAJES ===
-msg_titulo  db 'JUEGO EGA - Movimiento Responsivo',13,10,'$'
+msg_titulo  db 'JUEGO EGA - Movimiento Ultra Responsivo',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
 msg_mapa    db 'Mapa: $'
 msg_grass   db 'Grass: $'
@@ -229,10 +233,15 @@ bucle_juego:
     ; Procesar tecla y mover INMEDIATAMENTE
     call procesar_tecla_inmediata
     
-solo_actualizar:
-    ; Actualizar cámara suavemente
-    call actualizar_camara_rapida
+    ; Actualizar cámara INSTANTÁNEAMENTE después del movimiento
+    call centrar_camara_directo
     
+    jmp renderizar
+    
+solo_actualizar:
+    ; Si no hay tecla, mantener cámara donde está
+    
+renderizar:
     ; Renderizar en página oculta
     mov al, pagina_dibujo
     test al, 1
@@ -277,6 +286,8 @@ fin_juego:
 procesar_tecla_inmediata PROC
     push ax
     push bx
+    push cx
+    push dx
     
     ; Guardar tecla
     mov bl, al
@@ -327,92 +338,139 @@ verificar_tecla:
     jmp SHORT pti_fin
 
 pti_arr:
+    ; Calcular nueva posición
     mov ax, jugador_py
     sub ax, VELOCIDAD
+    
+    ; Verificar límites
     cmp ax, 16
     jb pti_fin
+    
+    ; Verificar colisión ANTES de mover
+    mov cx, jugador_px
+    shr cx, 4           ; Convertir a tiles
+    mov dx, ax
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pti_fin         ; Si no es transitable, no mover
+    
+    ; Mover si es válido
     mov jugador_py, ax
     jmp SHORT pti_fin
 
 pti_aba:
     mov ax, jugador_py
     add ax, VELOCIDAD
+    
     cmp ax, 784
     ja pti_fin
+    
+    mov cx, jugador_px
+    shr cx, 4
+    mov dx, ax
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pti_fin
+    
     mov jugador_py, ax
     jmp SHORT pti_fin
 
 pti_izq:
     mov ax, jugador_px
     sub ax, VELOCIDAD
+    
     cmp ax, 16
     jb pti_fin
+    
+    mov cx, ax
+    shr cx, 4
+    mov dx, jugador_py
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pti_fin
+    
     mov jugador_px, ax
     jmp SHORT pti_fin
 
 pti_der:
     mov ax, jugador_px
     add ax, VELOCIDAD
+    
     cmp ax, 784
     ja pti_fin
+    
+    mov cx, ax
+    shr cx, 4
+    mov dx, jugador_py
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pti_fin
+    
     mov jugador_px, ax
 
 pti_fin:
+    pop dx
+    pop cx
     pop bx
     pop ax
     ret
 procesar_tecla_inmediata ENDP
 
 ; =====================================================
-; ACTUALIZAR CÁMARA RÁPIDA (Interpolación más ágil)
+; VERIFICAR SI TILE ES TRANSITABLE
 ; =====================================================
-actualizar_camara_rapida PROC
+verificar_tile_transitable PROC
     push ax
     push bx
+    push dx
     
-    ; Objetivo X
-    mov ax, jugador_px
-    sub ax, 160
-    jge acr_x_pos
-    xor ax, ax
-acr_x_pos:
-    cmp ax, 480
-    jle acr_x_ok
-    mov ax, 480
-acr_x_ok:
+    ; CX = tile_x, DX = tile_y
+    ; Verificar límites del mapa
+    cmp cx, 50
+    jae vtt_no_transitable
+    cmp dx, 50
+    jae vtt_no_transitable
     
-    ; Interpolación X más rápida (dividir por 2)
-    sub ax, camara_px
-    sar ax, 1
-    add camara_px, ax
+    ; Calcular offset en mapa
+    mov ax, dx
+    mov bx, 50
+    mul bx
+    add ax, cx
+    mov bx, ax
     
-    ; Objetivo Y
-    mov ax, jugador_py
-    sub ax, 96
-    jge acr_y_pos
-    xor ax, ax
-acr_y_pos:
-    cmp ax, 608
-    jle acr_y_ok
-    mov ax, 608
-acr_y_ok:
+    ; Obtener tipo de tile
+    mov al, [mapa_datos + bx]
     
-    ; Interpolación Y más rápida
-    sub ax, camara_py
-    sar ax, 1
-    add camara_py, ax
+    ; Verificar si es transitable
+    cmp al, TILE_WALL
+    je vtt_no_transitable
+    cmp al, TILE_WATER
+    je vtt_no_transitable
+    cmp al, TILE_TREE
+    je vtt_no_transitable
     
+    ; Es transitable
+    pop dx
     pop bx
     pop ax
+    stc                 ; Carry = 1 = transitable
     ret
-actualizar_camara_rapida ENDP
+
+vtt_no_transitable:
+    pop dx
+    pop bx
+    pop ax
+    clc                 ; Carry = 0 = no transitable
+    ret
+verificar_tile_transitable ENDP
 
 ; =====================================================
-; CENTRAR CÁMARA DIRECTO
+; CENTRAR CÁMARA DIRECTO (INSTANTÁNEO)
 ; =====================================================
 centrar_camara_directo PROC
     push ax
     
+    ; Centrar en X
     mov ax, jugador_px
     sub ax, 160
     jge ccd_x_pos
@@ -424,6 +482,7 @@ ccd_x_pos:
 ccd_x_ok:
     mov camara_px, ax
     
+    ; Centrar en Y
     mov ax, jugador_py
     sub ax, 96
     jge ccd_y_pos
@@ -515,6 +574,7 @@ dibujar_mapa_en_offset PROC
     
     mov temp_offset, ax
     
+    ; Calcular tile inicial basado en cámara
     mov ax, camara_px
     shr ax, 4
     mov inicio_tile_x, ax
@@ -523,6 +583,7 @@ dibujar_mapa_en_offset PROC
     shr ax, 4
     mov inicio_tile_y, ax
     
+    ; Calcular offset en píxeles
     mov ax, camara_px
     and ax, 15
     mov offset_px_x, ax
@@ -531,6 +592,7 @@ dibujar_mapa_en_offset PROC
     and ax, 15
     mov offset_px_y, ax
     
+    ; Dibujar tiles visibles (21x13 para cubrir toda la pantalla)
     xor bp, bp
     
 dmo_fila:
@@ -545,6 +607,7 @@ dmo_col:
     cmp si, 21
     jae dmo_next_fila
     
+    ; Calcular coordenadas del tile en el mapa
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 50
@@ -555,6 +618,7 @@ dmo_col:
     cmp bx, 50
     jae dmo_next_col
     
+    ; Calcular índice en mapa
     push dx
     mov dx, 50
     mul dx
@@ -564,6 +628,7 @@ dmo_col:
     mov bx, ax
     mov al, [mapa_datos + bx]
     
+    ; Seleccionar sprite según tipo de tile
     mov di, OFFSET sprite_grass
     
     cmp al, TILE_WALL
@@ -592,6 +657,7 @@ dmo_draw:
     push si
     push bp
     
+    ; Calcular posición en pantalla
     mov ax, si
     shl ax, 4
     sub ax, offset_px_x
@@ -637,6 +703,7 @@ dibujar_jugador_en_offset PROC
     push dx
     push si
     
+    ; Calcular posición relativa a la cámara
     mov ax, jugador_px
     sub ax, camara_px
     add ax, viewport_x
@@ -747,7 +814,7 @@ ds8_skip:
 dibujar_sprite_8x8_en_offset ENDP
 
 ; =====================================================
-; ESCRIBIR PÍXEL
+; ESCRIBIR PÍXEL EN OFFSET
 ; =====================================================
 escribir_pixel_en_offset PROC
     push ax
@@ -758,6 +825,7 @@ escribir_pixel_en_offset PROC
     
     mov bl, al
     
+    ; Calcular offset en memoria de video
     mov ax, dx
     mov di, 80
     mul di
@@ -768,13 +836,16 @@ escribir_pixel_en_offset PROC
     shr ax, 3
     add di, ax
     
+    ; Calcular máscara de bit
     and cx, 7
     mov al, 80h
     shr al, cl
     mov ah, al
     
+    ; Escribir píxel usando registros EGA
     mov dx, 3CEh
     
+    ; Set/Reset Register
     mov al, 0
     out dx, al
     inc dx
@@ -782,6 +853,7 @@ escribir_pixel_en_offset PROC
     out dx, al
     dec dx
     
+    ; Enable Set/Reset
     mov al, 1
     out dx, al
     inc dx
@@ -789,12 +861,14 @@ escribir_pixel_en_offset PROC
     out dx, al
     dec dx
     
+    ; Bit Mask
     mov al, 8
     out dx, al
     inc dx
     mov al, ah
     out dx, al
     
+    ; Leer para activar latch, escribir para aplicar
     mov al, es:[di]
     mov es:[di], al
     
@@ -818,14 +892,18 @@ cargar_mapa PROC
     push di
     push bp
     
+    ; Abrir archivo
     mov ax, 3D00h
     mov dx, OFFSET archivo_mapa
     int 21h
     jc cm_error
     
     mov bx, ax
+    
+    ; Saltar primera línea (dimensiones)
     call saltar_linea
     
+    ; Leer datos del mapa
     mov di, OFFSET mapa_datos
     xor bp, bp
     
@@ -848,6 +926,7 @@ cm_proc:
     mov al, [buffer_temp + si]
     inc si
     
+    ; Saltar espacios, tabs, CR, LF
     cmp al, ' '
     je cm_proc
     cmp al, 13
@@ -856,11 +935,14 @@ cm_proc:
     je cm_proc
     cmp al, 9
     je cm_proc
+    
+    ; Verificar si es dígito
     cmp al, '0'
     jb cm_proc
     cmp al, '9'
     ja cm_proc
     
+    ; Convertir y guardar
     sub al, '0'
     mov [di], al
     inc di
@@ -899,11 +981,14 @@ cargar_sprite_16x16 PROC
     push si
     push bp
     
+    ; Abrir archivo
     mov ax, 3D00h
     int 21h
     jc cs16_error
     
     mov bx, ax
+    
+    ; Saltar primera línea
     call saltar_linea
     
     xor bp, bp
@@ -929,6 +1014,7 @@ cs16_proc:
     mov al, [buffer_temp + si]
     inc si
     
+    ; Saltar espacios, tabs, CR, LF
     cmp al, ' '
     je cs16_proc
     cmp al, 13
@@ -938,11 +1024,13 @@ cs16_proc:
     cmp al, 9
     je cs16_proc
     
+    ; Verificar si es dígito hexadecimal
     cmp al, '0'
     jb cs16_proc
     cmp al, '9'
     jbe cs16_decimal
     
+    ; Convertir letra (A-F)
     and al, 0DFh
     cmp al, 'A'
     jb cs16_proc
@@ -990,11 +1078,14 @@ cargar_sprite_8x8 PROC
     push si
     push bp
     
+    ; Abrir archivo
     mov ax, 3D00h
     int 21h
     jc cs8_error
     
     mov bx, ax
+    
+    ; Saltar primera línea
     call saltar_linea
     
     xor bp, bp
@@ -1020,6 +1111,7 @@ cs8_proc:
     mov al, [buffer_temp + si]
     inc si
     
+    ; Saltar espacios, tabs, CR, LF
     cmp al, ' '
     je cs8_proc
     cmp al, 13
@@ -1028,11 +1120,14 @@ cs8_proc:
     je cs8_proc
     cmp al, 9
     je cs8_proc
+    
+    ; Verificar si es dígito
     cmp al, '0'
     jb cs8_proc
     cmp al, '9'
     ja cs8_proc
     
+    ; Convertir y guardar
     sub al, '0'
     mov [di], al
     inc di
