@@ -47,8 +47,9 @@ sprite_player db 64 dup(0)
 buffer_temp db 300 dup(0)
 
 ; === JUGADOR (en píxeles) ===
-jugador_px  dw 400
-jugador_py  dw 400
+; Posición inicial: cerca de esquina superior izquierda (tile 5,5)
+jugador_px  dw 80      ; 5 tiles * 16 píxeles (más seguro)
+jugador_py  dw 80      ; 5 tiles * 16 píxeles
 
 ; === CÁMARA (en píxeles) ===
 camara_px   dw 0
@@ -317,7 +318,7 @@ ccd_y_ok:
 centrar_camara_directo ENDP
 
 ; =====================================================
-; MOVER JUGADOR
+; MOVER JUGADOR - VERSION SIMPLIFICADA SIN COLISIONES
 ; =====================================================
 mover_jugador_suave PROC
     push ax
@@ -325,33 +326,34 @@ mover_jugador_suave PROC
     
     mov al, tecla_presionada
     test al, al
-    jnz mjs_continuar
-    jmp mjs_fin
+    jz mjs_fin
 
-mjs_continuar:
-
-    cmp al, 48h
+    ; Teclas ARRIBA
+    cmp al, 48h        ; Flecha arriba
     je mjs_arr
     cmp al, 'w'
     je mjs_arr
     cmp al, 'W'
     je mjs_arr
     
-    cmp al, 50h
+    ; Teclas ABAJO
+    cmp al, 50h        ; Flecha abajo
     je mjs_aba
     cmp al, 's'
     je mjs_aba
     cmp al, 'S'
     je mjs_aba
     
-    cmp al, 4Bh
+    ; Teclas IZQUIERDA
+    cmp al, 4Bh        ; Flecha izquierda
     je mjs_izq
     cmp al, 'a'
     je mjs_izq
     cmp al, 'A'
     je mjs_izq
     
-    cmp al, 4Dh
+    ; Teclas DERECHA
+    cmp al, 4Dh        ; Flecha derecha
     je mjs_der
     cmp al, 'd'
     je mjs_der
@@ -366,9 +368,6 @@ mjs_arr:
     cmp ax, 16
     jb mjs_fin
     mov jugador_py, ax
-    call verificar_colision_px
-    jnc mjs_fin
-    add jugador_py, VELOCIDAD
     jmp mjs_fin
 
 mjs_aba:
@@ -377,9 +376,6 @@ mjs_aba:
     cmp ax, 784
     ja mjs_fin
     mov jugador_py, ax
-    call verificar_colision_px
-    jnc mjs_fin
-    sub jugador_py, VELOCIDAD
     jmp mjs_fin
 
 mjs_izq:
@@ -388,9 +384,6 @@ mjs_izq:
     cmp ax, 16
     jb mjs_fin
     mov jugador_px, ax
-    call verificar_colision_px
-    jnc mjs_fin
-    add jugador_px, VELOCIDAD
     jmp mjs_fin
 
 mjs_der:
@@ -399,9 +392,6 @@ mjs_der:
     cmp ax, 784
     ja mjs_fin
     mov jugador_px, ax
-    call verificar_colision_px
-    jnc mjs_fin
-    sub jugador_px, VELOCIDAD
 
 mjs_fin:
     pop bx
@@ -565,10 +555,7 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, 13
-    jb dmo_procesar_fila
-    jmp dmo_fin
-
-dmo_procesar_fila:
+    jae dmo_fin
     
     xor si, si
     
