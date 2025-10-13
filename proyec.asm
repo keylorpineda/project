@@ -325,7 +325,10 @@ mover_jugador_suave PROC
     
     mov al, tecla_presionada
     test al, al
-    jz mjs_fin
+    jnz mjs_continuar
+    jmp mjs_fin
+
+mjs_continuar:
 
     cmp al, 48h
     je mjs_arr
@@ -562,7 +565,10 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, 13
-    jae dmo_fin
+    jb dmo_procesar_fila
+    jmp dmo_fin
+
+dmo_procesar_fila:
     
     xor si, si
     
