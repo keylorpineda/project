@@ -228,9 +228,15 @@ bucle_juego:
     cmp al, 27
     je fin_juego
     
+    ; CORREGIDO: Guardar correctamente la tecla
+    ; Si AL=0, es tecla extendida (flechas), usar AH
+    ; Si AL!=0, es tecla normal (WASD), usar AL
+    test al, al
+    jz usar_scan_code
     mov tecla_presionada, al
-    cmp ah, 0
-    je procesar_movimiento
+    jmp procesar_movimiento
+
+usar_scan_code:
     mov tecla_presionada, ah
     jmp procesar_movimiento
 
@@ -555,12 +561,10 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, 13
-    jb dmo_init_col
-    jmp dmo_fin
-
-dmo_init_col:
+    jae dmo_fin
+    
     xor si, si
-
+    
 dmo_col:
     cmp si, 21
     jae dmo_next_fila
