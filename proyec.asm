@@ -21,7 +21,7 @@ VIEWPORT_W  EQU 20
 VIEWPORT_H  EQU 12
 
 VIDEO_SEG   EQU 0A000h
-VELOCIDAD   EQU 3        ; AUMENTADO para más velocidad
+VELOCIDAD   EQU 4        ; AUMENTADO a 4 píxeles por tecla
 
 .DATA
 ; === ARCHIVOS ===
@@ -214,23 +214,22 @@ player_ok:
     int 10h
 
 ; =====================================================
-; BUCLE PRINCIPAL - OPTIMIZADO AL MÁXIMO
+; BUCLE PRINCIPAL - RESPUESTA INMEDIATA
 ; =====================================================
 bucle_juego:
-    ; Verificar tecla
+    ; Verificar tecla SIN ESPERAR
     mov ah, 1
     int 16h
     jz no_hay_tecla
     
+    ; Leer y consumir tecla inmediatamente
     mov ah, 0
     int 16h
     
     cmp al, 27
     je fin_juego
     
-    ; CORREGIDO: Guardar correctamente la tecla
-    ; Si AL=0, es tecla extendida (flechas), usar AH
-    ; Si AL!=0, es tecla normal (WASD), usar AL
+    ; Guardar tecla correctamente
     test al, al
     jz usar_scan_code
     mov tecla_presionada, al
@@ -244,14 +243,11 @@ no_hay_tecla:
     mov tecla_presionada, 0
 
 procesar_movimiento:
-    ; Mover jugador
+    ; Mover jugador INMEDIATAMENTE
     call mover_jugador_suave
     
-    ; Actualizar cámara (SIN INTERPOLACIÓN para máxima velocidad)
+    ; Actualizar cámara
     call centrar_camara_directo
-    
-    ; Esperar retrace ANTES de renderizar
-    call esperar_retrace
     
     ; Renderizar en la página oculta
     mov al, pagina_dibujo
@@ -264,7 +260,10 @@ render_p0:
     call renderizar_en_pagina_0
     
 mostrar:
-    ; Cambiar página inmediatamente
+    ; AHORA SÍ esperar retrace (después de renderizar)
+    call esperar_retrace
+    
+    ; Cambiar página
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
@@ -273,7 +272,6 @@ mostrar:
     xor pagina_dibujo, 1
     xor pagina_visible, 1
     
-    ; SIN DELAY - Máxima velocidad
     jmp bucle_juego
 
 error_carga:
@@ -561,35 +559,23 @@ dibujar_mapa_en_offset PROC
     
 dmo_fila:
     cmp bp, 13
-    jb dmo_fila_cont
-    jmp dmo_fin
-
-dmo_fila_cont:
+    jae dmo_fin
     
     xor si, si
-
+    
 dmo_col:
     cmp si, 21
-    jb dmo_col_cont
-    jmp dmo_next_fila
-
-dmo_col_cont:
-
+    jae dmo_next_fila
+    
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 50
-    jb dmo_tile_y_ok
-    jmp dmo_next_col
-
-dmo_tile_y_ok:
-
+    jae dmo_next_col
+    
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 50
-    jb dmo_tile_x_ok
-    jmp dmo_next_col
-
-dmo_tile_x_ok:
+    jae dmo_next_col
     
     push dx
     mov dx, 50
