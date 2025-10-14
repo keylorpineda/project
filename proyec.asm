@@ -1,4 +1,4 @@
-; JUEGO EGA - MOVIMIENTO DISCRETO CON ANIMACIÓN
+; JUEGO EGA - MOVIMIENTO INSTANTÁNEO CON ANIMACIÓN FLUIDA
 ; Universidad Nacional - Proyecto II Ciclo 2025
 ; Modo 10h (640x350, 16 colores)
 ; =====================================================
@@ -20,7 +20,7 @@ VIEWPORT_W  EQU 20
 VIEWPORT_H  EQU 12
 
 VIDEO_SEG   EQU 0A000h
-VELOCIDAD   EQU 16       ; ¡MOVIMIENTO COMPLETO DE 1 TILE!
+VELOCIDAD   EQU 16
 
 ; Direcciones para animación
 DIR_ABAJO   EQU 0
@@ -31,7 +31,6 @@ DIR_DERECHA EQU 3
 ; Variantes de frames
 FRAME_A     EQU 0
 FRAME_B     EQU 1
-FRAME_C     EQU 2
 
 .DATA
 ; === ARCHIVOS ===
@@ -63,7 +62,6 @@ sprite_water  db 256 dup(0)
 sprite_tree   db 256 dup(0)
 
 ; === SPRITES DEL JUGADOR (16x16 = 256 bytes cada uno) ===
-; Estructura: jugador_animacion[dirección][frame]
 jugador_up_a    db 256 dup(0)
 jugador_up_b    db 256 dup(0)
 jugador_down_a  db 256 dup(0)
@@ -79,17 +77,11 @@ buffer_temp db 300 dup(0)
 jugador_px  dw 80
 jugador_py  dw 80
 
-; === MOVIMIENTO SUAVE ===
-jugador_target_x dw 80      ; Posición objetivo
-jugador_target_y dw 80
-jugador_moviendose db 0     ; 0=parado, 1=moviendose
-velocidad_suave equ 4       ; Píxeles por frame (ajustar para más/menos fluidez)
-
 ; === ANIMACIÓN DEL JUGADOR ===
-jugador_dir db DIR_ABAJO      ; 0=abajo, 1=arriba, 2=izq, 3=der
-jugador_frame db 0             ; Frame de animación (0=A, 1=B, 2=C para idle)
-frame_counter db 0             ; Contador para cambiar frames
-ultima_dir_movimiento db DIR_ABAJO ; Última dirección de movimiento
+jugador_dir db DIR_ABAJO
+jugador_frame db 0
+frame_counter db 0           ; Contador RÁPIDO para cambiar frames (0-3)
+ultima_dir_movimiento db DIR_ABAJO
 
 ; === CÁMARA (en píxeles) ===
 camara_px   dw 0
@@ -112,7 +104,7 @@ offset_px_y     dw 0
 sprite_pointer  dw 0
 
 ; === MENSAJES ===
-msg_titulo  db 'JUEGO EGA - Movimiento Ultra Responsivo con Animacion',13,10,'$'
+msg_titulo  db 'JUEGO EGA - Movimiento Instantaneo con Animacion Fluida',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
 msg_mapa    db 'Mapa: $'
 msg_grass   db 'Grass: $'
@@ -130,13 +122,6 @@ msg_controles db 13,10,'WASD/Flechas = Mover, ESC = Salir',13,10
 inicio:
     mov ax, @data
     mov ds, ax
-
-    ; Inicializar posiciones objetivo
-    mov ax, jugador_px
-    mov jugador_target_x, ax
-    mov ax, jugador_py
-    mov jugador_target_y, ax
-    mov jugador_moviendose, 0
     
     mov dx, OFFSET msg_titulo
     mov ah, 9
@@ -258,25 +243,16 @@ anim_ok:
     int 10h
 
 ; =====================================================
-; BUCLE PRINCIPAL - CON MOVIMIENTO SUAVE
+; BUCLE PRINCIPAL - MOVIMIENTO INSTANTÁNEO
 ; =====================================================
 bucle_juego:
     ; 1. ESPERAR RETRACE
     call esperar_retrace
     
-    ; 2. ACTUALIZAR MOVIMIENTO SUAVE (siempre)
-    call actualizar_movimiento_suave
-    
-    ; 3. ACTUALIZAR ANIMACIÓN
-    call actualizar_animacion_jugador
-    
-    ; 4. ACTUALIZAR CÁMARA
-    call centrar_camara_directo
-    
-    ; 5. VERIFICAR TECLA (solo si NO se está moviendo)
+    ; 2. VERIFICAR TECLAS (SIN DELAY)
     mov ah, 1
     int 16h
-    jz sin_tecla_suave
+    jz sin_tecla
     
     ; Leer tecla
     mov ah, 0
@@ -287,20 +263,26 @@ bucle_juego:
     
     call procesar_tecla_inmediata
 
-sin_tecla_suave:
-    ; 6. RENDERIZAR
+sin_tecla:
+    ; 3. ACTUALIZAR ANIMACIÓN (SIEMPRE, MÁS RÁPIDO)
+    call actualizar_animacion_rapida
+    
+    ; 4. ACTUALIZAR CÁMARA
+    call centrar_camara_directo
+    
+    ; 5. RENDERIZAR
     mov al, pagina_dibujo
     test al, 1
-    jz render_p0_suave
+    jz render_p0
     
     call renderizar_en_pagina_1
-    jmp SHORT cambiar_pagina_suave
+    jmp SHORT cambiar_pagina
     
-render_p0_suave:
+render_p0:
     call renderizar_en_pagina_0
     
-cambiar_pagina_suave:
-    ; 7. CAMBIAR PÁGINA
+cambiar_pagina:
+    ; 6. CAMBIAR PÁGINA
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
@@ -332,7 +314,6 @@ cargar_animaciones_jugador PROC
     push dx
     push di
     
-    ; Cargar UP A
     mov dx, OFFSET archivo_player_up_a
     mov di, OFFSET jugador_up_a
     call cargar_sprite_16x16_directo
@@ -404,27 +385,24 @@ caj_fin:
 cargar_animaciones_jugador ENDP
 
 ; =====================================================
-; CARGAR SPRITE 16x16 DIRECTO (CORREGIDO)
+; CARGAR SPRITE 16x16 DIRECTO
 ; =====================================================
 cargar_sprite_16x16_directo PROC
     push ax
     push bx
     push cx
-    push dx          ; ← AGREGADO
+    push dx
     push si
     push bp
     
-    ; DX = ruta archivo, DI = destino
-    ; Abrir archivo
     mov ax, 3D00h
     int 21h
     jc cs16d_error
     
     mov bx, ax
     
-    ; Saltar primera línea (dimensiones)
     call saltar_linea
-    jc cs16d_error_close  ; ← Por si falla saltar_linea
+    jc cs16d_error_close
     
     xor bp, bp
     
@@ -449,7 +427,6 @@ cs16d_proc:
     mov al, [buffer_temp + si]
     inc si
     
-    ; Saltar espacios, tabs, CR, LF
     cmp al, ' '
     je cs16d_proc
     cmp al, 13
@@ -459,13 +436,11 @@ cs16d_proc:
     cmp al, 9
     je cs16d_proc
     
-    ; Verificar si es dígito hexadecimal
     cmp al, '0'
     jb cs16d_proc
     cmp al, '9'
     jbe cs16d_dec
     
-    ; Convertir letra (A-F)
     and al, 0DFh
     cmp al, 'A'
     jb cs16d_proc
@@ -501,7 +476,7 @@ cs16d_error:
 cs16d_fin:
     pop bp
     pop si
-    pop dx           ; ← AGREGADO
+    pop dx
     pop cx
     pop bx
     pop ax
@@ -509,128 +484,40 @@ cs16d_fin:
 cargar_sprite_16x16_directo ENDP
 
 ; =====================================================
-; ACTUALIZAR ANIMACIÓN DEL JUGADOR
+; ACTUALIZAR ANIMACIÓN RÁPIDA
 ; =====================================================
-actualizar_animacion_jugador PROC
+actualizar_animacion_rapida PROC
     push ax
-    push bx
     
-    ; Incrementar contador de frames
+    ; Incrementar contador rápidamente (cada 2-3 frames)
     inc frame_counter
     mov al, frame_counter
     
-    ; Cambiar frame cada 6 frames (ajustar para velocidad de animación)
-    cmp al, 6
-    jb aaj_no_cambiar
+    ; Cambiar frame cada 2-3 frames en lugar de 6
+    cmp al, 3
+    jb aar_no_cambiar
     
     ; Reset contador
     mov frame_counter, 0
     
-    ; Avanzar al siguiente frame (0->1->0)
+    ; Toggle frame (0->1->0)
     xor jugador_frame, 1
     
-aaj_no_cambiar:
-    pop bx
+aar_no_cambiar:
     pop ax
     ret
-actualizar_animacion_jugador ENDP
-
-; =====================================================
-; ACTUALIZAR MOVIMIENTO SUAVE
-; =====================================================
-actualizar_movimiento_suave PROC
-    push ax
-    push bx
-    
-    ; Verificar si se está moviendo
-    cmp jugador_moviendose, 0
-    je ams_fin
-    
-    ; Movimiento en X
-    mov ax, jugador_px
-    mov bx, jugador_target_x
-    cmp ax, bx
-    je ams_check_y
-    
-    jb ams_x_derecha
-    
-ams_x_izquierda:
-    sub ax, velocidad_suave
-    cmp ax, bx
-    jae ams_x_continua
-    mov ax, bx
-    jmp SHORT ams_x_continua
-    
-ams_x_derecha:
-    add ax, velocidad_suave
-    cmp ax, bx
-    jbe ams_x_continua
-    mov ax, bx
-    
-ams_x_continua:
-    mov jugador_px, ax
-    
-ams_check_y:
-    ; Movimiento en Y
-    mov ax, jugador_py
-    mov bx, jugador_target_y
-    cmp ax, bx
-    je ams_check_fin
-    
-    jb ams_y_abajo
-    
-ams_y_arriba:
-    sub ax, velocidad_suave
-    cmp ax, bx
-    jae ams_y_continua
-    mov ax, bx
-    jmp SHORT ams_y_continua
-    
-ams_y_abajo:
-    add ax, velocidad_suave
-    cmp ax, bx
-    jbe ams_y_continua
-    mov ax, bx
-    
-ams_y_continua:
-    mov jugador_py, ax
-    
-ams_check_fin:
-    ; Verificar si llegó al destino
-    mov ax, jugador_px
-    cmp ax, jugador_target_x
-    jne ams_fin
-    
-    mov ax, jugador_py
-    cmp ax, jugador_target_y
-    jne ams_fin
-    
-    ; Llegó al destino
-    mov jugador_moviendose, 0
-    
-ams_fin:
-    pop bx
-    pop ax
-    ret
-actualizar_movimiento_suave ENDP
+actualizar_animacion_rapida ENDP
 
 ; =====================================================
 ; OBTENER SPRITE DEL JUGADOR SEGÚN DIRECCIÓN Y FRAME
 ; =====================================================
 obtener_sprite_jugador PROC
-    ; AL = dirección (0-3)
-    ; BL = frame (0-1)
-    ; Retorna SI = puntero al sprite
-    
     push ax
     push bx
     push cx
     
     mov cl, al
     mov al, bl
-    
-    ; AL contiene el frame (0-1)
-    ; CL contiene la dirección
     
     cmp cl, DIR_ABAJO
     jne osj_arr
@@ -684,7 +571,7 @@ osj_fin_proc:
 obtener_sprite_jugador ENDP
 
 ; =====================================================
-; PROCESAR TECLA INMEDIATAMENTE (MOVIMIENTO SUAVE)
+; PROCESAR TECLA INMEDIATAMENTE
 ; =====================================================
 procesar_tecla_inmediata PROC
     push ax
@@ -692,121 +579,69 @@ procesar_tecla_inmediata PROC
     push cx
     push dx
     
-    ; Solo procesar si NO se está moviendo
-    cmp jugador_moviendose, 1
-    jne pti_continuar
-    jmp pti_fin
-
-pti_continuar:
-    
-    ; Guardar tecla
     mov bl, al
     mov bh, ah
     
-    ; Determinar qué tecla es
     test bl, bl
-    jz usar_scan
+    jz usar_scan_pti
     mov al, bl
-    jmp verificar_tecla
+    jmp verificar_tecla_pti
     
-usar_scan:
+usar_scan_pti:
     mov al, bh
     
-verificar_tecla:
+verificar_tecla_pti:
     ; ARRIBA
     cmp al, 48h
-    jne pti_chk_w_min
-    jmp pti_arr
-
-pti_chk_w_min:
+    je pti_arr
     cmp al, 'w'
-    jne pti_chk_w_may
-    jmp pti_arr
-
-pti_chk_w_may:
+    je pti_arr
     cmp al, 'W'
-    jne pti_chk_down_arrow
-    jmp pti_arr
+    je pti_arr
 
-pti_chk_down_arrow:
     ; ABAJO
     cmp al, 50h
-    jne pti_chk_s_min
-    jmp pti_aba
-
-pti_chk_s_min:
+    je pti_aba
     cmp al, 's'
-    jne pti_chk_s_may
-    jmp pti_aba
-
-pti_chk_s_may:
+    je pti_aba
     cmp al, 'S'
-    jne pti_chk_left_arrow
-    jmp pti_aba
+    je pti_aba
 
-pti_chk_left_arrow:
     ; IZQUIERDA
     cmp al, 4Bh
-    jne pti_chk_a_min
-    jmp pti_izq
-
-pti_chk_a_min:
+    je pti_izq
     cmp al, 'a'
-    jne pti_chk_a_may
-    jmp pti_izq
-
-pti_chk_a_may:
+    je pti_izq
     cmp al, 'A'
-    jne pti_chk_right_arrow
-    jmp pti_izq
+    je pti_izq
 
-pti_chk_right_arrow:
     ; DERECHA
     cmp al, 4Dh
-    jne pti_chk_d_min
-    jmp pti_der
-
-pti_chk_d_min:
+    je pti_der
     cmp al, 'd'
-    jne pti_chk_d_may
-    jmp pti_der
-
-pti_chk_d_may:
+    je pti_der
     cmp al, 'D'
-    jne pti_no_match
-    jmp pti_der
+    je pti_der
 
-pti_no_match:
-    
     jmp pti_fin
 
 pti_arr:
     mov jugador_dir, DIR_ARRIBA
     mov ultima_dir_movimiento, DIR_ARRIBA
     
-    ; Calcular posición objetivo
     mov ax, jugador_py
     sub ax, 16
     cmp ax, 16
-    jae pti_arr_cont
-    jmp pti_fin
-
-pti_arr_cont:
+    jb pti_fin
     
-    ; Verificar tile destino
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jc pti_arr_ok
-    jmp pti_fin
-
-pti_arr_ok:
+    jnc pti_fin
     
-    ; Establecer objetivo y activar movimiento
-    mov jugador_target_y, ax
-    mov jugador_moviendose, 1
+    mov jugador_py, ax
     jmp pti_fin
 
 pti_aba:
@@ -816,23 +651,16 @@ pti_aba:
     mov ax, jugador_py
     add ax, 16
     cmp ax, 784
-    jbe pti_aba_cont
-    jmp pti_fin
-
-pti_aba_cont:
+    ja pti_fin
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jc pti_aba_ok
-    jmp pti_fin
-
-pti_aba_ok:
+    jnc pti_fin
     
-    mov jugador_target_y, ax
-    mov jugador_moviendose, 1
+    mov jugador_py, ax
     jmp pti_fin
 
 pti_izq:
@@ -842,23 +670,16 @@ pti_izq:
     mov ax, jugador_px
     sub ax, 16
     cmp ax, 16
-    jae pti_izq_cont
-    jmp pti_fin
-
-pti_izq_cont:
+    jb pti_fin
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jc pti_izq_ok
-    jmp pti_fin
-
-pti_izq_ok:
+    jnc pti_fin
     
-    mov jugador_target_x, ax
-    mov jugador_moviendose, 1
+    mov jugador_px, ax
     jmp pti_fin
 
 pti_der:
@@ -868,23 +689,16 @@ pti_der:
     mov ax, jugador_px
     add ax, 16
     cmp ax, 784
-    jbe pti_der_cont
-    jmp pti_fin
-
-pti_der_cont:
+    ja pti_fin
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jc pti_der_ok
-    jmp pti_fin
-
-pti_der_ok:
+    jnc pti_fin
     
-    mov jugador_target_x, ax
-    mov jugador_moviendose, 1
+    mov jugador_px, ax
     
 pti_fin:
     pop dx
@@ -902,23 +716,19 @@ verificar_tile_transitable PROC
     push bx
     push dx
     
-    ; CX = tile_x, DX = tile_y
     cmp cx, 50
     jae vtt_no_transitable
     cmp dx, 50
     jae vtt_no_transitable
     
-    ; Calcular offset en mapa
     mov ax, dx
     mov bx, 50
     mul bx
     add ax, cx
     mov bx, ax
     
-    ; Obtener tipo de tile
     mov al, [mapa_datos + bx]
     
-    ; Verificar si es transitable
     cmp al, TILE_WALL
     je vtt_no_transitable
     cmp al, TILE_WATER
@@ -926,7 +736,6 @@ verificar_tile_transitable PROC
     cmp al, TILE_TREE
     je vtt_no_transitable
     
-    ; Es transitable
     pop dx
     pop bx
     pop ax
@@ -942,7 +751,7 @@ vtt_no_transitable:
 verificar_tile_transitable ENDP
 
 ; =====================================================
-; CENTRAR CÁMARA DIRECTO (INSTANTÁNEO)
+; CENTRAR CÁMARA DIRECTO
 ; =====================================================
 centrar_camara_directo PROC
     push ax
@@ -1049,7 +858,6 @@ dibujar_mapa_en_offset PROC
     
     mov temp_offset, ax
     
-    ; Calcular tile inicial basado en cámara
     mov ax, camara_px
     shr ax, 4
     mov inicio_tile_x, ax
@@ -1058,7 +866,6 @@ dibujar_mapa_en_offset PROC
     shr ax, 4
     mov inicio_tile_y, ax
     
-    ; Calcular offset en píxeles
     mov ax, camara_px
     and ax, 15
     mov offset_px_x, ax
@@ -1067,7 +874,6 @@ dibujar_mapa_en_offset PROC
     and ax, 15
     mov offset_px_y, ax
     
-    ; Dibujar tiles visibles
     xor bp, bp
     
 dmo_fila:
@@ -1082,7 +888,6 @@ dmo_col:
     cmp si, 21
     jae dmo_next_fila
     
-    ; Calcular coordenadas del tile en el mapa
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 50
@@ -1093,7 +898,6 @@ dmo_col:
     cmp bx, 50
     jae dmo_next_col
     
-    ; Calcular índice en mapa
     push dx
     mov dx, 50
     mul dx
@@ -1103,7 +907,6 @@ dmo_col:
     mov bx, ax
     mov al, [mapa_datos + bx]
     
-    ; Seleccionar sprite según tipo de tile
     mov di, OFFSET sprite_grass
     
     cmp al, TILE_WALL
@@ -1168,6 +971,7 @@ dmo_fin:
     ret
 dibujar_mapa_en_offset ENDP
 
+; =====================================================
 ; DIBUJAR JUGADOR EN OFFSET
 ; =====================================================
 dibujar_jugador_en_offset PROC
@@ -1177,7 +981,6 @@ dibujar_jugador_en_offset PROC
     push dx
     push si
     
-    ; Calcular posición relativa a la cámara
     mov ax, jugador_px
     sub ax, camara_px
     add ax, viewport_x
@@ -1188,12 +991,10 @@ dibujar_jugador_en_offset PROC
     add ax, viewport_y
     mov dx, ax
     
-    ; Obtener sprite según dirección y frame actual
     mov al, jugador_dir
     mov bl, jugador_frame
     call obtener_sprite_jugador
     
-    ; SI ya contiene el puntero al sprite correcto
     mov di, si
     call dibujar_sprite_16x16_en_offset
     
@@ -1263,7 +1064,6 @@ escribir_pixel_en_offset PROC
     
     mov bl, al
     
-    ; Calcular offset en memoria de video
     mov ax, dx
     mov di, 80
     mul di
@@ -1274,16 +1074,13 @@ escribir_pixel_en_offset PROC
     shr ax, 3
     add di, ax
     
-    ; Calcular máscara de bit
     and cx, 7
     mov al, 80h
     shr al, cl
     mov ah, al
     
-    ; Escribir píxel usando registros EGA
     mov dx, 3CEh
     
-    ; Set/Reset Register
     mov al, 0
     out dx, al
     inc dx
@@ -1330,7 +1127,6 @@ cargar_mapa PROC
     push di
     push bp
     
-    ; Abrir archivo
     mov ax, 3D00h
     mov dx, OFFSET archivo_mapa
     int 21h
@@ -1338,10 +1134,8 @@ cargar_mapa PROC
     
     mov bx, ax
     
-    ; Saltar primera línea (dimensiones)
     call saltar_linea
     
-    ; Leer datos del mapa
     mov di, OFFSET mapa_datos
     xor bp, bp
     
@@ -1364,7 +1158,6 @@ cm_proc:
     mov al, [buffer_temp + si]
     inc si
     
-    ; Saltar espacios, tabs, CR, LF
     cmp al, ' '
     je cm_proc
     cmp al, 13
@@ -1374,13 +1167,11 @@ cm_proc:
     cmp al, 9
     je cm_proc
     
-    ; Verificar si es dígito
     cmp al, '0'
     jb cm_proc
     cmp al, '9'
     ja cm_proc
     
-    ; Convertir y guardar
     sub al, '0'
     mov [di], al
     inc di
@@ -1419,14 +1210,12 @@ cargar_sprite_16x16 PROC
     push si
     push bp
     
-    ; Abrir archivo
     mov ax, 3D00h
     int 21h
     jc cs16_error
     
     mov bx, ax
     
-    ; Saltar primera línea
     call saltar_linea
     
     xor bp, bp
@@ -1452,7 +1241,6 @@ cs16_proc:
     mov al, [buffer_temp + si]
     inc si
     
-    ; Saltar espacios, tabs, CR, LF
     cmp al, ' '
     je cs16_proc
     cmp al, 13
@@ -1462,13 +1250,11 @@ cs16_proc:
     cmp al, 9
     je cs16_proc
     
-    ; Verificar si es dígito hexadecimal
     cmp al, '0'
     jb cs16_proc
     cmp al, '9'
     jbe cs16_decimal
     
-    ; Convertir letra (A-F)
     and al, 0DFh
     cmp al, 'A'
     jb cs16_proc
