@@ -687,7 +687,10 @@ procesar_tecla_inmediata PROC
     
     ; Solo procesar si NO se está moviendo
     cmp jugador_moviendose, 1
-    je pti_fin
+    jne pti_continuar
+    jmp pti_fin
+
+pti_continuar:
     
     ; Guardar tecla
     mov bl, al
@@ -705,35 +708,68 @@ usar_scan:
 verificar_tecla:
     ; ARRIBA
     cmp al, 48h
-    je pti_arr
+    jne pti_chk_w_min
+    jmp pti_arr
+
+pti_chk_w_min:
     cmp al, 'w'
-    je pti_arr
+    jne pti_chk_w_may
+    jmp pti_arr
+
+pti_chk_w_may:
     cmp al, 'W'
-    je pti_arr
-    
+    jne pti_chk_down_arrow
+    jmp pti_arr
+
+pti_chk_down_arrow:
     ; ABAJO
     cmp al, 50h
-    je pti_aba
+    jne pti_chk_s_min
+    jmp pti_aba
+
+pti_chk_s_min:
     cmp al, 's'
-    je pti_aba
+    jne pti_chk_s_may
+    jmp pti_aba
+
+pti_chk_s_may:
     cmp al, 'S'
-    je pti_aba
-    
+    jne pti_chk_left_arrow
+    jmp pti_aba
+
+pti_chk_left_arrow:
     ; IZQUIERDA
     cmp al, 4Bh
-    je pti_izq
+    jne pti_chk_a_min
+    jmp pti_izq
+
+pti_chk_a_min:
     cmp al, 'a'
-    je pti_izq
+    jne pti_chk_a_may
+    jmp pti_izq
+
+pti_chk_a_may:
     cmp al, 'A'
-    je pti_izq
-    
+    jne pti_chk_right_arrow
+    jmp pti_izq
+
+pti_chk_right_arrow:
     ; DERECHA
     cmp al, 4Dh
-    je pti_der
+    jne pti_chk_d_min
+    jmp pti_der
+
+pti_chk_d_min:
     cmp al, 'd'
-    je pti_der
+    jne pti_chk_d_may
+    jmp pti_der
+
+pti_chk_d_may:
     cmp al, 'D'
-    je pti_der
+    jne pti_no_match
+    jmp pti_der
+
+pti_no_match:
     
     jmp pti_fin
 
@@ -745,7 +781,10 @@ pti_arr:
     mov ax, jugador_py
     sub ax, 16
     cmp ax, 16
-    jb pti_fin
+    jae pti_arr_cont
+    jmp pti_fin
+
+pti_arr_cont:
     
     ; Verificar tile destino
     mov cx, jugador_px
@@ -753,7 +792,10 @@ pti_arr:
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jc pti_arr_ok
+    jmp pti_fin
+
+pti_arr_ok:
     
     ; Establecer objetivo y activar movimiento
     mov jugador_target_y, ax
@@ -767,14 +809,20 @@ pti_aba:
     mov ax, jugador_py
     add ax, 16
     cmp ax, 784
-    ja pti_fin
+    jbe pti_aba_cont
+    jmp pti_fin
+
+pti_aba_cont:
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jc pti_aba_ok
+    jmp pti_fin
+
+pti_aba_ok:
     
     mov jugador_target_y, ax
     mov jugador_moviendose, 1
@@ -787,14 +835,20 @@ pti_izq:
     mov ax, jugador_px
     sub ax, 16
     cmp ax, 16
-    jb pti_fin
+    jae pti_izq_cont
+    jmp pti_fin
+
+pti_izq_cont:
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jc pti_izq_ok
+    jmp pti_fin
+
+pti_izq_ok:
     
     mov jugador_target_x, ax
     mov jugador_moviendose, 1
@@ -807,14 +861,20 @@ pti_der:
     mov ax, jugador_px
     add ax, 16
     cmp ax, 784
-    ja pti_fin
+    jbe pti_der_cont
+    jmp pti_fin
+
+pti_der_cont:
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
+    jc pti_der_ok
+    jmp pti_fin
+
+pti_der_ok:
     
     mov jugador_target_x, ax
     mov jugador_moviendose, 1
