@@ -9,11 +9,22 @@
 ; =====================================================
 ; CONSTANTES
 ; =====================================================
-TILE_GRASS  EQU 0
-TILE_WALL   EQU 1
-TILE_PATH   EQU 2
-TILE_WATER  EQU 3
-TILE_TREE   EQU 4
+TILE_GRASS1   EQU 0
+TILE_GRASS2   EQU 1
+TILE_FLOWER   EQU 2
+TILE_PATH     EQU 3
+TILE_WATER    EQU 4
+TILE_TREE     EQU 5
+TILE_SAND     EQU 6
+TILE_ROCK     EQU 7
+TILE_SNOW     EQU 8
+TILE_ICE      EQU 9
+TILE_MOUNTAIN EQU 10
+TILE_HILL     EQU 11
+TILE_BUSH     EQU 12
+TILE_DIRT     EQU 13
+TILE_LAVA     EQU 14
+TILE_BRIDGE   EQU 15
 
 TILE_SIZE   EQU 16
 VIEWPORT_W  EQU 20
@@ -35,11 +46,22 @@ FRAME_B     EQU 1
 .DATA
 ; === ARCHIVOS ===
 archivo_mapa   db 'MAPA.TXT',0
-archivo_grass  db 'GRASS.TXT',0
-archivo_wall   db 'WALL.TXT',0
-archivo_path   db 'PATH.TXT',0
-archivo_water  db 'WATER.TXT',0
-archivo_tree   db 'TREE.TXT',0
+archivo_grass1 db 'SPRITES\GRASS_1.TXT',0
+archivo_grass2 db 'SPRITES\GRASS_2.TXT',0
+archivo_flower db 'SPRITES\FLOWER_1.TXT',0
+archivo_path   db 'SPRITES\PATH_2.TXT',0
+archivo_water  db 'SPRITES\WATER_2.TXT',0
+archivo_tree   db 'SPRITES\TREE_1.TXT',0
+archivo_sand   db 'SPRITES\SAND_1.TXT',0
+archivo_rock   db 'SPRITES\ROCK_1.TXT',0
+archivo_snow   db 'SPRITES\SNOW_1.TXT',0
+archivo_ice    db 'SPRITES\ICE_1.TXT',0
+archivo_mountain db 'SPRITES\MOUNTAIN_1.TXT',0
+archivo_hill   db 'SPRITES\HILL_1.TXT',0
+archivo_bush   db 'SPRITES\BUSH_1.TXT',0
+archivo_dirt   db 'SPRITES\DIRT_1.TXT',0
+archivo_lava   db 'SPRITES\LAVA_1.TXT',0
+archivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
 
 ; Archivos de sprites del jugador (16x16)
 archivo_player_up_a    db 'SPRITES\PLAYER\UP1.TXT',0
@@ -55,11 +77,22 @@ archivo_player_der_b   db 'SPRITES\PLAYER\RIGHT2.TXT',0
 mapa_datos  db 2500 dup(0)
 
 ; === SPRITES ===
-sprite_grass  db 256 dup(0)
-sprite_wall   db 256 dup(0)
-sprite_path   db 256 dup(0)
-sprite_water  db 256 dup(0)
-sprite_tree   db 256 dup(0)
+sprite_grass1   db 256 dup(0)
+sprite_grass2   db 256 dup(0)
+sprite_flower   db 256 dup(0)
+sprite_path     db 256 dup(0)
+sprite_water    db 256 dup(0)
+sprite_tree     db 256 dup(0)
+sprite_sand     db 256 dup(0)
+sprite_rock     db 256 dup(0)
+sprite_snow     db 256 dup(0)
+sprite_ice      db 256 dup(0)
+sprite_mountain db 256 dup(0)
+sprite_hill     db 256 dup(0)
+sprite_bush     db 256 dup(0)
+sprite_dirt     db 256 dup(0)
+sprite_lava     db 256 dup(0)
+sprite_bridge   db 256 dup(0)
 
 ; === SPRITES DEL JUGADOR (16x16 = 256 bytes cada uno) ===
 jugador_up_a    db 256 dup(0)
@@ -107,11 +140,22 @@ sprite_pointer  dw 0
 msg_titulo  db 'JUEGO EGA - Movimiento Instantaneo con Animacion Fluida',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
 msg_mapa    db 'Mapa: $'
-msg_grass   db 'Grass: $'
-msg_wall    db 'Wall: $'
-msg_path    db 'Path: $'
-msg_water   db 'Water: $'
-msg_tree    db 'Tree: $'
+msg_grass1 db 'Grass 1: $'
+msg_grass2 db 'Grass 2: $'
+msg_flower db 'Flower: $'
+msg_path   db 'Path: $'
+msg_water  db 'Water: $'
+msg_tree   db 'Tree: $'
+msg_sand   db 'Sand: $'
+msg_rock   db 'Rock: $'
+msg_snow   db 'Snow: $'
+msg_ice    db 'Ice: $'
+msg_mountain db 'Mountain: $'
+msg_hill   db 'Hill: $'
+msg_bush   db 'Bush: $'
+msg_dirt   db 'Dirt: $'
+msg_lava   db 'Lava: $'
+msg_bridge db 'Bridge: $'
 msg_anim    db 'Animaciones del jugador: $'
 msg_ok      db 'OK',13,10,'$'
 msg_error   db 'ERROR',13,10,'$'
@@ -143,32 +187,45 @@ cm_ok:
     mov ah, 9
     int 21h
     
-    mov dx, OFFSET msg_grass
+    mov dx, OFFSET msg_grass1
     mov ah, 9
     int 21h
-    mov dx, OFFSET archivo_grass
-    mov di, OFFSET sprite_grass
+    mov dx, OFFSET archivo_grass1
+    mov di, OFFSET sprite_grass1
     call cargar_sprite_16x16
-    jnc grass_ok
+    jnc grass1_ok
     jmp error_carga
-grass_ok:
+grass1_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
-    
-    mov dx, OFFSET msg_wall
+
+    mov dx, OFFSET msg_grass2
     mov ah, 9
     int 21h
-    mov dx, OFFSET archivo_wall
-    mov di, OFFSET sprite_wall
+    mov dx, OFFSET archivo_grass2
+    mov di, OFFSET sprite_grass2
     call cargar_sprite_16x16
-    jnc wall_ok
+    jnc grass2_ok
     jmp error_carga
-wall_ok:
+grass2_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
-    
+
+    mov dx, OFFSET msg_flower
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_flower
+    mov di, OFFSET sprite_flower
+    call cargar_sprite_16x16
+    jnc flower_ok
+    jmp error_carga
+flower_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
     mov dx, OFFSET msg_path
     mov ah, 9
     int 21h
@@ -207,7 +264,137 @@ tree_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
-    
+
+    mov dx, OFFSET msg_sand
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_sand
+    mov di, OFFSET sprite_sand
+    call cargar_sprite_16x16
+    jnc sand_ok
+    jmp error_carga
+sand_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_rock
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_rock
+    mov di, OFFSET sprite_rock
+    call cargar_sprite_16x16
+    jnc rock_ok
+    jmp error_carga
+rock_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_snow
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_snow
+    mov di, OFFSET sprite_snow
+    call cargar_sprite_16x16
+    jnc snow_ok
+    jmp error_carga
+snow_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_ice
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_ice
+    mov di, OFFSET sprite_ice
+    call cargar_sprite_16x16
+    jnc ice_ok
+    jmp error_carga
+ice_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_mountain
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_mountain
+    mov di, OFFSET sprite_mountain
+    call cargar_sprite_16x16
+    jnc mountain_ok
+    jmp error_carga
+mountain_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_hill
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_hill
+    mov di, OFFSET sprite_hill
+    call cargar_sprite_16x16
+    jnc hill_ok
+    jmp error_carga
+hill_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_bush
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_bush
+    mov di, OFFSET sprite_bush
+    call cargar_sprite_16x16
+    jnc bush_ok
+    jmp error_carga
+bush_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_dirt
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_dirt
+    mov di, OFFSET sprite_dirt
+    call cargar_sprite_16x16
+    jnc dirt_ok
+    jmp error_carga
+dirt_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_lava
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_lava
+    mov di, OFFSET sprite_lava
+    call cargar_sprite_16x16
+    jnc lava_ok
+    jmp error_carga
+lava_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_bridge
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_bridge
+    mov di, OFFSET sprite_bridge
+    call cargar_sprite_16x16
+    jnc bridge_ok
+    jmp error_carga
+bridge_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
     ; CARGAR ANIMACIONES DEL JUGADOR
     mov dx, OFFSET msg_anim
     mov ah, 9
@@ -774,13 +961,19 @@ verificar_tile_transitable PROC
     
     mov al, [mapa_datos + bx]
     
-    cmp al, TILE_WALL
-    je vtt_no_transitable
     cmp al, TILE_WATER
     je vtt_no_transitable
     cmp al, TILE_TREE
     je vtt_no_transitable
-    
+    cmp al, TILE_ROCK
+    je vtt_no_transitable
+    cmp al, TILE_MOUNTAIN
+    je vtt_no_transitable
+    cmp al, TILE_BUSH
+    je vtt_no_transitable
+    cmp al, TILE_LAVA
+    je vtt_no_transitable
+
     pop dx
     pop bx
     pop ax
@@ -952,11 +1145,17 @@ dmo_col:
     mov bx, ax
     mov al, [mapa_datos + bx]
     
-    mov di, OFFSET sprite_grass
-    
-    cmp al, TILE_WALL
+    mov di, OFFSET sprite_grass1
+
+    cmp al, TILE_GRASS2
+    jne dmo_chk_flower
+    mov di, OFFSET sprite_grass2
+    jmp SHORT dmo_draw
+
+dmo_chk_flower:
+    cmp al, TILE_FLOWER
     jne dmo_chk_path
-    mov di, OFFSET sprite_wall
+    mov di, OFFSET sprite_flower
     jmp SHORT dmo_draw
 
 dmo_chk_path:
@@ -973,8 +1172,68 @@ dmo_chk_water:
 
 dmo_chk_tree:
     cmp al, TILE_TREE
-    jne dmo_draw
+    jne dmo_chk_sand
     mov di, OFFSET sprite_tree
+    jmp SHORT dmo_draw
+
+dmo_chk_sand:
+    cmp al, TILE_SAND
+    jne dmo_chk_rock
+    mov di, OFFSET sprite_sand
+    jmp SHORT dmo_draw
+
+dmo_chk_rock:
+    cmp al, TILE_ROCK
+    jne dmo_chk_snow
+    mov di, OFFSET sprite_rock
+    jmp SHORT dmo_draw
+
+dmo_chk_snow:
+    cmp al, TILE_SNOW
+    jne dmo_chk_ice
+    mov di, OFFSET sprite_snow
+    jmp SHORT dmo_draw
+
+dmo_chk_ice:
+    cmp al, TILE_ICE
+    jne dmo_chk_mountain
+    mov di, OFFSET sprite_ice
+    jmp SHORT dmo_draw
+
+dmo_chk_mountain:
+    cmp al, TILE_MOUNTAIN
+    jne dmo_chk_hill
+    mov di, OFFSET sprite_mountain
+    jmp SHORT dmo_draw
+
+dmo_chk_hill:
+    cmp al, TILE_HILL
+    jne dmo_chk_bush
+    mov di, OFFSET sprite_hill
+    jmp SHORT dmo_draw
+
+dmo_chk_bush:
+    cmp al, TILE_BUSH
+    jne dmo_chk_dirt
+    mov di, OFFSET sprite_bush
+    jmp SHORT dmo_draw
+
+dmo_chk_dirt:
+    cmp al, TILE_DIRT
+    jne dmo_chk_lava
+    mov di, OFFSET sprite_dirt
+    jmp SHORT dmo_draw
+
+dmo_chk_lava:
+    cmp al, TILE_LAVA
+    jne dmo_chk_bridge
+    mov di, OFFSET sprite_lava
+    jmp SHORT dmo_draw
+
+dmo_chk_bridge:
+    cmp al, TILE_BRIDGE
+    jne dmo_draw
+    mov di, OFFSET sprite_bridge
 
 dmo_draw:
     push si
@@ -1213,11 +1472,33 @@ cm_proc:
     je cm_proc
     
     cmp al, '0'
-    jb cm_proc
+    jb cm_chk_upper
     cmp al, '9'
-    ja cm_proc
-    
+    jbe cm_store_digit
+    jmp cm_chk_upper
+
+cm_store_digit:
     sub al, '0'
+    jmp cm_store_value
+
+cm_chk_upper:
+    cmp al, 'A'
+    jb cm_chk_lower
+    cmp al, 'F'
+    ja cm_chk_lower
+    sub al, 'A'
+    add al, 10
+    jmp cm_store_value
+
+cm_chk_lower:
+    cmp al, 'a'
+    jb cm_proc
+    cmp al, 'f'
+    ja cm_proc
+    sub al, 'a'
+    add al, 10
+
+cm_store_value:
     mov [di], al
     inc di
     inc bp
