@@ -56,7 +56,7 @@ archivo_sand   db 'SPRITES\SAND_1.TXT',0
 archivo_rock   db 'SPRITES\ROCK_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
-archivo_mountain db 'SPRITES\MOUNTAIN_1.TXT',0
+archivo_mountain db 'SPRITES\MOUNTN_1.TXT',0
 archivo_hill   db 'SPRITES\HILL_1.TXT',0
 archivo_bush   db 'SPRITES\BUSH_1.TXT',0
 archivo_dirt   db 'SPRITES\DIRT_1.TXT',0
