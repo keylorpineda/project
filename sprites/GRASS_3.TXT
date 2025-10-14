@@ -1,0 +1,17 @@
+16 16
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+A A A A A A A A A A A A A A A A
+A A A A A A A A A A A A A A A A
+A A A A A A A A A A A A A A A A
+A A A A A A A A A A A A A A A A
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+A A A A A A A A A A A A A A A A
+A A A A A A A A A A A A A A A A
+A A A A A A A A A A A A A A A A
+A A A A A A A A A A A A A A A A

@@ -1,0 +1,17 @@
+16 16
+3 3 3 3 3 3 3 B B B B 3 3 3 3 3
+3 3 3 3 3 3 3 3 B B B 3 3 3 3 3
+3 3 3 3 3 3 3 3 3 B 3 3 3 3 3 3
+3 3 3 3 3 3 3 3 B B B 3 3 3 3 3
+B 3 3 3 3 3 3 B F B B 3 3 3 3 3
+B B 3 3 3 3 B F F F B B 3 3 3 3
+F B 3 3 3 B F F F F F B B 3 3 B
+F F B B B B F F F F F F B B 3 B
+F B B B B B F F F F F F B B B B
+F B B 3 3 B F F F F F F B B 3 B
+B B 3 B 3 B B F F F F B B 3 3 3
+B 3 3 3 3 3 B B F F B B 3 3 3 3
+3 3 3 3 3 3 3 B B B B 3 3 3 3 3
+3 3 3 3 3 3 3 B B B 3 3 3 3 3 3
+3 3 3 3 3 3 3 3 B B B 3 3 3 3 3
+3 3 3 3 3 3 3 B B 3 B 3 3 3 3 3
