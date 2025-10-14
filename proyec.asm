@@ -130,6 +130,13 @@ msg_controles db 13,10,'WASD/Flechas = Mover, ESC = Salir',13,10
 inicio:
     mov ax, @data
     mov ds, ax
+
+    ; Inicializar posiciones objetivo
+    mov ax, jugador_px
+    mov jugador_target_x, ax
+    mov ax, jugador_py
+    mov jugador_target_y, ax
+    mov jugador_moviendose, 0
     
     mov dx, OFFSET msg_titulo
     mov ah, 9
