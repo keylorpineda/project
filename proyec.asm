@@ -593,113 +593,155 @@ usar_scan_pti:
 verificar_tecla_pti:
     ; ARRIBA
     cmp al, 48h
-    je pti_arr
+    jne pti_chk_w_min
+    jmp pti_arr
+
+pti_chk_w_min:
     cmp al, 'w'
-    je pti_arr
+    jne pti_chk_w_may
+    jmp pti_arr
+
+pti_chk_w_may:
     cmp al, 'W'
-    je pti_arr
+    jne pti_chk_down_scan
+    jmp pti_arr
 
-    ; ABAJO
+pti_chk_down_scan:
     cmp al, 50h
-    je pti_aba
+    jne pti_chk_s_min
+    jmp pti_aba
+
+pti_chk_s_min:
     cmp al, 's'
-    je pti_aba
+    jne pti_chk_s_may
+    jmp pti_aba
+
+pti_chk_s_may:
     cmp al, 'S'
-    je pti_aba
+    jne pti_chk_left_scan
+    jmp pti_aba
 
-    ; IZQUIERDA
+pti_chk_left_scan:
     cmp al, 4Bh
-    je pti_izq
+    jne pti_chk_a_min
+    jmp pti_izq
+
+pti_chk_a_min:
     cmp al, 'a'
-    je pti_izq
+    jne pti_chk_a_may
+    jmp pti_izq
+
+pti_chk_a_may:
     cmp al, 'A'
-    je pti_izq
+    jne pti_chk_right_scan
+    jmp pti_izq
 
-    ; DERECHA
+pti_chk_right_scan:
     cmp al, 4Dh
-    je pti_der
-    cmp al, 'd'
-    je pti_der
-    cmp al, 'D'
-    je pti_der
+    jne pti_chk_d_min
+    jmp pti_der
 
-    jmp pti_fin
+pti_chk_d_min:
+    cmp al, 'd'
+    jne pti_chk_d_may
+    jmp pti_der
+
+pti_chk_d_may:
+    cmp al, 'D'
+    jne pti_fin
+    jmp pti_der
 
 pti_arr:
     mov jugador_dir, DIR_ARRIBA
     mov ultima_dir_movimiento, DIR_ARRIBA
-    
+
     mov ax, jugador_py
     sub ax, 16
     cmp ax, 16
-    jb pti_fin
-    
+    jae pti_arr_check_tile
+    jmp pti_fin
+
+pti_arr_check_tile:
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
-    
+    jc pti_arr_move
+    jmp pti_fin
+
+pti_arr_move:
     mov jugador_py, ax
     jmp pti_fin
 
 pti_aba:
     mov jugador_dir, DIR_ABAJO
     mov ultima_dir_movimiento, DIR_ABAJO
-    
+
     mov ax, jugador_py
     add ax, 16
     cmp ax, 784
-    ja pti_fin
-    
+    jbe pti_aba_check_tile
+    jmp pti_fin
+
+pti_aba_check_tile:
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
-    
+    jc pti_aba_move
+    jmp pti_fin
+
+pti_aba_move:
     mov jugador_py, ax
     jmp pti_fin
 
 pti_izq:
     mov jugador_dir, DIR_IZQUIERDA
     mov ultima_dir_movimiento, DIR_IZQUIERDA
-    
+
     mov ax, jugador_px
     sub ax, 16
     cmp ax, 16
-    jb pti_fin
-    
+    jae pti_izq_check_tile
+    jmp pti_fin
+
+pti_izq_check_tile:
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
-    
+    jc pti_izq_move
+    jmp pti_fin
+
+pti_izq_move:
     mov jugador_px, ax
     jmp pti_fin
 
 pti_der:
     mov jugador_dir, DIR_DERECHA
     mov ultima_dir_movimiento, DIR_DERECHA
-    
+
     mov ax, jugador_px
     add ax, 16
     cmp ax, 784
-    ja pti_fin
-    
+    jbe pti_der_check_tile
+    jmp pti_fin
+
+pti_der_check_tile:
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_fin
-    
+    jc pti_der_move
+    jmp pti_fin
+
+pti_der_move:
     mov jugador_px, ax
-    
+
 pti_fin:
     pop dx
     pop cx
