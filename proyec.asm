@@ -624,11 +624,18 @@ verificar_tecla:
     
     ; IZQUIERDA
     cmp al, 4Bh
-    je pti_izq
+    jne ptc_chk_a_min
+    jmp pti_izq
+ptc_chk_a_min:
     cmp al, 'a'
-    je pti_izq
+    jne ptc_chk_a_may
+    jmp pti_izq
+ptc_chk_a_may:
     cmp al, 'A'
-    je pti_izq
+    jne ptc_derecha
+    jmp pti_izq
+
+ptc_derecha:
     
     ; DERECHA
     cmp al, 4Dh
