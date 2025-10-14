@@ -648,8 +648,11 @@ pti_chk_d_min:
 
 pti_chk_d_may:
     cmp al, 'D'
-    jne pti_fin
+    jne pti_chk_d_may_not
     jmp pti_der
+
+pti_chk_d_may_not:
+    jmp pti_fin
 
 pti_arr:
     mov jugador_dir, DIR_ARRIBA
