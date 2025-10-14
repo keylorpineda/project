@@ -1149,86 +1149,100 @@ dmo_col:
 
     cmp al, TILE_GRASS2
     jne dmo_chk_flower
+dmo_set_grass2:
     mov di, OFFSET sprite_grass2
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_flower:
     cmp al, TILE_FLOWER
     jne dmo_chk_path
+dmo_set_flower:
     mov di, OFFSET sprite_flower
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_path:
     cmp al, TILE_PATH
     jne dmo_chk_water
+dmo_set_path:
     mov di, OFFSET sprite_path
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_water:
     cmp al, TILE_WATER
     jne dmo_chk_tree
+dmo_set_water:
     mov di, OFFSET sprite_water
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_tree:
     cmp al, TILE_TREE
     jne dmo_chk_sand
+dmo_set_tree:
     mov di, OFFSET sprite_tree
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_sand:
     cmp al, TILE_SAND
     jne dmo_chk_rock
+dmo_set_sand:
     mov di, OFFSET sprite_sand
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_rock:
     cmp al, TILE_ROCK
     jne dmo_chk_snow
+dmo_set_rock:
     mov di, OFFSET sprite_rock
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_snow:
     cmp al, TILE_SNOW
     jne dmo_chk_ice
+dmo_set_snow:
     mov di, OFFSET sprite_snow
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_ice:
     cmp al, TILE_ICE
     jne dmo_chk_mountain
+dmo_set_ice:
     mov di, OFFSET sprite_ice
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_mountain:
     cmp al, TILE_MOUNTAIN
     jne dmo_chk_hill
+dmo_set_mountain:
     mov di, OFFSET sprite_mountain
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_hill:
     cmp al, TILE_HILL
     jne dmo_chk_bush
+dmo_set_hill:
     mov di, OFFSET sprite_hill
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_bush:
     cmp al, TILE_BUSH
     jne dmo_chk_dirt
+dmo_set_bush:
     mov di, OFFSET sprite_bush
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_dirt:
     cmp al, TILE_DIRT
     jne dmo_chk_lava
+dmo_set_dirt:
     mov di, OFFSET sprite_dirt
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_lava:
     cmp al, TILE_LAVA
     jne dmo_chk_bridge
+dmo_set_lava:
     mov di, OFFSET sprite_lava
-    jmp dmo_draw
+    jmp short dmo_draw
 
 dmo_chk_bridge:
     cmp al, TILE_BRIDGE
