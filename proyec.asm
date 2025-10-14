@@ -79,6 +79,12 @@ buffer_temp db 300 dup(0)
 jugador_px  dw 80
 jugador_py  dw 80
 
+; === MOVIMIENTO SUAVE ===
+jugador_target_x dw 80      ; Posición objetivo
+jugador_target_y dw 80
+jugador_moviendose db 0     ; 0=parado, 1=moviendose
+velocidad_suave equ 4       ; Píxeles por frame (ajustar para más/menos fluidez)
+
 ; === ANIMACIÓN DEL JUGADOR ===
 jugador_dir db DIR_ABAJO      ; 0=abajo, 1=arriba, 2=izq, 3=der
 jugador_frame db 0             ; Frame de animación (0=A, 1=B, 2=C para idle)
@@ -245,18 +251,27 @@ anim_ok:
     int 10h
 
 ; =====================================================
-; BUCLE PRINCIPAL - ULTRA RESPONSIVO
+; BUCLE PRINCIPAL - CON MOVIMIENTO SUAVE
 ; =====================================================
 bucle_juego:
-    ; 1. ESPERAR RETRACE PRIMERO (mientras no hay nada que hacer)
+    ; 1. ESPERAR RETRACE
     call esperar_retrace
     
-    ; 2. VERIFICAR TECLA inmediatamente después del retrace
+    ; 2. ACTUALIZAR MOVIMIENTO SUAVE (siempre)
+    call actualizar_movimiento_suave
+    
+    ; 3. ACTUALIZAR ANIMACIÓN
+    call actualizar_animacion_jugador
+    
+    ; 4. ACTUALIZAR CÁMARA
+    call centrar_camara_directo
+    
+    ; 5. VERIFICAR TECLA (solo si NO se está moviendo)
     mov ah, 1
     int 16h
-    jz sin_tecla
+    jz sin_tecla_suave
     
-    ; 3. LEER Y PROCESAR TECLA INSTANTÁNEAMENTE
+    ; Leer tecla
     mov ah, 0
     int 16h
     
@@ -264,21 +279,21 @@ bucle_juego:
     je fin_juego
     
     call procesar_tecla_inmediata
-    call centrar_camara_directo
-    call actualizar_animacion_jugador
-    
-    ; 4. RENDERIZAR en página oculta (NO esperar retrace aquí)
+
+sin_tecla_suave:
+    ; 6. RENDERIZAR
     mov al, pagina_dibujo
     test al, 1
-    jz render_p0
-    call renderizar_en_pagina_1
-    jmp SHORT cambiar_pagina
+    jz render_p0_suave
     
-render_p0:
+    call renderizar_en_pagina_1
+    jmp SHORT cambiar_pagina_suave
+    
+render_p0_suave:
     call renderizar_en_pagina_0
     
-cambiar_pagina:
-    ; 5. CAMBIAR PÁGINA inmediatamente (sin esperar retrace extra)
+cambiar_pagina_suave:
+    ; 7. CAMBIAR PÁGINA
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
@@ -286,14 +301,6 @@ cambiar_pagina:
     xor pagina_dibujo, 1
     xor pagina_visible, 1
     
-    jmp bucle_juego
-
-sin_tecla:
-    ; Si no hay tecla, solo cambiar página sin renderizar
-    call actualizar_animacion_jugador
-    mov ah, 5
-    mov al, pagina_visible
-    int 10h
     jmp bucle_juego
 
 error_carga:
@@ -390,12 +397,13 @@ caj_fin:
 cargar_animaciones_jugador ENDP
 
 ; =====================================================
-; CARGAR SPRITE 16x16 DIRECTO
+; CARGAR SPRITE 16x16 DIRECTO (CORREGIDO)
 ; =====================================================
 cargar_sprite_16x16_directo PROC
     push ax
     push bx
     push cx
+    push dx          ; ← AGREGADO
     push si
     push bp
     
@@ -409,6 +417,7 @@ cargar_sprite_16x16_directo PROC
     
     ; Saltar primera línea (dimensiones)
     call saltar_linea
+    jc cs16d_error_close  ; ← Por si falla saltar_linea
     
     xor bp, bp
     
@@ -474,6 +483,10 @@ cs16d_cerrar:
     int 21h
     clc
     jmp SHORT cs16d_fin
+
+cs16d_error_close:
+    mov ah, 3Eh
+    int 21h
     
 cs16d_error:
     stc
@@ -481,6 +494,7 @@ cs16d_error:
 cs16d_fin:
     pop bp
     pop si
+    pop dx           ; ← AGREGADO
     pop cx
     pop bx
     pop ax
@@ -513,6 +527,85 @@ aaj_no_cambiar:
     pop ax
     ret
 actualizar_animacion_jugador ENDP
+
+; =====================================================
+; ACTUALIZAR MOVIMIENTO SUAVE
+; =====================================================
+actualizar_movimiento_suave PROC
+    push ax
+    push bx
+    
+    ; Verificar si se está moviendo
+    cmp jugador_moviendose, 0
+    je ams_fin
+    
+    ; Movimiento en X
+    mov ax, jugador_px
+    mov bx, jugador_target_x
+    cmp ax, bx
+    je ams_check_y
+    
+    jb ams_x_derecha
+    
+ams_x_izquierda:
+    sub ax, velocidad_suave
+    cmp ax, bx
+    jae ams_x_continua
+    mov ax, bx
+    jmp SHORT ams_x_continua
+    
+ams_x_derecha:
+    add ax, velocidad_suave
+    cmp ax, bx
+    jbe ams_x_continua
+    mov ax, bx
+    
+ams_x_continua:
+    mov jugador_px, ax
+    
+ams_check_y:
+    ; Movimiento en Y
+    mov ax, jugador_py
+    mov bx, jugador_target_y
+    cmp ax, bx
+    je ams_check_fin
+    
+    jb ams_y_abajo
+    
+ams_y_arriba:
+    sub ax, velocidad_suave
+    cmp ax, bx
+    jae ams_y_continua
+    mov ax, bx
+    jmp SHORT ams_y_continua
+    
+ams_y_abajo:
+    add ax, velocidad_suave
+    cmp ax, bx
+    jbe ams_y_continua
+    mov ax, bx
+    
+ams_y_continua:
+    mov jugador_py, ax
+    
+ams_check_fin:
+    ; Verificar si llegó al destino
+    mov ax, jugador_px
+    cmp ax, jugador_target_x
+    jne ams_fin
+    
+    mov ax, jugador_py
+    cmp ax, jugador_target_y
+    jne ams_fin
+    
+    ; Llegó al destino
+    mov jugador_moviendose, 0
+    
+ams_fin:
+    pop bx
+    pop ax
+    ret
+actualizar_movimiento_suave ENDP
 
 ; =====================================================
 ; OBTENER SPRITE DEL JUGADOR SEGÚN DIRECCIÓN Y FRAME
@@ -584,13 +677,17 @@ osj_fin_proc:
 obtener_sprite_jugador ENDP
 
 ; =====================================================
-; PROCESAR TECLA INMEDIATAMENTE
+; PROCESAR TECLA INMEDIATAMENTE (MOVIMIENTO SUAVE)
 ; =====================================================
 procesar_tecla_inmediata PROC
     push ax
     push bx
     push cx
     push dx
+    
+    ; Solo procesar si NO se está moviendo
+    cmp jugador_moviendose, 1
+    je pti_fin
     
     ; Guardar tecla
     mov bl, al
@@ -624,55 +721,43 @@ verificar_tecla:
     
     ; IZQUIERDA
     cmp al, 4Bh
-    jne ptc_chk_a_min
-    jmp pti_izq
-ptc_chk_a_min:
+    je pti_izq
     cmp al, 'a'
-    jne ptc_chk_a_may
-    jmp pti_izq
-ptc_chk_a_may:
+    je pti_izq
     cmp al, 'A'
-    jne ptc_derecha
-    jmp pti_izq
-
-ptc_derecha:
+    je pti_izq
     
     ; DERECHA
     cmp al, 4Dh
-    jne ptc_chk_d_min
-    jmp pti_der
-ptc_chk_d_min:
+    je pti_der
     cmp al, 'd'
-    jne ptc_chk_d_may
-    jmp pti_der
-ptc_chk_d_may:
+    je pti_der
     cmp al, 'D'
-    jne ptc_no_match
-    jmp pti_der
-ptc_no_match:
+    je pti_der
+    
     jmp pti_fin
 
 pti_arr:
     mov jugador_dir, DIR_ARRIBA
     mov ultima_dir_movimiento, DIR_ARRIBA
     
+    ; Calcular posición objetivo
     mov ax, jugador_py
-    sub ax, VELOCIDAD
-    
+    sub ax, 16
     cmp ax, 16
-    jb pti_arr_no_mover
+    jb pti_fin
     
+    ; Verificar tile destino
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_arr_no_mover
+    jnc pti_fin
     
-    mov jugador_py, ax
-    jmp pti_fin
-
-pti_arr_no_mover:
+    ; Establecer objetivo y activar movimiento
+    mov jugador_target_y, ax
+    mov jugador_moviendose, 1
     jmp pti_fin
 
 pti_aba:
@@ -680,22 +765,19 @@ pti_aba:
     mov ultima_dir_movimiento, DIR_ABAJO
     
     mov ax, jugador_py
-    add ax, VELOCIDAD
-    
+    add ax, 16
     cmp ax, 784
-    ja pti_aba_no_mover
+    ja pti_fin
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_aba_no_mover
+    jnc pti_fin
     
-    mov jugador_py, ax
-    jmp pti_fin
-
-pti_aba_no_mover:
+    mov jugador_target_y, ax
+    mov jugador_moviendose, 1
     jmp pti_fin
 
 pti_izq:
@@ -703,22 +785,19 @@ pti_izq:
     mov ultima_dir_movimiento, DIR_IZQUIERDA
     
     mov ax, jugador_px
-    sub ax, VELOCIDAD
-    
+    sub ax, 16
     cmp ax, 16
-    jb pti_izq_no_mover
+    jb pti_fin
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_izq_no_mover
+    jnc pti_fin
     
-    mov jugador_px, ax
-    jmp pti_fin
-
-pti_izq_no_mover:
+    mov jugador_target_x, ax
+    mov jugador_moviendose, 1
     jmp pti_fin
 
 pti_der:
@@ -726,22 +805,19 @@ pti_der:
     mov ultima_dir_movimiento, DIR_DERECHA
     
     mov ax, jugador_px
-    add ax, VELOCIDAD
-    
+    add ax, 16
     cmp ax, 784
-    ja pti_der_no_mover
+    ja pti_fin
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pti_der_no_mover
+    jnc pti_fin
     
-    mov jugador_px, ax
-    jmp pti_fin
-
-pti_der_no_mover:
+    mov jugador_target_x, ax
+    mov jugador_moviendose, 1
     
 pti_fin:
     pop dx
