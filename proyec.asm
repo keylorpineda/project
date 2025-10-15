@@ -279,7 +279,7 @@ procesar_movimiento_continuo PROC
     ; Limpiar buffer de teclado si hay teclas viejas
     mov ah, 1
     int 16h
-    jz pmc_no_tecla
+    jz pmc_no_tecla_stub
     
     ; Leer tecla sin esperar
     mov ah, 0
@@ -297,7 +297,7 @@ procesar_movimiento_continuo PROC
     test bl, bl
     jz pmc_usar_scan
     mov al, bl
-    jmp SHORT pmc_verificar
+    jmp pmc_verificar
     
 pmc_usar_scan:
     mov al, bh
@@ -305,44 +305,59 @@ pmc_usar_scan:
 pmc_verificar:
     ; ARRIBA
     cmp al, 48h        ; Flecha arriba
-    je pmc_arriba
+    je pmc_arriba_stub
     cmp al, 'w'
-    je pmc_arriba
+    je pmc_arriba_stub
     cmp al, 'W'
-    je pmc_arriba
+    je pmc_arriba_stub
     
     ; ABAJO
     cmp al, 50h        ; Flecha abajo
-    je pmc_abajo
+    je pmc_abajo_stub
     cmp al, 's'
-    je pmc_abajo
+    je pmc_abajo_stub
     cmp al, 'S'
-    je pmc_abajo
+    je pmc_abajo_stub
     
     ; IZQUIERDA
     cmp al, 4Bh        ; Flecha izquierda
-    je pmc_izquierda
+    je pmc_izquierda_stub
     cmp al, 'a'
-    je pmc_izquierda
+    je pmc_izquierda_stub
     cmp al, 'A'
-    je pmc_izquierda
+    je pmc_izquierda_stub
     
     ; DERECHA
     cmp al, 4Dh        ; Flecha derecha
-    je pmc_derecha
+    je pmc_derecha_stub
     cmp al, 'd'
-    je pmc_derecha
+    je pmc_derecha_stub
     cmp al, 'D'
-    je pmc_derecha
-    
-    jmp SHORT pmc_no_movimiento
+    je pmc_derecha_stub
+
+    jmp pmc_no_movimiento_stub
+
+pmc_arriba_stub:
+    jmp pmc_arriba
+
+pmc_abajo_stub:
+    jmp pmc_abajo
+
+pmc_izquierda_stub:
+    jmp pmc_izquierda
+
+pmc_derecha_stub:
+    jmp pmc_derecha
+
+pmc_no_movimiento_stub:
+    jmp pmc_no_movimiento
 
 pmc_arriba:
     mov jugador_dir, DIR_ARRIBA
     mov ax, jugador_py
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
+    jb pmc_no_movimiento_stub
     
     ; Verificar colisión en nueva posición
     mov cx, jugador_px
@@ -350,70 +365,76 @@ pmc_arriba:
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jnc pmc_no_movimiento_stub
     
     ; Mover
     mov jugador_py, ax
     mov moviendo, 1
-    jmp SHORT pmc_fin
+    jmp pmc_fin_stub
 
 pmc_abajo:
     mov jugador_dir, DIR_ABAJO
     mov ax, jugador_py
     add ax, VELOCIDAD
     cmp ax, 784
-    ja pmc_no_movimiento
+    ja pmc_no_movimiento_stub
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jnc pmc_no_movimiento_stub
     
     mov jugador_py, ax
     mov moviendo, 1
-    jmp SHORT pmc_fin
+    jmp pmc_fin_stub
 
 pmc_izquierda:
     mov jugador_dir, DIR_IZQUIERDA
     mov ax, jugador_px
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
+    jb pmc_no_movimiento_stub
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jnc pmc_no_movimiento_stub
     
     mov jugador_px, ax
     mov moviendo, 1
-    jmp SHORT pmc_fin
+    jmp pmc_fin_stub
 
 pmc_derecha:
     mov jugador_dir, DIR_DERECHA
     mov ax, jugador_px
     add ax, VELOCIDAD
     cmp ax, 784
-    ja pmc_no_movimiento
+    ja pmc_no_movimiento_stub
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jnc pmc_no_movimiento_stub
     
     mov jugador_px, ax
     mov moviendo, 1
-    jmp SHORT pmc_fin
+    jmp pmc_fin_stub
+
+pmc_fin_stub:
+    jmp pmc_fin
+
+pmc_no_tecla_stub:
+    jmp pmc_no_tecla
 
 pmc_no_movimiento:
     mov moviendo, 0
-    jmp SHORT pmc_fin
+    jmp pmc_fin_stub
 
 pmc_no_tecla:
     mov moviendo, 0
