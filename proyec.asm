@@ -1301,6 +1301,9 @@ dibujar_jugador_en_offset PROC
     ret
 dibujar_jugador_en_offset ENDP
 
+; CORRECCIÓN: Reemplazar la función dibujar_sprite_planar_16x16
+; Esta versión corrige el problema de las líneas blancas
+
 dibujar_sprite_planar_16x16 PROC
     push ax
     push bx
@@ -1330,19 +1333,22 @@ dsp_fila_loop:
     
     mov bx, di
     
-    ; Calcular máscara
+    ; Calcular máscaras para ambos bytes
     mov al, [bx]
     or al, [bx+32]
     or al, [bx+64]
     or al, [bx+96]
-    mov ah, al
+    mov ah, al          ; Máscara para primer byte en AH
     
     mov al, [bx+1]
     or al, [bx+33]
     or al, [bx+65]
-    or al, [bx+97]
+    or al, [bx+97]      ; Máscara para segundo byte en AL
     
-    ; Plano 0
+    ; Ahora AH tiene máscara del primer byte, AL del segundo
+    push ax             ; Guardar máscaras
+    
+    ; ===== PLANO 0 =====
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1350,29 +1356,30 @@ dsp_fila_loop:
     mov al, 1
     out dx, al
     
+    pop ax              ; Recuperar máscaras
+    push ax             ; Guardar de nuevo
+    
     mov si, bx
     mov di, bp
     
-    push ax
+    ; Primer byte
     mov cl, ah
-    not cl
-    mov al, es:[di]
-    and al, cl
-    or al, [si]
-    mov es:[di], al
+    not cl              ; Invertir máscara para AND
+    mov ch, es:[di]
+    and ch, cl          ; Limpiar píxeles donde vamos a dibujar
+    or ch, [si]         ; Combinar con nuevo sprite
+    mov es:[di], ch
     inc di
     
-    pop ax
-    push ax
+    ; Segundo byte
     mov cl, al
     not cl
-    mov al, es:[di]
-    and al, cl
-    or al, [si+1]
-    mov es:[di], al
-    pop ax
+    mov ch, es:[di]
+    and ch, cl
+    or ch, [si+1]
+    mov es:[di], ch
     
-    ; Plano 1
+    ; ===== PLANO 1 =====
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1380,30 +1387,31 @@ dsp_fila_loop:
     mov al, 2
     out dx, al
     
+    pop ax
+    push ax
+    
     mov si, bx
     add si, 32
     mov di, bp
     
-    push ax
+    ; Primer byte
     mov cl, ah
     not cl
-    mov al, es:[di]
-    and al, cl
-    or al, [si]
-    mov es:[di], al
+    mov ch, es:[di]
+    and ch, cl
+    or ch, [si]
+    mov es:[di], ch
     inc di
     
-    pop ax
-    push ax
+    ; Segundo byte
     mov cl, al
     not cl
-    mov al, es:[di]
-    and al, cl
-    or al, [si+1]
-    mov es:[di], al
-    pop ax
+    mov ch, es:[di]
+    and ch, cl
+    or ch, [si+1]
+    mov es:[di], ch
     
-    ; Plano 2
+    ; ===== PLANO 2 =====
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1411,30 +1419,31 @@ dsp_fila_loop:
     mov al, 4
     out dx, al
     
+    pop ax
+    push ax
+    
     mov si, bx
     add si, 64
     mov di, bp
     
-    push ax
+    ; Primer byte
     mov cl, ah
     not cl
-    mov al, es:[di]
-    and al, cl
-    or al, [si]
-    mov es:[di], al
+    mov ch, es:[di]
+    and ch, cl
+    or ch, [si]
+    mov es:[di], ch
     inc di
     
-    pop ax
-    push ax
+    ; Segundo byte
     mov cl, al
     not cl
-    mov al, es:[di]
-    and al, cl
-    or al, [si+1]
-    mov es:[di], al
-    pop ax
+    mov ch, es:[di]
+    and ch, cl
+    or ch, [si+1]
+    mov es:[di], ch
     
-    ; Plano 3
+    ; ===== PLANO 3 =====
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1442,38 +1451,39 @@ dsp_fila_loop:
     mov al, 8
     out dx, al
     
+    pop ax              ; Recuperar máscaras (última vez)
+    
     mov si, bx
     add si, 96
     mov di, bp
     
-    push ax
+    ; Primer byte
     mov cl, ah
     not cl
-    mov al, es:[di]
-    and al, cl
-    or al, [si]
-    mov es:[di], al
+    mov ch, es:[di]
+    and ch, cl
+    or ch, [si]
+    mov es:[di], ch
     inc di
     
-    pop ax
+    ; Segundo byte
     mov cl, al
     not cl
-    mov al, es:[di]
-    and al, cl
-    or al, [si+1]
-    mov es:[di], al
+    mov ch, es:[di]
+    and ch, cl
+    or ch, [si+1]
+    mov es:[di], ch
     
     pop bp
-    add bp, 80
+    add bp, 80          ; Siguiente línea
     pop di
-    add di, 2
+    add di, 2           ; Siguiente fila en sprite
     pop cx
     dec cx
     jz dsp_fila_done
     jmp dsp_fila_loop
 
 dsp_fila_done:
-    
     ; Restaurar planos
     mov dx, 3C4h
     mov al, 2
