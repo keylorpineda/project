@@ -345,7 +345,7 @@ pmc_verificar:
     cmp al, 'D'
     je pmc_derecha_stub
 
-    jmp pmc_no_movimiento
+    jmp NEAR PTR pmc_no_movimiento
 
 pmc_no_tecla_stub:
     jmp NEAR PTR pmc_no_tecla
@@ -367,15 +367,21 @@ pmc_arriba:
     mov ax, jugador_py
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
-    
+    jae pmc_arriba_check_tile
+    jmp NEAR PTR pmc_no_movimiento
+
+pmc_arriba_check_tile:
+
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
-    
+    jc pmc_arriba_mover
+    jmp NEAR PTR pmc_no_movimiento
+
+pmc_arriba_mover:
+
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -385,15 +391,21 @@ pmc_abajo:
     mov ax, jugador_py
     add ax, VELOCIDAD
     cmp ax, 784
-    ja pmc_no_movimiento
-    
+    jbe pmc_abajo_check_tile
+    jmp NEAR PTR pmc_no_movimiento
+
+pmc_abajo_check_tile:
+
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
-    
+    jc pmc_abajo_mover
+    jmp NEAR PTR pmc_no_movimiento
+
+pmc_abajo_mover:
+
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -403,14 +415,20 @@ pmc_izquierda:
     mov ax, jugador_px
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
+    jae pmc_izquierda_check_tile
+    jmp NEAR PTR pmc_no_movimiento
+
+pmc_izquierda_check_tile:
 
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_izquierda_mover
+    jmp NEAR PTR pmc_no_movimiento
+
+pmc_izquierda_mover:
 
     mov jugador_px, ax
     mov moviendo, 1
@@ -421,14 +439,20 @@ pmc_derecha:
     mov ax, jugador_px
     add ax, VELOCIDAD
     cmp ax, 784
-    ja pmc_no_movimiento
+    jbe pmc_derecha_check_tile
+    jmp NEAR PTR pmc_no_movimiento
+
+pmc_derecha_check_tile:
 
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_derecha_mover
+    jmp NEAR PTR pmc_no_movimiento
+
+pmc_derecha_mover:
 
     mov jugador_px, ax
     mov moviendo, 1
@@ -868,83 +892,115 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_grass1
     mov di, OFFSET sprite_grass1_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_grass1_ok
+    jmp NEAR PTR cst_error
+
+cst_grass1_ok:
     mov dx, OFFSET archivo_grass2
     mov di, OFFSET sprite_grass2_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_grass2_ok
+    jmp NEAR PTR cst_error
+
+cst_grass2_ok:
     mov dx, OFFSET archivo_flower
     mov di, OFFSET sprite_flower_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_flower_ok
+    jmp NEAR PTR cst_error
+
+cst_flower_ok:
     mov dx, OFFSET archivo_path
     mov di, OFFSET sprite_path_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_path_ok
+    jmp NEAR PTR cst_error
+
+cst_path_ok:
     mov dx, OFFSET archivo_water
     mov di, OFFSET sprite_water_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_water_ok
+    jmp NEAR PTR cst_error
+
+cst_water_ok:
     mov dx, OFFSET archivo_tree
     mov di, OFFSET sprite_tree_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_tree_ok
+    jmp NEAR PTR cst_error
+
+cst_tree_ok:
     mov dx, OFFSET archivo_sand
     mov di, OFFSET sprite_sand_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_sand_ok
+    jmp NEAR PTR cst_error
+
+cst_sand_ok:
     mov dx, OFFSET archivo_rock
     mov di, OFFSET sprite_rock_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_rock_ok
+    jmp NEAR PTR cst_error
+
+cst_rock_ok:
     mov dx, OFFSET archivo_snow
     mov di, OFFSET sprite_snow_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_snow_ok
+    jmp NEAR PTR cst_error
+
+cst_snow_ok:
     mov dx, OFFSET archivo_ice
     mov di, OFFSET sprite_ice_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_ice_ok
+    jmp NEAR PTR cst_error
+
+cst_ice_ok:
     mov dx, OFFSET archivo_mountain
     mov di, OFFSET sprite_mountain_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_mountain_ok
+    jmp NEAR PTR cst_error
+
+cst_mountain_ok:
     mov dx, OFFSET archivo_hill
     mov di, OFFSET sprite_hill_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_hill_ok
+    jmp NEAR PTR cst_error
+
+cst_hill_ok:
     mov dx, OFFSET arquivo_bush
     mov di, OFFSET sprite_bush_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_bush_ok
+    jmp NEAR PTR cst_error
+
+cst_bush_ok:
     mov dx, OFFSET arquivo_dirt
     mov di, OFFSET sprite_dirt_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_dirt_ok
+    jmp NEAR PTR cst_error
+
+cst_dirt_ok:
     mov dx, OFFSET arquivo_lava
     mov di, OFFSET sprite_lava_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_lava_ok
+    jmp NEAR PTR cst_error
+
+cst_lava_ok:
     mov dx, OFFSET arquivo_bridge
     mov di, OFFSET sprite_bridge_temp
     call cargar_sprite_16x16
-    jc cst_error
-    
+    jnc cst_bridge_ok
+    jmp NEAR PTR cst_error
+
+cst_bridge_ok:
     clc
     jmp cst_fin
 
