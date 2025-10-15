@@ -264,7 +264,10 @@ procesar_movimiento_continuo PROC
     
     mov ah, 1
     int 16h
-    jz pmc_no_tecla
+    jnz pmc_tecla_disponible
+    jmp pmc_no_tecla
+
+pmc_tecla_disponible:
     
     mov ah, 0
     int 16h
@@ -285,32 +288,66 @@ pmc_usar_scan:
     
 pmc_verificar:
     cmp al, 48h
-    je pmc_arriba
+    jne pmc_check_w
+    jmp pmc_arriba
+
+pmc_check_w:
     cmp al, 'w'
-    je pmc_arriba
+    jne pmc_check_W
+    jmp pmc_arriba
+
+pmc_check_W:
     cmp al, 'W'
-    je pmc_arriba
-    
+    jne pmc_check_50
+    jmp pmc_arriba
+
+pmc_check_50:
     cmp al, 50h
-    je pmc_abajo
+    jne pmc_check_s
+    jmp pmc_abajo
+
+pmc_check_s:
     cmp al, 's'
-    je pmc_abajo
+    jne pmc_check_S
+    jmp pmc_abajo
+
+pmc_check_S:
     cmp al, 'S'
-    je pmc_abajo
-    
+    jne pmc_check_left_scan
+    jmp pmc_abajo
+
+pmc_check_left_scan:
     cmp al, 4Bh
-    je pmc_izquierda
+    jne pmc_check_left_a
+    jmp pmc_izquierda
+
+pmc_check_left_a:
     cmp al, 'a'
-    je pmc_izquierda
+    jne pmc_check_left_A
+    jmp pmc_izquierda
+
+pmc_check_left_A:
     cmp al, 'A'
-    je pmc_izquierda
-    
+    jne pmc_check_right_scan
+    jmp pmc_izquierda
+
+pmc_check_right_scan:
     cmp al, 4Dh
-    je pmc_derecha
+    jne pmc_check_right_d
+    jmp pmc_derecha
+
+pmc_check_right_d:
     cmp al, 'd'
-    je pmc_derecha
+    jne pmc_check_right_D
+    jmp pmc_derecha
+
+pmc_check_right_D:
     cmp al, 'D'
-    je pmc_derecha
+    jne pmc_default
+    jmp pmc_derecha
+
+pmc_default:
+    jmp pmc_no_movimiento
     
     jmp pmc_no_movimiento
 
@@ -319,14 +356,20 @@ pmc_arriba:
     mov ax, jugador_py
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
+    jae pmc_arriba_validar
+    jmp pmc_no_movimiento
+
+pmc_arriba_validar:
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_arriba_pasable
+    jmp pmc_no_movimiento
+
+pmc_arriba_pasable:
     
     mov jugador_py, ax
     mov moviendo, 1
@@ -337,14 +380,20 @@ pmc_abajo:
     mov ax, jugador_py
     add ax, VELOCIDAD
     cmp ax, 784
-    ja pmc_no_movimiento
+    jbe pmc_abajo_validar
+    jmp pmc_no_movimiento
+
+pmc_abajo_validar:
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_abajo_pasable
+    jmp pmc_no_movimiento
+
+pmc_abajo_pasable:
     
     mov jugador_py, ax
     mov moviendo, 1
@@ -355,14 +404,20 @@ pmc_izquierda:
     mov ax, jugador_px
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
+    jae pmc_izquierda_validar
+    jmp pmc_no_movimiento
+
+pmc_izquierda_validar:
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_izquierda_pasable
+    jmp pmc_no_movimiento
+
+pmc_izquierda_pasable:
     
     mov jugador_px, ax
     mov moviendo, 1
@@ -373,14 +428,20 @@ pmc_derecha:
     mov ax, jugador_px
     add ax, VELOCIDAD
     cmp ax, 784
-    ja pmc_no_movimiento
+    jbe pmc_derecha_validar
+    jmp pmc_no_movimiento
+
+pmc_derecha_validar:
     
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_derecha_pasable
+    jmp pmc_no_movimiento
+
+pmc_derecha_pasable:
     
     mov jugador_px, ax
     mov moviendo, 1
@@ -718,83 +779,115 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_grass1
     mov di, OFFSET sprite_grass1_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_grass2
+    jmp cst_error
 
+cst_load_grass2:
     mov dx, OFFSET archivo_grass2
     mov di, OFFSET sprite_grass2_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_flower
+    jmp cst_error
 
+cst_load_flower:
     mov dx, OFFSET archivo_flower
     mov di, OFFSET sprite_flower_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_path
+    jmp cst_error
 
+cst_load_path:
     mov dx, OFFSET archivo_path
     mov di, OFFSET sprite_path_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_water
+    jmp cst_error
 
+cst_load_water:
     mov dx, OFFSET archivo_water
     mov di, OFFSET sprite_water_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_tree
+    jmp cst_error
 
+cst_load_tree:
     mov dx, OFFSET archivo_tree
     mov di, OFFSET sprite_tree_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_sand
+    jmp cst_error
 
+cst_load_sand:
     mov dx, OFFSET archivo_sand
     mov di, OFFSET sprite_sand_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_rock
+    jmp cst_error
 
+cst_load_rock:
     mov dx, OFFSET archivo_rock
     mov di, OFFSET sprite_rock_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_snow
+    jmp cst_error
 
+cst_load_snow:
     mov dx, OFFSET archivo_snow
     mov di, OFFSET sprite_snow_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_ice
+    jmp cst_error
 
+cst_load_ice:
     mov dx, OFFSET archivo_ice
     mov di, OFFSET sprite_ice_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_mountain
+    jmp cst_error
 
+cst_load_mountain:
     mov dx, OFFSET archivo_mountain
     mov di, OFFSET sprite_mountain_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_hill
+    jmp cst_error
 
+cst_load_hill:
     mov dx, OFFSET archivo_hill
     mov di, OFFSET sprite_hill_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_bush
+    jmp cst_error
 
+cst_load_bush:
     mov dx, OFFSET arquivo_bush
     mov di, OFFSET sprite_bush_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_dirt
+    jmp cst_error
 
+cst_load_dirt:
     mov dx, OFFSET arquivo_dirt
     mov di, OFFSET sprite_dirt_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_lava
+    jmp cst_error
 
+cst_load_lava:
     mov dx, OFFSET arquivo_lava
     mov di, OFFSET sprite_lava_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_load_bridge
+    jmp cst_error
 
+cst_load_bridge:
     mov dx, OFFSET arquivo_bridge
     mov di, OFFSET sprite_bridge_temp
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_success
+    jmp cst_error
 
+cst_success:
     clc
     jmp cst_fin
 
@@ -814,43 +907,59 @@ cargar_animaciones_jugador PROC
     mov dx, OFFSET archivo_player_up_a
     mov di, OFFSET jugador_up_a_temp
     call cargar_sprite_16x16
-    jc caj_error
-    
+    jnc caj_load_up_b
+    jmp caj_error
+
+caj_load_up_b:
     mov dx, OFFSET arquivo_player_up_b
     mov di, OFFSET jugador_up_b_temp
     call cargar_sprite_16x16
-    jc caj_error
-    
+    jnc caj_load_down_a
+    jmp caj_error
+
+caj_load_down_a:
     mov dx, OFFSET archivo_player_down_a
     mov di, OFFSET jugador_down_a_temp
     call cargar_sprite_16x16
-    jc caj_error
-    
+    jnc caj_load_down_b
+    jmp caj_error
+
+caj_load_down_b:
     mov dx, OFFSET archivo_player_down_b
     mov di, OFFSET jugador_down_b_temp
     call cargar_sprite_16x16
-    jc caj_error
-    
+    jnc caj_load_left_a
+    jmp caj_error
+
+caj_load_left_a:
     mov dx, OFFSET archivo_player_izq_a
     mov di, OFFSET jugador_izq_a_temp
     call cargar_sprite_16x16
-    jc caj_error
-    
+    jnc caj_load_left_b
+    jmp caj_error
+
+caj_load_left_b:
     mov dx, OFFSET arquivo_player_izq_b
     mov di, OFFSET jugador_izq_b_temp
     call cargar_sprite_16x16
-    jc caj_error
-    
+    jnc caj_load_right_a
+    jmp caj_error
+
+caj_load_right_a:
     mov dx, OFFSET archivo_player_der_a
     mov di, OFFSET jugador_der_a_temp
     call cargar_sprite_16x16
-    jc caj_error
-    
+    jnc caj_load_right_b
+    jmp caj_error
+
+caj_load_right_b:
     mov dx, OFFSET arquivo_player_der_b
     mov di, OFFSET jugador_der_b_temp
     call cargar_sprite_16x16
-    jc caj_error
-    
+    jnc caj_success
+    jmp caj_error
+
+caj_success:
     clc
     jmp caj_fin
     
@@ -977,23 +1086,32 @@ dibujar_mapa_en_offset PROC
 
 dmo_fila:
     cmp bp, 13
-    jae dmo_fin
-    
+    jb dmo_fila_loop
+    jmp dmo_fin
+
+dmo_fila_loop:
     xor si, si
 
 dmo_col:
     cmp si, 21
-    jae dmo_next_fila
-    
+    jb dmo_col_loop
+    jmp dmo_next_fila
+
+dmo_col_loop:
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 50
-    jae dmo_next_col
-    
+    jb dmo_y_in_range
+    jmp dmo_next_col
+
+dmo_y_in_range:
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 50
-    jae dmo_next_col
+    jb dmo_indices_validos
+    jmp dmo_next_col
+
+dmo_indices_validos:
     
     push dx
     mov dx, 50
@@ -1024,14 +1142,25 @@ dmo_col:
     mov dx, ax
     
     cmp cx, viewport_x
-    jl dmo_skip_tile
+    jge dmo_check_x_max
+    jmp dmo_skip_tile
+
+dmo_check_x_max:
     cmp cx, 480
-    jge dmo_skip_tile
+    jl dmo_check_y_min
+    jmp dmo_skip_tile
+
+dmo_check_y_min:
     cmp dx, viewport_y
-    jl dmo_skip_tile
+    jge dmo_check_y_max
+    jmp dmo_skip_tile
+
+dmo_check_y_max:
     cmp dx, 271
-    jge dmo_skip_tile
-    
+    jl dmo_render_tile
+    jmp dmo_skip_tile
+
+dmo_render_tile:
     call dibujar_sprite_planar_16x16
     
 dmo_skip_tile:
@@ -1193,8 +1322,8 @@ dibujar_sprite_planar_16x16 PROC
     add bp, ax
     
     mov cx, 16
-    
-dsp_fila:
+
+dsp_fila_loop:
     push cx
     push di
     push bp
@@ -1340,7 +1469,10 @@ dsp_fila:
     add di, 2
     pop cx
     dec cx
-    jnz dsp_fila
+    jz dsp_fila_done
+    jmp dsp_fila_loop
+
+dsp_fila_done:
     
     ; Restaurar planos
     mov dx, 3C4h
