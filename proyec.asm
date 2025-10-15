@@ -845,7 +845,10 @@ csp_der_next:
     inc di
     
     dec bp
-    jnz csp_fila
+    jz csp_fin_filas
+    jmp csp_fila
+
+csp_fin_filas:
     
     pop bp
     pop di
@@ -1545,7 +1548,10 @@ dsp_fila:
     add di, 2
     pop cx
     dec cx
-    jnz dsp_fila
+    jz dsp_fin_filas
+    jmp dsp_fila
+
+dsp_fin_filas:
     
     pop bp
     pop di
