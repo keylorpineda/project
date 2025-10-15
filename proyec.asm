@@ -745,133 +745,118 @@ convertir_sprite_a_planar PROC
     push di
     push bp
     
-    ; Procesar 16 filas
-    mov bp, 16
+    mov bp, 16          ; 16 filas
     
 csp_fila:
-    ; Procesar 16 píxeles = 2 bytes por plano
-    ; Byte izquierdo (8 píxeles)
-    xor ax, ax      ; AH = plano 3, AL = plano 2
-    xor bx, bx      ; BH = plano 1, BL = plano 0
-    mov cx, 8
+    ; === BYTE IZQUIERDO (primeros 8 píxeles) ===
+    xor bx, bx          ; BL=plano0, BH=plano1
+    xor dx, dx          ; DL=plano2, DH=plano3
+    mov cx, 8           ; 8 píxeles
     
 csp_byte_izq:
-    lodsb           ; Leer color
+    lodsb               ; Leer píxel en AL
     
-    ; Extraer bit 0
+    ; Extraer bit 0 → plano 0
     test al, 1
-    jz csp_bit0_0_izq
-    stc
-    rcl bl, 1
-    jmp csp_bit1_izq
-csp_bit0_0_izq:
+    pushf
     shl bl, 1
+    popf
+    jz csp_izq_bit1
+    or bl, 1
     
-csp_bit1_izq:
-    ; Extraer bit 1
+csp_izq_bit1:
+    ; Extraer bit 1 → plano 1
     test al, 2
-    jz csp_bit1_0_izq
-    stc
-    rcl bh, 1
-    jmp csp_bit2_izq
-csp_bit1_0_izq:
+    pushf
     shl bh, 1
+    popf
+    jz csp_izq_bit2
+    or bh, 1
     
-csp_bit2_izq:
-    ; Extraer bit 2
+csp_izq_bit2:
+    ; Extraer bit 2 → plano 2
     test al, 4
-    jz csp_bit2_0_izq
-    stc
-    rcl byte ptr [bp-2], 1  ; Usar stack temporal
-    jmp csp_bit3_izq
-csp_bit2_0_izq:
-    shl byte ptr [bp-2], 1
+    pushf
+    shl dl, 1
+    popf
+    jz csp_izq_bit3
+    or dl, 1
     
-csp_bit3_izq:
-    ; Extraer bit 3
+csp_izq_bit3:
+    ; Extraer bit 3 → plano 3
     test al, 8
-    jz csp_bit3_0_izq
-    stc
-    rcl byte ptr [bp-1], 1
-    jmp csp_next_pix_izq
-csp_bit3_0_izq:
-    shl byte ptr [bp-1], 1
+    pushf
+    shl dh, 1
+    popf
+    jz csp_izq_next
+    or dh, 1
     
-csp_next_pix_izq:
+csp_izq_next:
     loop csp_byte_izq
     
     ; Guardar byte izquierdo
-    mov [di], bl        ; Plano 0
-    mov [di+32], bh     ; Plano 1
-    mov al, byte ptr [bp-2]
-    mov [di+64], al     ; Plano 2
-    mov al, byte ptr [bp-1]
-    mov [di+96], al     ; Plano 3
+    mov [di], bl
+    mov [di+32], bh
+    mov [di+64], dl
+    mov [di+96], dh
     inc di
     
-    ; Byte derecho (8 píxeles)
-    xor ax, ax
+    ; === BYTE DERECHO (siguientes 8 píxeles) ===
     xor bx, bx
+    xor dx, dx
     mov cx, 8
     
 csp_byte_der:
     lodsb
     
+    ; Extraer bit 0 → plano 0
     test al, 1
-    jz csp_bit0_0_der
-    stc
-    rcl bl, 1
-    jmp csp_bit1_der
-csp_bit0_0_der:
+    pushf
     shl bl, 1
+    popf
+    jz csp_der_bit1
+    or bl, 1
     
-csp_bit1_der:
+csp_der_bit1:
+    ; Extraer bit 1 → plano 1
     test al, 2
-    jz csp_bit1_0_der
-    stc
-    rcl bh, 1
-    jmp csp_bit2_der
-csp_bit1_0_der:
+    pushf
     shl bh, 1
+    popf
+    jz csp_der_bit2
+    or bh, 1
     
-csp_bit2_der:
+csp_der_bit2:
+    ; Extraer bit 2 → plano 2
     test al, 4
-    jz csp_bit2_0_der
-    stc
-    rcl byte ptr [bp-2], 1
-    jmp csp_bit3_der
-csp_bit2_0_der:
-    shl byte ptr [bp-2], 1
+    pushf
+    shl dl, 1
+    popf
+    jz csp_der_bit3
+    or dl, 1
     
-csp_bit3_der:
+csp_der_bit3:
+    ; Extraer bit 3 → plano 3
     test al, 8
-    jz csp_bit3_0_der
-    stc
-    rcl byte ptr [bp-1], 1
-    jmp csp_next_pix_der
-csp_bit3_0_der:
-    shl byte ptr [bp-1], 1
+    pushf
+    shl dh, 1
+    popf
+    jz csp_der_next
+    or dh, 1
     
-csp_next_pix_der:
+csp_der_next:
     loop csp_byte_der
     
     ; Guardar byte derecho
     mov [di], bl
     mov [di+32], bh
-    mov al, byte ptr [bp-2]
-    mov [di+64], al
-    mov al, byte ptr [bp-1]
-    mov [di+96], al
+    mov [di+64], dl
+    mov [di+96], dh
     inc di
     
     dec bp
-    jnz csp_fila_stub
-    jmp csp_fin
+    jnz csp_fila
     
-csp_fila_stub:
-    jmp csp_fila
-    
-csp_fin:
     pop bp
     pop di
     pop si
