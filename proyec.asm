@@ -399,14 +399,16 @@ pmc_izquierda:
     sub ax, VELOCIDAD
     cmp ax, 16
     jb pmc_no_movimiento_stub
-    
+
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento_stub
-    
+    jc pmc_izquierda_mover
+    jmp pmc_no_movimiento
+
+pmc_izquierda_mover:
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin_stub
@@ -416,15 +418,20 @@ pmc_derecha:
     mov ax, jugador_px
     add ax, VELOCIDAD
     cmp ax, 784
-    ja pmc_no_movimiento_stub
-    
+    jbe pmc_derecha_en_rango
+    jmp pmc_no_movimiento
+
+pmc_derecha_en_rango:
+
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento_stub
-    
+    jc pmc_derecha_mover
+    jmp pmc_no_movimiento
+
+pmc_derecha_mover:
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin_stub
