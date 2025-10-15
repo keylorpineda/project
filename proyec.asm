@@ -337,6 +337,9 @@ pmc_verificar:
 
     jmp pmc_no_movimiento_stub
 
+pmc_no_tecla_stub:
+    jmp NEAR PTR pmc_no_tecla
+
 pmc_arriba_stub:
     jmp NEAR PTR pmc_arriba
 
@@ -428,9 +431,6 @@ pmc_derecha:
 
 pmc_fin_stub:
     jmp NEAR PTR pmc_fin
-
-pmc_no_tecla_stub:
-    jmp NEAR PTR pmc_no_tecla
 
 pmc_no_movimiento:
     mov moviendo, 0
