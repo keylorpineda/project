@@ -258,7 +258,7 @@ bucle_juego:
     jz render_p0
     
     call renderizar_en_pagina_1
-    jmp SHORT cambiar_pagina
+    jmp cambiar_pagina
     
 render_p0:
     call renderizar_en_pagina_0
@@ -311,7 +311,7 @@ procesar_movimiento_continuo PROC
     test bl, bl
     jz pmc_usar_scan
     mov al, bl
-    jmp SHORT pmc_verificar
+    jmp pmc_verificar
     
 pmc_usar_scan:
     mov al, bh
@@ -345,7 +345,7 @@ pmc_verificar:
     cmp al, 'D'
     je pmc_derecha_stub
 
-    jmp SHORT pmc_no_movimiento
+    jmp pmc_no_movimiento
 
 pmc_no_tecla_stub:
     jmp NEAR PTR pmc_no_tecla
@@ -378,7 +378,7 @@ pmc_arriba:
     
     mov jugador_py, ax
     mov moviendo, 1
-    jmp SHORT pmc_fin
+    jmp pmc_fin
 
 pmc_abajo:
     mov jugador_dir, DIR_ABAJO
@@ -396,7 +396,7 @@ pmc_abajo:
     
     mov jugador_py, ax
     mov moviendo, 1
-    jmp SHORT pmc_fin
+    jmp pmc_fin
 
 pmc_izquierda:
     mov jugador_dir, DIR_IZQUIERDA
@@ -414,7 +414,7 @@ pmc_izquierda:
 
     mov jugador_px, ax
     mov moviendo, 1
-    jmp SHORT pmc_fin
+    jmp pmc_fin
 
 pmc_derecha:
     mov jugador_dir, DIR_DERECHA
@@ -432,11 +432,11 @@ pmc_derecha:
 
     mov jugador_px, ax
     mov moviendo, 1
-    jmp SHORT pmc_fin
+    jmp pmc_fin
 
 pmc_no_movimiento:
     mov moviendo, 0
-    jmp SHORT pmc_fin
+    jmp pmc_fin
 
 pmc_no_tecla:
     mov moviendo, 0
@@ -500,7 +500,7 @@ cc_x_ok:
     cmp ax, bx
     jge cc_x_set
     mov ax, bx
-    jmp SHORT cc_x_set
+    jmp cc_x_set
     
 cc_x_mover_der:
     add ax, VELOCIDAD
@@ -533,7 +533,7 @@ cc_y_ok:
     cmp ax, bx
     jge cc_y_set
     mov ax, bx
-    jmp SHORT cc_y_set
+    jmp cc_y_set
     
 cc_y_mover_abajo:
     add ax, VELOCIDAD
@@ -739,7 +739,7 @@ csp_byte_izq:
     jz csp_bit0_0_izq
     stc
     rcl bl, 1
-    jmp SHORT csp_bit1_izq
+    jmp csp_bit1_izq
 csp_bit0_0_izq:
     shl bl, 1
     
@@ -749,7 +749,7 @@ csp_bit1_izq:
     jz csp_bit1_0_izq
     stc
     rcl bh, 1
-    jmp SHORT csp_bit2_izq
+    jmp csp_bit2_izq
 csp_bit1_0_izq:
     shl bh, 1
     
@@ -759,7 +759,7 @@ csp_bit2_izq:
     jz csp_bit2_0_izq
     stc
     rcl byte ptr [bp-2], 1  ; Usar stack temporal
-    jmp SHORT csp_bit3_izq
+    jmp csp_bit3_izq
 csp_bit2_0_izq:
     shl byte ptr [bp-2], 1
     
@@ -769,7 +769,7 @@ csp_bit3_izq:
     jz csp_bit3_0_izq
     stc
     rcl byte ptr [bp-1], 1
-    jmp SHORT csp_next_pix_izq
+    jmp csp_next_pix_izq
 csp_bit3_0_izq:
     shl byte ptr [bp-1], 1
     
@@ -797,7 +797,7 @@ csp_byte_der:
     jz csp_bit0_0_der
     stc
     rcl bl, 1
-    jmp SHORT csp_bit1_der
+    jmp csp_bit1_der
 csp_bit0_0_der:
     shl bl, 1
     
@@ -806,7 +806,7 @@ csp_bit1_der:
     jz csp_bit1_0_der
     stc
     rcl bh, 1
-    jmp SHORT csp_bit2_der
+    jmp csp_bit2_der
 csp_bit1_0_der:
     shl bh, 1
     
@@ -815,7 +815,7 @@ csp_bit2_der:
     jz csp_bit2_0_der
     stc
     rcl byte ptr [bp-2], 1
-    jmp SHORT csp_bit3_der
+    jmp csp_bit3_der
 csp_bit2_0_der:
     shl byte ptr [bp-2], 1
     
@@ -824,7 +824,7 @@ csp_bit3_der:
     jz csp_bit3_0_der
     stc
     rcl byte ptr [bp-1], 1
-    jmp SHORT csp_next_pix_der
+    jmp csp_next_pix_der
 csp_bit3_0_der:
     shl byte ptr [bp-1], 1
     
@@ -842,7 +842,7 @@ csp_next_pix_der:
     
     dec bp
     jnz csp_fila_stub
-    jmp SHORT csp_fin
+    jmp csp_fin
     
 csp_fila_stub:
     jmp csp_fila
@@ -946,7 +946,7 @@ cargar_sprites_terreno PROC
     jc cst_error
     
     clc
-    jmp SHORT cst_fin
+    jmp cst_fin
 
 cst_error:
     stc
@@ -1005,7 +1005,7 @@ cargar_animaciones_jugador PROC
     jc caj_error
     
     clc
-    jmp SHORT caj_fin
+    jmp caj_fin
     
 caj_error:
     stc
@@ -1031,10 +1031,10 @@ obtener_sprite_jugador PROC
     test bl, bl
     jz osj_down_a
     mov si, OFFSET jugador_down_b
-    jmp SHORT osj_fin
+    jmp osj_fin
 osj_down_a:
     mov si, OFFSET jugador_down_a
-    jmp SHORT osj_fin
+    jmp osj_fin
     
 osj_arr:
     cmp al, DIR_ARRIBA
@@ -1042,10 +1042,10 @@ osj_arr:
     test bl, bl
     jz osj_up_a
     mov si, OFFSET jugador_up_b
-    jmp SHORT osj_fin
+    jmp osj_fin
 osj_up_a:
     mov si, OFFSET jugador_up_a
-    jmp SHORT osj_fin
+    jmp osj_fin
     
 osj_izq:
     cmp al, DIR_IZQUIERDA
@@ -1053,16 +1053,16 @@ osj_izq:
     test bl, bl
     jz osj_izq_a
     mov si, OFFSET jugador_izq_b
-    jmp SHORT osj_fin
+    jmp osj_fin
 osj_izq_a:
     mov si, OFFSET jugador_izq_a
-    jmp SHORT osj_fin
+    jmp osj_fin
     
 osj_der:
     test bl, bl
     jz osj_der_a
     mov si, OFFSET jugador_der_b
-    jmp SHORT osj_fin
+    jmp osj_fin
 osj_der_a:
     mov si, OFFSET jugador_der_a
     
@@ -1202,14 +1202,14 @@ dmo_col:
     
 dmo_next_col:
     inc si
-    jmp SHORT dmo_col
+    jmp dmo_col
     
 dmo_next_fila:
     inc bp
-    jmp SHORT dmo_fila
+    jmp dmo_fila
 
 dmo_fin_stub:
-    jmp SHORT dmo_fin
+    jmp dmo_fin
     
 dmo_fin:
     pop bp
@@ -1235,72 +1235,72 @@ obtener_sprite_tile PROC
     cmp bl, TILE_GRASS2
     jne ost_2
     mov di, OFFSET sprite_grass2
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_2:
     cmp bl, TILE_FLOWER
     jne ost_3
     mov di, OFFSET sprite_flower
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_3:
     cmp bl, TILE_PATH
     jne ost_4
     mov di, OFFSET sprite_path
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_4:
     cmp bl, TILE_WATER
     jne ost_5
     mov di, OFFSET sprite_water
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_5:
     cmp bl, TILE_TREE
     jne ost_6
     mov di, OFFSET sprite_tree
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_6:
     cmp bl, TILE_SAND
     jne ost_7
     mov di, OFFSET sprite_sand
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_7:
     cmp bl, TILE_ROCK
     jne ost_8
     mov di, OFFSET sprite_rock
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_8:
     cmp bl, TILE_SNOW
     jne ost_9
     mov di, OFFSET sprite_snow
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_9:
     cmp bl, TILE_ICE
     jne ost_10
     mov di, OFFSET sprite_ice
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_10:
     cmp bl, TILE_MOUNTAIN
     jne ost_11
     mov di, OFFSET sprite_mountain
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_11:
     cmp bl, TILE_HILL
     jne ost_12
     mov di, OFFSET sprite_hill
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_12:
     cmp bl, TILE_BUSH
     jne ost_13
     mov di, OFFSET sprite_bush
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_13:
     cmp bl, TILE_DIRT
     jne ost_14
     mov di, OFFSET sprite_dirt
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_14:
     cmp bl, TILE_LAVA
     jne ost_15
     mov di, OFFSET sprite_lava
-    jmp SHORT ost_fin
+    jmp ost_fin
 ost_15:
     cmp bl, TILE_BRIDGE
     jne ost_fin
@@ -1536,7 +1536,7 @@ cm_proc:
     cmp al, '9'
     ja cm_chk_upper
     sub al, '0'
-    jmp SHORT cm_store
+    jmp cm_store
 
 cm_chk_upper:
     cmp al, 'A'
@@ -1545,7 +1545,7 @@ cm_chk_upper:
     ja cm_chk_lower
     sub al, 'A'
     add al, 10
-    jmp SHORT cm_store
+    jmp cm_store
 
 cm_chk_lower:
     cmp al, 'a'
@@ -1566,7 +1566,7 @@ cm_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp SHORT cm_fin
+    jmp cm_fin
     
 cm_error:
     stc
@@ -1642,7 +1642,7 @@ cs16_proc:
     cmp al, 'F'
     ja cs16_proc
     sub al, 'A' - 10
-    jmp SHORT cs16_guardar
+    jmp cs16_guardar
 
 cs16_dec:
     sub al, '0'
@@ -1658,7 +1658,7 @@ cs16_cerrar:
     mov ah, 3Eh
     int 21h
     clc
-    jmp SHORT cs16_fin
+    jmp cs16_fin
     
 cs16_error:
     stc
