@@ -1550,8 +1550,13 @@ dsp_fila:
     pop di
     add di, 2
     pop cx
-    loop dsp_fila
-    
+    loop dsp_fila_loopback
+    jmp fin_dibujar_sprite_planar_16x16
+
+dsp_fila_loopback:
+    jmp dsp_fila
+
+fin_dibujar_sprite_planar_16x16:
     pop bp
     pop di
     pop si
