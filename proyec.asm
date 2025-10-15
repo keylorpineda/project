@@ -853,8 +853,13 @@ csp_der_siguiente:
     
     ; Siguiente fila
     dec bp
-    jnz csp_siguiente_fila
-    
+    jnz csp_continuar_fila
+    jmp csp_fin_planar
+
+csp_continuar_fila:
+    jmp NEAR PTR csp_siguiente_fila
+
+csp_fin_planar:
     pop bp
     pop di
     pop si
