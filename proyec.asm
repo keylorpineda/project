@@ -319,49 +319,69 @@ pmc_usar_scan:
     
 pmc_verificar:
     cmp al, 48h
-    je pmc_arriba_stub
-    cmp al, 'w'
-    je pmc_arriba_stub
-    cmp al, 'W'
-    je pmc_arriba_stub
-    
-    cmp al, 50h
-    je pmc_abajo_stub
-    cmp al, 's'
-    je pmc_abajo_stub
-    cmp al, 'S'
-    je pmc_abajo_stub
-    
-    cmp al, 4Bh
-    je pmc_izquierda_stub
-    cmp al, 'a'
-    je pmc_izquierda_stub
-    cmp al, 'A'
-    je pmc_izquierda_stub
-    
-    cmp al, 4Dh
-    je pmc_derecha_stub
-    cmp al, 'd'
-    je pmc_derecha_stub
-    cmp al, 'D'
-    je pmc_derecha_stub
+    jne pmc_chk_w_lower
+    jmp NEAR PTR pmc_arriba
 
-    jmp NEAR PTR pmc_no_movimiento
+pmc_chk_w_lower:
+    cmp al, 'w'
+    jne pmc_chk_w_upper
+    jmp NEAR PTR pmc_arriba
+
+pmc_chk_w_upper:
+    cmp al, 'W'
+    jne pmc_chk_down_scan
+    jmp NEAR PTR pmc_arriba
+
+pmc_chk_down_scan:
+    cmp al, 50h
+    jne pmc_chk_s_lower
+    jmp NEAR PTR pmc_abajo
+
+pmc_chk_s_lower:
+    cmp al, 's'
+    jne pmc_chk_s_upper
+    jmp NEAR PTR pmc_abajo
+
+pmc_chk_s_upper:
+    cmp al, 'S'
+    jne pmc_chk_left_scan
+    jmp NEAR PTR pmc_abajo
+
+pmc_chk_left_scan:
+    cmp al, 4Bh
+    jne pmc_chk_a_lower
+    jmp NEAR PTR pmc_izquierda
+
+pmc_chk_a_lower:
+    cmp al, 'a'
+    jne pmc_chk_a_upper
+    jmp NEAR PTR pmc_izquierda
+
+pmc_chk_a_upper:
+    cmp al, 'A'
+    jne pmc_chk_right_scan
+    jmp NEAR PTR pmc_izquierda
+
+pmc_chk_right_scan:
+    cmp al, 4Dh
+    jne pmc_chk_d_lower
+    jmp NEAR PTR pmc_derecha
+
+pmc_chk_d_lower:
+    cmp al, 'd'
+    jne pmc_chk_d_upper
+    jmp NEAR PTR pmc_derecha
+
+pmc_chk_d_upper:
+    cmp al, 'D'
+    jne pmc_no_match
+    jmp NEAR PTR pmc_derecha
 
 pmc_no_tecla_stub:
     jmp NEAR PTR pmc_no_tecla
 
-pmc_arriba_stub:
-    jmp NEAR PTR pmc_arriba
-
-pmc_abajo_stub:
-    jmp NEAR PTR pmc_abajo
-
-pmc_izquierda_stub:
-    jmp NEAR PTR pmc_izquierda
-
-pmc_derecha_stub:
-    jmp NEAR PTR pmc_derecha
+pmc_no_match:
+    jmp NEAR PTR pmc_no_movimiento
 
 pmc_arriba:
     mov jugador_dir, DIR_ARRIBA
@@ -597,17 +617,35 @@ verificar_tile_transitable PROC
     mov al, [mapa_datos + bx]
     
     cmp al, TILE_WATER
-    je vtt_no_transitable
+    jne vtt_chk_tree
+    jmp vtt_no_transitable
+
+vtt_chk_tree:
     cmp al, TILE_TREE
-    je vtt_no_transitable
+    jne vtt_chk_rock
+    jmp vtt_no_transitable
+
+vtt_chk_rock:
     cmp al, TILE_ROCK
-    je vtt_no_transitable
+    jne vtt_chk_mountain
+    jmp vtt_no_transitable
+
+vtt_chk_mountain:
     cmp al, TILE_MOUNTAIN
-    je vtt_no_transitable
+    jne vtt_chk_bush
+    jmp vtt_no_transitable
+
+vtt_chk_bush:
     cmp al, TILE_BUSH
-    je vtt_no_transitable
+    jne vtt_chk_lava
+    jmp vtt_no_transitable
+
+vtt_chk_lava:
     cmp al, TILE_LAVA
-    je vtt_no_transitable
+    jne vtt_transitable
+    jmp vtt_no_transitable
+
+vtt_transitable:
 
     pop dx
     pop bx
@@ -1647,16 +1685,27 @@ cm_proc:
 
     mov al, [buffer_temp + si]
     inc si
-    
+
     cmp al, ' '
-    je cm_proc
+    jne cm_chk_cr
+    jmp cm_proc
+
+cm_chk_cr:
     cmp al, 13
-    je cm_proc
+    jne cm_chk_lf
+    jmp cm_proc
+
+cm_chk_lf:
     cmp al, 10
-    je cm_proc
+    jne cm_chk_tab
+    jmp cm_proc
+
+cm_chk_tab:
     cmp al, 9
-    je cm_proc
-    
+    jne cm_chk_digit
+    jmp cm_proc
+
+cm_chk_digit:
     cmp al, '0'
     jb cm_chk_upper
     cmp al, '9'
@@ -1675,11 +1724,15 @@ cm_chk_upper:
 
 cm_chk_lower:
     cmp al, 'a'
-    jb cm_proc
+    jb cm_skip
     cmp al, 'f'
-    ja cm_proc
+    ja cm_skip
     sub al, 'a'
     add al, 10
+    jmp cm_store
+
+cm_skip:
+    jmp cm_proc
 
 cm_store:
     mov [di], al
@@ -1747,31 +1800,46 @@ cs16_proc:
 
     mov al, [buffer_temp + si]
     inc si
-    
+
     cmp al, ' '
-    je cs16_proc
+    jne cs16_chk_cr
+    jmp cs16_proc
+
+cs16_chk_cr:
     cmp al, 13
-    je cs16_proc
+    jne cs16_chk_lf
+    jmp cs16_proc
+
+cs16_chk_lf:
     cmp al, 10
-    je cs16_proc
+    jne cs16_chk_tab
+    jmp cs16_proc
+
+cs16_chk_tab:
     cmp al, 9
-    je cs16_proc
-    
+    jne cs16_chk_digit
+    jmp cs16_proc
+
+cs16_chk_digit:
     cmp al, '0'
-    jb cs16_proc
+    jb cs16_skip
     cmp al, '9'
     jbe cs16_dec
-    
+
     and al, 0DFh
     cmp al, 'A'
-    jb cs16_proc
+    jb cs16_skip
     cmp al, 'F'
-    ja cs16_proc
+    ja cs16_skip
     sub al, 'A' - 10
     jmp cs16_guardar
 
+cs16_skip:
+    jmp cs16_proc
+
 cs16_dec:
     sub al, '0'
+    jmp cs16_guardar
 
 cs16_guardar:
     mov [di], al
@@ -1779,7 +1847,7 @@ cs16_guardar:
     inc bp
     cmp bp, 256
     jb cs16_proc
-    
+
 cs16_cerrar:
     mov ah, 3Eh
     int 21h
@@ -1788,7 +1856,7 @@ cs16_cerrar:
     
 cs16_error:
     stc
-    
+
 cs16_fin:
     pop bp
     pop si
