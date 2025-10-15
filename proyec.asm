@@ -855,8 +855,10 @@ csp_der_next:
     inc di
     
     dec bp
-    jnz csp_fila
-    
+    jz csp_fin
+    jmp csp_fila
+
+csp_fin:
     pop bp
     pop di
     pop si
