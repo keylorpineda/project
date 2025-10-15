@@ -208,6 +208,7 @@ st_ok:
     call cargar_animaciones_jugador
     jnc anim_ok
     jmp error_carga
+    
 anim_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
@@ -732,6 +733,9 @@ convertir_todos_sprites_planar PROC
     ret
 convertir_todos_sprites_planar ENDP
 
+; =====================================================
+; CONVERTIR SPRITE A FORMATO PLANAR - VERSIÓN CON BITS INVERTIDOS
+; =====================================================
 convertir_sprite_a_planar PROC
     push ax
     push bx
@@ -741,114 +745,115 @@ convertir_sprite_a_planar PROC
     push di
     push bp
     
-    mov bp, 16          ; 16 filas
+    ; Procesar 16 filas
+    mov bp, 16
     
-csp_fila:
-    ; === BYTE IZQUIERDO (primeros 8 píxeles) ===
-    ; Procesar píxeles 7-0 (en orden inverso para MSB->LSB)
-    add si, 7           ; Apuntar al píxel 7
+csp_siguiente_fila:
+    ; === Procesar BYTE IZQUIERDO (8 píxeles: 0-7) ===
+    ; Construir de DERECHA a IZQUIERDA (píxel 7 va en bit 7, píxel 0 en bit 0)
     
-    xor bx, bx          ; BL=plano0, BH=plano1
-    xor dx, dx          ; DL=plano2, DH=plano3
-    mov cx, 8           ; 8 píxeles
+    ; Avanzar SI a píxel 7
+    add si, 7
     
-csp_byte_izq:
-    mov al, [si]        ; Leer píxel en orden inverso
-    dec si              ; Retroceder al anterior
+    xor bx, bx      ; BH=plano3, BL=plano2
+    xor dx, dx      ; DH=plano1, DL=plano0
+    mov cx, 8
     
-    ; Rotar todos a la izquierda
-    shl bl, 1
-    shl bh, 1
+csp_pixel_izq:
+    ; Leer píxel en orden INVERSO (7, 6, 5, 4, 3, 2, 1, 0)
+    mov al, [si]
+    dec si
+    
+    ; Rotar bytes a la IZQUIERDA
     shl dl, 1
     shl dh, 1
+    shl bl, 1
+    shl bh, 1
     
-    ; Bit 0 → plano 0
-    test al, 1
-    jz csp_izq_b1
-    or bl, 1
-csp_izq_b1:
-    
-    ; Bit 1 → plano 1
-    test al, 2
-    jz csp_izq_b2
-    or bh, 1
-csp_izq_b2:
-    
-    ; Bit 2 → plano 2
-    test al, 4
-    jz csp_izq_b3
+    ; Extraer bits
+    test al, 01h
+    jz csp_izq_bit1
     or dl, 1
-csp_izq_b3:
     
-    ; Bit 3 → plano 3
-    test al, 8
-    jz csp_izq_next
+csp_izq_bit1:
+    test al, 02h
+    jz csp_izq_bit2
     or dh, 1
     
-csp_izq_next:
-    loop csp_byte_izq
+csp_izq_bit2:
+    test al, 04h
+    jz csp_izq_bit3
+    or bl, 1
     
-    ; Ajustar SI para byte derecho
-    add si, 16          ; SI ahora apunta al píxel 15
+csp_izq_bit3:
+    test al, 08h
+    jz csp_izq_siguiente
+    or bh, 1
+    
+csp_izq_siguiente:
+    loop csp_pixel_izq
+    
+    ; Ajustar SI para siguiente byte (estaba en -1, necesita estar en 8)
+    add si, 9
     
     ; Guardar byte izquierdo
-    mov [di], bl
-    mov [di+32], bh
-    mov [di+64], dl
-    mov [di+96], dh
+    mov [di], dl
+    mov [di+32], dh
+    mov [di+64], bl
+    mov [di+96], bh
     inc di
     
-    ; === BYTE DERECHO (siguientes 8 píxeles) ===
+    ; === Procesar BYTE DERECHO (8 píxeles: 8-15) ===
+    add si, 7       ; Ir a píxel 15
+    
     xor bx, bx
     xor dx, dx
     mov cx, 8
     
-csp_byte_der:
+csp_pixel_der:
     mov al, [si]
     dec si
     
-    shl bl, 1
-    shl bh, 1
     shl dl, 1
     shl dh, 1
+    shl bl, 1
+    shl bh, 1
     
-    test al, 1
-    jz csp_der_b1
-    or bl, 1
-csp_der_b1:
-    
-    test al, 2
-    jz csp_der_b2
-    or bh, 1
-csp_der_b2:
-    
-    test al, 4
-    jz csp_der_b3
+    test al, 01h
+    jz csp_der_bit1
     or dl, 1
-csp_der_b3:
     
-    test al, 8
-    jz csp_der_next
+csp_der_bit1:
+    test al, 02h
+    jz csp_der_bit2
     or dh, 1
     
-csp_der_next:
-    loop csp_byte_der
+csp_der_bit2:
+    test al, 04h
+    jz csp_der_bit3
+    or bl, 1
+    
+csp_der_bit3:
+    test al, 08h
+    jz csp_der_siguiente
+    or bh, 1
+    
+csp_der_siguiente:
+    loop csp_pixel_der
     
     ; Ajustar SI para siguiente fila
-    add si, 17          ; Siguiente fila (16 píxeles + 1)
+    add si, 9
     
     ; Guardar byte derecho
-    mov [di], bl
-    mov [di+32], bh
-    mov [di+64], dl
-    mov [di+96], dh
+    mov [di], dl
+    mov [di+32], dh
+    mov [di+64], bl
+    mov [di+96], bh
     inc di
     
+    ; Siguiente fila
     dec bp
-    jz csp_fin_filas
-    jmp csp_fila
-
-csp_fin_filas:
+    jnz csp_siguiente_fila
     
     pop bp
     pop di
@@ -1425,17 +1430,18 @@ dsp_fila:
     
     mov bx, di
     
-    ; Calcular MÁSCARA
+    ; Calcular MÁSCARA (1 = píxel opaco, 0 = transparente)
     mov al, [bx]
     or al, [bx+32]
     or al, [bx+64]
     or al, [bx+96]
-    mov ah, al
+    mov ah, al       ; AH = máscara byte izquierdo
     
     mov al, [bx+1]
     or al, [bx+33]
     or al, [bx+65]
     or al, [bx+97]
+    ; AL = máscara byte derecho
     
     ; === PLANO 0 ===
     mov dx, 3C4h
@@ -1448,19 +1454,25 @@ dsp_fila:
     mov si, bx
     mov di, bp
     
+    ; Byte izquierdo
     push ax
-    mov al, ah
-    not al
-    and al, es:[di]
+    mov cl, ah
+    not cl
+    mov al, es:[di]
+    and al, cl
     or al, [si]
-    stosb
+    mov es:[di], al
+    inc di
     
+    ; Byte derecho
     pop ax
     push ax
-    not al
-    and al, es:[di]
+    mov cl, al
+    not cl
+    mov al, es:[di]
+    and al, cl
     or al, [si+1]
-    stosb
+    mov es:[di], al
     pop ax
     
     ; === PLANO 1 ===
@@ -1476,18 +1488,22 @@ dsp_fila:
     mov di, bp
     
     push ax
-    mov al, ah
-    not al
-    and al, es:[di]
+    mov cl, ah
+    not cl
+    mov al, es:[di]
+    and al, cl
     or al, [si]
-    stosb
+    mov es:[di], al
+    inc di
     
     pop ax
     push ax
-    not al
-    and al, es:[di]
+    mov cl, al
+    not cl
+    mov al, es:[di]
+    and al, cl
     or al, [si+1]
-    stosb
+    mov es:[di], al
     pop ax
     
     ; === PLANO 2 ===
@@ -1503,18 +1519,22 @@ dsp_fila:
     mov di, bp
     
     push ax
-    mov al, ah
-    not al
-    and al, es:[di]
+    mov cl, ah
+    not cl
+    mov al, es:[di]
+    and al, cl
     or al, [si]
-    stosb
+    mov es:[di], al
+    inc di
     
     pop ax
     push ax
-    not al
-    and al, es:[di]
+    mov cl, al
+    not cl
+    mov al, es:[di]
+    and al, cl
     or al, [si+1]
-    stosb
+    mov es:[di], al
     pop ax
     
     ; === PLANO 3 ===
@@ -1530,17 +1550,21 @@ dsp_fila:
     mov di, bp
     
     push ax
-    mov al, ah
-    not al
-    and al, es:[di]
+    mov cl, ah
+    not cl
+    mov al, es:[di]
+    and al, cl
     or al, [si]
-    stosb
+    mov es:[di], al
+    inc di
     
     pop ax
-    not al
-    and al, es:[di]
+    mov cl, al
+    not cl
+    mov al, es:[di]
+    and al, cl
     or al, [si+1]
-    stosb
+    mov es:[di], al
     
     pop bp
     add bp, 80
@@ -1552,6 +1576,14 @@ dsp_fila:
     jmp dsp_fila
 
 dsp_fin_filas:
+    
+    ; Restaurar todos los planos
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
     
     pop bp
     pop di
