@@ -733,9 +733,6 @@ convertir_todos_sprites_planar PROC
     ret
 convertir_todos_sprites_planar ENDP
 
-; =====================================================
-; CONVERTIR SPRITE A FORMATO PLANAR - VERSIÓN CON BITS INVERTIDOS
-; =====================================================
 convertir_sprite_a_planar PROC
     push ax
     push bx
@@ -745,74 +742,61 @@ convertir_sprite_a_planar PROC
     push di
     push bp
     
-    ; Procesar 16 filas
-    mov bp, 16
+    mov bp, 16              ; 16 filas
     
-csp_siguiente_fila:
-    ; === Procesar BYTE IZQUIERDO (8 píxeles: 0-7) ===
-    ; Construir de DERECHA a IZQUIERDA (píxel 7 va en bit 7, píxel 0 en bit 0)
+csp_fila:
+    ; === PROCESAR BYTE IZQUIERDO (píxeles 0-7) ===
+    xor bx, bx              ; BH=plano3, BL=plano2
+    xor dx, dx              ; DH=plano1, DL=plano0
+    mov cx, 8               ; 8 píxeles
     
-    ; Avanzar SI a píxel 7
-    add si, 7
+csp_byte_izq:
+    ; Leer píxel (de izquierda a derecha: 0,1,2,3,4,5,6,7)
+    lodsb                   ; AL = color del píxel actual
     
-    xor bx, bx      ; BH=plano3, BL=plano2
-    xor dx, dx      ; DH=plano1, DL=plano0
-    mov cx, 8
+    ; Desplazar bytes a la izquierda (para hacer espacio al nuevo bit)
+    shl dl, 1               ; Plano 0
+    shl dh, 1               ; Plano 1
+    shl bl, 1               ; Plano 2
+    shl bh, 1               ; Plano 3
     
-csp_pixel_izq:
-    ; Leer píxel en orden INVERSO (7, 6, 5, 4, 3, 2, 1, 0)
-    mov al, [si]
-    dec si
-    
-    ; Rotar bytes a la IZQUIERDA
-    shl dl, 1
-    shl dh, 1
-    shl bl, 1
-    shl bh, 1
-    
-    ; Extraer bits
-    test al, 01h
-    jz csp_izq_bit1
+    ; Extraer bits del color y colocarlos en los planos
+    test al, 01h            ; Bit 0 -> Plano 0
+    jz csp_izq_b1
     or dl, 1
     
-csp_izq_bit1:
-    test al, 02h
-    jz csp_izq_bit2
+csp_izq_b1:
+    test al, 02h            ; Bit 1 -> Plano 1
+    jz csp_izq_b2
     or dh, 1
     
-csp_izq_bit2:
-    test al, 04h
-    jz csp_izq_bit3
+csp_izq_b2:
+    test al, 04h            ; Bit 2 -> Plano 2
+    jz csp_izq_b3
     or bl, 1
     
-csp_izq_bit3:
-    test al, 08h
-    jz csp_izq_siguiente
+csp_izq_b3:
+    test al, 08h            ; Bit 3 -> Plano 3
+    jz csp_izq_next
     or bh, 1
     
-csp_izq_siguiente:
-    loop csp_pixel_izq
+csp_izq_next:
+    loop csp_byte_izq
     
-    ; Ajustar SI para siguiente byte (estaba en -1, necesita estar en 8)
-    add si, 9
-    
-    ; Guardar byte izquierdo
-    mov [di], dl
-    mov [di+32], dh
-    mov [di+64], bl
-    mov [di+96], bh
+    ; Guardar byte izquierdo en los 4 planos
+    mov [di], dl            ; Plano 0
+    mov [di+32], dh         ; Plano 1
+    mov [di+64], bl         ; Plano 2
+    mov [di+96], bh         ; Plano 3
     inc di
     
-    ; === Procesar BYTE DERECHO (8 píxeles: 8-15) ===
-    add si, 7       ; Ir a píxel 15
-    
+    ; === PROCESAR BYTE DERECHO (píxeles 8-15) ===
     xor bx, bx
     xor dx, dx
     mov cx, 8
     
-csp_pixel_der:
-    mov al, [si]
-    dec si
+csp_byte_der:
+    lodsb
     
     shl dl, 1
     shl dh, 1
@@ -820,29 +804,26 @@ csp_pixel_der:
     shl bh, 1
     
     test al, 01h
-    jz csp_der_bit1
+    jz csp_der_b1
     or dl, 1
     
-csp_der_bit1:
+csp_der_b1:
     test al, 02h
-    jz csp_der_bit2
+    jz csp_der_b2
     or dh, 1
     
-csp_der_bit2:
+csp_der_b2:
     test al, 04h
-    jz csp_der_bit3
+    jz csp_der_b3
     or bl, 1
     
-csp_der_bit3:
+csp_der_b3:
     test al, 08h
-    jz csp_der_siguiente
+    jz csp_der_next
     or bh, 1
     
-csp_der_siguiente:
-    loop csp_pixel_der
-    
-    ; Ajustar SI para siguiente fila
-    add si, 9
+csp_der_next:
+    loop csp_byte_der
     
     ; Guardar byte derecho
     mov [di], dl
@@ -853,13 +834,8 @@ csp_der_siguiente:
     
     ; Siguiente fila
     dec bp
-    jnz csp_continuar_fila
-    jmp csp_fin_planar
-
-csp_continuar_fila:
-    jmp NEAR PTR csp_siguiente_fila
-
-csp_fin_planar:
+    jnz csp_fila
+    
     pop bp
     pop di
     pop si
@@ -869,7 +845,6 @@ csp_fin_planar:
     pop ax
     ret
 convertir_sprite_a_planar ENDP
-
 ; =====================================================
 ; CARGAR SPRITES DE TERRENO
 ; =====================================================
@@ -1415,61 +1390,65 @@ dibujar_sprite_planar_16x16 PROC
     push bp
     
     ; Calcular offset base en memoria de video
-    mov ax, dx
-    mov bx, 80
+    mov ax, dx              ; Y
+    mov bx, 80              ; Bytes por línea en modo EGA
     mul bx
-    add ax, temp_offset
-    mov bp, ax
+    add ax, temp_offset     ; Agregar offset de página
+    mov bp, ax              ; BP = offset base de la fila
     
-    mov ax, cx
-    shr ax, 3
-    add bp, ax
+    mov ax, cx              ; X
+    shr ax, 3               ; Dividir por 8 (byte donde empieza)
+    add bp, ax              ; BP = offset exacto en video memoria
     
-    ; Dibujar 16 filas
+    ; Preparar para dibujar 16 filas
     mov cx, 16
     
-dsp_fila:
+dsp_loop_fila:
     push cx
     push di
     push bp
     
-    mov bx, di
+    mov bx, di              ; BX apunta al sprite
     
-    ; Calcular MÁSCARA (1 = píxel opaco, 0 = transparente)
-    mov al, [bx]
-    or al, [bx+32]
-    or al, [bx+64]
-    or al, [bx+96]
-    mov ah, al       ; AH = máscara byte izquierdo
+    ; === CALCULAR MÁSCARA DE TRANSPARENCIA ===
+    ; Máscara = OR de los 4 planos (1 = opaco, 0 = transparente)
     
-    mov al, [bx+1]
-    or al, [bx+33]
-    or al, [bx+65]
-    or al, [bx+97]
+    ; Byte izquierdo
+    mov al, [bx]            ; Plano 0
+    or al, [bx+32]          ; Plano 1
+    or al, [bx+64]          ; Plano 2
+    or al, [bx+96]          ; Plano 3
+    mov ah, al              ; AH = máscara byte izquierdo
+    
+    ; Byte derecho
+    mov al, [bx+1]          ; Plano 0
+    or al, [bx+33]          ; Plano 1
+    or al, [bx+65]          ; Plano 2
+    or al, [bx+97]          ; Plano 3
     ; AL = máscara byte derecho
     
     ; === PLANO 0 ===
-    mov dx, 3C4h
-    mov al, 2
+    mov dx, 3C4h            ; Sequence Controller
+    mov al, 2               ; Map Mask Register
     out dx, al
     inc dx
-    mov al, 1
+    mov al, 1               ; Seleccionar plano 0
     out dx, al
     
-    mov si, bx
-    mov di, bp
+    mov si, bx              ; SI = sprite
+    mov di, bp              ; DI = video memoria
     
-    ; Byte izquierdo
+    ; Byte izquierdo con máscara
     push ax
-    mov cl, ah
-    not cl
-    mov al, es:[di]
-    and al, cl
-    or al, [si]
-    mov es:[di], al
+    mov cl, ah              ; CL = máscara
+    not cl                  ; Invertir (0 = mantener, 1 = borrar)
+    mov al, es:[di]         ; Leer píxel existente
+    and al, cl              ; Borrar píxeles donde vamos a escribir
+    or al, [si]             ; Combinar con sprite
+    mov es:[di], al         ; Escribir
     inc di
     
-    ; Byte derecho
+    ; Byte derecho con máscara
     pop ax
     push ax
     mov cl, al
@@ -1485,11 +1464,11 @@ dsp_fila:
     mov al, 2
     out dx, al
     inc dx
-    mov al, 2
+    mov al, 2               ; Seleccionar plano 1
     out dx, al
     
     mov si, bx
-    add si, 32
+    add si, 32              ; Offset del plano 1
     mov di, bp
     
     push ax
@@ -1516,7 +1495,7 @@ dsp_fila:
     mov al, 2
     out dx, al
     inc dx
-    mov al, 4
+    mov al, 4               ; Seleccionar plano 2
     out dx, al
     
     mov si, bx
@@ -1547,7 +1526,7 @@ dsp_fila:
     mov al, 2
     out dx, al
     inc dx
-    mov al, 8
+    mov al, 8               ; Seleccionar plano 3
     out dx, al
     
     mov si, bx
@@ -1571,23 +1550,21 @@ dsp_fila:
     or al, [si+1]
     mov es:[di], al
     
+    ; Siguiente fila
     pop bp
-    add bp, 80
+    add bp, 80              ; Siguiente línea de video
     pop di
-    add di, 2
+    add di, 2               ; Siguiente fila del sprite (2 bytes)
     pop cx
     dec cx
-    jz dsp_fin_filas
-    jmp dsp_fila
-
-dsp_fin_filas:
+    jnz dsp_loop_fila
     
     ; Restaurar todos los planos
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 0Fh
+    mov al, 0Fh             ; Todos los planos activos
     out dx, al
     
     pop bp
