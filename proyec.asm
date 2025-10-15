@@ -1,4 +1,4 @@
-; JUEGO EGA - MOVIMIENTO INSTANTÁNEO CON ANIMACIÓN FLUIDA
+; JUEGO EGA - MOVIMIENTO SUAVE Y FLUIDO (ESTILO ZELDA NES)
 ; Universidad Nacional - Proyecto II Ciclo 2025
 ; Modo 10h (640x350, 16 colores)
 ; =====================================================
@@ -6,9 +6,6 @@
 .MODEL SMALL
 .STACK 2048
 
-; =====================================================
-; CONSTANTES
-; =====================================================
 TILE_GRASS1   EQU 0
 TILE_GRASS2   EQU 1
 TILE_FLOWER   EQU 2
@@ -19,32 +16,25 @@ TILE_SAND     EQU 6
 TILE_ROCK     EQU 7
 TILE_SNOW     EQU 8
 TILE_ICE      EQU 9
-TILE_WALL     EQU 10
+TILE_MOUNTAIN EQU 10
 TILE_HILL     EQU 11
 TILE_BUSH     EQU 12
 TILE_DIRT     EQU 13
 TILE_LAVA     EQU 14
 TILE_BRIDGE   EQU 15
 
-TILE_SIZE   EQU 16
-VIEWPORT_W  EQU 20
-VIEWPORT_H  EQU 12
+TILE_SIZE      EQU 16
+VIEWPORT_W     EQU 20
+VIEWPORT_H     EQU 12
+VIDEO_SEG      EQU 0A000h
+VELOCIDAD      EQU 2          ; Píxeles por frame (2 = suave y rápido)
 
-VIDEO_SEG   EQU 0A000h
-VELOCIDAD   EQU 16
-
-; Direcciones para animación
-DIR_ABAJO   EQU 0
-DIR_ARRIBA  EQU 1
-DIR_IZQUIERDA EQU 2
-DIR_DERECHA EQU 3
-
-; Variantes de frames
-FRAME_A     EQU 0
-FRAME_B     EQU 1
+DIR_ABAJO      EQU 0
+DIR_ARRIBA     EQU 1
+DIR_IZQUIERDA  EQU 2
+DIR_DERECHA    EQU 3
 
 .DATA
-; === ARCHIVOS ===
 archivo_mapa   db 'MAPA.TXT',0
 archivo_grass1 db 'SPRITES\GRASS_1.TXT',0
 archivo_grass2 db 'SPRITES\GRASS_2.TXT',0
@@ -56,14 +46,13 @@ archivo_sand   db 'SPRITES\SAND_1.TXT',0
 archivo_rock   db 'SPRITES\ROCK_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
-archivo_wall    db 'SPRITES\WALL_1.TXT',0
+archivo_mountain db 'SPRITES\MOUNTA_1.TXT',0
 archivo_hill   db 'SPRITES\HILL_1.TXT',0
-archivo_bush   db 'SPRITES\BUSH_1.TXT',0
-archivo_dirt   db 'SPRITES\DIRT_1.TXT',0
-archivo_lava   db 'SPRITES\LAVA_1.TXT',0
-archivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
+arquivo_bush   db 'SPRITES\BUSH_1.TXT',0
+arquivo_dirt   db 'SPRITES\DIRT_1.TXT',0
+arquivo_lava   db 'SPRITES\LAVA_1.TXT',0
+arquivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
 
-; Archivos de sprites del jugador (16x16)
 archivo_player_up_a    db 'SPRITES\PLAYER\UP1.TXT',0
 archivo_player_up_b    db 'SPRITES\PLAYER\UP2.TXT',0
 archivo_player_down_a  db 'SPRITES\PLAYER\DOWN1.TXT',0
@@ -87,14 +76,14 @@ sprite_sand     db 256 dup(0)
 sprite_rock     db 256 dup(0)
 sprite_snow     db 256 dup(0)
 sprite_ice      db 256 dup(0)
-sprite_wall     db 256 dup(0)
+sprite_mountain db 256 dup(0)
 sprite_hill     db 256 dup(0)
 sprite_bush     db 256 dup(0)
 sprite_dirt     db 256 dup(0)
 sprite_lava     db 256 dup(0)
 sprite_bridge   db 256 dup(0)
 
-; === SPRITES DEL JUGADOR (16x16 = 256 bytes cada uno) ===
+; === SPRITES DEL JUGADOR ===
 jugador_up_a    db 256 dup(0)
 jugador_up_b    db 256 dup(0)
 jugador_down_a  db 256 dup(0)
@@ -106,19 +95,20 @@ jugador_der_b   db 256 dup(0)
 
 buffer_temp db 300 dup(0)
 
-; === JUGADOR (en píxeles) ===
-jugador_px  dw 80
-jugador_py  dw 80
-
-; === ANIMACIÓN DEL JUGADOR ===
+; === JUGADOR ===
+jugador_px  dw 400          ; Posición en píxeles
+jugador_py  dw 400
 jugador_dir db DIR_ABAJO
 jugador_frame db 0
-frame_counter db 0           ; Contador RÁPIDO para cambiar frames (0-3)
-ultima_dir_movimiento db DIR_ABAJO
 
-; === CÁMARA (en píxeles) ===
-camara_px   dw 0
-camara_py   dw 0
+; === ESTADO DE MOVIMIENTO ===
+moviendo db 0                ; 0 = quieto, 1 = en movimiento
+pasos_dados db 0             ; Contador para animación
+anim_delay db 0              ; Delay entre frames de animación
+
+; === CÁMARA ===
+camara_px   dw 240
+camara_py   dw 304
 
 ; === DOBLE BUFFER ===
 pagina_visible db 0
@@ -134,10 +124,9 @@ inicio_tile_x   dw 0
 inicio_tile_y   dw 0
 offset_px_x     dw 0
 offset_px_y     dw 0
-sprite_pointer  dw 0
 
 ; === MENSAJES ===
-msg_titulo  db 'JUEGO EGA - Movimiento Instantaneo con Animacion Fluida',13,10,'$'
+msg_titulo  db 'JUEGO EGA - Movimiento Suave Estilo Zelda',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
 msg_mapa    db 'Mapa: $'
 msg_grass1 db 'Grass 1: $'
@@ -150,16 +139,16 @@ msg_sand   db 'Sand: $'
 msg_rock   db 'Rock: $'
 msg_snow   db 'Snow: $'
 msg_ice    db 'Ice: $'
-msg_wall   db 'Wall: $'
+msg_mountain db 'Mountain: $'
 msg_hill   db 'Hill: $'
 msg_bush   db 'Bush: $'
 msg_dirt   db 'Dirt: $'
 msg_lava   db 'Lava: $'
 msg_bridge db 'Bridge: $'
-msg_anim    db 'Animaciones del jugador: $'
+msg_anim    db 'Animaciones: $'
 msg_ok      db 'OK',13,10,'$'
 msg_error   db 'ERROR',13,10,'$'
-msg_controles db 13,10,'WASD/Flechas = Mover, ESC = Salir',13,10
+msg_controles db 13,10,'WASD/Flechas = Mover (mantener), ESC = Salir',13,10
               db 'Presiona tecla...$'
 
 .CODE
@@ -175,7 +164,7 @@ inicio:
     mov ah, 9
     int 21h
     
-    ; CARGAR ARCHIVOS
+    ; CARGAR MAPA
     mov dx, OFFSET msg_mapa
     mov ah, 9
     int 21h
@@ -187,214 +176,12 @@ cm_ok:
     mov ah, 9
     int 21h
     
-    mov dx, OFFSET msg_grass1
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_grass1
-    mov di, OFFSET sprite_grass1
-    call cargar_sprite_16x16
-    jnc grass1_ok
+    ; CARGAR SPRITES DE TERRENO
+    call cargar_sprites_terreno
+    jnc st_ok
     jmp error_carga
-grass1_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_grass2
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_grass2
-    mov di, OFFSET sprite_grass2
-    call cargar_sprite_16x16
-    jnc grass2_ok
-    jmp error_carga
-grass2_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_flower
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_flower
-    mov di, OFFSET sprite_flower
-    call cargar_sprite_16x16
-    jnc flower_ok
-    jmp error_carga
-flower_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_path
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_path
-    mov di, OFFSET sprite_path
-    call cargar_sprite_16x16
-    jnc path_ok
-    jmp error_carga
-path_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
+st_ok:
     
-    mov dx, OFFSET msg_water
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_water
-    mov di, OFFSET sprite_water
-    call cargar_sprite_16x16
-    jnc water_ok
-    jmp error_carga
-water_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-    
-    mov dx, OFFSET msg_tree
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_tree
-    mov di, OFFSET sprite_tree
-    call cargar_sprite_16x16
-    jnc tree_ok
-    jmp error_carga
-tree_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_sand
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_sand
-    mov di, OFFSET sprite_sand
-    call cargar_sprite_16x16
-    jnc sand_ok
-    jmp error_carga
-sand_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_rock
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_rock
-    mov di, OFFSET sprite_rock
-    call cargar_sprite_16x16
-    jnc rock_ok
-    jmp error_carga
-rock_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_snow
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_snow
-    mov di, OFFSET sprite_snow
-    call cargar_sprite_16x16
-    jnc snow_ok
-    jmp error_carga
-snow_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_ice
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_ice
-    mov di, OFFSET sprite_ice
-    call cargar_sprite_16x16
-    jnc ice_ok
-    jmp error_carga
-ice_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_wall
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_wall
-    mov di, OFFSET sprite_wall
-    call cargar_sprite_16x16
-    jnc wall_ok
-    jmp error_carga
-wall_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_hill
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_hill
-    mov di, OFFSET sprite_hill
-    call cargar_sprite_16x16
-    jnc hill_ok
-    jmp error_carga
-hill_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_bush
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_bush
-    mov di, OFFSET sprite_bush
-    call cargar_sprite_16x16
-    jnc bush_ok
-    jmp error_carga
-bush_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_dirt
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_dirt
-    mov di, OFFSET sprite_dirt
-    call cargar_sprite_16x16
-    jnc dirt_ok
-    jmp error_carga
-dirt_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_lava
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_lava
-    mov di, OFFSET sprite_lava
-    call cargar_sprite_16x16
-    jnc lava_ok
-    jmp error_carga
-lava_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
-    mov dx, OFFSET msg_bridge
-    mov ah, 9
-    int 21h
-    mov dx, OFFSET archivo_bridge
-    mov di, OFFSET sprite_bridge
-    call cargar_sprite_16x16
-    jnc bridge_ok
-    jmp error_carga
-bridge_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-
     ; CARGAR ANIMACIONES DEL JUGADOR
     mov dx, OFFSET msg_anim
     mov ah, 9
@@ -418,7 +205,7 @@ anim_ok:
     int 10h
     
     ; Centrar cámara inicial
-    call centrar_camara_directo
+    call centrar_camara
     
     ; Renderizar ambas páginas
     call renderizar_en_pagina_0
@@ -430,34 +217,22 @@ anim_ok:
     int 10h
 
 ; =====================================================
-; BUCLE PRINCIPAL - MOVIMIENTO INSTANTÁNEO
+; BUCLE PRINCIPAL - MOVIMIENTO SUAVE
 ; =====================================================
 bucle_juego:
     ; 1. ESPERAR RETRACE
     call esperar_retrace
     
-    ; 2. VERIFICAR TECLAS (SIN DELAY)
-    mov ah, 1
-    int 16h
-    jz sin_tecla
+    ; 2. LEER ESTADO DEL TECLADO
+    call procesar_movimiento_continuo
     
-    ; Leer tecla
-    mov ah, 0
-    int 16h
+    ; 3. ACTUALIZAR ANIMACIÓN
+    call actualizar_animacion
     
-    cmp al, 27
-    je fin_juego
+    ; 4. ACTUALIZAR CÁMARA SUAVEMENTE
+    call centrar_camara
     
-    call procesar_tecla_inmediata
-
-sin_tecla:
-    ; 3. ACTUALIZAR ANIMACIÓN (SIEMPRE, MÁS RÁPIDO)
-    call actualizar_animacion_rapida
-    
-    ; 4. ACTUALIZAR CÁMARA
-    call centrar_camara_directo
-    
-    ; 5. RENDERIZAR
+    ; 5. RENDERIZAR EN PÁGINA OCULTA
     mov al, pagina_dibujo
     test al, 1
     jz render_p0
@@ -469,7 +244,7 @@ render_p0:
     call renderizar_en_pagina_0
     
 cambiar_pagina:
-    ; 6. CAMBIAR PÁGINA
+    ; 6. CAMBIAR PÁGINA VISIBLE
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
@@ -493,452 +268,278 @@ fin_juego:
     int 21h
 
 ; =====================================================
-; CARGAR ANIMACIONES DEL JUGADOR
+; PROCESAR MOVIMIENTO CONTINUO
 ; =====================================================
-cargar_animaciones_jugador PROC
-    push ax
-    push bx
-    push dx
-    push di
-    
-    mov dx, OFFSET archivo_player_up_a
-    mov di, OFFSET jugador_up_a
-    call cargar_sprite_16x16_directo
-    jnc caj_up_b
-    jmp SHORT caj_error
-    
-caj_up_b:
-    mov dx, OFFSET archivo_player_up_b
-    mov di, OFFSET jugador_up_b
-    call cargar_sprite_16x16_directo
-    jnc caj_down_a
-    jmp SHORT caj_error
-    
-caj_down_a:
-    mov dx, OFFSET archivo_player_down_a
-    mov di, OFFSET jugador_down_a
-    call cargar_sprite_16x16_directo
-    jnc caj_down_b
-    jmp SHORT caj_error
-    
-caj_down_b:
-    mov dx, OFFSET archivo_player_down_b
-    mov di, OFFSET jugador_down_b
-    call cargar_sprite_16x16_directo
-    jnc caj_izq_a
-    jmp SHORT caj_error
-    
-caj_izq_a:
-    mov dx, OFFSET archivo_player_izq_a
-    mov di, OFFSET jugador_izq_a
-    call cargar_sprite_16x16_directo
-    jnc caj_izq_b
-    jmp SHORT caj_error
-    
-caj_izq_b:
-    mov dx, OFFSET archivo_player_izq_b
-    mov di, OFFSET jugador_izq_b
-    call cargar_sprite_16x16_directo
-    jnc caj_der_a
-    jmp SHORT caj_error
-    
-caj_der_a:
-    mov dx, OFFSET archivo_player_der_a
-    mov di, OFFSET jugador_der_a
-    call cargar_sprite_16x16_directo
-    jnc caj_der_b
-    jmp SHORT caj_error
-    
-caj_der_b:
-    mov dx, OFFSET archivo_player_der_b
-    mov di, OFFSET jugador_der_b
-    call cargar_sprite_16x16_directo
-    jnc caj_ok
-    jmp SHORT caj_error
-    
-caj_ok:
-    clc
-    jmp SHORT caj_fin
-    
-caj_error:
-    stc
-    
-caj_fin:
-    pop di
-    pop dx
-    pop bx
-    pop ax
-    ret
-cargar_animaciones_jugador ENDP
-
-; =====================================================
-; CARGAR SPRITE 16x16 DIRECTO
-; =====================================================
-cargar_sprite_16x16_directo PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push bp
-    
-    mov ax, 3D00h
-    int 21h
-    jc cs16d_error
-    
-    mov bx, ax
-    
-    call saltar_linea
-    jc cs16d_error_close
-    
-    xor bp, bp
-    
-cs16d_leer:
-    mov ah, 3Fh
-    mov cx, 200
-    push dx
-    mov dx, OFFSET buffer_temp
-    int 21h
-    pop dx
-    
-    cmp ax, 0
-    je cs16d_cerrar
-    
-    mov cx, ax
-    xor si, si
-
-cs16d_proc:
-    cmp si, cx
-    jae cs16d_leer
-
-    mov al, [buffer_temp + si]
-    inc si
-    
-    cmp al, ' '
-    je cs16d_proc
-    cmp al, 13
-    je cs16d_proc
-    cmp al, 10
-    je cs16d_proc
-    cmp al, 9
-    je cs16d_proc
-    
-    cmp al, '0'
-    jb cs16d_proc
-    cmp al, '9'
-    jbe cs16d_dec
-    
-    and al, 0DFh
-    cmp al, 'A'
-    jb cs16d_proc
-    cmp al, 'F'
-    ja cs16d_proc
-    sub al, 'A' - 10
-    jmp SHORT cs16d_guardar
-
-cs16d_dec:
-    sub al, '0'
-
-cs16d_guardar:
-    mov [di], al
-    inc di
-    inc bp
-
-    cmp bp, 256
-    jb cs16d_proc
-    
-cs16d_cerrar:
-    mov ah, 3Eh
-    int 21h
-    clc
-    jmp SHORT cs16d_fin
-
-cs16d_error_close:
-    mov ah, 3Eh
-    int 21h
-    
-cs16d_error:
-    stc
-    
-cs16d_fin:
-    pop bp
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-cargar_sprite_16x16_directo ENDP
-
-; =====================================================
-; ACTUALIZAR ANIMACIÓN RÁPIDA
-; =====================================================
-actualizar_animacion_rapida PROC
-    push ax
-    
-    ; Incrementar contador rápidamente (cada 2-3 frames)
-    inc frame_counter
-    mov al, frame_counter
-    
-    ; Cambiar frame cada 2-3 frames en lugar de 6
-    cmp al, 3
-    jb aar_no_cambiar
-    
-    ; Reset contador
-    mov frame_counter, 0
-    
-    ; Toggle frame (0->1->0)
-    xor jugador_frame, 1
-    
-aar_no_cambiar:
-    pop ax
-    ret
-actualizar_animacion_rapida ENDP
-
-; =====================================================
-; OBTENER SPRITE DEL JUGADOR SEGÚN DIRECCIÓN Y FRAME
-; =====================================================
-obtener_sprite_jugador PROC
-    push ax
-    push bx
-    push cx
-    
-    mov cl, al
-    mov al, bl
-    
-    cmp cl, DIR_ABAJO
-    jne osj_arr
-    cmp al, 0
-    je osj_down_a
-    mov si, OFFSET jugador_down_b
-    jmp SHORT osj_fin_proc
-    
-osj_down_a:
-    mov si, OFFSET jugador_down_a
-    jmp SHORT osj_fin_proc
-    
-osj_arr:
-    cmp cl, DIR_ARRIBA
-    jne osj_izq
-    cmp al, 0
-    je osj_up_a
-    mov si, OFFSET jugador_up_b
-    jmp SHORT osj_fin_proc
-    
-osj_up_a:
-    mov si, OFFSET jugador_up_a
-    jmp SHORT osj_fin_proc
-    
-osj_izq:
-    cmp cl, DIR_IZQUIERDA
-    jne osj_der
-    cmp al, 0
-    je osj_izq_a
-    mov si, OFFSET jugador_izq_b
-    jmp SHORT osj_fin_proc
-    
-osj_izq_a:
-    mov si, OFFSET jugador_izq_a
-    jmp SHORT osj_fin_proc
-    
-osj_der:
-    cmp al, 0
-    je osj_der_a
-    mov si, OFFSET jugador_der_b
-    jmp SHORT osj_fin_proc
-    
-osj_der_a:
-    mov si, OFFSET jugador_der_a
-    
-osj_fin_proc:
-    pop cx
-    pop bx
-    pop ax
-    ret
-obtener_sprite_jugador ENDP
-
-; =====================================================
-; PROCESAR TECLA INMEDIATAMENTE
-; =====================================================
-procesar_tecla_inmediata PROC
+procesar_movimiento_continuo PROC
     push ax
     push bx
     push cx
     push dx
     
+    ; Limpiar buffer de teclado si hay teclas viejas
+    mov ah, 1
+    int 16h
+    jz pmc_no_tecla
+    
+    ; Leer tecla sin esperar
+    mov ah, 0
+    int 16h
+    
+    ; Verificar ESC
+    cmp al, 27
+    je fin_juego
+    
+    ; Guardar tecla
     mov bl, al
     mov bh, ah
     
+    ; Verificar movimiento
     test bl, bl
-    jz usar_scan_pti
+    jz pmc_usar_scan
     mov al, bl
-    jmp verificar_tecla_pti
+    jmp SHORT pmc_verificar
     
-usar_scan_pti:
+pmc_usar_scan:
     mov al, bh
     
-verificar_tecla_pti:
+pmc_verificar:
     ; ARRIBA
-    cmp al, 48h
-    jne pti_chk_w_min
-    jmp pti_arr
-
-pti_chk_w_min:
+    cmp al, 48h        ; Flecha arriba
+    je pmc_arriba
     cmp al, 'w'
-    jne pti_chk_w_may
-    jmp pti_arr
-
-pti_chk_w_may:
+    je pmc_arriba
     cmp al, 'W'
-    jne pti_chk_down_scan
-    jmp pti_arr
-
-pti_chk_down_scan:
-    cmp al, 50h
-    jne pti_chk_s_min
-    jmp pti_aba
-
-pti_chk_s_min:
+    je pmc_arriba
+    
+    ; ABAJO
+    cmp al, 50h        ; Flecha abajo
+    je pmc_abajo
     cmp al, 's'
-    jne pti_chk_s_may
-    jmp pti_aba
-
-pti_chk_s_may:
+    je pmc_abajo
     cmp al, 'S'
-    jne pti_chk_left_scan
-    jmp pti_aba
-
-pti_chk_left_scan:
-    cmp al, 4Bh
-    jne pti_chk_a_min
-    jmp pti_izq
-
-pti_chk_a_min:
+    je pmc_abajo
+    
+    ; IZQUIERDA
+    cmp al, 4Bh        ; Flecha izquierda
+    je pmc_izquierda
     cmp al, 'a'
-    jne pti_chk_a_may
-    jmp pti_izq
-
-pti_chk_a_may:
+    je pmc_izquierda
     cmp al, 'A'
-    jne pti_chk_right_scan
-    jmp pti_izq
-
-pti_chk_right_scan:
-    cmp al, 4Dh
-    jne pti_chk_d_min
-    jmp pti_der
-
-pti_chk_d_min:
+    je pmc_izquierda
+    
+    ; DERECHA
+    cmp al, 4Dh        ; Flecha derecha
+    je pmc_derecha
     cmp al, 'd'
-    jne pti_chk_d_may
-    jmp pti_der
-
-pti_chk_d_may:
+    je pmc_derecha
     cmp al, 'D'
-    jne pti_chk_d_may_not
-    jmp pti_der
+    je pmc_derecha
+    
+    jmp SHORT pmc_no_movimiento
 
-pti_chk_d_may_not:
-    jmp pti_fin
-
-pti_arr:
+pmc_arriba:
     mov jugador_dir, DIR_ARRIBA
-    mov ultima_dir_movimiento, DIR_ARRIBA
-
     mov ax, jugador_py
-    sub ax, 16
+    sub ax, VELOCIDAD
     cmp ax, 16
-    jae pti_arr_check_tile
-    jmp pti_fin
-
-pti_arr_check_tile:
+    jb pmc_no_movimiento
+    
+    ; Verificar colisión en nueva posición
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jc pti_arr_move
-    jmp pti_fin
-
-pti_arr_move:
+    jnc pmc_no_movimiento
+    
+    ; Mover
     mov jugador_py, ax
-    jmp pti_fin
+    mov moviendo, 1
+    jmp SHORT pmc_fin
 
-pti_aba:
+pmc_abajo:
     mov jugador_dir, DIR_ABAJO
-    mov ultima_dir_movimiento, DIR_ABAJO
-
     mov ax, jugador_py
-    add ax, 16
+    add ax, VELOCIDAD
     cmp ax, 784
-    jbe pti_aba_check_tile
-    jmp pti_fin
-
-pti_aba_check_tile:
+    ja pmc_no_movimiento
+    
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jc pti_aba_move
-    jmp pti_fin
-
-pti_aba_move:
+    jnc pmc_no_movimiento
+    
     mov jugador_py, ax
-    jmp pti_fin
+    mov moviendo, 1
+    jmp SHORT pmc_fin
 
-pti_izq:
+pmc_izquierda:
     mov jugador_dir, DIR_IZQUIERDA
-    mov ultima_dir_movimiento, DIR_IZQUIERDA
-
     mov ax, jugador_px
-    sub ax, 16
+    sub ax, VELOCIDAD
     cmp ax, 16
-    jae pti_izq_check_tile
-    jmp pti_fin
-
-pti_izq_check_tile:
+    jb pmc_no_movimiento
+    
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jc pti_izq_move
-    jmp pti_fin
-
-pti_izq_move:
+    jnc pmc_no_movimiento
+    
     mov jugador_px, ax
-    jmp pti_fin
+    mov moviendo, 1
+    jmp SHORT pmc_fin
 
-pti_der:
+pmc_derecha:
     mov jugador_dir, DIR_DERECHA
-    mov ultima_dir_movimiento, DIR_DERECHA
-
     mov ax, jugador_px
-    add ax, 16
+    add ax, VELOCIDAD
     cmp ax, 784
-    jbe pti_der_check_tile
-    jmp pti_fin
-
-pti_der_check_tile:
+    ja pmc_no_movimiento
+    
     mov cx, ax
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jc pti_der_move
-    jmp pti_fin
-
-pti_der_move:
+    jnc pmc_no_movimiento
+    
     mov jugador_px, ax
+    mov moviendo, 1
+    jmp SHORT pmc_fin
 
-pti_fin:
+pmc_no_movimiento:
+    mov moviendo, 0
+    jmp SHORT pmc_fin
+
+pmc_no_tecla:
+    mov moviendo, 0
+
+pmc_fin:
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-procesar_tecla_inmediata ENDP
+procesar_movimiento_continuo ENDP
+
+; =====================================================
+; ACTUALIZAR ANIMACIÓN
+; =====================================================
+actualizar_animacion PROC
+    push ax
+    
+    ; Solo animar si está en movimiento
+    cmp moviendo, 0
+    je aa_fin
+    
+    ; Incrementar contador de pasos
+    inc pasos_dados
+    mov al, pasos_dados
+    
+    ; Cambiar frame cada 4 píxeles (más suave)
+    cmp al, 4
+    jb aa_fin
+    
+    ; Reset contador
+    mov pasos_dados, 0
+    
+    ; Toggle frame
+    xor jugador_frame, 1
+    
+aa_fin:
+    pop ax
+    ret
+actualizar_animacion ENDP
+
+; =====================================================
+; CENTRAR CÁMARA SUAVEMENTE
+; =====================================================
+centrar_camara PROC
+    push ax
+    push bx
+    push cx
+    
+    ; Calcular posición objetivo X
+    mov ax, jugador_px
+    sub ax, 160
+    jge cc_x_pos
+    xor ax, ax
+cc_x_pos:
+    cmp ax, 480
+    jle cc_x_ok
+    mov ax, 480
+cc_x_ok:
+    mov bx, ax
+    
+    ; Interpolar suavemente (smooth scrolling)
+    mov ax, camara_px
+    cmp ax, bx
+    je cc_y_check
+    
+    jl cc_x_mover_der
+    
+    ; Mover cámara izquierda
+    sub ax, VELOCIDAD
+    cmp ax, bx
+    jge cc_x_set
+    mov ax, bx
+    jmp SHORT cc_x_set
+    
+cc_x_mover_der:
+    add ax, VELOCIDAD
+    cmp ax, bx
+    jle cc_x_set
+    mov ax, bx
+    
+cc_x_set:
+    mov camara_px, ax
+    
+cc_y_check:
+    ; Calcular posición objetivo Y
+    mov ax, jugador_py
+    sub ax, 96
+    jge cc_y_pos
+    xor ax, ax
+cc_y_pos:
+    cmp ax, 608
+    jle cc_y_ok
+    mov ax, 608
+cc_y_ok:
+    mov bx, ax
+    
+    ; Interpolar suavemente
+    mov ax, camara_py
+    cmp ax, bx
+    je cc_fin
+    
+    jl cc_y_mover_abajo
+    
+    ; Mover cámara arriba
+    sub ax, VELOCIDAD
+    cmp ax, bx
+    jge cc_y_set
+    mov ax, bx
+    jmp SHORT cc_y_set
+    
+cc_y_mover_abajo:
+    add ax, VELOCIDAD
+    cmp ax, bx
+    jle cc_y_set
+    mov ax, bx
+    
+cc_y_set:
+    mov camara_py, ax
+    
+cc_fin:
+    pop cx
+    pop bx
+    pop ax
+    ret
+centrar_camara ENDP
 
 ; =====================================================
 ; VERIFICAR SI TILE ES TRANSITABLE
@@ -967,7 +568,7 @@ verificar_tile_transitable PROC
     je vtt_no_transitable
     cmp al, TILE_ROCK
     je vtt_no_transitable
-    cmp al, TILE_WALL
+    cmp al, TILE_MOUNTAIN
     je vtt_no_transitable
     cmp al, TILE_BUSH
     je vtt_no_transitable
@@ -989,36 +590,350 @@ vtt_no_transitable:
 verificar_tile_transitable ENDP
 
 ; =====================================================
-; CENTRAR CÁMARA DIRECTO
+; CARGAR SPRITES DE TERRENO
 ; =====================================================
-centrar_camara_directo PROC
+cargar_sprites_terreno PROC
     push ax
+    push dx
+    push di
     
-    mov ax, jugador_px
-    sub ax, 160
-    jge ccd_x_pos
-    xor ax, ax
-ccd_x_pos:
-    cmp ax, 480
-    jle ccd_x_ok
-    mov ax, 480
-ccd_x_ok:
-    mov camara_px, ax
+    mov dx, OFFSET msg_grass1
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_grass1
+    mov di, OFFSET sprite_grass1
+    call cargar_sprite_16x16
+    jnc cst_1
+    jmp cst_error
+cst_1:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_grass2
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_grass2
+    mov di, OFFSET sprite_grass2
+    call cargar_sprite_16x16
+    jnc cst_2
+    jmp cst_error
+cst_2:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_flower
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_flower
+    mov di, OFFSET sprite_flower
+    call cargar_sprite_16x16
+    jnc cst_3
+    jmp cst_error
+cst_3:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_path
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_path
+    mov di, OFFSET sprite_path
+    call cargar_sprite_16x16
+    jnc cst_4
+    jmp cst_error
+cst_4:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
     
-    mov ax, jugador_py
-    sub ax, 96
-    jge ccd_y_pos
-    xor ax, ax
-ccd_y_pos:
-    cmp ax, 608
-    jle ccd_y_ok
-    mov ax, 608
-ccd_y_ok:
-    mov camara_py, ax
+    mov dx, OFFSET msg_water
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_water
+    mov di, OFFSET sprite_water
+    call cargar_sprite_16x16
+    jnc cst_5
+    jmp cst_error
+cst_5:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
     
+    mov dx, OFFSET msg_tree
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_tree
+    mov di, OFFSET sprite_tree
+    call cargar_sprite_16x16
+    jnc cst_6
+    jmp cst_error
+cst_6:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_sand
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_sand
+    mov di, OFFSET sprite_sand
+    call cargar_sprite_16x16
+    jnc cst_7
+    jmp cst_error
+cst_7:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_rock
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_rock
+    mov di, OFFSET sprite_rock
+    call cargar_sprite_16x16
+    jnc cst_8
+    jmp cst_error
+cst_8:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_snow
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_snow
+    mov di, OFFSET sprite_snow
+    call cargar_sprite_16x16
+    jnc cst_9
+    jmp cst_error
+cst_9:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_ice
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_ice
+    mov di, OFFSET sprite_ice
+    call cargar_sprite_16x16
+    jnc cst_10
+    jmp cst_error
+cst_10:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_mountain
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_mountain
+    mov di, OFFSET sprite_mountain
+    call cargar_sprite_16x16
+    jnc cst_11
+    jmp cst_error
+cst_11:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_hill
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET archivo_hill
+    mov di, OFFSET sprite_hill
+    call cargar_sprite_16x16
+    jnc cst_12
+    jmp cst_error
+cst_12:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_bush
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET arquivo_bush
+    mov di, OFFSET sprite_bush
+    call cargar_sprite_16x16
+    jnc cst_13
+    jmp cst_error
+cst_13:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_dirt
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET arquivo_dirt
+    mov di, OFFSET sprite_dirt
+    call cargar_sprite_16x16
+    jnc cst_14
+    jmp cst_error
+cst_14:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_lava
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET arquivo_lava
+    mov di, OFFSET sprite_lava
+    call cargar_sprite_16x16
+    jnc cst_15
+    jmp cst_error
+cst_15:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    mov dx, OFFSET msg_bridge
+    mov ah, 9
+    int 21h
+    mov dx, OFFSET arquivo_bridge
+    mov di, OFFSET sprite_bridge
+    call cargar_sprite_16x16
+    jnc cst_ok
+    jmp cst_error
+cst_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+    
+    clc
+    jmp SHORT cst_fin
+
+cst_error:
+    stc
+
+cst_fin:
+    pop di
+    pop dx
     pop ax
     ret
-centrar_camara_directo ENDP
+cargar_sprites_terreno ENDP
+
+; =====================================================
+; CARGAR ANIMACIONES DEL JUGADOR
+; =====================================================
+cargar_animaciones_jugador PROC
+    push ax
+    push dx
+    push di
+    
+    mov dx, OFFSET archivo_player_up_a
+    mov di, OFFSET jugador_up_a
+    call cargar_sprite_16x16
+    jc caj_error
+    
+    mov dx, OFFSET archivo_player_up_b
+    mov di, OFFSET jugador_up_b
+    call cargar_sprite_16x16
+    jc caj_error
+    
+    mov dx, OFFSET archivo_player_down_a
+    mov di, OFFSET jugador_down_a
+    call cargar_sprite_16x16
+    jc caj_error
+    
+    mov dx, OFFSET archivo_player_down_b
+    mov di, OFFSET jugador_down_b
+    call cargar_sprite_16x16
+    jc caj_error
+    
+    mov dx, OFFSET archivo_player_izq_a
+    mov di, OFFSET jugador_izq_a
+    call cargar_sprite_16x16
+    jc caj_error
+    
+    mov dx, OFFSET archivo_player_izq_b
+    mov di, OFFSET jugador_izq_b
+    call cargar_sprite_16x16
+    jc caj_error
+    
+    mov dx, OFFSET archivo_player_der_a
+    mov di, OFFSET jugador_der_a
+    call cargar_sprite_16x16
+    jc caj_error
+    
+    mov dx, OFFSET archivo_player_der_b
+    mov di, OFFSET jugador_der_b
+    call cargar_sprite_16x16
+    jc caj_error
+    
+    clc
+    jmp SHORT caj_fin
+    
+caj_error:
+    stc
+    
+caj_fin:
+    pop di
+    pop dx
+    pop ax
+    ret
+cargar_animaciones_jugador ENDP
+
+; =====================================================
+; OBTENER SPRITE DEL JUGADOR
+; =====================================================
+obtener_sprite_jugador PROC
+    push ax
+    push bx
+    
+    mov al, jugador_dir
+    mov bl, jugador_frame
+    
+    cmp al, DIR_ABAJO
+    jne osj_arr
+    test bl, bl
+    jz osj_down_a
+    mov si, OFFSET jugador_down_b
+    jmp SHORT osj_fin
+osj_down_a:
+    mov si, OFFSET jugador_down_a
+    jmp SHORT osj_fin
+    
+osj_arr:
+    cmp al, DIR_ARRIBA
+    jne osj_izq
+    test bl, bl
+    jz osj_up_a
+    mov si, OFFSET jugador_up_b
+    jmp SHORT osj_fin
+osj_up_a:
+    mov si, OFFSET jugador_up_a
+    jmp SHORT osj_fin
+    
+osj_izq:
+    cmp al, DIR_IZQUIERDA
+    jne osj_der
+    test bl, bl
+    jz osj_izq_a
+    mov si, OFFSET jugador_izq_b
+    jmp SHORT osj_fin
+osj_izq_a:
+    mov si, OFFSET jugador_izq_a
+    jmp SHORT osj_fin
+    
+osj_der:
+    test bl, bl
+    jz osj_der_a
+    mov si, OFFSET jugador_der_b
+    jmp SHORT osj_fin
+osj_der_a:
+    mov si, OFFSET jugador_der_a
+    
+osj_fin:
+    pop bx
+    pop ax
+    ret
+obtener_sprite_jugador ENDP
 
 ; =====================================================
 ; RENDERIZAR EN PÁGINA 0
@@ -1029,10 +944,8 @@ renderizar_en_pagina_0 PROC
     
     mov ax, VIDEO_SEG
     mov es, ax
-    
     mov ax, 0
-    call dibujar_mapa_en_offset
-    call dibujar_jugador_en_offset
+    call dibujar_todo_en_offset
     
     pop es
     pop ax
@@ -1048,10 +961,8 @@ renderizar_en_pagina_1 PROC
     
     mov ax, VIDEO_SEG
     mov es, ax
-    
     mov ax, 8000h
-    call dibujar_mapa_en_offset
-    call dibujar_jugador_en_offset
+    call dibujar_todo_en_offset
     
     pop es
     pop ax
@@ -1059,28 +970,18 @@ renderizar_en_pagina_1 PROC
 renderizar_en_pagina_1 ENDP
 
 ; =====================================================
-; ESPERAR RETRACE VERTICAL
+; DIBUJAR TODO EN OFFSET
 ; =====================================================
-esperar_retrace PROC
+dibujar_todo_en_offset PROC
     push ax
-    push dx
     
-    mov dx, 3DAh
+    mov temp_offset, ax
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
     
-er_wait_end:
-    in al, dx
-    test al, 8
-    jnz er_wait_end
-    
-er_wait_start:
-    in al, dx
-    test al, 8
-    jz er_wait_start
-    
-    pop dx
     pop ax
     ret
-esperar_retrace ENDP
+dibujar_todo_en_offset ENDP
 
 ; =====================================================
 ; DIBUJAR MAPA EN OFFSET
@@ -1094,8 +995,7 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    mov temp_offset, ax
-    
+    ; Calcular tile de inicio
     mov ax, camara_px
     shr ax, 4
     mov inicio_tile_x, ax
@@ -1104,6 +1004,7 @@ dibujar_mapa_en_offset PROC
     shr ax, 4
     mov inicio_tile_y, ax
     
+    ; Calcular offset de píxeles
     mov ax, camara_px
     and ax, 15
     mov offset_px_x, ax
@@ -1113,152 +1014,40 @@ dibujar_mapa_en_offset PROC
     mov offset_px_y, ax
     
     xor bp, bp
-    
+
 dmo_fila:
     cmp bp, 13
-    jb dmo_fila_body
-    jmp dmo_fin
-
-dmo_fila_body:
-    xor si, si
+    jae dmo_fin
     
+    xor si, si
+
 dmo_col:
     cmp si, 21
-    jb dmo_col_in_bounds
-    jmp dmo_next_fila
-
-dmo_col_in_bounds:
+    jae dmo_next_fila
     
+    ; Verificar límites
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 50
-    jb dmo_row_in_bounds
-    jmp dmo_next_col
-
-dmo_row_in_bounds:
+    jae dmo_next_col
     
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 50
-    jb dmo_draw_tile
-    jmp dmo_next_col
-
-dmo_draw_tile:
+    jae dmo_next_col
     
+    ; Obtener tile del mapa
     push dx
     mov dx, 50
     mul dx
     add ax, bx
     pop dx
-    
     mov bx, ax
-    mov al, [mapa_datos + bx]
     
-    mov di, OFFSET sprite_grass1
-
-    cmp al, TILE_GRASS2
-    jne dmo_chk_flower
-dmo_set_grass2:
-    mov di, OFFSET sprite_grass2
-    jmp dmo_draw
-
-dmo_chk_flower:
-    cmp al, TILE_FLOWER
-    jne dmo_chk_path
-dmo_set_flower:
-    mov di, OFFSET sprite_flower
-    jmp dmo_draw
-
-dmo_chk_path:
-    cmp al, TILE_PATH
-    jne dmo_chk_water
-dmo_set_path:
-    mov di, OFFSET sprite_path
-    jmp dmo_draw
-
-dmo_chk_water:
-    cmp al, TILE_WATER
-    jne dmo_chk_tree
-dmo_set_water:
-    mov di, OFFSET sprite_water
-    jmp dmo_draw
-
-dmo_chk_tree:
-    cmp al, TILE_TREE
-    jne dmo_chk_sand
-dmo_set_tree:
-    mov di, OFFSET sprite_tree
-    jmp dmo_draw
-
-dmo_chk_sand:
-    cmp al, TILE_SAND
-    jne dmo_chk_rock
-dmo_set_sand:
-    mov di, OFFSET sprite_sand
-    jmp dmo_draw
-
-dmo_chk_rock:
-    cmp al, TILE_ROCK
-    jne dmo_chk_snow
-dmo_set_rock:
-    mov di, OFFSET sprite_rock
-    jmp dmo_draw
-
-dmo_chk_snow:
-    cmp al, TILE_SNOW
-    jne dmo_chk_ice
-dmo_set_snow:
-    mov di, OFFSET sprite_snow
-    jmp dmo_draw
-
-dmo_chk_ice:
-    cmp al, TILE_ICE
-    jne dmo_chk_wall
-dmo_set_ice:
-    mov di, OFFSET sprite_ice
-    jmp dmo_draw
-
-dmo_chk_wall:
-    cmp al, TILE_WALL
-    jne dmo_chk_hill
-dmo_set_wall:
-    mov di, OFFSET sprite_wall
-    jmp dmo_draw
-
-dmo_chk_hill:
-    cmp al, TILE_HILL
-    jne dmo_chk_bush
-dmo_set_hill:
-    mov di, OFFSET sprite_hill
-    jmp dmo_draw
-
-dmo_chk_bush:
-    cmp al, TILE_BUSH
-    jne dmo_chk_dirt
-dmo_set_bush:
-    mov di, OFFSET sprite_bush
-    jmp dmo_draw
-
-dmo_chk_dirt:
-    cmp al, TILE_DIRT
-    jne dmo_chk_lava
-dmo_set_dirt:
-    mov di, OFFSET sprite_dirt
-    jmp dmo_draw
-
-dmo_chk_lava:
-    cmp al, TILE_LAVA
-    jne dmo_chk_bridge
-dmo_set_lava:
-    mov di, OFFSET sprite_lava
-    jmp dmo_draw
-
-dmo_chk_bridge:
-    cmp al, TILE_BRIDGE
-    jne dmo_draw
-    mov di, OFFSET sprite_bridge
-
-dmo_draw:
+    mov al, [mapa_datos + bx]
+    call obtener_sprite_tile
+    
+    ; Calcular posición en pantalla
     push si
     push bp
     
@@ -1299,15 +1088,105 @@ dmo_fin:
 dibujar_mapa_en_offset ENDP
 
 ; =====================================================
+; OBTENER SPRITE DE TILE
+; =====================================================
+obtener_sprite_tile PROC
+    push ax
+    push bx
+    
+    mov bl, al
+    mov di, OFFSET sprite_grass1
+    
+    cmp bl, TILE_GRASS2
+    jne ost_2
+    mov di, OFFSET sprite_grass2
+    jmp ost_fin
+ost_2:
+    cmp bl, TILE_FLOWER
+    jne ost_3
+    mov di, OFFSET sprite_flower
+    jmp ost_fin
+ost_3:
+    cmp bl, TILE_PATH
+    jne ost_4
+    mov di, OFFSET sprite_path
+    jmp ost_fin
+ost_4:
+    cmp bl, TILE_WATER
+    jne ost_5
+    mov di, OFFSET sprite_water
+    jmp ost_fin
+ost_5:
+    cmp bl, TILE_TREE
+    jne ost_6
+    mov di, OFFSET sprite_tree
+    jmp ost_fin
+ost_6:
+    cmp bl, TILE_SAND
+    jne ost_7
+    mov di, OFFSET sprite_sand
+    jmp ost_fin
+ost_7:
+    cmp bl, TILE_ROCK
+    jne ost_8
+    mov di, OFFSET sprite_rock
+    jmp ost_fin
+ost_8:
+    cmp bl, TILE_SNOW
+    jne ost_9
+    mov di, OFFSET sprite_snow
+    jmp ost_fin
+ost_9:
+    cmp bl, TILE_ICE
+    jne ost_10
+    mov di, OFFSET sprite_ice
+    jmp ost_fin
+ost_10:
+    cmp bl, TILE_MOUNTAIN
+    jne ost_11
+    mov di, OFFSET sprite_mountain
+    jmp ost_fin
+ost_11:
+    cmp bl, TILE_HILL
+    jne ost_12
+    mov di, OFFSET sprite_hill
+    jmp ost_fin
+ost_12:
+    cmp bl, TILE_BUSH
+    jne ost_13
+    mov di, OFFSET sprite_bush
+    jmp ost_fin
+ost_13:
+    cmp bl, TILE_DIRT
+    jne ost_14
+    mov di, OFFSET sprite_dirt
+    jmp ost_fin
+ost_14:
+    cmp bl, TILE_LAVA
+    jne ost_15
+    mov di, OFFSET sprite_lava
+    jmp ost_fin
+ost_15:
+    cmp bl, TILE_BRIDGE
+    jne ost_fin
+    mov di, OFFSET sprite_bridge
+
+ost_fin:
+    pop bx
+    pop ax
+    ret
+obtener_sprite_tile ENDP
+
+; =====================================================
 ; DIBUJAR JUGADOR EN OFFSET
 ; =====================================================
 dibujar_jugador_en_offset PROC
     push ax
-    push bx
     push cx
     push dx
     push si
     
+    ; Calcular posición en pantalla
     mov ax, jugador_px
     sub ax, camara_px
     add ax, viewport_x
@@ -1318,17 +1197,15 @@ dibujar_jugador_en_offset PROC
     add ax, viewport_y
     mov dx, ax
     
-    mov al, jugador_dir
-    mov bl, jugador_frame
+    ; Obtener sprite correcto
     call obtener_sprite_jugador
-    
     mov di, si
+    
     call dibujar_sprite_16x16_en_offset
     
     pop si
     pop dx
     pop cx
-    pop bx
     pop ax
     ret
 dibujar_jugador_en_offset ENDP
@@ -1391,6 +1268,7 @@ escribir_pixel_en_offset PROC
     
     mov bl, al
     
+    ; Calcular offset en memoria de video
     mov ax, dx
     mov di, 80
     mul di
@@ -1401,13 +1279,16 @@ escribir_pixel_en_offset PROC
     shr ax, 3
     add di, ax
     
+    ; Calcular máscara de bit
     and cx, 7
     mov al, 80h
     shr al, cl
     mov ah, al
     
+    ; Configurar Graphics Controller
     mov dx, 3CEh
     
+    ; Set/Reset Register
     mov al, 0
     out dx, al
     inc dx
@@ -1430,7 +1311,7 @@ escribir_pixel_en_offset PROC
     mov al, ah
     out dx, al
     
-    ; Leer para activar latch, escribir para aplicar
+    ; Escribir píxel
     mov al, es:[di]
     mov es:[di], al
     
@@ -1441,6 +1322,30 @@ escribir_pixel_en_offset PROC
     pop ax
     ret
 escribir_pixel_en_offset ENDP
+
+; =====================================================
+; ESPERAR RETRACE VERTICAL
+; =====================================================
+esperar_retrace PROC
+    push ax
+    push dx
+    
+    mov dx, 3DAh
+    
+er_wait_end:
+    in al, dx
+    test al, 8
+    jnz er_wait_end
+    
+er_wait_start:
+    in al, dx
+    test al, 8
+    jz er_wait_start
+    
+    pop dx
+    pop ax
+    ret
+esperar_retrace ENDP
 
 ; =====================================================
 ; CARGAR MAPA
@@ -1460,7 +1365,6 @@ cargar_mapa PROC
     jc cm_error
     
     mov bx, ax
-    
     call saltar_linea
     
     mov di, OFFSET mapa_datos
@@ -1497,12 +1401,9 @@ cm_proc:
     cmp al, '0'
     jb cm_chk_upper
     cmp al, '9'
-    jbe cm_store_digit
-    jmp cm_chk_upper
-
-cm_store_digit:
+    ja cm_chk_upper
     sub al, '0'
-    jmp cm_store_value
+    jmp cm_store
 
 cm_chk_upper:
     cmp al, 'A'
@@ -1511,7 +1412,7 @@ cm_chk_upper:
     ja cm_chk_lower
     sub al, 'A'
     add al, 10
-    jmp cm_store_value
+    jmp cm_store
 
 cm_chk_lower:
     cmp al, 'a'
@@ -1521,11 +1422,10 @@ cm_chk_lower:
     sub al, 'a'
     add al, 10
 
-cm_store_value:
+cm_store:
     mov [di], al
     inc di
     inc bp
-
     cmp bp, 2500
     jb cm_proc
     
@@ -1564,7 +1464,6 @@ cargar_sprite_16x16 PROC
     jc cs16_error
     
     mov bx, ax
-    
     call saltar_linea
     
     xor bp, bp
@@ -1602,7 +1501,7 @@ cs16_proc:
     cmp al, '0'
     jb cs16_proc
     cmp al, '9'
-    jbe cs16_decimal
+    jbe cs16_dec
     
     and al, 0DFh
     cmp al, 'A'
@@ -1612,14 +1511,13 @@ cs16_proc:
     sub al, 'A' - 10
     jmp SHORT cs16_guardar
 
-cs16_decimal:
+cs16_dec:
     sub al, '0'
 
 cs16_guardar:
     mov [di], al
     inc di
     inc bp
-
     cmp bp, 256
     jb cs16_proc
     
