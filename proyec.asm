@@ -293,10 +293,10 @@ pmc_verificar:
 
 pmc_check_w:
     cmp al, 'w'
-    jne pmc_check_W
+    jne pmc_check_w_upper
     jmp pmc_arriba
 
-pmc_check_W:
+pmc_check_w_upper:
     cmp al, 'W'
     jne pmc_check_50
     jmp pmc_arriba
@@ -308,10 +308,10 @@ pmc_check_50:
 
 pmc_check_s:
     cmp al, 's'
-    jne pmc_check_S
+    jne pmc_check_s_upper
     jmp pmc_abajo
 
-pmc_check_S:
+pmc_check_s_upper:
     cmp al, 'S'
     jne pmc_check_left_scan
     jmp pmc_abajo
@@ -323,10 +323,10 @@ pmc_check_left_scan:
 
 pmc_check_left_a:
     cmp al, 'a'
-    jne pmc_check_left_A
+    jne pmc_check_left_a_upper
     jmp pmc_izquierda
 
-pmc_check_left_A:
+pmc_check_left_a_upper:
     cmp al, 'A'
     jne pmc_check_right_scan
     jmp pmc_izquierda
@@ -338,10 +338,10 @@ pmc_check_right_scan:
 
 pmc_check_right_d:
     cmp al, 'd'
-    jne pmc_check_right_D
+    jne pmc_check_right_d_upper
     jmp pmc_derecha
 
-pmc_check_right_D:
+pmc_check_right_d_upper:
     cmp al, 'D'
     jne pmc_default
     jmp pmc_derecha
