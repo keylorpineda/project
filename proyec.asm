@@ -1557,8 +1557,13 @@ dsp_loop_fila:
     add di, 2               ; Siguiente fila del sprite (2 bytes)
     pop cx
     dec cx
-    jnz dsp_loop_fila
-    
+    jnz dsp_loop_fila_stub
+    jmp dsp_loop_fila_exit
+
+dsp_loop_fila_stub:
+    jmp dsp_loop_fila
+
+dsp_loop_fila_exit:
     ; Restaurar todos los planos
     mov dx, 3C4h
     mov al, 2
