@@ -19,7 +19,7 @@ TILE_SAND     EQU 6
 TILE_ROCK     EQU 7
 TILE_SNOW     EQU 8
 TILE_ICE      EQU 9
-TILE_MOUNTAIN EQU 10
+TILE_WALL     EQU 10
 TILE_HILL     EQU 11
 TILE_BUSH     EQU 12
 TILE_DIRT     EQU 13
@@ -56,7 +56,7 @@ archivo_sand   db 'SPRITES\SAND_1.TXT',0
 archivo_rock   db 'SPRITES\ROCK_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
-archivo_mountain db 'SPRITES\MOUNTAIN_1.TXT',0
+archivo_wall    db 'SPRITES\WALL_1.TXT',0
 archivo_hill   db 'SPRITES\HILL_1.TXT',0
 archivo_bush   db 'SPRITES\BUSH_1.TXT',0
 archivo_dirt   db 'SPRITES\DIRT_1.TXT',0
@@ -87,7 +87,7 @@ sprite_sand     db 256 dup(0)
 sprite_rock     db 256 dup(0)
 sprite_snow     db 256 dup(0)
 sprite_ice      db 256 dup(0)
-sprite_mountain db 256 dup(0)
+sprite_wall     db 256 dup(0)
 sprite_hill     db 256 dup(0)
 sprite_bush     db 256 dup(0)
 sprite_dirt     db 256 dup(0)
@@ -150,7 +150,7 @@ msg_sand   db 'Sand: $'
 msg_rock   db 'Rock: $'
 msg_snow   db 'Snow: $'
 msg_ice    db 'Ice: $'
-msg_mountain db 'Mountain: $'
+msg_wall   db 'Wall: $'
 msg_hill   db 'Hill: $'
 msg_bush   db 'Bush: $'
 msg_dirt   db 'Dirt: $'
@@ -317,15 +317,15 @@ ice_ok:
     mov ah, 9
     int 21h
 
-    mov dx, OFFSET msg_mountain
+    mov dx, OFFSET msg_wall
     mov ah, 9
     int 21h
-    mov dx, OFFSET archivo_mountain
-    mov di, OFFSET sprite_mountain
+    mov dx, OFFSET archivo_wall
+    mov di, OFFSET sprite_wall
     call cargar_sprite_16x16
-    jnc mountain_ok
+    jnc wall_ok
     jmp error_carga
-mountain_ok:
+wall_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -967,7 +967,7 @@ verificar_tile_transitable PROC
     je vtt_no_transitable
     cmp al, TILE_ROCK
     je vtt_no_transitable
-    cmp al, TILE_MOUNTAIN
+    cmp al, TILE_WALL
     je vtt_no_transitable
     cmp al, TILE_BUSH
     je vtt_no_transitable
@@ -1213,16 +1213,16 @@ dmo_set_snow:
 
 dmo_chk_ice:
     cmp al, TILE_ICE
-    jne dmo_chk_mountain
+    jne dmo_chk_wall
 dmo_set_ice:
     mov di, OFFSET sprite_ice
     jmp dmo_draw
 
-dmo_chk_mountain:
-    cmp al, TILE_MOUNTAIN
+dmo_chk_wall:
+    cmp al, TILE_WALL
     jne dmo_chk_hill
-dmo_set_mountain:
-    mov di, OFFSET sprite_mountain
+dmo_set_wall:
+    mov di, OFFSET sprite_wall
     jmp dmo_draw
 
 dmo_chk_hill:
