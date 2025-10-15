@@ -338,19 +338,19 @@ pmc_verificar:
     jmp pmc_no_movimiento_stub
 
 pmc_arriba_stub:
-    jmp pmc_arriba
+    jmp NEAR PTR pmc_arriba
 
 pmc_abajo_stub:
-    jmp pmc_abajo
+    jmp NEAR PTR pmc_abajo
 
 pmc_izquierda_stub:
-    jmp pmc_izquierda
+    jmp NEAR PTR pmc_izquierda
 
 pmc_derecha_stub:
-    jmp pmc_derecha
+    jmp NEAR PTR pmc_derecha
 
 pmc_no_movimiento_stub:
-    jmp pmc_no_movimiento
+    jmp NEAR PTR pmc_no_movimiento
 
 pmc_arriba:
     mov jugador_dir, DIR_ARRIBA
@@ -427,10 +427,10 @@ pmc_derecha:
     jmp pmc_fin_stub
 
 pmc_fin_stub:
-    jmp pmc_fin
+    jmp NEAR PTR pmc_fin
 
 pmc_no_tecla_stub:
-    jmp pmc_no_tecla
+    jmp NEAR PTR pmc_no_tecla
 
 pmc_no_movimiento:
     mov moviendo, 0
