@@ -13,7 +13,7 @@ TILE_SAND     EQU 6
 TILE_ROCK     EQU 7
 TILE_SNOW     EQU 8
 TILE_ICE      EQU 9
-TILE_MOUNTAIN EQU 10
+TILE_WALL     EQU 10
 TILE_HILL     EQU 11
 TILE_BUSH     EQU 12
 TILE_DIRT     EQU 13
@@ -41,7 +41,7 @@ archivo_sand   db 'SPRITES\SAND_1.TXT',0
 archivo_rock   db 'SPRITES\ROCK_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
-archivo_mountain db 'SPRITES\MOUNTA_1.TXT',0
+archivo_wall   db 'SPRITES\WALL_1.TXT',0
 archivo_hill   db 'SPRITES\HILL_1.TXT',0
 arquivo_bush   db 'SPRITES\BUSH_1.TXT',0
 arquivo_dirt   db 'SPRITES\DIRT_1.TXT',0
@@ -69,7 +69,7 @@ sprite_sand_temp     db 256 dup(0)
 sprite_rock_temp     db 256 dup(0)
 sprite_snow_temp     db 256 dup(0)
 sprite_ice_temp      db 256 dup(0)
-sprite_mountain_temp db 256 dup(0)
+sprite_wall_temp     db 256 dup(0)
 sprite_hill_temp     db 256 dup(0)
 sprite_bush_temp     db 256 dup(0)
 sprite_dirt_temp     db 256 dup(0)
@@ -86,7 +86,7 @@ sprite_sand     db 128 dup(0)
 sprite_rock     db 128 dup(0)
 sprite_snow     db 128 dup(0)
 sprite_ice      db 128 dup(0)
-sprite_mountain db 128 dup(0)
+sprite_wall     db 128 dup(0)
 sprite_hill     db 128 dup(0)
 sprite_bush     db 128 dup(0)
 sprite_dirt     db 128 dup(0)
@@ -470,7 +470,7 @@ actualizar_animacion PROC
     
     inc pasos_dados
     mov al, pasos_dados
-    cmp al, 4
+    cmp al, 8
     jb aa_fin
     
     mov pasos_dados, 0
@@ -541,7 +541,7 @@ verificar_tile_transitable PROC
     je vtt_no_transitable
     cmp al, TILE_ROCK
     je vtt_no_transitable
-    cmp al, TILE_MOUNTAIN
+    cmp al, TILE_WALL
     je vtt_no_transitable
     cmp al, TILE_BUSH
     je vtt_no_transitable
@@ -606,8 +606,8 @@ convertir_todos_sprites_planar PROC
     mov di, OFFSET sprite_ice
     call convertir_sprite_a_planar
     
-    mov si, OFFSET sprite_mountain_temp
-    mov di, OFFSET sprite_mountain
+    mov si, OFFSET sprite_wall_temp
+    mov di, OFFSET sprite_wall
     call convertir_sprite_a_planar
     
     mov si, OFFSET sprite_hill_temp
@@ -842,12 +842,12 @@ cst_load_ice:
     mov dx, OFFSET archivo_ice
     mov di, OFFSET sprite_ice_temp
     call cargar_sprite_16x16
-    jnc cst_load_mountain
+    jnc cst_load_wall
     jmp cst_error
 
-cst_load_mountain:
-    mov dx, OFFSET archivo_mountain
-    mov di, OFFSET sprite_mountain_temp
+cst_load_wall:
+    mov dx, OFFSET archivo_wall
+    mov di, OFFSET sprite_wall_temp
     call cargar_sprite_16x16
     jnc cst_load_hill
     jmp cst_error
@@ -1238,9 +1238,9 @@ ost_9:
     mov di, OFFSET sprite_ice
     jmp ost_fin
 ost_10:
-    cmp bl, TILE_MOUNTAIN
+    cmp bl, TILE_WALL
     jne ost_11
-    mov di, OFFSET sprite_mountain
+    mov di, OFFSET sprite_wall
     jmp ost_fin
 ost_11:
     cmp bl, TILE_HILL
@@ -1301,8 +1301,10 @@ dibujar_jugador_en_offset PROC
     ret
 dibujar_jugador_en_offset ENDP
 
-; CORRECCIÓN: Reemplazar la función dibujar_sprite_planar_16x16
-; Esta versión corrige el problema de las líneas blancas
+; ============================================================================
+; SOLUCIÓN DEFINITIVA PARA TRANSPARENCIA DE SPRITES
+; Reemplazar dibujar_sprite_planar_16x16 con esta versión
+; ============================================================================
 
 dibujar_sprite_planar_16x16 PROC
     push ax
@@ -1313,7 +1315,7 @@ dibujar_sprite_planar_16x16 PROC
     push di
     push bp
     
-    ; Calcular offset en memoria de video
+    ; Calcular offset en video memory
     mov ax, dx
     mov bx, 80
     mul bx
@@ -1324,167 +1326,204 @@ dibujar_sprite_planar_16x16 PROC
     shr ax, 3
     add bp, ax
     
-    mov cx, 16
+    mov cx, 16          ; 16 filas
 
-dsp_fila_loop:
+dsp_loop_fila:
     push cx
     push di
     push bp
     
-    mov bx, di
+    mov bx, di          ; BX apunta a sprite data
     
-    ; Calcular máscaras para ambos bytes
-    mov al, [bx]
-    or al, [bx+32]
-    or al, [bx+64]
-    or al, [bx+96]
-    mov ah, al          ; Máscara para primer byte en AH
+    ; ===== CALCULAR MÁSCARAS DE TRANSPARENCIA =====
+    ; Máscara = bits que tienen color (cualquier bit de cualquier plano)
+    mov al, [bx]        ; Plano 0, byte 1
+    or al, [bx+32]      ; Plano 1, byte 1
+    or al, [bx+64]      ; Plano 2, byte 1
+    or al, [bx+96]      ; Plano 3, byte 1
+    mov ah, al          ; AH = máscara byte 1
     
-    mov al, [bx+1]
-    or al, [bx+33]
-    or al, [bx+65]
-    or al, [bx+97]      ; Máscara para segundo byte en AL
+    mov al, [bx+1]      ; Plano 0, byte 2
+    or al, [bx+33]      ; Plano 1, byte 2
+    or al, [bx+65]      ; Plano 2, byte 2
+    or al, [bx+97]      ; Plano 3, byte 2
+    ; AL = máscara byte 2
     
-    ; Ahora AH tiene máscara del primer byte, AL del segundo
+    ; Ahora: AH = máscara para byte 1 (1 = opaco, 0 = transparente)
+    ;        AL = máscara para byte 2 (1 = opaco, 0 = transparente)
+    
     push ax             ; Guardar máscaras
     
-    ; ===== PLANO 0 =====
+    ; ===== DIBUJAR LOS 4 PLANOS =====
+    
+    ; ----- PLANO 0 -----
     mov dx, 3C4h
-    mov al, 2
+    mov al, 2           ; Map Mask register
     out dx, al
     inc dx
-    mov al, 1
+    mov al, 1           ; Seleccionar plano 0
     out dx, al
     
     pop ax              ; Recuperar máscaras
     push ax             ; Guardar de nuevo
     
-    mov si, bx
-    mov di, bp
+    mov di, bp          ; DI = offset en video
     
-    ; Primer byte
-    mov cl, ah
-    not cl              ; Invertir máscara para AND
-    mov ch, es:[di]
-    and ch, cl          ; Limpiar píxeles donde vamos a dibujar
-    or ch, [si]         ; Combinar con nuevo sprite
-    mov es:[di], ch
+    ; Byte 1
+    mov cl, ah          ; Máscara byte 1
+    not cl              ; Invertir: 0=escribir, 1=preservar
+    mov ch, es:[di]     ; Leer píxel actual
+    and ch, cl          ; Preservar bits transparentes
+    mov cl, ah          ; Máscara original
+    mov al, [bx]        ; Dato sprite plano 0, byte 1
+    and al, cl          ; Solo bits opacos
+    or al, ch           ; Combinar
+    mov es:[di], al     ; Escribir
+    
     inc di
     
-    ; Segundo byte
-    mov cl, al
+    ; Byte 2
+    pop ax
+    push ax
+    mov cl, al          ; Máscara byte 2
     not cl
     mov ch, es:[di]
     and ch, cl
-    or ch, [si+1]
-    mov es:[di], ch
+    mov cl, al
+    mov al, [bx+1]      ; Dato sprite plano 0, byte 2
+    and al, cl
+    or al, ch
+    mov es:[di], al
     
-    ; ===== PLANO 1 =====
+    ; ----- PLANO 1 -----
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 2
+    mov al, 2           ; Seleccionar plano 1
     out dx, al
     
     pop ax
     push ax
     
-    mov si, bx
-    add si, 32
     mov di, bp
     
-    ; Primer byte
+    ; Byte 1
     mov cl, ah
     not cl
     mov ch, es:[di]
     and ch, cl
-    or ch, [si]
-    mov es:[di], ch
+    mov cl, ah
+    mov al, [bx+32]     ; Plano 1, byte 1
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
     inc di
     
-    ; Segundo byte
+    ; Byte 2
+    pop ax
+    push ax
     mov cl, al
     not cl
     mov ch, es:[di]
     and ch, cl
-    or ch, [si+1]
-    mov es:[di], ch
+    mov cl, al
+    mov al, [bx+33]     ; Plano 1, byte 2
+    and al, cl
+    or al, ch
+    mov es:[di], al
     
-    ; ===== PLANO 2 =====
+    ; ----- PLANO 2 -----
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 4
+    mov al, 4           ; Seleccionar plano 2
     out dx, al
     
     pop ax
     push ax
     
-    mov si, bx
-    add si, 64
     mov di, bp
     
-    ; Primer byte
+    ; Byte 1
     mov cl, ah
     not cl
     mov ch, es:[di]
     and ch, cl
-    or ch, [si]
-    mov es:[di], ch
+    mov cl, ah
+    mov al, [bx+64]     ; Plano 2, byte 1
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
     inc di
     
-    ; Segundo byte
+    ; Byte 2
+    pop ax
+    push ax
     mov cl, al
     not cl
     mov ch, es:[di]
     and ch, cl
-    or ch, [si+1]
-    mov es:[di], ch
+    mov cl, al
+    mov al, [bx+65]     ; Plano 2, byte 2
+    and al, cl
+    or al, ch
+    mov es:[di], al
     
-    ; ===== PLANO 3 =====
+    ; ----- PLANO 3 -----
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 8
+    mov al, 8           ; Seleccionar plano 3
     out dx, al
     
     pop ax              ; Recuperar máscaras (última vez)
     
-    mov si, bx
-    add si, 96
     mov di, bp
     
-    ; Primer byte
+    ; Byte 1
     mov cl, ah
     not cl
     mov ch, es:[di]
     and ch, cl
-    or ch, [si]
-    mov es:[di], ch
+    mov cl, ah
+    mov al, [bx+96]     ; Plano 3, byte 1
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
     inc di
     
-    ; Segundo byte
+    ; Byte 2
     mov cl, al
     not cl
     mov ch, es:[di]
     and ch, cl
-    or ch, [si+1]
-    mov es:[di], ch
+    mov al, [bx+97]     ; Plano 3, byte 2
+    and al, cl
+    or al, ch
+    mov es:[di], al
     
+    ; Siguiente fila
     pop bp
-    add bp, 80          ; Siguiente línea
+    add bp, 80          ; Siguiente línea en pantalla
     pop di
-    add di, 2           ; Siguiente fila en sprite
+    add di, 2           ; Siguiente fila en sprite (2 bytes)
     pop cx
     dec cx
-    jz dsp_fila_done
-    jmp dsp_fila_loop
+    jnz dsp_loop_fila_stub
+    jmp dsp_loop_fila_exit
 
-dsp_fila_done:
-    ; Restaurar planos
+dsp_loop_fila_stub:
+    jmp dsp_loop_fila
+
+dsp_loop_fila_exit:
+    
+    ; Restaurar Map Mask a todos los planos
     mov dx, 3C4h
     mov al, 2
     out dx, al
