@@ -732,10 +732,6 @@ convertir_todos_sprites_planar PROC
     ret
 convertir_todos_sprites_planar ENDP
 
-; =====================================================
-; CONVERTIR SPRITE A FORMATO PLANAR
-; SI = sprite origen (256 bytes), DI = sprite destino (128 bytes)
-; =====================================================
 convertir_sprite_a_planar PROC
     push ax
     push bx
@@ -754,44 +750,41 @@ csp_fila:
     mov cx, 8           ; 8 píxeles
     
 csp_byte_izq:
+    push ax
     lodsb               ; Leer píxel en AL
+    mov ah, al          ; Guardar copia
     
-    ; Extraer bit 0 → plano 0
-    test al, 1
-    pushf
+    ; Rotar todos los planos a la izquierda
     shl bl, 1
-    popf
-    jz csp_izq_bit1
-    or bl, 1
-    
-csp_izq_bit1:
-    ; Extraer bit 1 → plano 1
-    test al, 2
-    pushf
     shl bh, 1
-    popf
-    jz csp_izq_bit2
-    or bh, 1
-    
-csp_izq_bit2:
-    ; Extraer bit 2 → plano 2
-    test al, 4
-    pushf
     shl dl, 1
-    popf
-    jz csp_izq_bit3
-    or dl, 1
-    
-csp_izq_bit3:
-    ; Extraer bit 3 → plano 3
-    test al, 8
-    pushf
     shl dh, 1
-    popf
-    jz csp_izq_next
+    
+    ; Bit 0 → plano 0
+    shr ah, 1
+    jnc csp_izq_b1
+    or bl, 1
+csp_izq_b1:
+    
+    ; Bit 1 → plano 1
+    shr ah, 1
+    jnc csp_izq_b2
+    or bh, 1
+csp_izq_b2:
+    
+    ; Bit 2 → plano 2
+    shr ah, 1
+    jnc csp_izq_b3
+    or dl, 1
+csp_izq_b3:
+    
+    ; Bit 3 → plano 3
+    shr ah, 1
+    jnc csp_izq_next
     or dh, 1
     
 csp_izq_next:
+    pop ax
     loop csp_byte_izq
     
     ; Guardar byte izquierdo
@@ -807,47 +800,38 @@ csp_izq_next:
     mov cx, 8
     
 csp_byte_der:
+    push ax
     lodsb
+    mov ah, al
     
-    ; Extraer bit 0 → plano 0
-    test al, 1
-    pushf
     shl bl, 1
-    popf
-    jz csp_der_bit1
-    or bl, 1
-    
-csp_der_bit1:
-    ; Extraer bit 1 → plano 1
-    test al, 2
-    pushf
     shl bh, 1
-    popf
-    jz csp_der_bit2
-    or bh, 1
-    
-csp_der_bit2:
-    ; Extraer bit 2 → plano 2
-    test al, 4
-    pushf
     shl dl, 1
-    popf
-    jz csp_der_bit3
-    or dl, 1
-    
-csp_der_bit3:
-    ; Extraer bit 3 → plano 3
-    test al, 8
-    pushf
     shl dh, 1
-    popf
-    jz csp_der_next
+    
+    shr ah, 1
+    jnc csp_der_b1
+    or bl, 1
+csp_der_b1:
+    
+    shr ah, 1
+    jnc csp_der_b2
+    or bh, 1
+csp_der_b2:
+    
+    shr ah, 1
+    jnc csp_der_b3
+    or dl, 1
+csp_der_b3:
+    
+    shr ah, 1
+    jnc csp_der_next
     or dh, 1
     
 csp_der_next:
+    pop ax
     loop csp_byte_der
     
-    ; Guardar byte derecho
     mov [di], bl
     mov [di+32], bh
     mov [di+64], dl
@@ -859,6 +843,7 @@ csp_der_next:
     jmp csp_fila
 
 csp_fin:
+    
     pop bp
     pop di
     pop si
@@ -1164,7 +1149,7 @@ dibujar_todo_en_offset PROC
 dibujar_todo_en_offset ENDP
 
 ; =====================================================
-; DIBUJAR MAPA EN OFFSET
+; DIBUJAR MAPA EN OFFSET - VERSIÓN CORREGIDA
 ; =====================================================
 dibujar_mapa_en_offset PROC
     push ax
@@ -1175,6 +1160,7 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
+    ; Calcular tile inicial
     mov ax, camara_px
     shr ax, 4
     mov inicio_tile_x, ax
@@ -1183,6 +1169,7 @@ dibujar_mapa_en_offset PROC
     shr ax, 4
     mov inicio_tile_y, ax
     
+    ; Calcular offset en píxeles dentro del tile
     mov ax, camara_px
     and ax, 15
     mov offset_px_x, ax
@@ -1191,28 +1178,30 @@ dibujar_mapa_en_offset PROC
     and ax, 15
     mov offset_px_y, ax
     
-    xor bp, bp
+    xor bp, bp              ; Contador de filas
 
 dmo_fila:
-    cmp bp, 13
-    jae dmo_fin_stub
+    cmp bp, 13              ; Necesitamos 13 filas para scroll suave
+    jae dmo_fin
     
-    xor si, si
+    xor si, si              ; Contador de columnas
 
 dmo_col:
-    cmp si, 21
+    cmp si, 21              ; Necesitamos 21 columnas para scroll suave
     jae dmo_next_fila
     
+    ; Verificar límites del mapa
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 50
-    jae dmo_next_col
+    jae dmo_next_col        ; Fuera del mapa verticalmente
     
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 50
-    jae dmo_next_col
+    jae dmo_next_col        ; Fuera del mapa horizontalmente
     
+    ; Calcular índice en el mapa
     push dx
     mov dx, 50
     mul dx
@@ -1220,26 +1209,43 @@ dmo_col:
     pop dx
     mov bx, ax
     
+    ; Obtener tipo de tile
     mov al, [mapa_datos + bx]
     call obtener_sprite_tile
     
     push si
     push bp
     
+    ; Calcular posición X en pantalla
     mov ax, si
-    shl ax, 4
+    shl ax, 4               ; * 16
     sub ax, offset_px_x
     add ax, viewport_x
+    
+    ; Verificar si está visible en X
+    cmp ax, viewport_x
+    jl dmo_skip_tile        ; Fuera por la izquierda
+    cmp ax, 480             ; viewport_x + 320
+    jge dmo_skip_tile       ; Fuera por la derecha
     mov cx, ax
     
+    ; Calcular posición Y en pantalla
     mov ax, bp
-    shl ax, 4
+    shl ax, 4               ; * 16
     sub ax, offset_px_y
     add ax, viewport_y
+    
+    ; Verificar si está visible en Y
+    cmp ax, viewport_y
+    jl dmo_skip_tile        ; Fuera por arriba
+    cmp ax, 271             ; viewport_y + 192
+    jge dmo_skip_tile       ; Fuera por abajo
     mov dx, ax
     
+    ; Dibujar el sprite
     call dibujar_sprite_planar_16x16
     
+dmo_skip_tile:
     pop bp
     pop si
     
@@ -1250,9 +1256,6 @@ dmo_next_col:
 dmo_next_fila:
     inc bp
     jmp dmo_fila
-
-dmo_fin_stub:
-    jmp dmo_fin
     
 dmo_fin:
     pop bp
@@ -1387,8 +1390,9 @@ dibujar_jugador_en_offset PROC
 dibujar_jugador_en_offset ENDP
 
 ; =====================================================
-; DIBUJAR SPRITE PLANAR 16x16
+; DIBUJAR SPRITE PLANAR 16x16 CON TRANSPARENCIA
 ; DI = sprite planar, CX = X, DX = Y
+; Color 0 es transparente
 ; =====================================================
 dibujar_sprite_planar_16x16 PROC
     push ax
@@ -1410,18 +1414,31 @@ dibujar_sprite_planar_16x16 PROC
     shr ax, 3
     add bp, ax
     
-    ; Calcular shift necesario
-    and cx, 7
-    
     ; Dibujar 16 filas
-    mov bx, 16
+    mov cx, 16
     
 dsp_fila:
-    push bx
+    push cx
     push di
     push bp
     
-    ; Plano 0
+    ; Guardar posición base del sprite para esta fila
+    mov bx, di
+    
+    ; Calcular MÁSCARA (donde hay píxeles no-transparentes)
+    mov al, [bx]        ; Plano 0
+    or al, [bx+32]      ; OR Plano 1
+    or al, [bx+64]      ; OR Plano 2
+    or al, [bx+96]      ; OR Plano 3
+    mov ah, al          ; Máscara byte izquierdo
+    
+    mov al, [bx+1]      ; Plano 0
+    or al, [bx+33]      ; OR Plano 1
+    or al, [bx+65]      ; OR Plano 2
+    or al, [bx+97]      ; OR Plano 3
+    ; AL = máscara byte derecho, AH = máscara byte izquierdo
+    
+    ; === PLANO 0 ===
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1429,65 +1446,111 @@ dsp_fila:
     mov al, 1
     out dx, al
     
-    mov si, di
+    mov si, bx
     mov di, bp
-    lodsb
-    stosb
-    lodsb
+    
+    ; Byte izquierdo con transparencia
+    push ax             ; Guardar máscaras
+    mov al, ah          ; AL = máscara izquierda
+    not al              ; Invertir para preservar fondo
+    and al, es:[di]     ; Leer y preservar fondo
+    or al, [si]         ; OR con sprite
     stosb
     
-    ; Plano 1
-    dec dx
+    ; Byte derecho con transparencia
+    pop ax
+    push ax
+    not al              ; Invertir máscara derecha
+    and al, es:[di]     ; Preservar fondo
+    or al, [si+1]       ; OR con sprite
+    stosb
+    pop ax
+    
+    ; === PLANO 1 ===
+    mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 2
     out dx, al
     
-    mov si, OFFSET [si - 2 + 32]
+    mov si, bx
+    add si, 32
     mov di, bp
-    lodsb
-    stosb
-    lodsb
+    
+    push ax
+    mov al, ah
+    not al
+    and al, es:[di]
+    or al, [si]
     stosb
     
-    ; Plano 2
-    dec dx
+    pop ax
+    push ax
+    not al
+    and al, es:[di]
+    or al, [si+1]
+    stosb
+    pop ax
+    
+    ; === PLANO 2 ===
+    mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 4
     out dx, al
     
-    mov si, OFFSET [si - 2 + 32]
+    mov si, bx
+    add si, 64
     mov di, bp
-    lodsb
-    stosb
-    lodsb
+    
+    push ax
+    mov al, ah
+    not al
+    and al, es:[di]
+    or al, [si]
     stosb
     
-    ; Plano 3
-    dec dx
+    pop ax
+    push ax
+    not al
+    and al, es:[di]
+    or al, [si+1]
+    stosb
+    pop ax
+    
+    ; === PLANO 3 ===
+    mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 8
     out dx, al
     
-    mov si, OFFSET [si - 2 + 32]
+    mov si, bx
+    add si, 96
     mov di, bp
-    lodsb
+    
+    push ax
+    mov al, ah
+    not al
+    and al, es:[di]
+    or al, [si]
     stosb
-    lodsb
+    
+    pop ax
+    not al
+    and al, es:[di]
+    or al, [si+1]
     stosb
     
     pop bp
     add bp, 80
     pop di
     add di, 2
-    pop bx
-    dec bx
-    jnz dsp_fila
+    pop cx
+    loop dsp_fila
     
     pop bp
     pop di
