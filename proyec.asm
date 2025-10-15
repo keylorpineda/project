@@ -745,47 +745,51 @@ convertir_sprite_a_planar PROC
     
 csp_fila:
     ; === BYTE IZQUIERDO (primeros 8 píxeles) ===
+    ; Procesar píxeles 7-0 (en orden inverso para MSB->LSB)
+    add si, 7           ; Apuntar al píxel 7
+    
     xor bx, bx          ; BL=plano0, BH=plano1
     xor dx, dx          ; DL=plano2, DH=plano3
     mov cx, 8           ; 8 píxeles
     
 csp_byte_izq:
-    push ax
-    lodsb               ; Leer píxel en AL
-    mov ah, al          ; Guardar copia
+    mov al, [si]        ; Leer píxel en orden inverso
+    dec si              ; Retroceder al anterior
     
-    ; Rotar todos los planos a la izquierda
+    ; Rotar todos a la izquierda
     shl bl, 1
     shl bh, 1
     shl dl, 1
     shl dh, 1
     
     ; Bit 0 → plano 0
-    shr ah, 1
-    jnc csp_izq_b1
+    test al, 1
+    jz csp_izq_b1
     or bl, 1
 csp_izq_b1:
     
     ; Bit 1 → plano 1
-    shr ah, 1
-    jnc csp_izq_b2
+    test al, 2
+    jz csp_izq_b2
     or bh, 1
 csp_izq_b2:
     
     ; Bit 2 → plano 2
-    shr ah, 1
-    jnc csp_izq_b3
+    test al, 4
+    jz csp_izq_b3
     or dl, 1
 csp_izq_b3:
     
     ; Bit 3 → plano 3
-    shr ah, 1
-    jnc csp_izq_next
+    test al, 8
+    jz csp_izq_next
     or dh, 1
     
 csp_izq_next:
-    pop ax
     loop csp_byte_izq
+    
+    ; Ajustar SI para byte derecho
+    add si, 16          ; SI ahora apunta al píxel 15
     
     ; Guardar byte izquierdo
     mov [di], bl
@@ -800,38 +804,40 @@ csp_izq_next:
     mov cx, 8
     
 csp_byte_der:
-    push ax
-    lodsb
-    mov ah, al
+    mov al, [si]
+    dec si
     
     shl bl, 1
     shl bh, 1
     shl dl, 1
     shl dh, 1
     
-    shr ah, 1
-    jnc csp_der_b1
+    test al, 1
+    jz csp_der_b1
     or bl, 1
 csp_der_b1:
     
-    shr ah, 1
-    jnc csp_der_b2
+    test al, 2
+    jz csp_der_b2
     or bh, 1
 csp_der_b2:
     
-    shr ah, 1
-    jnc csp_der_b3
+    test al, 4
+    jz csp_der_b3
     or dl, 1
 csp_der_b3:
     
-    shr ah, 1
-    jnc csp_der_next
+    test al, 8
+    jz csp_der_next
     or dh, 1
     
 csp_der_next:
-    pop ax
     loop csp_byte_der
     
+    ; Ajustar SI para siguiente fila
+    add si, 17          ; Siguiente fila (16 píxeles + 1)
+    
+    ; Guardar byte derecho
     mov [di], bl
     mov [di+32], bh
     mov [di+64], dl
@@ -839,10 +845,7 @@ csp_der_next:
     inc di
     
     dec bp
-    jz csp_fin
-    jmp csp_fila
-
-csp_fin:
+    jnz csp_fila
     
     pop bp
     pop di
@@ -1389,11 +1392,6 @@ dibujar_jugador_en_offset PROC
     ret
 dibujar_jugador_en_offset ENDP
 
-; =====================================================
-; DIBUJAR SPRITE PLANAR 16x16 CON TRANSPARENCIA
-; DI = sprite planar, CX = X, DX = Y
-; Color 0 es transparente
-; =====================================================
 dibujar_sprite_planar_16x16 PROC
     push ax
     push bx
@@ -1422,21 +1420,19 @@ dsp_fila:
     push di
     push bp
     
-    ; Guardar posición base del sprite para esta fila
     mov bx, di
     
-    ; Calcular MÁSCARA (donde hay píxeles no-transparentes)
-    mov al, [bx]        ; Plano 0
-    or al, [bx+32]      ; OR Plano 1
-    or al, [bx+64]      ; OR Plano 2
-    or al, [bx+96]      ; OR Plano 3
-    mov ah, al          ; Máscara byte izquierdo
+    ; Calcular MÁSCARA
+    mov al, [bx]
+    or al, [bx+32]
+    or al, [bx+64]
+    or al, [bx+96]
+    mov ah, al
     
-    mov al, [bx+1]      ; Plano 0
-    or al, [bx+33]      ; OR Plano 1
-    or al, [bx+65]      ; OR Plano 2
-    or al, [bx+97]      ; OR Plano 3
-    ; AL = máscara byte derecho, AH = máscara byte izquierdo
+    mov al, [bx+1]
+    or al, [bx+33]
+    or al, [bx+65]
+    or al, [bx+97]
     
     ; === PLANO 0 ===
     mov dx, 3C4h
@@ -1449,20 +1445,18 @@ dsp_fila:
     mov si, bx
     mov di, bp
     
-    ; Byte izquierdo con transparencia
-    push ax             ; Guardar máscaras
-    mov al, ah          ; AL = máscara izquierda
-    not al              ; Invertir para preservar fondo
-    and al, es:[di]     ; Leer y preservar fondo
-    or al, [si]         ; OR con sprite
+    push ax
+    mov al, ah
+    not al
+    and al, es:[di]
+    or al, [si]
     stosb
     
-    ; Byte derecho con transparencia
     pop ax
     push ax
-    not al              ; Invertir máscara derecha
-    and al, es:[di]     ; Preservar fondo
-    or al, [si+1]       ; OR con sprite
+    not al
+    and al, es:[di]
+    or al, [si+1]
     stosb
     pop ax
     
@@ -1550,13 +1544,9 @@ dsp_fila:
     pop di
     add di, 2
     pop cx
-    loop dsp_fila_loopback
-    jmp fin_dibujar_sprite_planar_16x16
-
-dsp_fila_loopback:
-    jmp dsp_fila
-
-fin_dibujar_sprite_planar_16x16:
+    dec cx
+    jnz dsp_fila
+    
     pop bp
     pop di
     pop si
