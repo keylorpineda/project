@@ -1356,31 +1356,37 @@ dibujar_jugador_en_offset PROC
     push dx
     push si
     
+    ; ✅ CÁLCULO CORRECTO DE POSICIÓN X
     mov ax, jugador_px
-    sub ax, 16
-    sub ax, camara_px
-    add ax, viewport_x
+    sub ax, camara_px       ; Convertir a coordenadas relativas a cámara
+    add ax, viewport_x      ; Añadir offset del viewport
+    sub ax, 16              ; Centrar sprite horizontalmente (32/2)
     mov cx, ax
     
+    ; Verificar límites horizontales
     cmp cx, -32
     jl djeo_fin
     cmp cx, 640
-    jg djeo_fin
+    jge djeo_fin
     
+    ; ✅ CÁLCULO CORRECTO DE POSICIÓN Y
     mov ax, jugador_py
-    sub ax, 32
-    sub ax, camara_py
-    add ax, viewport_y
+    sub ax, camara_py       ; Convertir a coordenadas relativas a cámara
+    add ax, viewport_y      ; Añadir offset del viewport
+    sub ax, 16              ; Centrar sprite verticalmente
     mov dx, ax
     
+    ; Verificar límites verticales
     cmp dx, -32
     jl djeo_fin
     cmp dx, 350
-    jg djeo_fin
+    jge djeo_fin
     
+    ; Obtener sprite del jugador según dirección
     call obtener_sprite_jugador
     mov di, si
     
+    ; Dibujar el sprite
     call dibujar_sprite_planar_32x32
     
 djeo_fin:
@@ -1660,6 +1666,7 @@ dibujar_sprite_planar_32x32 PROC
     push di
     push bp
     
+    ; Calcular offset en memoria de video
     mov ax, dx
     mov bx, 80
     mul bx
@@ -1679,43 +1686,52 @@ dsp32_loop_fila:
     
     mov bx, di
     
-    mov al, [bx]
-    mov dl, [bx+128]      ; ✅ CORRECTO
+    ; ✅ CREAR MÁSCARAS DE TRANSPARENCIA SIMPLES
+    ; Color D (13 = 1101b) debe ser transparente
+    ; Máscara = 0xFF donde hay que dibujar, 0x00 donde es transparente
+    
+    ; Byte 0: Detectar transparencia
+    mov al, [bx]          ; Plano 0
+    and al, [bx+128]      ; AND Plano 1
+    mov dl, [bx+256]      ; Plano 2
     not dl
-    and al, dl
-    and al, [bx+256]      ; ✅ CORRECTO
-    and al, [bx+384]      ; ✅ CORRECTO
-    not al
+    and al, dl            ; AND NOT Plano 2
+    and al, [bx+384]      ; AND Plano 3
+    ; AL ahora tiene 0xFF donde hay color D
+    not al                ; Invertir: 0x00 = transparente, 0xFF = opaco
     push ax
     
+    ; Byte 1
     mov al, [bx+1]
-    mov dl, [bx+129]      ; ✅ CORRECTO
+    and al, [bx+129]
+    mov dl, [bx+257]
     not dl
     and al, dl
-    and al, [bx+257]      ; ✅ CORRECTO
-    and al, [bx+385]      ; ✅ CORRECTO
+    and al, [bx+385]
     not al
     push ax
     
+    ; Byte 2
     mov al, [bx+2]
-    mov dl, [bx+130]      ; ✅ CORRECTO
+    and al, [bx+130]
+    mov dl, [bx+258]
     not dl
     and al, dl
-    and al, [bx+258]      ; ✅ CORRECTO
-    and al, [bx+386]      ; ✅ CORRECTO
+    and al, [bx+386]
     not al
     push ax
     
+    ; Byte 3
     mov al, [bx+3]
-    mov dl, [bx+131]      ; ✅ CORRECTO
+    and al, [bx+131]
+    mov dl, [bx+259]
     not dl
     and al, dl
-    and al, [bx+259]      ; ✅ CORRECTO
-    and al, [bx+387]      ; ✅ CORRECTO
+    and al, [bx+387]
     not al
     push ax
     
-    ; PLANO 0 (bit 0)
+    ; ============ DIBUJAR PLANO 0 ============
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1725,61 +1741,61 @@ dsp32_loop_fila:
     
     mov di, bp
     
+    ; Byte 3
     pop ax
     push ax
-    mov cl, al
+    mov cl, al           ; Máscara
+    mov al, [bx+3]       ; Dato
+    and al, cl           ; Aplicar máscara al dato nuevo
     not cl
-    mov ch, es:[di+3]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+3]
-    and al, cl
-    or al, ch
+    mov ch, es:[di+3]    ; Leer dato viejo
+    and ch, cl           ; Aplicar máscara invertida al dato viejo
+    or al, ch            ; Combinar
     mov es:[di+3], al
     
+    ; Byte 2
     pop ax
     pop ax
     push ax
     push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di+2]
-    and ch, cl
     mov cl, al
     mov al, [bx+2]
     and al, cl
+    not cl
+    mov ch, es:[di+2]
+    and ch, cl
     or al, ch
     mov es:[di+2], al
     
+    ; Byte 1
     pop ax
     pop ax
     push ax
     push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di+1]
-    and ch, cl
     mov cl, al
     mov al, [bx+1]
     and al, cl
+    not cl
+    mov ch, es:[di+1]
+    and ch, cl
     or al, ch
     mov es:[di+1], al
     
+    ; Byte 0
     pop ax
     pop ax
     push ax
     push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
     mov cl, al
     mov al, [bx]
     and al, cl
+    not cl
+    mov ch, es:[di]
+    and ch, cl
     or al, ch
     mov es:[di], al
     
-    ; PLANO 1 (bit 1)
+    ; ============ DIBUJAR PLANO 1 ============
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1788,6 +1804,8 @@ dsp32_loop_fila:
     out dx, al
     
     mov di, bp
+    
+    ; Byte 3
     pop ax
     pop ax
     pop ax
@@ -1795,56 +1813,55 @@ dsp32_loop_fila:
     push ax
     push ax
     mov cl, al
+    mov al, [bx+131]
+    and al, cl
     not cl
     mov ch, es:[di+3]
     and ch, cl
-    mov cl, al
-    mov al, [bx+131]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di+3], al
     
+    ; Byte 2
     pop ax
     pop ax
     push ax
     push ax
     mov cl, al
+    mov al, [bx+130]
+    and al, cl
     not cl
     mov ch, es:[di+2]
     and ch, cl
-    mov cl, al
-    mov al, [bx+130]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di+2], al
     
+    ; Byte 1
     pop ax
     pop ax
     push ax
     push ax
     mov cl, al
+    mov al, [bx+129]
+    and al, cl
     not cl
     mov ch, es:[di+1]
     and ch, cl
-    mov cl, al
-    mov al, [bx+129]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di+1], al
     
+    ; Byte 0
     pop ax
     push ax
     mov cl, al
+    mov al, [bx+128]
+    and al, cl
     not cl
     mov ch, es:[di]
     and ch, cl
-    mov cl, al
-    mov al, [bx+128]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di], al
     
-    ; PLANO 2 (bit 2)
+    ; ============ DIBUJAR PLANO 2 ============
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1853,6 +1870,8 @@ dsp32_loop_fila:
     out dx, al
     
     mov di, bp
+    
+    ; Byte 3
     pop ax
     pop ax
     pop ax
@@ -1860,56 +1879,55 @@ dsp32_loop_fila:
     push ax
     push ax
     mov cl, al
+    mov al, [bx+259]
+    and al, cl
     not cl
     mov ch, es:[di+3]
     and ch, cl
-    mov cl, al
-    mov al, [bx+259]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di+3], al
     
+    ; Byte 2
     pop ax
     pop ax
     push ax
     push ax
     mov cl, al
+    mov al, [bx+258]
+    and al, cl
     not cl
     mov ch, es:[di+2]
     and ch, cl
-    mov cl, al
-    mov al, [bx+258]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di+2], al
     
+    ; Byte 1
     pop ax
     pop ax
     push ax
     push ax
     mov cl, al
+    mov al, [bx+257]
+    and al, cl
     not cl
     mov ch, es:[di+1]
     and ch, cl
-    mov cl, al
-    mov al, [bx+257]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di+1], al
     
+    ; Byte 0
     pop ax
     push ax
     mov cl, al
+    mov al, [bx+256]
+    and al, cl
     not cl
     mov ch, es:[di]
     and ch, cl
-    mov cl, al
-    mov al, [bx+256]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di], al
     
-    ; PLANO 3 (bit 3)
+    ; ============ DIBUJAR PLANO 3 ============
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1918,54 +1936,56 @@ dsp32_loop_fila:
     out dx, al
     
     mov di, bp
+    
+    ; Byte 3
     pop ax
     pop ax
     pop ax
     mov cl, al
+    mov al, [bx+387]
+    and al, cl
     not cl
     mov ch, es:[di+3]
     and ch, cl
-    mov cl, al
-    mov al, [bx+387]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di+3], al
     
+    ; Byte 2
     pop ax
     pop ax
     mov cl, al
+    mov al, [bx+386]
+    and al, cl
     not cl
     mov ch, es:[di+2]
     and ch, cl
-    mov cl, al
-    mov al, [bx+386]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di+2], al
     
+    ; Byte 1
     pop ax
     pop ax
     mov cl, al
+    mov al, [bx+385]
+    and al, cl
     not cl
     mov ch, es:[di+1]
     and ch, cl
-    mov cl, al
-    mov al, [bx+385]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di+1], al
     
+    ; Byte 0
     pop ax
     mov cl, al
+    mov al, [bx+384]
+    and al, cl
     not cl
     mov ch, es:[di]
     and ch, cl
-    mov cl, al
-    mov al, [bx+384]      ; ✅ CORRECTO
-    and al, cl
     or al, ch
     mov es:[di], al
     
+    ; Siguiente fila
     pop bp
     add bp, 80
     pop di
@@ -1976,6 +1996,7 @@ dsp32_loop_fila:
     jmp dsp32_loop_fila
 
 dsp32_fin:
+    ; Restaurar registros de video
     mov dx, 3C4h
     mov al, 2
     out dx, al
