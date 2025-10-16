@@ -1301,11 +1301,6 @@ dibujar_jugador_en_offset PROC
     ret
 dibujar_jugador_en_offset ENDP
 
-; ============================================================================
-; SOLUCIÓN DEFINITIVA PARA TRANSPARENCIA DE SPRITES
-; Reemplazar dibujar_sprite_planar_16x16 con esta versión
-; ============================================================================
-
 dibujar_sprite_planar_16x16 PROC
     push ax
     push bx
@@ -1336,12 +1331,11 @@ dsp_loop_fila:
     mov bx, di          ; BX apunta a sprite data
     
     ; ===== CALCULAR MÁSCARAS DE TRANSPARENCIA =====
-    ; Máscara = bits que tienen color (cualquier bit de cualquier plano)
     mov al, [bx]        ; Plano 0, byte 1
     or al, [bx+32]      ; Plano 1, byte 1
     or al, [bx+64]      ; Plano 2, byte 1
     or al, [bx+96]      ; Plano 3, byte 1
-    mov ah, al          ; AH = máscara byte 1
+    mov ah, al          ; AH = máscara byte 1 (1=opaco, 0=transparente)
     
     mov al, [bx+1]      ; Plano 0, byte 2
     or al, [bx+33]      ; Plano 1, byte 2
@@ -1349,63 +1343,72 @@ dsp_loop_fila:
     or al, [bx+97]      ; Plano 3, byte 2
     ; AL = máscara byte 2
     
-    ; Ahora: AH = máscara para byte 1 (1 = opaco, 0 = transparente)
-    ;        AL = máscara para byte 2 (1 = opaco, 0 = transparente)
+    push ax             ; Guardar máscaras en stack
     
-    push ax             ; Guardar máscaras
+    ; ===== PLANO 0 =====
+    ; Configurar Read Map Select para leer del plano 0
+    mov dx, 3CEh
+    mov al, 4           ; Read Map Select register
+    out dx, al
+    inc dx
+    mov al, 0           ; Leer del plano 0
+    out dx, al
     
-    ; ===== DIBUJAR LOS 4 PLANOS =====
-    
-    ; ----- PLANO 0 -----
+    ; Configurar Map Mask para escribir en plano 0
     mov dx, 3C4h
     mov al, 2           ; Map Mask register
     out dx, al
     inc dx
-    mov al, 1           ; Seleccionar plano 0
+    mov al, 1           ; Escribir en plano 0
     out dx, al
     
     pop ax              ; Recuperar máscaras
-    push ax             ; Guardar de nuevo
+    push ax
     
-    mov di, bp          ; DI = offset en video
+    mov di, bp
     
     ; Byte 1
-    mov cl, ah          ; Máscara byte 1
-    not cl              ; Invertir: 0=escribir, 1=preservar
-    mov ch, es:[di]     ; Leer píxel actual
+    mov cl, ah          ; Máscara
+    not cl              ; Invertir para preservar
+    mov ch, es:[di]     ; Leer fondo del plano 0
     and ch, cl          ; Preservar bits transparentes
     mov cl, ah          ; Máscara original
     mov al, [bx]        ; Dato sprite plano 0, byte 1
     and al, cl          ; Solo bits opacos
     or al, ch           ; Combinar
-    mov es:[di], al     ; Escribir
-    
+    mov es:[di], al
     inc di
     
     ; Byte 2
     pop ax
     push ax
-    mov cl, al          ; Máscara byte 2
+    mov cl, al
     not cl
     mov ch, es:[di]
     and ch, cl
     mov cl, al
-    mov al, [bx+1]      ; Dato sprite plano 0, byte 2
+    mov al, [bx+1]
     and al, cl
     or al, ch
     mov es:[di], al
     
-    ; ----- PLANO 1 -----
+    ; ===== PLANO 1 =====
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 1           ; Leer del plano 1
+    out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 2           ; Seleccionar plano 1
+    mov al, 2           ; Escribir en plano 1
     out dx, al
     
     pop ax
     push ax
-    
     mov di, bp
     
     ; Byte 1
@@ -1414,11 +1417,10 @@ dsp_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, ah
-    mov al, [bx+32]     ; Plano 1, byte 1
+    mov al, [bx+32]
     and al, cl
     or al, ch
     mov es:[di], al
-    
     inc di
     
     ; Byte 2
@@ -1429,22 +1431,28 @@ dsp_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, al
-    mov al, [bx+33]     ; Plano 1, byte 2
+    mov al, [bx+33]
     and al, cl
     or al, ch
     mov es:[di], al
     
-    ; ----- PLANO 2 -----
+    ; ===== PLANO 2 =====
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 2           ; Leer del plano 2
+    out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 4           ; Seleccionar plano 2
+    mov al, 4           ; Escribir en plano 2
     out dx, al
     
     pop ax
     push ax
-    
     mov di, bp
     
     ; Byte 1
@@ -1453,11 +1461,10 @@ dsp_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, ah
-    mov al, [bx+64]     ; Plano 2, byte 1
+    mov al, [bx+64]
     and al, cl
     or al, ch
     mov es:[di], al
-    
     inc di
     
     ; Byte 2
@@ -1468,21 +1475,27 @@ dsp_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, al
-    mov al, [bx+65]     ; Plano 2, byte 2
+    mov al, [bx+65]
     and al, cl
     or al, ch
     mov es:[di], al
     
-    ; ----- PLANO 3 -----
+    ; ===== PLANO 3 =====
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 3           ; Leer del plano 3
+    out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 8           ; Seleccionar plano 3
+    mov al, 8           ; Escribir en plano 3
     out dx, al
     
-    pop ax              ; Recuperar máscaras (última vez)
-    
+    pop ax              ; Última vez
     mov di, bp
     
     ; Byte 1
@@ -1491,11 +1504,10 @@ dsp_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, ah
-    mov al, [bx+96]     ; Plano 3, byte 1
+    mov al, [bx+96]
     and al, cl
     or al, ch
     mov es:[di], al
-    
     inc di
     
     ; Byte 2
@@ -1503,16 +1515,16 @@ dsp_loop_fila:
     not cl
     mov ch, es:[di]
     and ch, cl
-    mov al, [bx+97]     ; Plano 3, byte 2
+    mov al, [bx+97]
     and al, cl
     or al, ch
     mov es:[di], al
     
     ; Siguiente fila
     pop bp
-    add bp, 80          ; Siguiente línea en pantalla
+    add bp, 80
     pop di
-    add di, 2           ; Siguiente fila en sprite (2 bytes)
+    add di, 2
     pop cx
     dec cx
     jnz dsp_loop_fila_stub
@@ -1523,12 +1535,19 @@ dsp_loop_fila_stub:
 
 dsp_loop_fila_exit:
     
-    ; Restaurar Map Mask a todos los planos
+    ; Restaurar registros a valores por defecto
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 0Fh
+    mov al, 0Fh         ; Habilitar todos los planos para escritura
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 0           ; Leer del plano 0 por defecto
     out dx, al
     
     pop bp
