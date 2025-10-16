@@ -204,6 +204,7 @@ anim_ok:
 
 bucle_juego:
     call esperar_retrace
+    
     call procesar_movimiento_continuo
     call actualizar_animacion
     call centrar_camara
@@ -219,9 +220,16 @@ render_p0:
     call renderizar_en_pagina_0
     
 cambiar_pagina:
+    call esperar_retrace
+    call esperar_retrace
+    call esperar_retrace
+    
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
+    
+    call esperar_retrace
+    call esperar_retrace
     
     xor pagina_dibujo, 1
     xor pagina_visible, 1
@@ -249,15 +257,16 @@ procesar_movimiento_continuo PROC
     
     mov ah, 1
     int 16h
-    jnz pmc_tecla_disponible
-    jmp pmc_no_tecla
-
-pmc_tecla_disponible:
+    jz pmc_no_tecla
+    
     mov ah, 0
     int 16h
     
+    ; CRÍTICO: Verificar ESC primero
+    cmp ah, 01h
+    je pmc_salir
     cmp al, 27
-    je fin_juego
+    je pmc_salir
     
     mov bl, al
     mov bh, ah
@@ -272,87 +281,57 @@ pmc_usar_scan:
     
 pmc_verificar:
     cmp al, 48h
-    jne pmc_check_w
-    jmp pmc_arriba
-
-pmc_check_w:
+    je pmc_arriba
     cmp al, 'w'
-    jne pmc_check_w_upper
-    jmp pmc_arriba
-
-pmc_check_w_upper:
+    je pmc_arriba
     cmp al, 'W'
-    jne pmc_check_50
-    jmp pmc_arriba
-
-pmc_check_50:
+    je pmc_arriba
+    
     cmp al, 50h
-    jne pmc_check_s
-    jmp pmc_abajo
-
-pmc_check_s:
+    je pmc_abajo
     cmp al, 's'
-    jne pmc_check_s_upper
-    jmp pmc_abajo
-
-pmc_check_s_upper:
+    je pmc_abajo
     cmp al, 'S'
-    jne pmc_check_left_scan
-    jmp pmc_abajo
-
-pmc_check_left_scan:
+    je pmc_abajo
+    
     cmp al, 4Bh
-    jne pmc_check_left_a
-    jmp pmc_izquierda
-
-pmc_check_left_a:
+    je pmc_izquierda
     cmp al, 'a'
-    jne pmc_check_left_a_upper
-    jmp pmc_izquierda
-
-pmc_check_left_a_upper:
+    je pmc_izquierda
     cmp al, 'A'
-    jne pmc_check_right_scan
-    jmp pmc_izquierda
-
-pmc_check_right_scan:
+    je pmc_izquierda
+    
     cmp al, 4Dh
-    jne pmc_check_right_d
-    jmp pmc_derecha
-
-pmc_check_right_d:
+    je pmc_derecha
     cmp al, 'd'
-    jne pmc_check_right_d_upper
-    jmp pmc_derecha
-
-pmc_check_right_d_upper:
+    je pmc_derecha
     cmp al, 'D'
-    jne pmc_default
-    jmp pmc_derecha
-
-pmc_default:
+    je pmc_derecha
+    
     jmp pmc_no_movimiento
+
+pmc_salir:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    jmp fin_juego
 
 pmc_arriba:
     mov jugador_dir, DIR_ARRIBA
     mov ax, jugador_py
     sub ax, VELOCIDAD
     cmp ax, 16
-    jae pmc_arriba_validar
-    jmp pmc_no_movimiento
-
-pmc_arriba_validar:
-    ; Verificar la parte central del sprite (los pies están abajo)
+    jb pmc_no_movimiento
+    
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
-    sub dx, 8           ; NUEVO: Verificar más arriba por el sprite de 32 píxeles
+    sub dx, 8
     shr dx, 4
     call verificar_tile_transitable
-    jc pmc_arriba_pasable
-    jmp pmc_no_movimiento
-
-pmc_arriba_pasable:
+    jnc pmc_no_movimiento
+    
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -362,20 +341,15 @@ pmc_abajo:
     mov ax, jugador_py
     add ax, VELOCIDAD
     cmp ax, 784
-    jbe pmc_abajo_validar
-    jmp pmc_no_movimiento
-
-pmc_abajo_validar:
-    ; Los pies del jugador
+    ja pmc_no_movimiento
+    
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jc pmc_abajo_pasable
-    jmp pmc_no_movimiento
-
-pmc_abajo_pasable:
+    jnc pmc_no_movimiento
+    
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -385,20 +359,16 @@ pmc_izquierda:
     mov ax, jugador_px
     sub ax, VELOCIDAD
     cmp ax, 16
-    jae pmc_izquierda_validar
-    jmp pmc_no_movimiento
-
-pmc_izquierda_validar:
+    jb pmc_no_movimiento
+    
     mov cx, ax
-    sub cx, 8           ; NUEVO: Verificar el lado izquierdo del sprite
+    sub cx, 8
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jc pmc_izquierda_pasable
-    jmp pmc_no_movimiento
-
-pmc_izquierda_pasable:
+    jnc pmc_no_movimiento
+    
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -408,20 +378,16 @@ pmc_derecha:
     mov ax, jugador_px
     add ax, VELOCIDAD
     cmp ax, 784
-    jbe pmc_derecha_validar
-    jmp pmc_no_movimiento
-
-pmc_derecha_validar:
+    ja pmc_no_movimiento
+    
     mov cx, ax
-    add cx, 8           ; NUEVO: Verificar el lado derecho del sprite
+    add cx, 8
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jc pmc_derecha_pasable
-    jmp pmc_no_movimiento
-
-pmc_derecha_pasable:
+    jnc pmc_no_movimiento
+    
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -1358,24 +1324,34 @@ dibujar_jugador_en_offset PROC
     push dx
     push si
     
-    ; El jugador es 32x32, queremos que su posición sea su centro inferior (pies)
     mov ax, jugador_px
-    sub ax, 16          ; CAMBIO: Centrar horizontalmente (32/2 = 16)
+    sub ax, 16
     sub ax, camara_px
     add ax, viewport_x
     mov cx, ax
     
+    cmp cx, -32
+    jl djeo_fin
+    cmp cx, 640
+    jg djeo_fin
+    
     mov ax, jugador_py
-    sub ax, 24          ; CAMBIO: Ajustar para que los pies estén en jugador_py
-    sub ax, camara_py   ; (dejar espacio para la parte superior del sprite)
+    sub ax, 32
+    sub ax, camara_py
     add ax, viewport_y
     mov dx, ax
+    
+    cmp dx, -32
+    jl djeo_fin
+    cmp dx, 350
+    jg djeo_fin
     
     call obtener_sprite_jugador
     mov di, si
     
     call dibujar_sprite_planar_32x32
     
+djeo_fin:
     pop si
     pop dx
     pop cx
@@ -1392,7 +1368,6 @@ dibujar_sprite_planar_16x16 PROC
     push di
     push bp
     
-    ; Calcular offset en video memory
     mov ax, dx
     mov bx, 80
     mul bx
@@ -1403,74 +1378,64 @@ dibujar_sprite_planar_16x16 PROC
     shr ax, 3
     add bp, ax
     
-    mov cx, 16          ; 16 filas
+    mov cx, 16
 
 dsp_loop_fila:
     push cx
     push di
     push bp
     
-    mov bx, di          ; BX apunta a sprite data
+    mov bx, di
     
-    ; ===== CALCULAR MÁSCARAS (MAGENTA D = 1101 = TRANSPARENTE) =====
-    ; D = P0 AND (NOT P1) AND P2 AND P3
-    ; Resultado: 1=opaco, 0=transparente
+    mov al, [bx]
+    mov dl, [bx+32]
+    not dl
+    and al, dl
+    and al, [bx+64]
+    and al, [bx+96]
+    not al
+    mov ah, al
     
-    ; Byte 1
-    mov al, [bx]        ; Plano 0, byte 1
-    mov dl, [bx+32]     ; Plano 1, byte 1
-    not dl              ; NOT Plano 1
-    and al, dl          ; P0 AND (NOT P1)
-    and al, [bx+64]     ; AND Plano 2
-    and al, [bx+96]     ; AND Plano 3
-    not al              ; Invertir: 1=opaco, 0=transparente
-    mov ah, al          ; AH = máscara byte 1
+    mov al, [bx+1]
+    mov dl, [bx+33]
+    not dl
+    and al, dl
+    and al, [bx+65]
+    and al, [bx+97]
+    not al
     
-    ; Byte 2
-    mov al, [bx+1]      ; Plano 0, byte 2
-    mov dl, [bx+33]     ; Plano 1, byte 2
-    not dl              ; NOT Plano 1
-    and al, dl          ; P0 AND (NOT P1)
-    and al, [bx+65]     ; AND Plano 2
-    and al, [bx+97]     ; AND Plano 3
-    not al              ; Invertir: 1=opaco, 0=transparente
-    ; AL = máscara byte 2
+    push ax
     
-    push ax             ; Guardar máscaras en stack
-    
-    ; ===== PLANO 0 =====
     mov dx, 3CEh
-    mov al, 4           ; Read Map Select register
+    mov al, 4
     out dx, al
     inc dx
-    mov al, 0           ; Leer del plano 0
+    mov al, 0
     out dx, al
     
     mov dx, 3C4h
-    mov al, 2           ; Map Mask register
+    mov al, 2
     out dx, al
     inc dx
-    mov al, 1           ; Escribir en plano 0
+    mov al, 1
     out dx, al
     
-    pop ax              ; Recuperar máscaras
+    pop ax
     push ax
     
     mov di, bp
     
-    ; Byte 1
-    mov cl, ah          ; Máscara
-    not cl              ; Invertir para preservar
-    mov ch, es:[di]     ; Leer fondo del plano 0
-    and ch, cl          ; Preservar bits transparentes
-    mov cl, ah          ; Máscara original
-    mov al, [bx]        ; Dato sprite plano 0, byte 1
-    and al, cl          ; Solo bits opacos
-    or al, ch           ; Combinar
+    mov cl, ah
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, ah
+    mov al, [bx]
+    and al, cl
+    or al, ch
     mov es:[di], al
     inc di
     
-    ; Byte 2
     pop ax
     push ax
     mov cl, al
@@ -1483,26 +1448,24 @@ dsp_loop_fila:
     or al, ch
     mov es:[di], al
     
-    ; ===== PLANO 1 =====
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    mov al, 1           ; Leer del plano 1
+    mov al, 1
     out dx, al
     
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 2           ; Escribir en plano 1
+    mov al, 2
     out dx, al
     
     pop ax
     push ax
     mov di, bp
     
-    ; Byte 1
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1514,7 +1477,6 @@ dsp_loop_fila:
     mov es:[di], al
     inc di
     
-    ; Byte 2
     pop ax
     push ax
     mov cl, al
@@ -1527,26 +1489,24 @@ dsp_loop_fila:
     or al, ch
     mov es:[di], al
     
-    ; ===== PLANO 2 =====
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    mov al, 2           ; Leer del plano 2
+    mov al, 2
     out dx, al
     
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 4           ; Escribir en plano 2
+    mov al, 4
     out dx, al
     
     pop ax
     push ax
     mov di, bp
     
-    ; Byte 1
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1558,7 +1518,6 @@ dsp_loop_fila:
     mov es:[di], al
     inc di
     
-    ; Byte 2
     pop ax
     push ax
     mov cl, al
@@ -1571,25 +1530,23 @@ dsp_loop_fila:
     or al, ch
     mov es:[di], al
     
-    ; ===== PLANO 3 =====
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    mov al, 3           ; Leer del plano 3
+    mov al, 3
     out dx, al
     
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 8           ; Escribir en plano 3
+    mov al, 8
     out dx, al
     
-    pop ax              ; Última vez
+    pop ax
     mov di, bp
     
-    ; Byte 1
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1601,7 +1558,6 @@ dsp_loop_fila:
     mov es:[di], al
     inc di
     
-    ; Byte 2
     mov cl, al
     not cl
     mov ch, es:[di]
@@ -1611,7 +1567,6 @@ dsp_loop_fila:
     or al, ch
     mov es:[di], al
     
-    ; Siguiente fila
     pop bp
     add bp, 80
     pop di
@@ -1626,19 +1581,32 @@ dsp_loop_fila_stub:
 
 dsp_loop_fila_exit:
     
-    ; Restaurar registros a valores por defecto
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 0Fh         ; Habilitar todos los planos para escritura
+    mov al, 0Fh
     out dx, al
     
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    mov al, 0           ; Leer del plano 0 por defecto
+    mov al, 0
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 5
+    out dx, al
+    inc dx
+    mov al, 0
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 3
+    out dx, al
+    inc dx
+    mov al, 0
     out dx, al
     
     pop bp
@@ -1660,7 +1628,6 @@ dibujar_sprite_planar_32x32 PROC
     push di
     push bp
     
-    ; Calcular offset en video memory
     mov ax, dx
     mov bx, 80
     mul bx
@@ -1671,7 +1638,7 @@ dibujar_sprite_planar_32x32 PROC
     shr ax, 3
     add bp, ax
     
-    mov cx, 32          ; 32 filas
+    mov cx, 32
 
 dsp32_loop_fila:
     push cx
@@ -1680,56 +1647,41 @@ dsp32_loop_fila:
     
     mov bx, di
     
-    ; ===== CALCULAR MÁSCARAS (MAGENTA D = 1101 = TRANSPARENTE) =====
-    ; D = P0 AND (NOT P1) AND P2 AND P3
+    mov al, [bx]
+    mov dl, [bx+64]
+    not dl
+    and al, dl
+    and al, [bx+128]
+    and al, [bx+192]
+    not al
+    push ax
     
-    ; Byte 1
-    mov al, [bx]        ; Plano 0, byte 1
-    mov dl, [bx+64]     ; Plano 1, byte 1
-    not dl              ; NOT Plano 1
-    and al, dl          ; P0 AND (NOT P1)
-    and al, [bx+128]    ; AND Plano 2
-    and al, [bx+192]    ; AND Plano 3
-    not al              ; Invertir: 1=opaco, 0=transparente
-    push ax             ; Guardar máscara byte 1
+    mov al, [bx+1]
+    mov dl, [bx+65]
+    not dl
+    and al, dl
+    and al, [bx+129]
+    and al, [bx+193]
+    not al
+    push ax
     
-    ; Byte 2
-    mov al, [bx+1]      ; Plano 0, byte 2
-    mov dl, [bx+65]     ; Plano 1, byte 2
-    not dl              ; NOT Plano 1
-    and al, dl          ; P0 AND (NOT P1)
-    and al, [bx+129]    ; AND Plano 2
-    and al, [bx+193]    ; AND Plano 3
-    not al              ; Invertir: 1=opaco, 0=transparente
-    push ax             ; Guardar máscara byte 2
+    mov al, [bx+2]
+    mov dl, [bx+66]
+    not dl
+    and al, dl
+    and al, [bx+130]
+    and al, [bx+194]
+    not al
+    push ax
     
-    ; Byte 3
-    mov al, [bx+2]      ; Plano 0, byte 3
-    mov dl, [bx+66]     ; Plano 1, byte 3
-    not dl              ; NOT Plano 1
-    and al, dl          ; P0 AND (NOT P1)
-    and al, [bx+130]    ; AND Plano 2
-    and al, [bx+194]    ; AND Plano 3
-    not al              ; Invertir: 1=opaco, 0=transparente
-    push ax             ; Guardar máscara byte 3
-    
-    ; Byte 4
-    mov al, [bx+3]      ; Plano 0, byte 4
-    mov dl, [bx+67]     ; Plano 1, byte 4
-    not dl              ; NOT Plano 1
-    and al, dl          ; P0 AND (NOT P1)
-    and al, [bx+131]    ; AND Plano 2
-    and al, [bx+195]    ; AND Plano 3
-    not al              ; Invertir: 1=opaco, 0=transparente
-    push ax             ; Guardar máscara byte 4
-    
-    ; ===== PLANO 0 =====
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 0
-    out dx, al
+    mov al, [bx+3]
+    mov dl, [bx+67]
+    not dl
+    and al, dl
+    and al, [bx+131]
+    and al, [bx+195]
+    not al
+    push ax
     
     mov dx, 3C4h
     mov al, 2
@@ -1740,8 +1692,49 @@ dsp32_loop_fila:
     
     mov di, bp
     
-    ; Byte 1
     pop ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+3]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+3]
+    and al, cl
+    or al, ch
+    mov es:[di+3], al
+    
+    pop ax
+    pop ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+2]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+2]
+    and al, cl
+    or al, ch
+    mov es:[di+2], al
+    
+    pop ax
+    pop ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+1]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+1]
+    and al, cl
+    or al, ch
+    mov es:[di+1], al
+    
+    pop ax
+    pop ax
+    push ax
     push ax
     mov cl, al
     not cl
@@ -1752,62 +1745,6 @@ dsp32_loop_fila:
     and al, cl
     or al, ch
     mov es:[di], al
-    inc di
-    
-    ; Byte 2
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+1]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    ; Byte 3
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+2]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    ; Byte 4
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+3]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    
-    ; ===== PLANO 1 =====
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 1
-    out dx, al
     
     mov dx, 3C4h
     mov al, 2
@@ -1817,12 +1754,51 @@ dsp32_loop_fila:
     out dx, al
     
     mov di, bp
+    pop ax
+    pop ax
+    pop ax
+    push ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+3]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+67]
+    and al, cl
+    or al, ch
+    mov es:[di+3], al
     
     pop ax
     pop ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+2]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+66]
+    and al, cl
+    or al, ch
+    mov es:[di+2], al
+    
+    pop ax
     pop ax
     push ax
     push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+1]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+65]
+    and al, cl
+    or al, ch
+    mov es:[di+1], al
+    
+    pop ax
     push ax
     mov cl, al
     not cl
@@ -1833,57 +1809,6 @@ dsp32_loop_fila:
     and al, cl
     or al, ch
     mov es:[di], al
-    inc di
-    
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+65]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+66]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    pop ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+67]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    
-    ; ===== PLANO 2 =====
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
     
     mov dx, 3C4h
     mov al, 2
@@ -1893,12 +1818,51 @@ dsp32_loop_fila:
     out dx, al
     
     mov di, bp
+    pop ax
+    pop ax
+    pop ax
+    push ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+3]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+131]
+    and al, cl
+    or al, ch
+    mov es:[di+3], al
     
     pop ax
     pop ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+2]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+130]
+    and al, cl
+    or al, ch
+    mov es:[di+2], al
+    
+    pop ax
     pop ax
     push ax
     push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+1]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+129]
+    and al, cl
+    or al, ch
+    mov es:[di+1], al
+    
+    pop ax
     push ax
     mov cl, al
     not cl
@@ -1909,57 +1873,6 @@ dsp32_loop_fila:
     and al, cl
     or al, ch
     mov es:[di], al
-    inc di
-    
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+129]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+130]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    pop ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+131]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    
-    ; ===== PLANO 3 =====
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 3
-    out dx, al
     
     mov dx, 3C4h
     mov al, 2
@@ -1969,9 +1882,43 @@ dsp32_loop_fila:
     out dx, al
     
     mov di, bp
+    pop ax
+    pop ax
+    pop ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+3]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+195]
+    and al, cl
+    or al, ch
+    mov es:[di+3], al
     
     pop ax
     pop ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+2]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+194]
+    and al, cl
+    or al, ch
+    mov es:[di+2], al
+    
+    pop ax
+    pop ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+1]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+193]
+    and al, cl
+    or al, ch
+    mov es:[di+1], al
+    
     pop ax
     mov cl, al
     not cl
@@ -1982,57 +1929,17 @@ dsp32_loop_fila:
     and al, cl
     or al, ch
     mov es:[di], al
-    inc di
     
-    pop ax
-    pop ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+193]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    pop ax
-    pop ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+194]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    pop ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+195]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    
-    ; Siguiente fila
     pop bp
     add bp, 80
     pop di
-    add di, 4           ; 4 bytes por fila (32 píxeles)
+    add di, 4
     pop cx
     dec cx
     jz dsp32_fin
     jmp dsp32_loop_fila
 
 dsp32_fin:
-    ; Restaurar registros
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -2042,6 +1949,20 @@ dsp32_fin:
     
     mov dx, 3CEh
     mov al, 4
+    out dx, al
+    inc dx
+    mov al, 0
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 5
+    out dx, al
+    inc dx
+    mov al, 0
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 3
     out dx, al
     inc dx
     mov al, 0
