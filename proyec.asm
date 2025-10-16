@@ -48,9 +48,9 @@ arquivo_player_up_b    db 'SPRITES\PLAYER\UP2.TXT',0
 archivo_player_down_a  db 'SPRITES\PLAYER\DOWN1.TXT',0
 archivo_player_down_b  db 'SPRITES\PLAYER\DOWN2.TXT',0
 archivo_player_izq_a   db 'SPRITES\PLAYER\LEFT1.TXT',0
-arquivo_player_izq_b   db 'SPRITES\PLAYER\LEFT2.TXT',0
+archivo_player_izq_b   db 'SPRITES\PLAYER\LEFT2.TXT',0
 archivo_player_der_a   db 'SPRITES\PLAYER\RIGHT1.TXT',0
-arquivo_player_der_b   db 'SPRITES\PLAYER\RIGHT2.TXT',0
+archivo_player_der_b   db 'SPRITES\PLAYER\RIGHT2.TXT',0
 
 mapa_datos  db 2500 dup(0)
 
@@ -102,6 +102,10 @@ jugador_px  dw 400
 jugador_py  dw 400
 jugador_dir db DIR_ABAJO
 jugador_frame db 0
+
+jugador_px_old  dw 400
+jugador_py_old  dw 400
+frame_old       db 0
 
 moviendo db 0
 pasos_dados db 0
@@ -203,33 +207,54 @@ anim_ok:
     int 10h
 
 bucle_juego:
-    call esperar_retrace
-    
+    ; Procesar input y actualizar estado
     call procesar_movimiento_continuo
     call actualizar_animacion
     call centrar_camara
     
+    ; *** OPTIMIZACIÓN: Verificar si algo cambió ***
+    mov ax, jugador_px
+    cmp ax, jugador_px_old
+    jne bg_hay_cambio
+    
+    mov ax, jugador_py
+    cmp ax, jugador_py_old
+    jne bg_hay_cambio
+    
+    mov al, jugador_frame
+    cmp al, frame_old
+    jne bg_hay_cambio
+
+    call esperar_retrace
+    jmp bucle_juego
+bg_hay_cambio:
+    ; *** Algo cambió, guardar nuevo estado ***
+    mov ax, jugador_px
+    mov jugador_px_old, ax
+    
+    mov ax, jugador_py
+    mov jugador_py_old, ax
+    
+    mov al, jugador_frame
+    mov frame_old, al
+     call esperar_retrace
+    
+    ; *** Renderizar normalmente (igual que antes) ***
     mov al, pagina_dibujo
     test al, 1
-    jz render_p0
+    jz bg_render_p0
     
     call renderizar_en_pagina_1
-    jmp cambiar_pagina
+    jmp bg_cambiar_pagina
     
-render_p0:
+bg_render_p0:
     call renderizar_en_pagina_0
     
-cambiar_pagina:
-    call esperar_retrace
-    call esperar_retrace
-    call esperar_retrace
-    
+bg_cambiar_pagina:
+    ; Cambiar página visible (sin esperar retrace adicional)
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
-    
-    call esperar_retrace
-    call esperar_retrace
     
     xor pagina_dibujo, 1
     xor pagina_visible, 1
@@ -450,7 +475,7 @@ actualizar_animacion PROC
     
     inc pasos_dados
     mov al, pasos_dados
-    cmp al, 8
+    cmp al, 4
     jb aa_fin
     
     mov pasos_dados, 0
@@ -475,8 +500,6 @@ cc_x_pos:
     jle cc_x_ok
     mov ax, 480
 cc_x_ok:
-    ; Alinear a 16 píxeles
-    and ax, 0FFF0h
     mov camara_px, ax
     
     mov ax, jugador_py
@@ -488,8 +511,6 @@ cc_y_pos:
     jle cc_y_ok
     mov ax, 608
 cc_y_ok:
-    ; Alinear a 16 píxeles
-    and ax, 0FFF0h
     mov camara_py, ax
     
     pop bx
@@ -1041,7 +1062,7 @@ caj_load_left_a:
     jmp caj_error
 
 caj_load_left_b:
-    mov dx, OFFSET arquivo_player_izq_b
+    mov dx, OFFSET archivo_player_izq_b
     mov di, OFFSET jugador_izq_b_temp
     call cargar_sprite_32x32        ; CAMBIO AQUÍ
     jnc caj_load_right_a
@@ -1055,7 +1076,7 @@ caj_load_right_a:
     jmp caj_error
 
 caj_load_right_b:
-    mov dx, OFFSET arquivo_player_der_b
+    mov dx, OFFSET archivo_player_der_b
     mov di, OFFSET jugador_der_b_temp
     call cargar_sprite_32x32        ; CAMBIO AQUÍ
     jnc caj_success
@@ -1695,7 +1716,7 @@ dsp32_fila:
 
     mov bx, si
     mov di, bp
-    call dsp32_escribir_planos
+    call dsp32_escribir_planos_transparente
 
     pop bp
     add bp, 80          ; Siguiente línea en video
@@ -1722,93 +1743,216 @@ dsp32_fila:
     ret
 dibujar_sprite_planar_32x32 ENDP
 
-dsp32_escribir_planos PROC NEAR
+; ============================================================================
+; NUEVA RUTINA: Escribir planos con transparencia para color D
+; Color D (13 decimal = 1101 binario) = Bit0=1, Bit1=0, Bit2=1, Bit3=1
+; ============================================================================
+dsp32_escribir_planos_transparente PROC NEAR
     push ax
+    push cx
     push dx
     push si
-
-    mov si, di          ; Guardar base del destino
-
-    ; ========== PLANO 0 ==========
+    push bp
+    
+    mov si, di              ; SI = destino en video
+    mov bp, bx              ; BP = origen en sprite
+    
+    ; ========== PLANO 0 (Bit 0) ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 1
     out dx, al
-
+    
     mov di, si
-    mov al, [bx]
-    mov es:[di], al
-    mov al, [bx+1]
-    mov es:[di+1], al
-    mov al, [bx+2]
-    mov es:[di+2], al
-    mov al, [bx+3]
-    mov es:[di+3], al
-
-    ; ========== PLANO 1 ==========
+    mov bx, bp
+    mov cx, 4               ; 4 bytes por fila
+dsp32_p0_loop:
+    call escribir_byte_transparente
+    inc bx
+    inc di
+    loop dsp32_p0_loop
+    
+    ; ========== PLANO 1 (Bit 1) ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 2
     out dx, al
-
+    
     mov di, si
+    mov bx, bp
     add bx, 128
-    mov al, [bx]
-    mov es:[di], al
-    mov al, [bx+1]
-    mov es:[di+1], al
-    mov al, [bx+2]
-    mov es:[di+2], al
-    mov al, [bx+3]
-    mov es:[di+3], al
-
-    ; ========== PLANO 2 ==========
+    mov cx, 4
+dsp32_p1_loop:
+    call escribir_byte_transparente
+    inc bx
+    inc di
+    loop dsp32_p1_loop
+    
+    ; ========== PLANO 2 (Bit 2) ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 4
     out dx, al
-
+    
     mov di, si
-    add bx, 128
-    mov al, [bx]
-    mov es:[di], al
-    mov al, [bx+1]
-    mov es:[di+1], al
-    mov al, [bx+2]
-    mov es:[di+2], al
-    mov al, [bx+3]
-    mov es:[di+3], al
-
-    ; ========== PLANO 3 ==========
+    mov bx, bp
+    add bx, 256
+    mov cx, 4
+dsp32_p2_loop:
+    call escribir_byte_transparente
+    inc bx
+    inc di
+    loop dsp32_p2_loop
+    
+    ; ========== PLANO 3 (Bit 3) ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 8
     out dx, al
-
+    
     mov di, si
-    add bx, 128
-    mov al, [bx]
-    mov es:[di], al
-    mov al, [bx+1]
-    mov es:[di+1], al
-    mov al, [bx+2]
-    mov es:[di+2], al
-    mov al, [bx+3]
-    mov es:[di+3], al
-
+    mov bx, bp
+    add bx, 384
+    mov cx, 4
+dsp32_p3_loop:
+    call escribir_byte_transparente
+    inc bx
+    inc di
+    loop dsp32_p3_loop
+    
+    pop bp
     pop si
     pop dx
+    pop cx
     pop ax
     ret
-dsp32_escribir_planos ENDP
+dsp32_escribir_planos_transparente ENDP
+
+; ============================================================================
+; RUTINA: Escribir un byte con transparencia
+; Entrada: BX = offset actual en sprite, DI = offset en video, BP = base sprite
+; Detecta color D (1101b) y solo dibuja píxeles no transparentes
+; ============================================================================
+escribir_byte_transparente PROC NEAR
+    push ax
+    push cx
+    push dx
+    push si
+    
+    ; Calcular offset relativo desde base del sprite
+    mov si, bx
+    sub si, bp
+    and si, 3             ; SI = número de byte (0-3)
+    
+    ; ✅ NUEVA ESTRATEGIA: Construir máscara de transparencia
+    ; Color D (13 = 1101b) debe ser transparente (0 en máscara)
+    ; Cualquier otro color debe ser visible (1 en máscara)
+    
+    ; Leer los 4 planos del byte actual
+    mov al, [bp + si]           ; AL = Plano 0
+    mov cl, [bp + si + 128]     ; CL = Plano 1
+    mov ch, [bp + si + 256]     ; CH = Plano 2
+    mov ah, [bp + si + 384]     ; AH = Plano 3
+    
+    ; ✅ CONSTRUIR MÁSCARA BIT POR BIT
+    push bx
+    push di
+    
+    xor bh, bh          ; BH = máscara resultado
+    mov bl, 8           ; Contador de bits (8 píxeles por byte)
+    
+ebt_loop_bits:
+    ; ✅ EXTRAER BIT MÁS SIGNIFICATIVO DE CADA PLANO
+    mov dl, 0           ; DL = bit de P0
+    test al, 80h
+    jz ebt_p0_done
+    mov dl, 1
+ebt_p0_done:
+    
+    mov dh, 0           ; DH = bit de P1
+    test cl, 80h
+    jz ebt_p1_done
+    mov dh, 1
+ebt_p1_done:
+    
+    push ax
+    xor al, al          ; Reutilizar AL para P2
+    test ch, 80h
+    jz ebt_p2_done
+    mov al, 1
+ebt_p2_done:
+    
+    push cx
+    xor cl, cl          ; Reutilizar CL para P3
+    test ah, 80h
+    jz ebt_p3_done
+    mov cl, 1
+ebt_p3_done:
+    
+    ; ✅ VERIFICAR SI EL PÍXEL ES COLOR D (P0=1, P1=0, P2=1, P3=1)
+    cmp dl, 1           ; P0 == 1 ?
+    jne ebt_no_es_D
+    cmp dh, 0           ; P1 == 0 ?
+    jne ebt_no_es_D
+    cmp al, 1           ; P2 == 1 ?
+    jne ebt_no_es_D
+    cmp cl, 1           ; P3 == 1 ?
+    jne ebt_no_es_D
+    
+    ; ✅ ES COLOR D → BIT TRANSPARENTE (dejar en 0)
+    pop cx
+    pop ax
+    shl bh, 1           ; Desplazar e insertar 0
+    jmp ebt_siguiente_bit
+    
+ebt_no_es_D:
+    ; ✅ NO ES COLOR D → BIT VISIBLE (poner en 1)
+    pop cx
+    pop ax
+    shl bh, 1           ; Desplazar
+    or bh, 1            ; Insertar 1
+    
+ebt_siguiente_bit:
+    ; Desplazar todos los planos para siguiente píxel
+    shl al, 1           ; P0
+    shl cl, 1           ; P1
+    shl ch, 1           ; P2
+    shl ah, 1           ; P3
+    
+    dec bl
+    jnz ebt_loop_bits
+    
+    ; ✅ BH = máscara completa (1=visible, 0=transparente)
+    
+    pop di
+    pop bx
+    
+    ; ✅ APLICAR MÁSCARA AL DATO Y ESCRIBIR
+    mov al, [bx]        ; Leer dato del plano actual
+    and al, bh          ; Mantener solo píxeles visibles
+    
+    mov cl, bh
+    not cl              ; Invertir máscara
+    mov ch, es:[di]     ; Leer contenido actual de pantalla
+    and ch, cl          ; Mantener píxeles que NO vamos a sobrescribir
+    
+    or al, ch           ; Combinar dato nuevo con fondo
+    mov es:[di], al     ; Escribir resultado
+    
+    pop si
+    pop dx
+    pop cx
+    pop ax
+    ret
+escribir_byte_transparente ENDP
 
 esperar_retrace PROC
     push ax
@@ -1816,11 +1960,13 @@ esperar_retrace PROC
     
     mov dx, 3DAh
     
-er_wait_end:
+    ; Esperar hasta que NO esté en retrace (evita empezar a mitad)
+er_wait_not_retrace:
     in al, dx
     test al, 8
-    jnz er_wait_end
+    jnz er_wait_not_retrace
     
+    ; Ahora esperar hasta que EMPIECE el retrace
 er_wait_start:
     in al, dx
     test al, 8
