@@ -1657,6 +1657,11 @@ dsp_loop_fila_exit:
     ret
 dibujar_sprite_planar_16x16 ENDP
 
+; ============================================================================
+; VERSIÓN MÁS SIMPLE - dibujar_sprite_planar_32x32
+; Estrategia: Escribir todo sin transparencia primero, es más rápido
+; ============================================================================
+
 dibujar_sprite_planar_32x32 PROC
     push ax
     push bx
@@ -1671,131 +1676,44 @@ dibujar_sprite_planar_32x32 PROC
     mov bx, 80
     mul bx
     add ax, temp_offset
-    mov bp, ax
+    mov bp, ax          ; BP = inicio de línea en video
     
     mov ax, cx
     shr ax, 3
-    add bp, ax
+    add bp, ax          ; BP = posición exacta en video
     
+    ; SI = puntero al sprite
+    mov si, di
+    
+    ; Procesar 32 filas
     mov cx, 32
 
-dsp32_loop_fila:
+dsp32_fila:
     push cx
-    push di
+    push si
     push bp
     
-    mov bx, di
-    
-    ; ✅ CREAR MÁSCARAS DE TRANSPARENCIA SIMPLES
-    ; Color D (13 = 1101b) debe ser transparente
-    ; Máscara = 0xFF donde hay que dibujar, 0x00 donde es transparente
-    
-    ; Byte 0: Detectar transparencia
-    mov al, [bx]          ; Plano 0
-    and al, [bx+128]      ; AND Plano 1
-    mov dl, [bx+256]      ; Plano 2
-    not dl
-    and al, dl            ; AND NOT Plano 2
-    and al, [bx+384]      ; AND Plano 3
-    ; AL ahora tiene 0xFF donde hay color D
-    not al                ; Invertir: 0x00 = transparente, 0xFF = opaco
-    push ax
-    
-    ; Byte 1
-    mov al, [bx+1]
-    and al, [bx+129]
-    mov dl, [bx+257]
-    not dl
-    and al, dl
-    and al, [bx+385]
-    not al
-    push ax
-    
-    ; Byte 2
-    mov al, [bx+2]
-    and al, [bx+130]
-    mov dl, [bx+258]
-    not dl
-    and al, dl
-    and al, [bx+386]
-    not al
-    push ax
-    
-    ; Byte 3
-    mov al, [bx+3]
-    and al, [bx+131]
-    mov dl, [bx+259]
-    not dl
-    and al, dl
-    and al, [bx+387]
-    not al
-    push ax
-    
-    ; ============ DIBUJAR PLANO 0 ============
+    ; ========== PLANO 0 ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 1
+    mov al, 1           ; Habilitar solo plano 0
     out dx, al
     
     mov di, bp
+    mov bx, si
     
-    ; Byte 3
-    pop ax
-    push ax
-    mov cl, al           ; Máscara
-    mov al, [bx+3]       ; Dato
-    and al, cl           ; Aplicar máscara al dato nuevo
-    not cl
-    mov ch, es:[di+3]    ; Leer dato viejo
-    and ch, cl           ; Aplicar máscara invertida al dato viejo
-    or al, ch            ; Combinar
-    mov es:[di+3], al
-    
-    ; Byte 2
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    mov al, [bx+2]
-    and al, cl
-    not cl
-    mov ch, es:[di+2]
-    and ch, cl
-    or al, ch
-    mov es:[di+2], al
-    
-    ; Byte 1
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    mov al, [bx+1]
-    and al, cl
-    not cl
-    mov ch, es:[di+1]
-    and ch, cl
-    or al, ch
-    mov es:[di+1], al
-    
-    ; Byte 0
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
     mov al, [bx]
-    and al, cl
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    or al, ch
     mov es:[di], al
+    mov al, [bx+1]
+    mov es:[di+1], al
+    mov al, [bx+2]
+    mov es:[di+2], al
+    mov al, [bx+3]
+    mov es:[di+3], al
     
-    ; ============ DIBUJAR PLANO 1 ============
+    ; ========== PLANO 1 ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1804,64 +1722,18 @@ dsp32_loop_fila:
     out dx, al
     
     mov di, bp
+    add bx, 128
     
-    ; Byte 3
-    pop ax
-    pop ax
-    pop ax
-    push ax
-    push ax
-    push ax
-    mov cl, al
-    mov al, [bx+131]
-    and al, cl
-    not cl
-    mov ch, es:[di+3]
-    and ch, cl
-    or al, ch
+    mov al, [bx]
+    mov es:[di], al
+    mov al, [bx+1]
+    mov es:[di+1], al
+    mov al, [bx+2]
+    mov es:[di+2], al
+    mov al, [bx+3]
     mov es:[di+3], al
     
-    ; Byte 2
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    mov al, [bx+130]
-    and al, cl
-    not cl
-    mov ch, es:[di+2]
-    and ch, cl
-    or al, ch
-    mov es:[di+2], al
-    
-    ; Byte 1
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    mov al, [bx+129]
-    and al, cl
-    not cl
-    mov ch, es:[di+1]
-    and ch, cl
-    or al, ch
-    mov es:[di+1], al
-    
-    ; Byte 0
-    pop ax
-    push ax
-    mov cl, al
-    mov al, [bx+128]
-    and al, cl
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    or al, ch
-    mov es:[di], al
-    
-    ; ============ DIBUJAR PLANO 2 ============
+    ; ========== PLANO 2 ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1870,64 +1742,18 @@ dsp32_loop_fila:
     out dx, al
     
     mov di, bp
+    add bx, 128
     
-    ; Byte 3
-    pop ax
-    pop ax
-    pop ax
-    push ax
-    push ax
-    push ax
-    mov cl, al
-    mov al, [bx+259]
-    and al, cl
-    not cl
-    mov ch, es:[di+3]
-    and ch, cl
-    or al, ch
+    mov al, [bx]
+    mov es:[di], al
+    mov al, [bx+1]
+    mov es:[di+1], al
+    mov al, [bx+2]
+    mov es:[di+2], al
+    mov al, [bx+3]
     mov es:[di+3], al
     
-    ; Byte 2
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    mov al, [bx+258]
-    and al, cl
-    not cl
-    mov ch, es:[di+2]
-    and ch, cl
-    or al, ch
-    mov es:[di+2], al
-    
-    ; Byte 1
-    pop ax
-    pop ax
-    push ax
-    push ax
-    mov cl, al
-    mov al, [bx+257]
-    and al, cl
-    not cl
-    mov ch, es:[di+1]
-    and ch, cl
-    or al, ch
-    mov es:[di+1], al
-    
-    ; Byte 0
-    pop ax
-    push ax
-    mov cl, al
-    mov al, [bx+256]
-    and al, cl
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    or al, ch
-    mov es:[di], al
-    
-    ; ============ DIBUJAR PLANO 3 ============
+    ; ========== PLANO 3 ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1936,93 +1762,31 @@ dsp32_loop_fila:
     out dx, al
     
     mov di, bp
+    add bx, 128
     
-    ; Byte 3
-    pop ax
-    pop ax
-    pop ax
-    mov cl, al
-    mov al, [bx+387]
-    and al, cl
-    not cl
-    mov ch, es:[di+3]
-    and ch, cl
-    or al, ch
-    mov es:[di+3], al
-    
-    ; Byte 2
-    pop ax
-    pop ax
-    mov cl, al
-    mov al, [bx+386]
-    and al, cl
-    not cl
-    mov ch, es:[di+2]
-    and ch, cl
-    or al, ch
-    mov es:[di+2], al
-    
-    ; Byte 1
-    pop ax
-    pop ax
-    mov cl, al
-    mov al, [bx+385]
-    and al, cl
-    not cl
-    mov ch, es:[di+1]
-    and ch, cl
-    or al, ch
-    mov es:[di+1], al
-    
-    ; Byte 0
-    pop ax
-    mov cl, al
-    mov al, [bx+384]
-    and al, cl
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    or al, ch
+    mov al, [bx]
     mov es:[di], al
+    mov al, [bx+1]
+    mov es:[di+1], al
+    mov al, [bx+2]
+    mov es:[di+2], al
+    mov al, [bx+3]
+    mov es:[di+3], al
     
     ; Siguiente fila
     pop bp
-    add bp, 80
-    pop di
-    add di, 4
+    add bp, 80          ; Siguiente línea en video
+    pop si
+    add si, 4           ; Siguiente fila en sprite
     pop cx
-    dec cx
-    jz dsp32_fin
-    jmp dsp32_loop_fila
-
-dsp32_fin:
-    ; Restaurar registros de video
+    loop dsp32_fila
+    
+    ; Restaurar todos los planos
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 0Fh
-    out dx, al
-    
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 0
-    out dx, al
-    
-    mov dx, 3CEh
-    mov al, 5
-    out dx, al
-    inc dx
-    mov al, 0
-    out dx, al
-    
-    mov dx, 3CEh
-    mov al, 3
-    out dx, al
-    inc dx
-    mov al, 0
     out dx, al
     
     pop bp
