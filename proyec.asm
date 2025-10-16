@@ -765,21 +765,17 @@ convertir_sprite_32x32_a_planar PROC
     mov bp, 32          ; 32 filas
     
 csp32_fila:
-    ; ===== BYTE 0 (primeros 8 píxeles de la fila) =====
+    ; ===== BYTE 0 (primeros 8 píxeles) =====
     xor bx, bx
     xor dx, dx
     mov cx, 8
     
 csp32_byte0:
-    lodsb               ; Leer píxel del sprite lineal
-    
-    ; Desplazar para hacer espacio
-    shl dl, 1           ; Plano 0
-    shl dh, 1           ; Plano 1
-    shl bl, 1           ; Plano 2
-    shl bh, 1           ; Plano 3
-    
-    ; Insertar bits del píxel actual
+    lodsb
+    shl dl, 1
+    shl dh, 1
+    shl bl, 1
+    shl bh, 1
     test al, 01h
     jz csp32_b0_p0
     or dl, 1
@@ -798,7 +794,6 @@ csp32_b0_p2:
 csp32_b0_p3:
     loop csp32_byte0
     
-    ; Guardar byte 0 de cada plano
     mov [di], dl
     mov [di+128], dh
     mov [di+256], bl
@@ -910,11 +905,13 @@ csp32_b3_p3:
     mov [di+384], bh
     inc di
     
+    ; ✅ CORRECCIÓN: Procesar TODAS las 32 filas
     dec bp
     jz csp32_b3_fin
     jmp csp32_fila
 
-csp32_b3_fin:
+csp32_b3_fin:     ; Si BP != 0, continuar con siguiente fila
+    
     pop bp
     pop di
     pop si
