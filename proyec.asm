@@ -1692,88 +1692,11 @@ dsp32_fila:
     push cx
     push si
     push bp
-    
-    ; ========== PLANO 0 ==========
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 1           ; Habilitar solo plano 0
-    out dx, al
-    
-    mov di, bp
+
     mov bx, si
-    
-    mov al, [bx]
-    mov es:[di], al
-    mov al, [bx+1]
-    mov es:[di+1], al
-    mov al, [bx+2]
-    mov es:[di+2], al
-    mov al, [bx+3]
-    mov es:[di+3], al
-    
-    ; ========== PLANO 1 ==========
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    
     mov di, bp
-    add bx, 128
-    
-    mov al, [bx]
-    mov es:[di], al
-    mov al, [bx+1]
-    mov es:[di+1], al
-    mov al, [bx+2]
-    mov es:[di+2], al
-    mov al, [bx+3]
-    mov es:[di+3], al
-    
-    ; ========== PLANO 2 ==========
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    
-    mov di, bp
-    add bx, 128
-    
-    mov al, [bx]
-    mov es:[di], al
-    mov al, [bx+1]
-    mov es:[di+1], al
-    mov al, [bx+2]
-    mov es:[di+2], al
-    mov al, [bx+3]
-    mov es:[di+3], al
-    
-    ; ========== PLANO 3 ==========
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 8
-    out dx, al
-    
-    mov di, bp
-    add bx, 128
-    
-    mov al, [bx]
-    mov es:[di], al
-    mov al, [bx+1]
-    mov es:[di+1], al
-    mov al, [bx+2]
-    mov es:[di+2], al
-    mov al, [bx+3]
-    mov es:[di+3], al
-    
-    ; Siguiente fila
+    call dsp32_escribir_planos
+
     pop bp
     add bp, 80          ; Siguiente línea en video
     pop si
@@ -1798,6 +1721,94 @@ dsp32_fila:
     pop ax
     ret
 dibujar_sprite_planar_32x32 ENDP
+
+dsp32_escribir_planos PROC NEAR
+    push ax
+    push dx
+    push si
+
+    mov si, di          ; Guardar base del destino
+
+    ; ========== PLANO 0 ==========
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+
+    mov di, si
+    mov al, [bx]
+    mov es:[di], al
+    mov al, [bx+1]
+    mov es:[di+1], al
+    mov al, [bx+2]
+    mov es:[di+2], al
+    mov al, [bx+3]
+    mov es:[di+3], al
+
+    ; ========== PLANO 1 ==========
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+
+    mov di, si
+    add bx, 128
+    mov al, [bx]
+    mov es:[di], al
+    mov al, [bx+1]
+    mov es:[di+1], al
+    mov al, [bx+2]
+    mov es:[di+2], al
+    mov al, [bx+3]
+    mov es:[di+3], al
+
+    ; ========== PLANO 2 ==========
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+
+    mov di, si
+    add bx, 128
+    mov al, [bx]
+    mov es:[di], al
+    mov al, [bx+1]
+    mov es:[di+1], al
+    mov al, [bx+2]
+    mov es:[di+2], al
+    mov al, [bx+3]
+    mov es:[di+3], al
+
+    ; ========== PLANO 3 ==========
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 8
+    out dx, al
+
+    mov di, si
+    add bx, 128
+    mov al, [bx]
+    mov es:[di], al
+    mov al, [bx+1]
+    mov es:[di+1], al
+    mov al, [bx+2]
+    mov es:[di+2], al
+    mov al, [bx+3]
+    mov es:[di+3], al
+
+    pop si
+    pop dx
+    pop ax
+    ret
+dsp32_escribir_planos ENDP
 
 esperar_retrace PROC
     push ax
