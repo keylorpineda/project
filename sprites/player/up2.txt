@@ -1,17 +1,33 @@
-16 16
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-0 0 0 0 0 1 1 1 1 1 1 0 0 0 0 0
-0 0 0 0 1 1 1 1 9 1 1 1 0 0 0 0
-0 0 0 0 1 1 1 9 9 1 1 1 0 0 0 0
-0 0 0 0 1 1 9 9 9 9 1 1 0 0 0 0
-0 0 0 0 1 1 9 9 9 9 1 1 0 0 0 0
-0 0 0 1 1 1 9 9 9 9 1 1 1 0 0 0
-0 0 0 1 9 1 1 9 9 1 1 9 1 0 0 0
-0 0 0 E 9 9 1 1 9 1 9 9 E 0 0 0
-0 0 0 E 9 9 9 9 1 9 9 9 E 0 0 0
-0 0 0 1 9 9 9 9 9 9 9 9 1 0 0 0
-0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0
-0 0 0 0 6 1 6 0 0 6 1 6 0 0 0 0
-0 0 0 0 6 6 6 0 0 6 6 6 0 0 0 0
+32 32
+D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D
+D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D
+D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D
+D D D D D D D D D D F F F D D D D D D D F F F D D D D D D D D D
+D D D D D D D D D F 0 F D D D D D D D D D F 0 F D D D D D D D D
+D D D D D D D D D F 0 0 F D D D D D D D F 7 0 F D D D D D D D D
+D D D D D D D D D F 0 F D D D D D D D D D F 0 F D D D D D D D D
+D D D D D D D D D F 0 F D D D D D D D D D F 0 F D D D D D D D D
+D D D D D D D D D F 0 0 F D D D D D D D F 0 0 F D D D D D D D D
+D D D D D D D D D 8 F 7 0 F D D D D D F 7 7 F 8 D D D D D D D D
+D D D D D D D D D D D F 7 0 F F F F F 0 0 F D D D D D D D D D D
+D D D D D D D D D D F 7 F 0 0 0 0 0 0 0 0 0 F D D D D D D D D D
+D D D D D D D D D F 7 0 0 0 0 0 0 0 0 0 0 0 F D D D D D D D D D
+D D D D D D D D D F 7 0 0 0 0 0 0 0 0 0 0 0 F D D D D D D D D D
+D D D D D D D D D F 7 0 0 0 0 F 0 0 0 0 F F F D D D D D D D D D
+D D D D D D D D D F 7 0 0 0 F F F 0 0 F F F F D D D D D D D D D
+D D D D D D D D D F 7 0 0 0 F F F 0 0 F F F F D D D D D D D D D
+D D D D D D D D D F 7 0 0 0 0 F 0 0 0 0 F F F D D D D D D D D D
+D D D D D D D D D F 7 8 0 0 0 0 0 0 0 0 0 0 F D D D D D D D D D
+D D D D D D D D D D F 8 8 0 0 0 0 0 0 0 0 F D D D D D D D D D D
+D D D D D D D D D F 8 F F F F F F F F F F D D D D D D D D D D D
+D D D D D D D D D D F 7 8 F 9 F 9 F F 9 F F D D D D D D D D D D
+D D D D D D D D D D F F 8 F F 9 8 F 9 F F F D D D D D D D D D D
+D D D D D D D D D F F D F F 9 F F F F 9 F F D D D D D D D D D D
+D D D D D D D D F F F D 9 F 9 F 9 F 9 8 F F D D D D D D D D D D
+D D D D D D D D F F F D F 9 F 9 F F F 9 F F D D D D D D D D D D
+D D D D D D D F F F F D F F 9 F F F F F F F D D D D D D D D D D
+D D D D D D D F F D D D F F F F F F F F F F F D D D D D D D D D
+D D D D D D D D D D D F F F F 8 D D 8 F F F F D D D D D D D D D
+D D D D D D D D D D D F F F F 8 D D 8 F F F F D D D D D D D D D
+D D D D D D D D D D D D F F F D D D D D F F D D D D D D D D D D
+D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D
