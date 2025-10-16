@@ -795,9 +795,9 @@ csp32_b0_p3:
     loop csp32_byte0
     
     mov [di], dl
-    mov [di+128], dh
-    mov [di+256], bl
-    mov [di+384], bh
+    mov [di+128], dh     ; ✅ 128 en lugar de 32
+    mov [di+256], bl     ; ✅ 256 en lugar de 64
+    mov [di+384], bh     ; ✅ 384 en lugar de 96
     inc di
     
     ; ===== BYTE 1 (píxeles 9-16) =====
@@ -905,12 +905,11 @@ csp32_b3_p3:
     mov [di+384], bh
     inc di
     
-    ; ✅ CORRECCIÓN: Procesar TODAS las 32 filas
     dec bp
-    jz csp32_b3_fin
-    jmp csp32_fila
+    jz csp32_fin          ; Si BP=0, terminar
+    jmp csp32_fila        ; Continuar con siguiente fila
 
-csp32_b3_fin:     ; Si BP != 0, continuar con siguiente fila
+csp32_fin:
     
     pop bp
     pop di
@@ -1371,40 +1370,25 @@ dibujar_jugador_en_offset PROC
     push dx
     push si
     
-    ; ✅ CÁLCULO CORRECTO DE POSICIÓN X
+    ; Centrar sprite 32x32 (en lugar de 16x16)
     mov ax, jugador_px
-    sub ax, camara_px       ; Convertir a coordenadas relativas a cámara
-    add ax, viewport_x      ; Añadir offset del viewport
-    sub ax, 16              ; Centrar sprite horizontalmente (32/2)
+    sub ax, camara_px
+    add ax, viewport_x
+    sub ax, 16          ; Centrar horizontalmente (32/2)
     mov cx, ax
     
-    ; Verificar límites horizontales
-    cmp cx, -32
-    jl djeo_fin
-    cmp cx, 640
-    jge djeo_fin
-    
-    ; ✅ CÁLCULO CORRECTO DE POSICIÓN Y
     mov ax, jugador_py
-    sub ax, camara_py       ; Convertir a coordenadas relativas a cámara
-    add ax, viewport_y      ; Añadir offset del viewport
-    sub ax, 16              ; Centrar sprite verticalmente
+    sub ax, camara_py
+    add ax, viewport_y
+    sub ax, 16          ; Centrar verticalmente (32/2)
     mov dx, ax
     
-    ; Verificar límites verticales
-    cmp dx, -32
-    jl djeo_fin
-    cmp dx, 350
-    jge djeo_fin
-    
-    ; Obtener sprite del jugador según dirección
     call obtener_sprite_jugador
     mov di, si
     
-    ; Dibujar el sprite
+    ; ✅ CAMBIAR AQUÍ: usar la versión 32x32
     call dibujar_sprite_planar_32x32
     
-djeo_fin:
     pop si
     pop dx
     pop cx
@@ -1681,7 +1665,7 @@ dibujar_sprite_planar_32x32 PROC
     push di
     push bp
     
-    ; Calcular offset en memoria de video
+    ; Calcular offset en video memory
     mov ax, dx
     mov bx, 80
     mul bx
@@ -1692,31 +1676,383 @@ dibujar_sprite_planar_32x32 PROC
     shr ax, 3
     add bp, ax
     
-    mov si, di
-    mov cx, 32
+    mov cx, 32          ; 32 filas
 
-dsp32_fila:
+dsp32_loop_fila:
     push cx
-    push si
+    push di
     push bp
-
-    mov bx, si
+    
+    mov bx, di          ; BX apunta a sprite data
+    
+    ; ===== CALCULAR MÁSCARAS DE TRANSPARENCIA (4 BYTES) =====
+    ; Color 0 (negro) = transparente (igual que 16x16)
+    ; Si todos los planos = 0, entonces transparente
+    
+    ; Byte 1
+    mov al, [bx]
+    or al, [bx+128]
+    or al, [bx+256]
+    or al, [bx+384]
+    push ax
+    
+    ; Byte 2
+    mov al, [bx+1]
+    or al, [bx+129]
+    or al, [bx+257]
+    or al, [bx+385]
+    push ax
+    
+    ; Byte 3
+    mov al, [bx+2]
+    or al, [bx+130]
+    or al, [bx+258]
+    or al, [bx+386]
+    push ax
+    
+    ; Byte 4
+    mov al, [bx+3]
+    or al, [bx+131]
+    or al, [bx+259]
+    or al, [bx+387]
+    push ax
+    
+    ; ===== PLANO 0 =====
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 0
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    
     mov di, bp
-    call dsp32_escribir_planos_transparente
-
+    
+    ; Byte 4
+    pop ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+3]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+3]
+    and al, cl
+    or al, ch
+    mov es:[di+3], al
+    
+    ; Byte 3
+    pop ax
+    pop ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+2]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+2]
+    and al, cl
+    or al, ch
+    mov es:[di+2], al
+    
+    ; Byte 2
+    pop ax
+    pop ax
+    pop ax
+    push ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+1]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+1]
+    and al, cl
+    or al, ch
+    mov es:[di+1], al
+    
+    ; Byte 1
+    pop ax
+    pop ax
+    pop ax
+    pop ax
+    push ax
+    push ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx]
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
+    ; ===== PLANO 1 =====
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    
+    mov di, bp
+    
+    ; Byte 4
+    pop ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+3]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+131]
+    and al, cl
+    or al, ch
+    mov es:[di+3], al
+    
+    ; Byte 3
+    pop ax
+    pop ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+2]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+130]
+    and al, cl
+    or al, ch
+    mov es:[di+2], al
+    
+    ; Byte 2
+    pop ax
+    pop ax
+    pop ax
+    push ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+1]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+129]
+    and al, cl
+    or al, ch
+    mov es:[di+1], al
+    
+    ; Byte 1
+    pop ax
+    pop ax
+    pop ax
+    pop ax
+    push ax
+    push ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+128]
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
+    ; ===== PLANO 2 =====
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+    
+    mov di, bp
+    
+    ; Byte 4
+    pop ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+3]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+259]
+    and al, cl
+    or al, ch
+    mov es:[di+3], al
+    
+    ; Byte 3
+    pop ax
+    pop ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+2]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+258]
+    and al, cl
+    or al, ch
+    mov es:[di+2], al
+    
+    ; Byte 2
+    pop ax
+    pop ax
+    pop ax
+    push ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+1]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+257]
+    and al, cl
+    or al, ch
+    mov es:[di+1], al
+    
+    ; Byte 1
+    pop ax
+    pop ax
+    pop ax
+    pop ax
+    push ax
+    push ax
+    push ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+256]
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
+    ; ===== PLANO 3 =====
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 3
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 8
+    out dx, al
+    
+    mov di, bp
+    
+    ; Byte 4 (última vez, no push)
+    pop ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+3]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+387]
+    and al, cl
+    or al, ch
+    mov es:[di+3], al
+    
+    ; Byte 3
+    pop ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+2]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+386]
+    and al, cl
+    or al, ch
+    mov es:[di+2], al
+    
+    ; Byte 2
+    pop ax
+    mov cl, al
+    not cl
+    mov ch, es:[di+1]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+385]
+    and al, cl
+    or al, ch
+    mov es:[di+1], al
+    
+    ; Byte 1
+    pop ax
+    mov cl, al
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+384]
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
+    ; Siguiente fila
     pop bp
     add bp, 80
-    pop si
-    add si, 4
+    pop di
+    add di, 4
     pop cx
-    loop dsp32_fila
+    dec cx
+    jnz dsp32_loop_fila_stub
+    jmp dsp32_loop_fila_exit
+
+dsp32_loop_fila_stub:
+    jmp dsp32_loop_fila
+
+dsp32_loop_fila_exit:
     
-    ; Restaurar planos
+    ; Restaurar registros
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 0Fh
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 0
     out dx, al
     
     pop bp
@@ -1728,191 +2064,6 @@ dsp32_fila:
     pop ax
     ret
 dibujar_sprite_planar_32x32 ENDP
-
-dsp32_escribir_planos_transparente PROC NEAR
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-    push bp
-    
-    mov si, di
-    mov bp, bx
-    
-    ; ========== PLANO 0 ==========
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 1
-    out dx, al
-    
-    mov di, si
-    mov bx, bp
-    mov cx, 4
-dsp32_p0:
-    call escribir_byte_transparente
-    inc bx
-    inc di
-    loop dsp32_p0
-    
-    ; ========== PLANO 1 ==========
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    
-    mov di, si
-    mov bx, bp
-    add bx, 128
-    mov cx, 4
-dsp32_p1:
-    call escribir_byte_transparente
-    inc bx
-    inc di
-    loop dsp32_p1
-    
-    ; ========== PLANO 2 ==========
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    
-    mov di, si
-    mov bx, bp
-    add bx, 256
-    mov cx, 4
-dsp32_p2:
-    call escribir_byte_transparente
-    inc bx
-    inc di
-    loop dsp32_p2
-    
-    ; ========== PLANO 3 ==========
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 8
-    out dx, al
-    
-    mov di, si
-    mov bx, bp
-    add bx, 384
-    mov cx, 4
-dsp32_p3:
-    call escribir_byte_transparente
-    inc bx
-    inc di
-    loop dsp32_p3
-    
-    pop bp
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-dsp32_escribir_planos_transparente ENDP
-
-escribir_byte_transparente PROC NEAR
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-    
-    mov si, bx
-    sub si, bp
-    and si, 3
-    
-    mov al, [bp + si]
-    mov cl, [bp + si + 128]
-    mov ch, [bp + si + 256]
-    mov ah, [bp + si + 384]
-    
-    xor bl, bl
-    mov bh, 8
-    
-ebt_bit:
-    shl bl, 1
-    
-    mov dl, 0
-    test al, 80h
-    jz ebt_p0
-    mov dl, 1
-ebt_p0:
-    mov dh, 0
-    test cl, 80h
-    jz ebt_p1
-    mov dh, 1
-ebt_p1:
-    
-    push ax
-    mov al, 0
-    test ch, 80h
-    jz ebt_p2
-    mov al, 1
-ebt_p2:
-    
-    push cx
-    mov cl, 0
-    test ah, 80h
-    jz ebt_p3
-    mov cl, 1
-ebt_p3:
-    
-    cmp dl, 1
-    jne ebt_visible
-    cmp dh, 0
-    jne ebt_visible
-    cmp al, 1
-    jne ebt_visible
-    cmp cl, 1
-    jne ebt_visible
-    
-    pop cx
-    pop ax
-    jmp ebt_shift
-    
-ebt_visible:
-    pop cx
-    pop ax
-    or bl, 1
-    
-ebt_shift:
-    shl al, 1
-    shl cl, 1
-    shl ch, 1
-    shl ah, 1
-    dec bh
-    jnz ebt_bit
-    
-    mov al, [bx]
-    mov cl, es:[di]
-    mov ch, bl
-    not ch
-    and cl, ch
-    and al, bl
-    or al, cl
-    mov es:[di], al
-    
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-escribir_byte_transparente ENDP
 
 esperar_retrace PROC
     push ax
