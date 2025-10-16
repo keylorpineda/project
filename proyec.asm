@@ -87,14 +87,14 @@ jugador_izq_b_temp   db 1024 dup(0)
 jugador_der_a_temp   db 1024 dup(0)
 jugador_der_b_temp   db 1024 dup(0)
 
-jugador_up_a    db 256 dup(0)
-jugador_up_b    db 256 dup(0)
-jugador_down_a  db 256 dup(0)
-jugador_down_b  db 256 dup(0)
-jugador_izq_a   db 256 dup(0)
-jugador_izq_b   db 256 dup(0)
-jugador_der_a   db 256 dup(0)
-jugador_der_b   db 256 dup(0)
+jugador_up_a    db 512 dup(0)    
+jugador_up_b    db 512 dup(0)
+jugador_down_a  db 512 dup(0)
+jugador_down_b  db 512 dup(0)
+jugador_izq_a   db 512 dup(0)
+jugador_izq_b   db 512 dup(0)
+jugador_der_a   db 512 dup(0)
+jugador_der_b   db 512 dup(0)
 
 buffer_temp db 300 dup(0)
 
@@ -261,7 +261,6 @@ procesar_movimiento_continuo PROC
     jmp pmc_no_tecla
 
 pmc_tiene_tecla:
-    
     mov ah, 0
     int 16h
     
@@ -317,17 +316,25 @@ pmc_verificar_derecha_scan:
 pmc_verificar_derecha_letra:
     cmp al, 'D'
     jne pmc_no_movimiento_local
-    jmp pmc_derecha              ; ✅ CAMBIAR: je → jmp
+    jmp pmc_derecha
 
 pmc_no_movimiento_local:
     jmp pmc_no_movimiento
 
 pmc_salir:
+    ; ✅ Salida limpia sin afectar el stack
     pop dx
     pop cx
     pop bx
     pop ax
-    jmp fin_juego
+    
+    ; Restaurar modo texto
+    mov ax, 3
+    int 10h
+    
+    ; Salir a DOS
+    mov ax, 4C00h
+    int 21h
 
 pmc_arriba:
     mov jugador_dir, DIR_ARRIBA
@@ -338,7 +345,6 @@ pmc_arriba:
     jmp pmc_no_movimiento
 
 pmc_arriba_dentro_limite:
-    
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
@@ -349,7 +355,6 @@ pmc_arriba_dentro_limite:
     jmp pmc_no_movimiento
 
 pmc_arriba_transitable:
-    
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -363,7 +368,6 @@ pmc_abajo:
     jmp pmc_no_movimiento
 
 pmc_abajo_dentro_limite:
-    
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
@@ -373,7 +377,6 @@ pmc_abajo_dentro_limite:
     jmp pmc_no_movimiento
 
 pmc_abajo_transitable:
-    
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -387,7 +390,6 @@ pmc_izquierda:
     jmp pmc_no_movimiento
 
 pmc_izquierda_dentro_limite:
-    
     mov cx, ax
     sub cx, 8
     shr cx, 4
@@ -398,7 +400,6 @@ pmc_izquierda_dentro_limite:
     jmp pmc_no_movimiento
 
 pmc_izquierda_transitable:
-    
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -412,7 +413,6 @@ pmc_derecha:
     jmp pmc_no_movimiento
 
 pmc_derecha_dentro_limite:
-    
     mov cx, ax
     add cx, 8
     shr cx, 4
@@ -423,7 +423,6 @@ pmc_derecha_dentro_limite:
     jmp pmc_no_movimiento
 
 pmc_derecha_transitable:
-    
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -733,8 +732,6 @@ csp_der_next:
     ret
 convertir_sprite_a_planar ENDP
 
-; AGREGAR ESTA FUNCIÓN NUEVA después de convertir_sprite_a_planar:
-
 convertir_sprite_32x32_a_planar PROC
     push ax
     push bx
@@ -779,9 +776,9 @@ csp32_1_next:
     loop csp32_byte1
     
     mov [di], dl
-    mov [di+64], dh
-    mov [di+128], bl
-    mov [di+192], bh
+    mov [di+128], dh      ; ✅ CORRECTO
+    mov [di+256], bl      ; ✅ CORRECTO
+    mov [di+384], bh      ; ✅ CORRECTO
     inc di
     
     ; Segundo byte de los primeros 16 píxeles
@@ -816,9 +813,9 @@ csp32_2_next:
     loop csp32_byte2
     
     mov [di], dl
-    mov [di+64], dh
-    mov [di+128], bl
-    mov [di+192], bh
+    mov [di+128], dh      ; ✅ CORRECTO
+    mov [di+256], bl      ; ✅ CORRECTO
+    mov [di+384], bh      ; ✅ CORRECTO
     inc di
     
     ; Procesar los siguientes 16 píxeles (otros 2 bytes)
@@ -853,9 +850,9 @@ csp32_3_next:
     loop csp32_byte3
     
     mov [di], dl
-    mov [di+64], dh
-    mov [di+128], bl
-    mov [di+192], bh
+    mov [di+128], dh      ; ✅ CORRECTO
+    mov [di+256], bl      ; ✅ CORRECTO
+    mov [di+384], bh      ; ✅ CORRECTO
     inc di
     
     ; Cuarto byte
@@ -890,9 +887,9 @@ csp32_4_next:
     loop csp32_byte4
     
     mov [di], dl
-    mov [di+64], dh
-    mov [di+128], bl
-    mov [di+192], bh
+    mov [di+128], dh      ; ✅ CORRECTO
+    mov [di+256], bl      ; ✅ CORRECTO
+    mov [di+384], bh      ; ✅ CORRECTO
     inc di
     
     dec bp
@@ -900,7 +897,6 @@ csp32_4_next:
     jmp csp32_fila
 
 csp32_fin:
-    
     pop bp
     pop di
     pop si
@@ -1684,41 +1680,42 @@ dsp32_loop_fila:
     mov bx, di
     
     mov al, [bx]
-    mov dl, [bx+64]
+    mov dl, [bx+128]      ; ✅ CORRECTO
     not dl
     and al, dl
-    and al, [bx+128]
-    and al, [bx+192]
+    and al, [bx+256]      ; ✅ CORRECTO
+    and al, [bx+384]      ; ✅ CORRECTO
     not al
     push ax
     
     mov al, [bx+1]
-    mov dl, [bx+65]
+    mov dl, [bx+129]      ; ✅ CORRECTO
     not dl
     and al, dl
-    and al, [bx+129]
-    and al, [bx+193]
+    and al, [bx+257]      ; ✅ CORRECTO
+    and al, [bx+385]      ; ✅ CORRECTO
     not al
     push ax
     
     mov al, [bx+2]
-    mov dl, [bx+66]
+    mov dl, [bx+130]      ; ✅ CORRECTO
     not dl
     and al, dl
-    and al, [bx+130]
-    and al, [bx+194]
+    and al, [bx+258]      ; ✅ CORRECTO
+    and al, [bx+386]      ; ✅ CORRECTO
     not al
     push ax
     
     mov al, [bx+3]
-    mov dl, [bx+67]
+    mov dl, [bx+131]      ; ✅ CORRECTO
     not dl
     and al, dl
-    and al, [bx+131]
-    and al, [bx+195]
+    and al, [bx+259]      ; ✅ CORRECTO
+    and al, [bx+387]      ; ✅ CORRECTO
     not al
     push ax
     
+    ; PLANO 0 (bit 0)
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1782,6 +1779,7 @@ dsp32_loop_fila:
     or al, ch
     mov es:[di], al
     
+    ; PLANO 1 (bit 1)
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1801,7 +1799,7 @@ dsp32_loop_fila:
     mov ch, es:[di+3]
     and ch, cl
     mov cl, al
-    mov al, [bx+67]
+    mov al, [bx+131]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di+3], al
@@ -1815,7 +1813,7 @@ dsp32_loop_fila:
     mov ch, es:[di+2]
     and ch, cl
     mov cl, al
-    mov al, [bx+66]
+    mov al, [bx+130]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di+2], al
@@ -1829,7 +1827,7 @@ dsp32_loop_fila:
     mov ch, es:[di+1]
     and ch, cl
     mov cl, al
-    mov al, [bx+65]
+    mov al, [bx+129]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di+1], al
@@ -1841,11 +1839,12 @@ dsp32_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, al
-    mov al, [bx+64]
+    mov al, [bx+128]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di], al
     
+    ; PLANO 2 (bit 2)
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1865,7 +1864,7 @@ dsp32_loop_fila:
     mov ch, es:[di+3]
     and ch, cl
     mov cl, al
-    mov al, [bx+131]
+    mov al, [bx+259]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di+3], al
@@ -1879,7 +1878,7 @@ dsp32_loop_fila:
     mov ch, es:[di+2]
     and ch, cl
     mov cl, al
-    mov al, [bx+130]
+    mov al, [bx+258]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di+2], al
@@ -1893,7 +1892,7 @@ dsp32_loop_fila:
     mov ch, es:[di+1]
     and ch, cl
     mov cl, al
-    mov al, [bx+129]
+    mov al, [bx+257]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di+1], al
@@ -1905,11 +1904,12 @@ dsp32_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, al
-    mov al, [bx+128]
+    mov al, [bx+256]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di], al
     
+    ; PLANO 3 (bit 3)
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1926,7 +1926,7 @@ dsp32_loop_fila:
     mov ch, es:[di+3]
     and ch, cl
     mov cl, al
-    mov al, [bx+195]
+    mov al, [bx+387]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di+3], al
@@ -1938,7 +1938,7 @@ dsp32_loop_fila:
     mov ch, es:[di+2]
     and ch, cl
     mov cl, al
-    mov al, [bx+194]
+    mov al, [bx+386]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di+2], al
@@ -1950,7 +1950,7 @@ dsp32_loop_fila:
     mov ch, es:[di+1]
     and ch, cl
     mov cl, al
-    mov al, [bx+193]
+    mov al, [bx+385]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di+1], al
@@ -1961,7 +1961,7 @@ dsp32_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, al
-    mov al, [bx+192]
+    mov al, [bx+384]      ; ✅ CORRECTO
     and al, cl
     or al, ch
     mov es:[di], al
