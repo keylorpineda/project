@@ -316,9 +316,10 @@ pmc_verificar_derecha_scan:
 
 pmc_verificar_derecha_letra:
     cmp al, 'D'
-    jne pmc_no_movimiento
+    jne pmc_no_movimiento_local
     jmp pmc_derecha
 
+pmc_no_movimiento_local:
     jmp pmc_no_movimiento
 
 pmc_salir:
