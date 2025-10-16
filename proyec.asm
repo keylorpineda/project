@@ -911,8 +911,10 @@ csp32_b3_p3:
     inc di
     
     dec bp
-    jnz csp32_fila
-    
+    jz csp32_b3_fin
+    jmp csp32_fila
+
+csp32_b3_fin:
     pop bp
     pop di
     pop si
