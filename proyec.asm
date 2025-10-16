@@ -257,7 +257,10 @@ procesar_movimiento_continuo PROC
     
     mov ah, 1
     int 16h
-    jz pmc_no_tecla
+    jnz pmc_tiene_tecla
+    jmp pmc_no_tecla
+
+pmc_tiene_tecla:
     
     mov ah, 0
     int 16h
@@ -281,34 +284,55 @@ pmc_usar_scan:
     
 pmc_verificar:
     cmp al, 48h
-    je pmc_arriba
+    jne pmc_chk_w_lower
+    jmp pmc_arriba
+pmc_chk_w_lower:
     cmp al, 'w'
-    je pmc_arriba
+    jne pmc_chk_w_upper
+    jmp pmc_arriba
+pmc_chk_w_upper:
     cmp al, 'W'
-    je pmc_arriba
-    
+    jne pmc_chk_down_scan
+    jmp pmc_arriba
+
+pmc_chk_down_scan:
     cmp al, 50h
-    je pmc_abajo
+    jne pmc_chk_s_lower
+    jmp pmc_abajo
+pmc_chk_s_lower:
     cmp al, 's'
-    je pmc_abajo
+    jne pmc_chk_s_upper
+    jmp pmc_abajo
+pmc_chk_s_upper:
     cmp al, 'S'
-    je pmc_abajo
-    
+    jne pmc_chk_left_scan
+    jmp pmc_abajo
+
+pmc_chk_left_scan:
     cmp al, 4Bh
-    je pmc_izquierda
+    jne pmc_chk_a_lower
+    jmp pmc_izquierda
+pmc_chk_a_lower:
     cmp al, 'a'
-    je pmc_izquierda
+    jne pmc_chk_a_upper
+    jmp pmc_izquierda
+pmc_chk_a_upper:
     cmp al, 'A'
-    je pmc_izquierda
-    
+    jne pmc_chk_right_scan
+    jmp pmc_izquierda
+
+pmc_chk_right_scan:
     cmp al, 4Dh
-    je pmc_derecha
+    jne pmc_chk_d_lower
+    jmp pmc_derecha
+pmc_chk_d_lower:
     cmp al, 'd'
-    je pmc_derecha
+    jne pmc_chk_d_upper
+    jmp pmc_derecha
+pmc_chk_d_upper:
     cmp al, 'D'
-    je pmc_derecha
-    
-    jmp pmc_no_movimiento
+    jne pmc_no_movimiento
+    jmp pmc_derecha
 
 pmc_salir:
     pop dx
@@ -322,7 +346,10 @@ pmc_arriba:
     mov ax, jugador_py
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
+    jae pmc_arriba_dentro_limite
+    jmp pmc_no_movimiento
+
+pmc_arriba_dentro_limite:
     
     mov cx, jugador_px
     shr cx, 4
@@ -330,7 +357,10 @@ pmc_arriba:
     sub dx, 8
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_arriba_transitable
+    jmp pmc_no_movimiento
+
+pmc_arriba_transitable:
     
     mov jugador_py, ax
     mov moviendo, 1
@@ -341,14 +371,20 @@ pmc_abajo:
     mov ax, jugador_py
     add ax, VELOCIDAD
     cmp ax, 784
-    ja pmc_no_movimiento
+    jbe pmc_abajo_dentro_limite
+    jmp pmc_no_movimiento
+
+pmc_abajo_dentro_limite:
     
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_abajo_transitable
+    jmp pmc_no_movimiento
+
+pmc_abajo_transitable:
     
     mov jugador_py, ax
     mov moviendo, 1
@@ -359,7 +395,10 @@ pmc_izquierda:
     mov ax, jugador_px
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
+    jae pmc_izquierda_dentro_limite
+    jmp pmc_no_movimiento
+
+pmc_izquierda_dentro_limite:
     
     mov cx, ax
     sub cx, 8
@@ -367,7 +406,10 @@ pmc_izquierda:
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_izquierda_transitable
+    jmp pmc_no_movimiento
+
+pmc_izquierda_transitable:
     
     mov jugador_px, ax
     mov moviendo, 1
@@ -378,7 +420,10 @@ pmc_derecha:
     mov ax, jugador_px
     add ax, VELOCIDAD
     cmp ax, 784
-    ja pmc_no_movimiento
+    jbe pmc_derecha_dentro_limite
+    jmp pmc_no_movimiento
+
+pmc_derecha_dentro_limite:
     
     mov cx, ax
     add cx, 8
@@ -386,7 +431,10 @@ pmc_derecha:
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jc pmc_derecha_transitable
+    jmp pmc_no_movimiento
+
+pmc_derecha_transitable:
     
     mov jugador_px, ax
     mov moviendo, 1
