@@ -894,7 +894,10 @@ csp32_4_next:
     inc di
     
     dec bp
-    jnz csp32_fila
+    jz csp32_fin
+    jmp csp32_fila
+
+csp32_fin:
     
     pop bp
     pop di
