@@ -32,18 +32,13 @@ DIR_DERECHA    EQU 3
 .DATA
 archivo_mapa   db 'MAPA.TXT',0
 archivo_grass1 db 'SPRITES\GRASS_1.TXT',0
-archivo_grass2 db 'SPRITES\GRASS_2.TXT',0
-archivo_flower db 'SPRITES\FLOWER_1.TXT',0
 archivo_path   db 'SPRITES\PATH_2.TXT',0
 archivo_water  db 'SPRITES\WATER_2.TXT',0
 archivo_tree   db 'SPRITES\TREE_1.TXT',0
 archivo_sand   db 'SPRITES\SAND_1.TXT',0
-archivo_rock   db 'SPRITES\ROCK_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
 archivo_wall   db 'SPRITES\WALL_1.TXT',0
-archivo_hill   db 'SPRITES\HILL_1.TXT',0
-arquivo_bush   db 'SPRITES\BUSH_1.TXT',0
 arquivo_dirt   db 'SPRITES\DIRT_1.TXT',0
 arquivo_lava   db 'SPRITES\LAVA_1.TXT',0
 arquivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
@@ -60,35 +55,25 @@ arquivo_player_der_b   db 'SPRITES\PLAYER\RIGHT2.TXT',0
 mapa_datos  db 2500 dup(0)
 
 sprite_grass1_temp   db 256 dup(0)
-sprite_grass2_temp   db 256 dup(0)
-sprite_flower_temp   db 256 dup(0)
 sprite_path_temp     db 256 dup(0)
 sprite_water_temp    db 256 dup(0)
 sprite_tree_temp     db 256 dup(0)
 sprite_sand_temp     db 256 dup(0)
-sprite_rock_temp     db 256 dup(0)
 sprite_snow_temp     db 256 dup(0)
 sprite_ice_temp      db 256 dup(0)
 sprite_wall_temp     db 256 dup(0)
-sprite_hill_temp     db 256 dup(0)
-sprite_bush_temp     db 256 dup(0)
 sprite_dirt_temp     db 256 dup(0)
 sprite_lava_temp     db 256 dup(0)
 sprite_bridge_temp   db 256 dup(0)
 
 sprite_grass1   db 128 dup(0)
-sprite_grass2   db 128 dup(0)
-sprite_flower   db 128 dup(0)
 sprite_path     db 128 dup(0)
 sprite_water    db 128 dup(0)
 sprite_tree     db 128 dup(0)
 sprite_sand     db 128 dup(0)
-sprite_rock     db 128 dup(0)
 sprite_snow     db 128 dup(0)
 sprite_ice      db 128 dup(0)
 sprite_wall     db 128 dup(0)
-sprite_hill     db 128 dup(0)
-sprite_bush     db 128 dup(0)
 sprite_dirt     db 128 dup(0)
 sprite_lava     db 128 dup(0)
 sprite_bridge   db 128 dup(0)
@@ -563,15 +548,7 @@ convertir_todos_sprites_planar PROC
     mov si, OFFSET sprite_grass1_temp
     mov di, OFFSET sprite_grass1
     call convertir_sprite_a_planar
-    
-    mov si, OFFSET sprite_grass2_temp
-    mov di, OFFSET sprite_grass2
-    call convertir_sprite_a_planar
-    
-    mov si, OFFSET sprite_flower_temp
-    mov di, OFFSET sprite_flower
-    call convertir_sprite_a_planar
-    
+
     mov si, OFFSET sprite_path_temp
     mov di, OFFSET sprite_path
     call convertir_sprite_a_planar
@@ -587,11 +564,7 @@ convertir_todos_sprites_planar PROC
     mov si, OFFSET sprite_sand_temp
     mov di, OFFSET sprite_sand
     call convertir_sprite_a_planar
-    
-    mov si, OFFSET sprite_rock_temp
-    mov di, OFFSET sprite_rock
-    call convertir_sprite_a_planar
-    
+
     mov si, OFFSET sprite_snow_temp
     mov di, OFFSET sprite_snow
     call convertir_sprite_a_planar
@@ -603,15 +576,7 @@ convertir_todos_sprites_planar PROC
     mov si, OFFSET sprite_wall_temp
     mov di, OFFSET sprite_wall
     call convertir_sprite_a_planar
-    
-    mov si, OFFSET sprite_hill_temp
-    mov di, OFFSET sprite_hill
-    call convertir_sprite_a_planar
-    
-    mov si, OFFSET sprite_bush_temp
-    mov di, OFFSET sprite_bush
-    call convertir_sprite_a_planar
-    
+
     mov si, OFFSET sprite_dirt_temp
     mov di, OFFSET sprite_dirt
     call convertir_sprite_a_planar
@@ -948,20 +913,6 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_grass1
     mov di, OFFSET sprite_grass1_temp
     call cargar_sprite_16x16
-    jnc cst_load_grass2
-    jmp cst_error
-
-cst_load_grass2:
-    mov dx, OFFSET archivo_grass2
-    mov di, OFFSET sprite_grass2_temp
-    call cargar_sprite_16x16
-    jnc cst_load_flower
-    jmp cst_error
-
-cst_load_flower:
-    mov dx, OFFSET archivo_flower
-    mov di, OFFSET sprite_flower_temp
-    call cargar_sprite_16x16
     jnc cst_load_path
     jmp cst_error
 
@@ -990,13 +941,6 @@ cst_load_sand:
     mov dx, OFFSET archivo_sand
     mov di, OFFSET sprite_sand_temp
     call cargar_sprite_16x16
-    jnc cst_load_rock
-    jmp cst_error
-
-cst_load_rock:
-    mov dx, OFFSET archivo_rock
-    mov di, OFFSET sprite_rock_temp
-    call cargar_sprite_16x16
     jnc cst_load_snow
     jmp cst_error
 
@@ -1017,20 +961,6 @@ cst_load_ice:
 cst_load_wall:
     mov dx, OFFSET archivo_wall
     mov di, OFFSET sprite_wall_temp
-    call cargar_sprite_16x16
-    jnc cst_load_hill
-    jmp cst_error
-
-cst_load_hill:
-    mov dx, OFFSET archivo_hill
-    mov di, OFFSET sprite_hill_temp
-    call cargar_sprite_16x16
-    jnc cst_load_bush
-    jmp cst_error
-
-cst_load_bush:
-    mov dx, OFFSET arquivo_bush
-    mov di, OFFSET sprite_bush_temp
     call cargar_sprite_16x16
     jnc cst_load_dirt
     jmp cst_error
@@ -1363,17 +1293,7 @@ obtener_sprite_tile PROC
     
     mov bl, al
     mov di, OFFSET sprite_grass1
-    
-    cmp bl, TILE_GRASS2
-    jne ost_2
-    mov di, OFFSET sprite_grass2
-    jmp ost_fin
-ost_2:
-    cmp bl, TILE_FLOWER
-    jne ost_3
-    mov di, OFFSET sprite_flower
-    jmp ost_fin
-ost_3:
+
     cmp bl, TILE_PATH
     jne ost_4
     mov di, OFFSET sprite_path
@@ -1394,11 +1314,6 @@ ost_6:
     mov di, OFFSET sprite_sand
     jmp ost_fin
 ost_7:
-    cmp bl, TILE_ROCK
-    jne ost_8
-    mov di, OFFSET sprite_rock
-    jmp ost_fin
-ost_8:
     cmp bl, TILE_SNOW
     jne ost_9
     mov di, OFFSET sprite_snow
@@ -1414,26 +1329,16 @@ ost_10:
     mov di, OFFSET sprite_wall
     jmp ost_fin
 ost_11:
-    cmp bl, TILE_HILL
-    jne ost_12
-    mov di, OFFSET sprite_hill
-    jmp ost_fin
-ost_12:
-    cmp bl, TILE_BUSH
-    jne ost_13
-    mov di, OFFSET sprite_bush
-    jmp ost_fin
-ost_13:
     cmp bl, TILE_DIRT
-    jne ost_14
+    jne ost_12
     mov di, OFFSET sprite_dirt
     jmp ost_fin
-ost_14:
+ost_12:
     cmp bl, TILE_LAVA
-    jne ost_15
+    jne ost_13
     mov di, OFFSET sprite_lava
     jmp ost_fin
-ost_15:
+ost_13:
     cmp bl, TILE_BRIDGE
     jne ost_fin
     mov di, OFFSET sprite_bridge
