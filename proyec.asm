@@ -284,55 +284,34 @@ pmc_usar_scan:
     
 pmc_verificar:
     cmp al, 48h
-    jne pmc_chk_w_lower
-    jmp pmc_arriba
-pmc_chk_w_lower:
+    je pmc_arriba
     cmp al, 'w'
-    jne pmc_chk_w_upper
-    jmp pmc_arriba
-pmc_chk_w_upper:
+    je pmc_arriba
     cmp al, 'W'
-    jne pmc_chk_down_scan
-    jmp pmc_arriba
+    je pmc_arriba
 
-pmc_chk_down_scan:
     cmp al, 50h
-    jne pmc_chk_s_lower
-    jmp pmc_abajo
-pmc_chk_s_lower:
+    je pmc_abajo
     cmp al, 's'
-    jne pmc_chk_s_upper
-    jmp pmc_abajo
-pmc_chk_s_upper:
+    je pmc_abajo
     cmp al, 'S'
-    jne pmc_chk_left_scan
-    jmp pmc_abajo
+    je pmc_abajo
 
-pmc_chk_left_scan:
     cmp al, 4Bh
-    jne pmc_chk_a_lower
-    jmp pmc_izquierda
-pmc_chk_a_lower:
+    je pmc_izquierda
     cmp al, 'a'
-    jne pmc_chk_a_upper
-    jmp pmc_izquierda
-pmc_chk_a_upper:
+    je pmc_izquierda
     cmp al, 'A'
-    jne pmc_chk_right_scan
-    jmp pmc_izquierda
+    je pmc_izquierda
 
-pmc_chk_right_scan:
     cmp al, 4Dh
-    jne pmc_chk_d_lower
-    jmp pmc_derecha
-pmc_chk_d_lower:
+    je pmc_derecha
     cmp al, 'd'
-    jne pmc_chk_d_upper
-    jmp pmc_derecha
-pmc_chk_d_upper:
+    je pmc_derecha
     cmp al, 'D'
-    jne pmc_no_movimiento
-    jmp pmc_derecha
+    je pmc_derecha
+
+    jmp pmc_no_movimiento
 
 pmc_salir:
     pop dx
