@@ -331,8 +331,8 @@ pmc_chk_d_lower:
     jmp pmc_derecha
 pmc_chk_d_upper:
     cmp al, 'D'
-    jne pmc_no_movimiento
-    jmp pmc_derecha
+    je pmc_derecha
+    jmp pmc_no_movimiento
 
 pmc_salir:
     pop dx
