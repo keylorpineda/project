@@ -301,14 +301,23 @@ pmc_verificar:
     je pmc_abajo
 
     cmp al, 4Bh
-    je pmc_izquierda
-    cmp al, 'A'
-    je pmc_izquierda
+    jne pmc_verificar_a
+    jmp pmc_izquierda
 
+pmc_verificar_a:
+    cmp al, 'A'
+    jne pmc_verificar_derecha_scan
+    jmp pmc_izquierda
+
+pmc_verificar_derecha_scan:
     cmp al, 4Dh
-    je pmc_derecha
+    jne pmc_verificar_derecha_letra
+    jmp pmc_derecha
+
+pmc_verificar_derecha_letra:
     cmp al, 'D'
-    je pmc_derecha
+    jne pmc_no_movimiento
+    jmp pmc_derecha
 
     jmp pmc_no_movimiento
 
