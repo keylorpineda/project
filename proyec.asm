@@ -765,159 +765,154 @@ convertir_sprite_32x32_a_planar PROC
     mov bp, 32          ; 32 filas
     
 csp32_fila:
-    ; Procesar los primeros 16 píxeles (2 bytes en planar)
+    ; ===== BYTE 0 (primeros 8 píxeles de la fila) =====
+    xor bx, bx
+    xor dx, dx
+    mov cx, 8
+    
+csp32_byte0:
+    lodsb               ; Leer píxel del sprite lineal
+    
+    ; Desplazar para hacer espacio
+    shl dl, 1           ; Plano 0
+    shl dh, 1           ; Plano 1
+    shl bl, 1           ; Plano 2
+    shl bh, 1           ; Plano 3
+    
+    ; Insertar bits del píxel actual
+    test al, 01h
+    jz csp32_b0_p0
+    or dl, 1
+csp32_b0_p0:
+    test al, 02h
+    jz csp32_b0_p1
+    or dh, 1
+csp32_b0_p1:
+    test al, 04h
+    jz csp32_b0_p2
+    or bl, 1
+csp32_b0_p2:
+    test al, 08h
+    jz csp32_b0_p3
+    or bh, 1
+csp32_b0_p3:
+    loop csp32_byte0
+    
+    ; Guardar byte 0 de cada plano
+    mov [di], dl
+    mov [di+128], dh
+    mov [di+256], bl
+    mov [di+384], bh
+    inc di
+    
+    ; ===== BYTE 1 (píxeles 9-16) =====
     xor bx, bx
     xor dx, dx
     mov cx, 8
     
 csp32_byte1:
     lodsb
-    
     shl dl, 1
     shl dh, 1
     shl bl, 1
     shl bh, 1
-    
     test al, 01h
-    jz csp32_1_b1
+    jz csp32_b1_p0
     or dl, 1
-csp32_1_b1:
+csp32_b1_p0:
     test al, 02h
-    jz csp32_1_b2
+    jz csp32_b1_p1
     or dh, 1
-csp32_1_b2:
+csp32_b1_p1:
     test al, 04h
-    jz csp32_1_b3
+    jz csp32_b1_p2
     or bl, 1
-csp32_1_b3:
+csp32_b1_p2:
     test al, 08h
-    jz csp32_1_next
+    jz csp32_b1_p3
     or bh, 1
-csp32_1_next:
+csp32_b1_p3:
     loop csp32_byte1
     
     mov [di], dl
-    mov [di+128], dh      ; ✅ CORRECTO
-    mov [di+256], bl      ; ✅ CORRECTO
-    mov [di+384], bh      ; ✅ CORRECTO
+    mov [di+128], dh
+    mov [di+256], bl
+    mov [di+384], bh
     inc di
     
-    ; Segundo byte de los primeros 16 píxeles
+    ; ===== BYTE 2 (píxeles 17-24) =====
     xor bx, bx
     xor dx, dx
     mov cx, 8
     
 csp32_byte2:
     lodsb
-    
     shl dl, 1
     shl dh, 1
     shl bl, 1
     shl bh, 1
-    
     test al, 01h
-    jz csp32_2_b1
+    jz csp32_b2_p0
     or dl, 1
-csp32_2_b1:
+csp32_b2_p0:
     test al, 02h
-    jz csp32_2_b2
+    jz csp32_b2_p1
     or dh, 1
-csp32_2_b2:
+csp32_b2_p1:
     test al, 04h
-    jz csp32_2_b3
+    jz csp32_b2_p2
     or bl, 1
-csp32_2_b3:
+csp32_b2_p2:
     test al, 08h
-    jz csp32_2_next
+    jz csp32_b2_p3
     or bh, 1
-csp32_2_next:
+csp32_b2_p3:
     loop csp32_byte2
     
     mov [di], dl
-    mov [di+128], dh      ; ✅ CORRECTO
-    mov [di+256], bl      ; ✅ CORRECTO
-    mov [di+384], bh      ; ✅ CORRECTO
+    mov [di+128], dh
+    mov [di+256], bl
+    mov [di+384], bh
     inc di
     
-    ; Procesar los siguientes 16 píxeles (otros 2 bytes)
+    ; ===== BYTE 3 (píxeles 25-32) =====
     xor bx, bx
     xor dx, dx
     mov cx, 8
     
 csp32_byte3:
     lodsb
-    
     shl dl, 1
     shl dh, 1
     shl bl, 1
     shl bh, 1
-    
     test al, 01h
-    jz csp32_3_b1
+    jz csp32_b3_p0
     or dl, 1
-csp32_3_b1:
+csp32_b3_p0:
     test al, 02h
-    jz csp32_3_b2
+    jz csp32_b3_p1
     or dh, 1
-csp32_3_b2:
+csp32_b3_p1:
     test al, 04h
-    jz csp32_3_b3
+    jz csp32_b3_p2
     or bl, 1
-csp32_3_b3:
+csp32_b3_p2:
     test al, 08h
-    jz csp32_3_next
+    jz csp32_b3_p3
     or bh, 1
-csp32_3_next:
+csp32_b3_p3:
     loop csp32_byte3
     
     mov [di], dl
-    mov [di+128], dh      ; ✅ CORRECTO
-    mov [di+256], bl      ; ✅ CORRECTO
-    mov [di+384], bh      ; ✅ CORRECTO
-    inc di
-    
-    ; Cuarto byte
-    xor bx, bx
-    xor dx, dx
-    mov cx, 8
-    
-csp32_byte4:
-    lodsb
-    
-    shl dl, 1
-    shl dh, 1
-    shl bl, 1
-    shl bh, 1
-    
-    test al, 01h
-    jz csp32_4_b1
-    or dl, 1
-csp32_4_b1:
-    test al, 02h
-    jz csp32_4_b2
-    or dh, 1
-csp32_4_b2:
-    test al, 04h
-    jz csp32_4_b3
-    or bl, 1
-csp32_4_b3:
-    test al, 08h
-    jz csp32_4_next
-    or bh, 1
-csp32_4_next:
-    loop csp32_byte4
-    
-    mov [di], dl
-    mov [di+128], dh      ; ✅ CORRECTO
-    mov [di+256], bl      ; ✅ CORRECTO
-    mov [di+384], bh      ; ✅ CORRECTO
+    mov [di+128], dh
+    mov [di+256], bl
+    mov [di+384], bh
     inc di
     
     dec bp
-    jz csp32_fin
-    jmp csp32_fila
-
-csp32_fin:
+    jnz csp32_fila
+    
     pop bp
     pop di
     pop si
@@ -1678,11 +1673,6 @@ dsp_loop_fila_exit:
     ret
 dibujar_sprite_planar_16x16 ENDP
 
-; ============================================================================
-; VERSIÓN MÁS SIMPLE - dibujar_sprite_planar_32x32
-; Estrategia: Escribir todo sin transparencia primero, es más rápido
-; ============================================================================
-
 dibujar_sprite_planar_32x32 PROC
     push ax
     push bx
@@ -1697,16 +1687,13 @@ dibujar_sprite_planar_32x32 PROC
     mov bx, 80
     mul bx
     add ax, temp_offset
-    mov bp, ax          ; BP = inicio de línea en video
+    mov bp, ax
     
     mov ax, cx
     shr ax, 3
-    add bp, ax          ; BP = posición exacta en video
+    add bp, ax
     
-    ; SI = puntero al sprite
     mov si, di
-    
-    ; Procesar 32 filas
     mov cx, 32
 
 dsp32_fila:
@@ -1719,13 +1706,13 @@ dsp32_fila:
     call dsp32_escribir_planos_transparente
 
     pop bp
-    add bp, 80          ; Siguiente línea en video
+    add bp, 80
     pop si
-    add si, 4           ; Siguiente fila en sprite
+    add si, 4
     pop cx
     loop dsp32_fila
     
-    ; Restaurar todos los planos
+    ; Restaurar planos
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1743,21 +1730,19 @@ dsp32_fila:
     ret
 dibujar_sprite_planar_32x32 ENDP
 
-; ============================================================================
-; NUEVA RUTINA: Escribir planos con transparencia para color D
-; Color D (13 decimal = 1101 binario) = Bit0=1, Bit1=0, Bit2=1, Bit3=1
-; ============================================================================
 dsp32_escribir_planos_transparente PROC NEAR
     push ax
+    push bx
     push cx
     push dx
     push si
+    push di
     push bp
     
-    mov si, di              ; SI = destino en video
-    mov bp, bx              ; BP = origen en sprite
+    mov si, di
+    mov bp, bx
     
-    ; ========== PLANO 0 (Bit 0) ==========
+    ; ========== PLANO 0 ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1767,14 +1752,14 @@ dsp32_escribir_planos_transparente PROC NEAR
     
     mov di, si
     mov bx, bp
-    mov cx, 4               ; 4 bytes por fila
-dsp32_p0_loop:
+    mov cx, 4
+dsp32_p0:
     call escribir_byte_transparente
     inc bx
     inc di
-    loop dsp32_p0_loop
+    loop dsp32_p0
     
-    ; ========== PLANO 1 (Bit 1) ==========
+    ; ========== PLANO 1 ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1786,13 +1771,13 @@ dsp32_p0_loop:
     mov bx, bp
     add bx, 128
     mov cx, 4
-dsp32_p1_loop:
+dsp32_p1:
     call escribir_byte_transparente
     inc bx
     inc di
-    loop dsp32_p1_loop
+    loop dsp32_p1
     
-    ; ========== PLANO 2 (Bit 2) ==========
+    ; ========== PLANO 2 ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1804,13 +1789,13 @@ dsp32_p1_loop:
     mov bx, bp
     add bx, 256
     mov cx, 4
-dsp32_p2_loop:
+dsp32_p2:
     call escribir_byte_transparente
     inc bx
     inc di
-    loop dsp32_p2_loop
+    loop dsp32_p2
     
-    ; ========== PLANO 3 (Bit 3) ==========
+    ; ========== PLANO 3 ==========
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1822,134 +1807,110 @@ dsp32_p2_loop:
     mov bx, bp
     add bx, 384
     mov cx, 4
-dsp32_p3_loop:
+dsp32_p3:
     call escribir_byte_transparente
     inc bx
     inc di
-    loop dsp32_p3_loop
+    loop dsp32_p3
     
     pop bp
+    pop di
     pop si
     pop dx
     pop cx
+    pop bx
     pop ax
     ret
 dsp32_escribir_planos_transparente ENDP
 
-; ============================================================================
-; RUTINA: Escribir un byte con transparencia
-; Entrada: BX = offset actual en sprite, DI = offset en video, BP = base sprite
-; Detecta color D (1101b) y solo dibuja píxeles no transparentes
-; ============================================================================
 escribir_byte_transparente PROC NEAR
     push ax
+    push bx
     push cx
     push dx
     push si
-    
-    ; Calcular offset relativo desde base del sprite
-    mov si, bx
-    sub si, bp
-    and si, 3             ; SI = número de byte (0-3)
-    
-    ; ✅ NUEVA ESTRATEGIA: Construir máscara de transparencia
-    ; Color D (13 = 1101b) debe ser transparente (0 en máscara)
-    ; Cualquier otro color debe ser visible (1 en máscara)
-    
-    ; Leer los 4 planos del byte actual
-    mov al, [bp + si]           ; AL = Plano 0
-    mov cl, [bp + si + 128]     ; CL = Plano 1
-    mov ch, [bp + si + 256]     ; CH = Plano 2
-    mov ah, [bp + si + 384]     ; AH = Plano 3
-    
-    ; ✅ CONSTRUIR MÁSCARA BIT POR BIT
-    push bx
     push di
     
-    xor bh, bh          ; BH = máscara resultado
-    mov bl, 8           ; Contador de bits (8 píxeles por byte)
+    mov si, bx
+    sub si, bp
+    and si, 3
     
-ebt_loop_bits:
-    ; ✅ EXTRAER BIT MÁS SIGNIFICATIVO DE CADA PLANO
-    mov dl, 0           ; DL = bit de P0
+    mov al, [bp + si]
+    mov cl, [bp + si + 128]
+    mov ch, [bp + si + 256]
+    mov ah, [bp + si + 384]
+    
+    xor bl, bl
+    mov bh, 8
+    
+ebt_bit:
+    shl bl, 1
+    
+    mov dl, 0
     test al, 80h
-    jz ebt_p0_done
+    jz ebt_p0
     mov dl, 1
-ebt_p0_done:
-    
-    mov dh, 0           ; DH = bit de P1
+ebt_p0:
+    mov dh, 0
     test cl, 80h
-    jz ebt_p1_done
+    jz ebt_p1
     mov dh, 1
-ebt_p1_done:
+ebt_p1:
     
     push ax
-    xor al, al          ; Reutilizar AL para P2
+    mov al, 0
     test ch, 80h
-    jz ebt_p2_done
+    jz ebt_p2
     mov al, 1
-ebt_p2_done:
+ebt_p2:
     
     push cx
-    xor cl, cl          ; Reutilizar CL para P3
+    mov cl, 0
     test ah, 80h
-    jz ebt_p3_done
+    jz ebt_p3
     mov cl, 1
-ebt_p3_done:
+ebt_p3:
     
-    ; ✅ VERIFICAR SI EL PÍXEL ES COLOR D (P0=1, P1=0, P2=1, P3=1)
-    cmp dl, 1           ; P0 == 1 ?
-    jne ebt_no_es_D
-    cmp dh, 0           ; P1 == 0 ?
-    jne ebt_no_es_D
-    cmp al, 1           ; P2 == 1 ?
-    jne ebt_no_es_D
-    cmp cl, 1           ; P3 == 1 ?
-    jne ebt_no_es_D
+    cmp dl, 1
+    jne ebt_visible
+    cmp dh, 0
+    jne ebt_visible
+    cmp al, 1
+    jne ebt_visible
+    cmp cl, 1
+    jne ebt_visible
     
-    ; ✅ ES COLOR D → BIT TRANSPARENTE (dejar en 0)
     pop cx
     pop ax
-    shl bh, 1           ; Desplazar e insertar 0
-    jmp ebt_siguiente_bit
+    jmp ebt_shift
     
-ebt_no_es_D:
-    ; ✅ NO ES COLOR D → BIT VISIBLE (poner en 1)
+ebt_visible:
     pop cx
     pop ax
-    shl bh, 1           ; Desplazar
-    or bh, 1            ; Insertar 1
+    or bl, 1
     
-ebt_siguiente_bit:
-    ; Desplazar todos los planos para siguiente píxel
-    shl al, 1           ; P0
-    shl cl, 1           ; P1
-    shl ch, 1           ; P2
-    shl ah, 1           ; P3
+ebt_shift:
+    shl al, 1
+    shl cl, 1
+    shl ch, 1
+    shl ah, 1
+    dec bh
+    jnz ebt_bit
     
-    dec bl
-    jnz ebt_loop_bits
-    
-    ; ✅ BH = máscara completa (1=visible, 0=transparente)
+    mov al, [bx]
+    mov cl, es:[di]
+    mov ch, bl
+    not ch
+    and cl, ch
+    and al, bl
+    or al, cl
+    mov es:[di], al
     
     pop di
-    pop bx
-    
-    ; ✅ APLICAR MÁSCARA AL DATO Y ESCRIBIR
-    mov al, [bx]        ; Leer dato del plano actual
-    and al, bh          ; Mantener solo píxeles visibles
-    
-    mov cl, bh
-    not cl              ; Invertir máscara
-    mov ch, es:[di]     ; Leer contenido actual de pantalla
-    and ch, cl          ; Mantener píxeles que NO vamos a sobrescribir
-    
-    or al, ch           ; Combinar dato nuevo con fondo
-    mov es:[di], al     ; Escribir resultado
-    
     pop si
     pop dx
     pop cx
+    pop bx
     pop ax
     ret
 escribir_byte_transparente ENDP
