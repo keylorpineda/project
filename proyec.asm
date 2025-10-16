@@ -319,6 +319,7 @@ pmc_verificar_derecha_letra:
     je pmc_derecha
     jmp pmc_no_movimiento
 
+pmc_no_movimiento_local:
     jmp pmc_no_movimiento
 
 pmc_salir:
