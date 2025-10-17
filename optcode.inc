@@ -2,14 +2,6 @@
 ; OPTCODE.INC - Motor grafico optimizado
 ; Universidad Nacional - Proyecto II Ciclo 2025
 ; ============================================
-; Este archivo contiene todas las funciones
-; optimizadas del motor grafico.
-; NO compilar directamente, usar INCLUDE.
-; ============================================
-
-; ============================================
-; FUNCIONES DE INICIALIZACION
-; ============================================
 
 ; Inicializar todas las tablas de optimizacion
 inicializar_lookup_tables PROC
@@ -230,9 +222,8 @@ vtt_transitable:
 verificar_tile_transitable_opt ENDP
 
 ; ============================================
-; CONVERSION CON PRE-MASCARAS (16x16)
+; CONVERSION CON PRE-MASCARAS (16x16) - CORREGIDA
 ; ============================================
-
 ; Convertir sprite 16x16 a planar Y generar mascaras
 ; IN: SI = fuente (datos lineales), DI = destino (planar), BP = destino mascaras
 convertir_sprite_a_planar_opt PROC
@@ -247,50 +238,70 @@ convertir_sprite_a_planar_opt PROC
     mov cx, 16          ; 16 filas
     
 cspo_fila:
-    ; ===== BYTE IZQUIERDO (pixeles 0-7) =====
     push cx
-    xor bx, bx
-    xor dx, dx
-    mov cx, 8
+    push di
+    push si
+    push bp
+    
+    ; ===== BYTE IZQUIERDO (pixeles 0-7) =====
+    xor bx, bx          ; BX = planos 2 y 3
+    xor dx, dx          ; DX = planos 0 y 1
+    mov cx, 8           ; 8 píxeles
     
 cspo_byte_izq:
-    lodsb
+    lodsb               ; Leer pixel
+    
+    ; Desplazar todos los planos
     shl dl, 1
     shl dh, 1
     shl bl, 1
     shl bh, 1
+    
+    ; Plano 0 (bit 0)
     test al, 01h
     jz cspo_izq_b1
     or dl, 1
 cspo_izq_b1:
+    
+    ; Plano 1 (bit 1)
     test al, 02h
     jz cspo_izq_b2
     or dh, 1
 cspo_izq_b2:
+    
+    ; Plano 2 (bit 2)
     test al, 04h
     jz cspo_izq_b3
     or bl, 1
 cspo_izq_b3:
+    
+    ; Plano 3 (bit 3)
     test al, 08h
     jz cspo_izq_next
     or bh, 1
 cspo_izq_next:
+    
     loop cspo_byte_izq
     
-    ; Guardar planos
-    mov [di], dl
-    mov [di+32], dh
-    mov [di+64], bl
-    mov [di+96], bh
+    ; Guardar byte izquierdo en memoria planar
+    pop bp
+    pop si
+    pop di
+    push di
+    push si
+    push bp
     
-    ; Calcular y guardar mascara
+    mov [di], dl        ; Plano 0, byte 0
+    mov [di+32], dh     ; Plano 1, byte 0
+    mov [di+64], bl     ; Plano 2, byte 0
+    mov [di+96], bh     ; Plano 3, byte 0
+    
+    ; Calcular y guardar máscara
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
     mov [bp], al
-    inc bp
-    inc di
     
     ; ===== BYTE DERECHO (pixeles 8-15) =====
     xor bx, bx
@@ -298,50 +309,68 @@ cspo_izq_next:
     mov cx, 8
     
 cspo_byte_der:
-    lodsb
+    lodsb               ; Leer pixel
+    
+    ; Desplazar todos los planos
     shl dl, 1
     shl dh, 1
     shl bl, 1
     shl bh, 1
+    
+    ; Plano 0 (bit 0)
     test al, 01h
     jz cspo_der_b1
     or dl, 1
 cspo_der_b1:
+    
+    ; Plano 1 (bit 1)
     test al, 02h
     jz cspo_der_b2
     or dh, 1
 cspo_der_b2:
+    
+    ; Plano 2 (bit 2)
     test al, 04h
     jz cspo_der_b3
     or bl, 1
 cspo_der_b3:
+    
+    ; Plano 3 (bit 3)
     test al, 08h
     jz cspo_der_next
     or bh, 1
 cspo_der_next:
+    
     loop cspo_byte_der
     
-    ; Guardar planos
-    mov [di], dl
-    mov [di+32], dh
-    mov [di+64], bl
-    mov [di+96], bh
+    ; Guardar byte derecho
+    pop bp
+    pop si
+    pop di
     
-    ; Calcular y guardar mascara
+    mov [di+1], dl      ; Plano 0, byte 1
+    mov [di+33], dh     ; Plano 1, byte 1
+    mov [di+65], bl     ; Plano 2, byte 1
+    mov [di+97], bh     ; Plano 3, byte 1
+    
+    ; Calcular y guardar máscara
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
-    mov [bp], al
-    inc bp
-    inc di
-
+    mov [bp+1], al
+    
+    ; Avanzar a siguiente fila
+    add di, 2           ; Siguiente fila en formato planar
+    add bp, 2           ; Siguiente fila de máscaras
+    add si, 16          ; Siguiente fila en datos lineales
+    
     pop cx
     dec cx
-    jz cspo_fin_fila
+    jz cspo_fin
     jmp cspo_fila
 
-cspo_fin_fila:
+cspo_fin:
     pop bp
     pop di
     pop si

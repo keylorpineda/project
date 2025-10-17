@@ -122,6 +122,8 @@ viewport_y  dw 79
 temp_offset     dw 0
 inicio_tile_x   dw 0
 inicio_tile_y   dw 0
+temp_fila dw 0
+temp_col  dw 0
 
 INCLUDE OPTDATA.INC
 
@@ -150,6 +152,7 @@ inicio:
     mov ah, 9
     int 21h
     
+    ; Cargar archivos...
     mov dx, OFFSET msg_mapa
     mov ah, 9
     int 21h
@@ -178,7 +181,6 @@ st_ok:
     call cargar_animaciones_jugador
     jnc anim_ok
     jmp error_carga
-    
 anim_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
@@ -187,7 +189,7 @@ anim_ok:
     mov dx, OFFSET msg_convert
     mov ah, 9
     int 21h
-   call convertir_todos_sprites_planar
+    call convertir_todos_sprites_planar
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -200,13 +202,67 @@ anim_ok:
     mov ah, 9
     int 21h
     
+    ; ========================================
+    ; AGREGAR PAUSA AQUÍ
+    ; ========================================
     mov dx, OFFSET msg_controles
     mov ah, 9
     int 21h
     
+    mov ah, 0           ; ← ESPERAR TECLA
+    int 16h             ; ← ANTES DE ENTRAR AL MODO GRÁFICO
+    
+    ; ========================================
+    ; TEST: Llenar pantalla de color
+    ; ========================================
     mov ax, 10h
     int 10h
+
+    call test_dibujar_tile
     
+    ; Apuntar a memoria de video
+    mov ax, 0A000h
+    mov es, ax
+    
+    ; Habilitar escritura en todos los planos
+    mov dx, 3C4h        ; Sequencer
+    mov al, 2           ; Map Mask register
+    out dx, al
+    inc dx
+    mov al, 0Fh         ; Todos los planos
+    out dx, al
+    
+    ; Llenar toda la pantalla de blanco
+    xor di, di
+    mov cx, 28000       ; 640x350/8 = 28000 bytes
+    mov al, 0FFh        ; Blanco
+    
+test_fill:
+    mov es:[di], al
+    inc di
+    loop test_fill
+    
+    ; Esperar tecla para ver resultado
+    mov ah, 0
+    int 16h
+    
+    ; Limpiar pantalla
+    xor di, di
+    mov cx, 28000
+    xor al, al
+    
+test_clear:
+    mov es:[di], al
+    inc di
+    loop test_clear
+    
+    ; Esperar otra tecla
+    mov ah, 0
+    int 16h
+    
+    ; ========================================
+    ; Continuar con el juego normal
+    ; ========================================
     call centrar_camara
     call renderizar_en_pagina_0
     call renderizar_en_pagina_1
@@ -214,6 +270,7 @@ anim_ok:
     mov ah, 5
     mov al, 0
     int 10h
+
 
 bucle_juego:
     ; Procesar input y actualizar estado
@@ -916,7 +973,6 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    ; Calcular tile inicial
     mov ax, camara_px
     shr ax, 4
     mov inicio_tile_x, ax
@@ -925,106 +981,87 @@ dibujar_mapa_en_offset PROC
     shr ax, 4
     mov inicio_tile_y, ax
     
-    xor bp, bp
-
-dmo_fila:
-    cmp bp, 13
-    jb dmo_fila_loop
-    jmp dmo_fin
+    mov temp_fila, 0
 
 dmo_fila_loop:
-    xor si, si
-
-dmo_col:
-    cmp si, 21
-    jb dmo_col_loop
-    jmp dmo_next_fila
+    cmp temp_fila, 13
+    jae dmo_fin
+    
+    mov temp_col, 0
 
 dmo_col_loop:
+    cmp temp_col, 21
+    jae dmo_next_fila
+    
+    ; Calcular tile_y y tile_x
     mov ax, inicio_tile_y
-    add ax, bp
-    cmp ax, 100         ; ✅ CAMBIO: límite Y = 100 (antes 50)
-    jb dmo_y_in_range
-    jmp dmo_next_col
-
-dmo_y_in_range:
+    add ax, temp_fila
+    cmp ax, 100
+    jae dmo_next_col
+    mov bp, ax                ; BP = tile_y
+    
     mov bx, inicio_tile_x
-    add bx, si
-    cmp bx, 100         ; ✅ CAMBIO: límite X = 100 (antes 50)
-    jb dmo_indices_validos
-    jmp dmo_next_col
-
-dmo_indices_validos:
+    add bx, temp_col
+    cmp bx, 100
+    jae dmo_next_col          ; BX = tile_x
     
-    push dx
-    push bx              ; Guardar bx (inicio_tile_x + si)
-    mov bx, ax          ; ax = inicio_tile_y + bp
-    shl bx, 1           ; Multiplicar por 2 (índice de word)
+    ; Índice en mapa
+    push bx
+    mov bx, bp
+    shl bx, 1
     mov ax, [mul100_table + bx]
-    pop bx              ; Recuperar bx
-    add ax, bx          ; ax = (inicio_tile_y + bp) × 100 + (inicio_tile_x + si)
-    pop dx
-    mov bx, ax
+    pop bx
+    add ax, bx
+    mov si, ax                ; SI = índice temporal
     
-    mov al, [mapa_datos + bx]
-    call obtener_sprite_tile
+    ; Obtener tile
+    mov al, [mapa_datos + si]
+    call obtener_sprite_tile  ; DI=data, SI=mask (SOBREESCRIBE SI!)
     
+    ; Guardar en stack
+    push di
     push si
-    push bp
     
-    ; Calcular posición
-    mov ax, si
+    ; Calcular posición en pantalla
+    mov ax, temp_col
     shl ax, 4
     sub ax, camara_px
     add ax, viewport_x
-    add ax, camara_px
     mov cx, ax
     
-    mov ax, bp
+    mov ax, temp_fila
     shl ax, 4
     sub ax, camara_py
     add ax, viewport_y
-    add ax, camara_py
     mov dx, ax
     
+    ; Verificar viewport
     cmp cx, viewport_x
-    jge dmo_check_x_max
-    jmp dmo_skip_tile
-
-dmo_check_x_max:
+    jl dmo_skip
     cmp cx, 480
-    jl dmo_check_y_min
-    jmp dmo_skip_tile
-
-dmo_check_y_min:
+    jge dmo_skip
     cmp dx, viewport_y
-    jge dmo_check_y_max
-    jmp dmo_skip_tile
-
-dmo_check_y_max:
+    jl dmo_skip
     cmp dx, 271
-    jl dmo_render_tile
-    jmp dmo_skip_tile
-
-dmo_render_tile:
-    push di                          
-    push si                          
-    call dibujar_sprite_planar_16x16_opt  
-    pop si                           
-    pop di                           
+    jge dmo_skip
     
-dmo_skip_tile:
-    pop bp
+    ; Recuperar y dibujar
     pop si
-    
+    pop di
+    call dibujar_sprite_planar_16x16_opt
+    jmp dmo_next_col
+
+dmo_skip:
+    add sp, 4                 ; Limpiar stack
+
 dmo_next_col:
-    inc si
-    jmp dmo_col
-    
+    inc temp_col
+    jmp dmo_col_loop
+
 dmo_next_fila:
-    inc bp
-    jmp dmo_fila
-    
+    inc temp_fila
+    jmp dmo_fila_loop
+
 dmo_fin:
     pop bp
     pop di
@@ -1485,6 +1522,41 @@ sl_fin:
     pop ax
     ret
 saltar_linea ENDP
+
+; Test: dibujar un tile manualmente
+test_dibujar_tile PROC
+    push ax
+    push cx
+    push dx
+    push di
+    push si
+    push es
+    
+    mov ax, 0A000h
+    mov es, ax
+    
+    mov temp_offset, 0
+    
+    ; Dibujar sprite grass en posición 160,79
+    mov di, OFFSET sprite_grass1
+    mov si, OFFSET sprite_grass1_mask
+    mov cx, 160
+    mov dx, 79
+    
+    call dibujar_sprite_planar_16x16_opt
+    
+    ; Esperar tecla
+    mov ah, 0
+    int 16h
+    
+    pop es
+    pop si
+    pop di
+    pop dx
+    pop cx
+    pop ax
+    ret
+test_dibujar_tile ENDP
 
 INCLUDE OPTCODE.INC
 
