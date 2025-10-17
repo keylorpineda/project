@@ -201,9 +201,6 @@ anim_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
-
-    call debug_mostrar_tile
-    
     ; ========================================
     ; AGREGAR PAUSA AQUÍ
     ; ========================================
@@ -213,57 +210,14 @@ anim_ok:
     
     mov ah, 0           ; ← ESPERAR TECLA
     int 16h             ; ← ANTES DE ENTRAR AL MODO GRÁFICO
-    
-    ; ========================================
-    ; TEST: Llenar pantalla de color
-    ; ========================================
-    mov ax, 10h
-    int 10h   
-    ; Apuntar a memoria de video
-    mov ax, 0A000h
-    mov es, ax
-    
-    ; Habilitar escritura en todos los planos
-    mov dx, 3C4h        ; Sequencer
-    mov al, 2           ; Map Mask register
-    out dx, al
-    inc dx
-    mov al, 0Fh         ; Todos los planos
-    out dx, al
-    
-    ; Llenar toda la pantalla de blanco
-    xor di, di
-    mov cx, 28000       ; 640x350/8 = 28000 bytes
-    mov al, 0FFh        ; Blanco
-    
-test_fill:
-    mov es:[di], al
-    inc di
-    loop test_fill
-    
-    ; Esperar tecla para ver resultado
-    mov ah, 0
-    int 16h
-    
-    ; Limpiar pantalla
-    xor di, di
-    mov cx, 28000
-    xor al, al
-    
-test_clear:
-    mov es:[di], al
-    inc di
-    loop test_clear
-    
-    ; Esperar otra tecla
-    mov ah, 0
-    int 16h
-    
-    mov dx, 3C4h        ; Puerto de índice del Secuenciador
-mov al, 2           ; Seleccionar el registro Map Mask
+
+mov ax, 10h         ; ← Modo gráfico EGA 640x350, 16 colores
+int 10h  
+mov dx, 3C4h        ; Puerto Sequencer
+mov al, 2           ; Registro Map Mask
 out dx, al
-inc dx              ; Apuntar al puerto de datos
-mov al, 01h         ; Habilitar solo el primer plano (valor por defecto)
+inc dx              ; Puerto de datos
+mov al, 0Fh         ; Habilitar 4 planos (bits 0-3)
 out dx, al
     ; ========================================
     ; Continuar con el juego normal
