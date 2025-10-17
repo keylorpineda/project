@@ -224,8 +224,6 @@ verificar_tile_transitable_opt ENDP
 ; ============================================
 ; CONVERSION CON PRE-MASCARAS (16x16) - CORREGIDA
 ; ============================================
-; Convertir sprite 16x16 a planar Y generar mascaras
-; IN: SI = fuente (datos lineales), DI = destino (planar), BP = destino mascaras
 convertir_sprite_a_planar_opt PROC
     push ax
     push bx
@@ -244,46 +242,36 @@ cspo_fila:
     push bp
     
     ; ===== BYTE IZQUIERDO (pixeles 0-7) =====
-    xor bx, bx          ; BX = planos 2 y 3
-    xor dx, dx          ; DX = planos 0 y 1
-    mov cx, 8           ; 8 píxeles
+    xor bx, bx
+    xor dx, dx
+    mov cx, 8
     
 cspo_byte_izq:
-    lodsb               ; Leer pixel
-    
-    ; Desplazar todos los planos
+    lodsb
     shl dl, 1
     shl dh, 1
     shl bl, 1
     shl bh, 1
     
-    ; Plano 0 (bit 0)
     test al, 01h
     jz cspo_izq_b1
     or dl, 1
 cspo_izq_b1:
-    
-    ; Plano 1 (bit 1)
     test al, 02h
     jz cspo_izq_b2
     or dh, 1
 cspo_izq_b2:
-    
-    ; Plano 2 (bit 2)
     test al, 04h
     jz cspo_izq_b3
     or bl, 1
 cspo_izq_b3:
-    
-    ; Plano 3 (bit 3)
     test al, 08h
     jz cspo_izq_next
     or bh, 1
 cspo_izq_next:
-    
     loop cspo_byte_izq
     
-    ; Guardar byte izquierdo en memoria planar
+    ; Guardar byte izquierdo
     pop bp
     pop si
     pop di
@@ -291,12 +279,12 @@ cspo_izq_next:
     push si
     push bp
     
-    mov [di], dl        ; Plano 0, byte 0
-    mov [di+32], dh     ; Plano 1, byte 0
-    mov [di+64], bl     ; Plano 2, byte 0
-    mov [di+96], bh     ; Plano 3, byte 0
+    mov [di], dl
+    mov [di+32], dh
+    mov [di+64], bl
+    mov [di+96], bh
     
-    ; Calcular y guardar máscara
+    ; Calcular máscara
     mov al, dl
     or al, dh
     or al, bl
@@ -309,38 +297,28 @@ cspo_izq_next:
     mov cx, 8
     
 cspo_byte_der:
-    lodsb               ; Leer pixel
-    
-    ; Desplazar todos los planos
+    lodsb
     shl dl, 1
     shl dh, 1
     shl bl, 1
     shl bh, 1
     
-    ; Plano 0 (bit 0)
     test al, 01h
     jz cspo_der_b1
     or dl, 1
 cspo_der_b1:
-    
-    ; Plano 1 (bit 1)
     test al, 02h
     jz cspo_der_b2
     or dh, 1
 cspo_der_b2:
-    
-    ; Plano 2 (bit 2)
     test al, 04h
     jz cspo_der_b3
     or bl, 1
 cspo_der_b3:
-    
-    ; Plano 3 (bit 3)
     test al, 08h
     jz cspo_der_next
     or bh, 1
 cspo_der_next:
-    
     loop cspo_byte_der
     
     ; Guardar byte derecho
@@ -348,22 +326,22 @@ cspo_der_next:
     pop si
     pop di
     
-    mov [di+1], dl      ; Plano 0, byte 1
-    mov [di+33], dh     ; Plano 1, byte 1
-    mov [di+65], bl     ; Plano 2, byte 1
-    mov [di+97], bh     ; Plano 3, byte 1
+    mov [di+1], dl
+    mov [di+33], dh
+    mov [di+65], bl
+    mov [di+97], bh
     
-    ; Calcular y guardar máscara
+    ; Calcular máscara (CORREGIDO)
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
     mov [bp+1], al
     
-    ; Avanzar a siguiente fila
-    add di, 2           ; Siguiente fila en formato planar
-    add bp, 2           ; Siguiente fila de máscaras
-    add si, 16          ; Siguiente fila en datos lineales
+    ; ✅ CRÍTICO: NO avanzar SI (ya avanzó 16 con lodsb)
+    add di, 2           ; Siguiente fila planar
+    add bp, 2           ; Siguiente fila máscaras
+    ; ← NO: add si, 16  (SI ya está en la posición correcta)
     
     pop cx
     dec cx
@@ -594,12 +572,6 @@ csp32o_fin:
     ret
 convertir_sprite_32x32_a_planar_opt ENDP
 
-; ============================================
-; RENDERIZADO OPTIMIZADO (16x16)
-; ============================================
-
-; Dibujar sprite 16x16 con mascaras pre-calculadas
-; IN: DI = sprite data, SI = sprite masks, CX = X, DX = Y
 dibujar_sprite_planar_16x16_opt PROC
     push ax
     push bx
@@ -634,9 +606,11 @@ dsp16o_loop_fila:
     mov ah, [si]        ; Mascara byte 0
     mov al, [si+1]      ; Mascara byte 1
     
-    push ax
+    push ax             ; Guardar ambas máscaras
     
-    ; ===== PLANO 0 =====
+    ; ========================================
+    ; BYTE 0 - PLANO 0
+    ; ========================================
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -656,33 +630,19 @@ dsp16o_loop_fila:
     
     mov di, bp
     
-    ; Byte 0
-    mov cl, ah
+    mov cl, ah          ; Máscara byte 0
     not cl
     mov ch, es:[di]
     and ch, cl
     mov cl, ah
-    mov al, [bx]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    pop ax
-    push ax
-    
-    ; Byte 1
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+1]
+    mov al, [bx]        ; P0, byte 0
     and al, cl
     or al, ch
     mov es:[di], al
     
-    ; ===== PLANO 1 =====
+    ; ========================================
+    ; BYTE 0 - PLANO 1
+    ; ========================================
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -699,6 +659,7 @@ dsp16o_loop_fila:
     
     pop ax
     push ax
+    
     mov di, bp
     
     mov cl, ah
@@ -706,25 +667,14 @@ dsp16o_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, ah
-    mov al, [bx+32]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    pop ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+33]
+    mov al, [bx+32]     ; P1, byte 0
     and al, cl
     or al, ch
     mov es:[di], al
     
-    ; ===== PLANO 2 =====
+    ; ========================================
+    ; BYTE 0 - PLANO 2
+    ; ========================================
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -741,6 +691,7 @@ dsp16o_loop_fila:
     
     pop ax
     push ax
+    
     mov di, bp
     
     mov cl, ah
@@ -748,25 +699,14 @@ dsp16o_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, ah
-    mov al, [bx+64]
-    and al, cl
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    pop ax
-    push ax
-    mov cl, al
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov cl, al
-    mov al, [bx+65]
+    mov al, [bx+64]     ; P2, byte 0
     and al, cl
     or al, ch
     mov es:[di], al
     
-    ; ===== PLANO 3 =====
+    ; ========================================
+    ; BYTE 0 - PLANO 3 (¡FALTABA!)
+    ; ========================================
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -782,6 +722,8 @@ dsp16o_loop_fila:
     out dx, al
     
     pop ax
+    push ax
+    
     mov di, bp
     
     mov cl, ah
@@ -789,21 +731,145 @@ dsp16o_loop_fila:
     mov ch, es:[di]
     and ch, cl
     mov cl, ah
-    mov al, [bx+96]
+    mov al, [bx+96]     ; ✅ P3, byte 0 (FALTABA)
     and al, cl
     or al, ch
     mov es:[di], al
+    
+    ; ========================================
+    ; BYTE 1 - PLANO 0
+    ; ========================================
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 0
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    
+    pop ax
+    push ax
+    
+    mov di, bp
+    inc di
+    
+    mov cl, al          ; Máscara byte 1
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+1]      ; P0, byte 1
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
+    ; ========================================
+    ; BYTE 1 - PLANO 1
+    ; ========================================
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    
+    pop ax
+    push ax
+    
+    mov di, bp
     inc di
     
     mov cl, al
     not cl
     mov ch, es:[di]
     and ch, cl
-    mov al, [bx+97]
+    mov cl, al
+    mov al, [bx+33]     ; P1, byte 1
     and al, cl
     or al, ch
     mov es:[di], al
     
+    ; ========================================
+    ; BYTE 1 - PLANO 2
+    ; ========================================
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+    
+    pop ax
+    push ax
+    
+    mov di, bp
+    inc di
+    
+    mov cl, al
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+65]     ; P2, byte 1
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
+    ; ========================================
+    ; BYTE 1 - PLANO 3
+    ; ========================================
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 3
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 8
+    out dx, al
+    
+    pop ax              ; ✅ Recuperar máscaras
+    
+    mov di, bp
+    inc di
+    
+    mov cl, al          ; AL = máscara byte 1
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+97]     ; P3, byte 1
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
+    ; ========================================
+    ; Siguiente fila
+    ; ========================================
     pop bp
     add bp, 80
     pop si

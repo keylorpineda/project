@@ -875,12 +875,12 @@ obtener_sprite_jugador PROC
     jne osj_arr
     test bl, bl
     jz osj_down_a
-    mov si, OFFSET jugador_down_b
-    mov di, OFFSET jugador_down_b_mask     ; ← NUEVO
+    mov di, OFFSET jugador_down_b           ; ✅ DI = DATA
+    mov si, OFFSET jugador_down_b_mask      ; ✅ SI = MASK
     jmp osj_fin
 osj_down_a:
-    mov si, OFFSET jugador_down_a
-    mov di, OFFSET jugador_down_a_mask     ; ← NUEVO
+    mov di, OFFSET jugador_down_a           ; ✅ DI = DATA
+    mov si, OFFSET jugador_down_a_mask      ; ✅ SI = MASK
     jmp osj_fin
     
 osj_arr:
@@ -888,12 +888,12 @@ osj_arr:
     jne osj_izq
     test bl, bl
     jz osj_up_a
-    mov si, OFFSET jugador_up_b
-    mov di, OFFSET jugador_up_b_mask       ; ← NUEVO
+    mov di, OFFSET jugador_up_b
+    mov si, OFFSET jugador_up_b_mask
     jmp osj_fin
 osj_up_a:
-    mov si, OFFSET jugador_up_a
-    mov di, OFFSET jugador_up_a_mask       ; ← NUEVO
+    mov di, OFFSET jugador_up_a
+    mov si, OFFSET jugador_up_a_mask
     jmp osj_fin
     
 osj_izq:
@@ -901,23 +901,23 @@ osj_izq:
     jne osj_der
     test bl, bl
     jz osj_izq_a
-    mov si, OFFSET jugador_izq_b
-    mov di, OFFSET jugador_izq_b_mask      ; ← NUEVO
+    mov di, OFFSET jugador_izq_b
+    mov si, OFFSET jugador_izq_b_mask
     jmp osj_fin
 osj_izq_a:
-    mov si, OFFSET jugador_izq_a
-    mov di, OFFSET jugador_izq_a_mask      ; ← NUEVO
+    mov di, OFFSET jugador_izq_a
+    mov si, OFFSET jugador_izq_a_mask
     jmp osj_fin
     
 osj_der:
     test bl, bl
     jz osj_der_a
-    mov si, OFFSET jugador_der_b
-    mov di, OFFSET jugador_der_b_mask      ; ← NUEVO
+    mov di, OFFSET jugador_der_b
+    mov si, OFFSET jugador_der_b_mask
     jmp osj_fin
 osj_der_a:
-    mov si, OFFSET jugador_der_a
-    mov di, OFFSET jugador_der_a_mask      ; ← NUEVO
+    mov di, OFFSET jugador_der_a
+    mov si, OFFSET jugador_der_a_mask
     
 osj_fin:
     pop bx
@@ -1156,7 +1156,7 @@ dibujar_jugador_en_offset PROC
     push cx
     push dx
     push si
-    push di                          ; ← NUEVO
+    push di
     
     mov ax, jugador_px
     sub ax, camara_px
@@ -1170,14 +1170,12 @@ dibujar_jugador_en_offset PROC
     sub ax, 16
     mov dx, ax
     
-    call obtener_sprite_jugador      ; Retorna SI=data, DI=mask
-    push di                          ; Guardar máscara
-    mov di, si                       ; DI = sprite data
-    pop si                           ; SI = sprite mask
+    call obtener_sprite_jugador      ; ✅ Retorna DI=data, SI=mask (YA CORRECTO)
     
-    call dibujar_sprite_planar_32x32_opt  ; ← NUEVO: usar versión optimizada
+    ; ✅ AHORA ESTÁN EN EL ORDEN CORRECTO
+    call dibujar_sprite_planar_32x32_opt
     
-    pop di                           ; ← NUEVO
+    pop di
     pop si
     pop dx
     pop cx
@@ -1528,7 +1526,6 @@ sl_fin:
     ret
 saltar_linea ENDP
 
-; Test: dibujar un tile manualmente
 test_dibujar_tile PROC
     push ax
     push cx
@@ -1539,6 +1536,21 @@ test_dibujar_tile PROC
     
     mov ax, 0A000h
     mov es, ax
+    
+    ; ✅ Configurar registros EGA ANTES de dibujar
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh         ; Todos los planos
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 5           ; Mode register
+    out dx, al
+    inc dx
+    mov al, 0           ; Write Mode 0
+    out dx, al
     
     mov temp_offset, 0
     
