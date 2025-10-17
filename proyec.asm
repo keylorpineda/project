@@ -259,6 +259,12 @@ test_clear:
     mov ah, 0
     int 16h
     
+    mov dx, 3C4h        ; Puerto de índice del Secuenciador
+mov al, 2           ; Seleccionar el registro Map Mask
+out dx, al
+inc dx              ; Apuntar al puerto de datos
+mov al, 01h         ; Habilitar solo el primer plano (valor por defecto)
+out dx, al
     ; ========================================
     ; Continuar con el juego normal
     ; ========================================
