@@ -581,6 +581,10 @@ dibujar_sprite_planar_16x16_opt PROC
     push di
     push bp
     
+    ; Guardar coordenadas originales
+    push cx             ; ← NUEVO: guardar X
+    push dx             ; ← NUEVO: guardar Y
+    
     ; Calcular offset usando lookup table
     mov bx, dx
     shl bx, 1
@@ -592,6 +596,10 @@ dibujar_sprite_planar_16x16_opt PROC
     shr ax, 3
     add bp, ax
     
+    ; Restaurar coordenadas
+    pop dx              ; ← NUEVO: restaurar Y
+    pop cx              ; ← NUEVO: restaurar X
+    
     mov cx, 16          ; 16 filas
 
 dsp16o_loop_fila:
@@ -600,7 +608,7 @@ dsp16o_loop_fila:
     push si
     push bp
     
-    mov bx, di
+    mov bx, di 
     
     ; Leer mascaras pre-calculadas
     mov ah, [si]        ; Mascara byte 0
