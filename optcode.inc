@@ -326,8 +326,9 @@ cspo_der_next:
     add bp, 2           ; Siguiente fila de máscaras (2 bytes)
     
     pop cx              ; Recuperar contador de filas
-    dec cx              ; ✅ CAMBIO: Decrementar manualmente
-    jnz cspo_fila       ; ✅ CAMBIO: Saltar si no es cero (permite saltos largos)
+    dec cx       
+    jz cspo_fin        ; ✅ CAMBIO: Decrementar manualmente
+    jmp cspo_fila       ; ✅ CAMBIO: Saltar si no es cero (permite saltos largos)
 
 cspo_fin:
     pop bp
