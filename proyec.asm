@@ -984,19 +984,28 @@ dibujar_mapa_en_offset PROC
 
 dmo_fila_loop:
     cmp temp_fila, 13
-    jae dmo_fin             ; Si >= 13 filas, terminar
+    jb dmo_fila_continua    ; Si < 13 filas, continuar
+    jmp dmo_fin             ; Si >= 13 filas, terminar
+
+dmo_fila_continua:
     
     mov temp_col, 0         ; ✅ CRÍTICO: Resetear columna al inicio de cada fila
 
 dmo_col_loop:
     cmp temp_col, 21
-    jae dmo_next_fila       ; Si >= 21 columnas, siguiente fila
+    jb dmo_col_continua     ; Si < 21 columnas, continuar
+    jmp dmo_next_fila       ; Si >= 21 columnas, siguiente fila
+
+dmo_col_continua:
     
     ; ===== CALCULAR tile_y =====
     mov ax, inicio_tile_y
     add ax, temp_fila
     cmp ax, 100
-    jae dmo_next_col        ; ✅ CAMBIO: Si fuera de límite, siguiente columna (no fila)
+    jb dmo_tile_y_valido    ; ✅ CAMBIO: Si está dentro del límite, continuar
+    jmp dmo_next_col        ; ✅ CAMBIO: Si fuera de límite, siguiente columna (no fila)
+
+dmo_tile_y_valido:
     
     ; ===== CALCULAR ÍNDICE EN MAPA =====
     push ax                 ; Guardar tile_y
