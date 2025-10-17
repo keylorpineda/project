@@ -327,7 +327,8 @@ cspo_der_next:
     
     pop cx              ; Recuperar contador de filas
     dec cx              ; ✅ CAMBIO: Decrementar manualmente
-    jnz cspo_fila       ; ✅ CAMBIO: Saltar si no es cero (permite saltos largos)
+    jz cspo_fin         ; ✅ CAMBIO: Terminar cuando CX llegue a cero
+    jmp cspo_fila       ; ✅ CAMBIO: Continuar procesando filas restantes
 
 cspo_fin:
     pop bp
