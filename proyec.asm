@@ -947,24 +947,6 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    ; ============================================
-    ; DEBUG: Descomentar para probar un solo tile
-    ; ============================================
-    ; mov di, OFFSET sprite_grass1
-    ; mov si, OFFSET sprite_grass1_mask
-    ; mov cx, 160
-    ; mov dx, 100
-    ; call dibujar_sprite_planar_16x16_opt
-    ; pop bp
-    ; pop di
-    ; pop si
-    ; pop dx
-    ; pop cx
-    ; pop bx
-    ; pop ax
-    ; ret
-    ; ============================================
-    
     ; Calcular tile inicial de la cámara
     mov ax, camara_px
     shr ax, 4               ; tile_x = camara_px / 16
@@ -1003,62 +985,74 @@ dmo_col_body:
     mov ax, inicio_tile_y
     add ax, temp_fila
     cmp ax, 100
-    jae dmo_next_col        ; Fuera del mapa
+    jae dmo_next_col        ; Fuera del mapa, siguiente columna
     
-    push bx                 ; Guardar offset_x
-    mov bx, ax
-    shl bx, 1
-    mov ax, [mul100_table + bx]
-    pop bx                  ; Recuperar offset_x
+    ; Calcular base_y usando lookup table
+    mov si, ax              ; Guardar tile_y temporalmente
+    shl ax, 1               ; tile_y * 2 para indexar words
+    mov di, ax
+    mov ax, [mul100_table + di]  ; base_y = tile_y * 100
     
-    push ax                 ; Guardar base_y
+    ; Calcular tile_x
+    push ax                 ; Guardar base_y en stack
     mov ax, inicio_tile_x
     add ax, temp_col
     cmp ax, 100
-    jae dmo_skip_tile       ; Fuera del mapa
+    pop dx                  ; Recuperar base_y (balancea el stack)
+    jae dmo_next_col        ; Fuera del mapa
     
-    pop dx                  ; Recuperar base_y
+    ; Calcular índice final
     add dx, ax              ; índice = base_y + tile_x
     mov si, dx
     
-    ; Obtener tipo de tile
+    ; Obtener tipo de tile del mapa
     mov al, [mapa_datos + si]
+    
+    ; Verificar que el tile sea válido (0-15)
+    cmp al, 15
+    ja dmo_next_col         ; Tile inválido, saltar
+    
+    ; Obtener punteros a sprite data y mask
     call obtener_sprite_tile    ; Retorna DI=data, SI=mask
     
-    push di
-    push si
+    ; Guardar punteros
+    push di                 ; Guardar sprite data
+    push si                 ; Guardar sprite mask
     
-    ; ✅ CALCULAR POSICIÓN EN PANTALLA
+    ; ===== CALCULAR POSICIÓN EN PANTALLA =====
     mov ax, temp_col
     shl ax, 4               ; temp_col * 16
     sub ax, bx              ; Restar offset_x (scroll fino)
     add ax, viewport_x
-    mov cx, ax              ; CX = posición X
+    mov cx, ax              ; CX = posición X en pantalla
     
     mov ax, temp_fila
     shl ax, 4               ; temp_fila * 16
     sub ax, bp              ; Restar offset_y (scroll fino)
     add ax, viewport_y
-    mov dx, ax              ; DX = posición Y
+    mov dx, ax              ; DX = posición Y en pantalla
     
-    ; Verificar si está dentro del viewport
+    ; Verificar si está dentro del viewport (culling)
     cmp cx, 640
-    jge dmo_skip
+    jge dmo_skip_draw
     cmp dx, 350
-    jge dmo_skip
+    jge dmo_skip_draw
     
-    ; Dibujar tile
+    ; Si X o Y son negativos (con signo), también saltar
+    test cx, 8000h          ; Bit de signo en CX
+    jnz dmo_skip_draw
+    test dx, 8000h          ; Bit de signo en DX
+    jnz dmo_skip_draw
+    
+    ; ===== DIBUJAR TILE =====
     pop si                  ; Recuperar máscara
     pop di                  ; Recuperar datos
     call dibujar_sprite_planar_16x16_opt
     jmp dmo_next_col
 
-dmo_skip_tile:
-    add sp, 2               ; Limpiar stack (pop dx que no se usó)
-    jmp dmo_next_col
-
-dmo_skip:
-    add sp, 4               ; Limpiar stack (pop si, pop di)
+dmo_skip_draw:
+    ; Limpiar stack (2 valores: di, si)
+    add sp, 4
 
 dmo_next_col:
     inc temp_col
@@ -1084,67 +1078,78 @@ obtener_sprite_tile PROC
     push bx
     
     mov bl, al
+    
+    ; Default: GRASS1
     mov di, OFFSET sprite_grass1
-    mov si, OFFSET sprite_grass1_mask    ; ← NUEVO: default
-
+    mov si, OFFSET sprite_grass1_mask
+    
     cmp bl, TILE_PATH
-    jne ost_4
+    jne ost_water
     mov di, OFFSET sprite_path
-    mov si, OFFSET sprite_path_mask      ; ← NUEVO
+    mov si, OFFSET sprite_path_mask
     jmp ost_fin
-ost_4:
+    
+ost_water:
     cmp bl, TILE_WATER
-    jne ost_5
+    jne ost_tree
     mov di, OFFSET sprite_water
-    mov si, OFFSET sprite_water_mask     ; ← NUEVO
+    mov si, OFFSET sprite_water_mask
     jmp ost_fin
-ost_5:
+    
+ost_tree:
     cmp bl, TILE_TREE
-    jne ost_6
+    jne ost_sand
     mov di, OFFSET sprite_tree
-    mov si, OFFSET sprite_tree_mask      ; ← NUEVO
+    mov si, OFFSET sprite_tree_mask
     jmp ost_fin
-ost_6:
+    
+ost_sand:
     cmp bl, TILE_SAND
-    jne ost_7
+    jne ost_snow
     mov di, OFFSET sprite_sand
-    mov si, OFFSET sprite_sand_mask      ; ← NUEVO
+    mov si, OFFSET sprite_sand_mask
     jmp ost_fin
-ost_7:
+    
+ost_snow:
     cmp bl, TILE_SNOW
-    jne ost_9
+    jne ost_ice
     mov di, OFFSET sprite_snow
-    mov si, OFFSET sprite_snow_mask      ; ← NUEVO
+    mov si, OFFSET sprite_snow_mask
     jmp ost_fin
-ost_9:
+    
+ost_ice:
     cmp bl, TILE_ICE
-    jne ost_10
+    jne ost_wall
     mov di, OFFSET sprite_ice
-    mov si, OFFSET sprite_ice_mask       ; ← NUEVO
+    mov si, OFFSET sprite_ice_mask
     jmp ost_fin
-ost_10:
+    
+ost_wall:
     cmp bl, TILE_WALL
-    jne ost_11
+    jne ost_dirt
     mov di, OFFSET sprite_wall
-    mov si, OFFSET sprite_wall_mask      ; ← NUEVO
+    mov si, OFFSET sprite_wall_mask
     jmp ost_fin
-ost_11:
+    
+ost_dirt:
     cmp bl, TILE_DIRT
-    jne ost_12
+    jne ost_lava
     mov di, OFFSET sprite_dirt
-    mov si, OFFSET sprite_dirt_mask      ; ← NUEVO
+    mov si, OFFSET sprite_dirt_mask
     jmp ost_fin
-ost_12:
+    
+ost_lava:
     cmp bl, TILE_LAVA
-    jne ost_13
+    jne ost_bridge
     mov di, OFFSET sprite_lava
-    mov si, OFFSET sprite_lava_mask      ; ← NUEVO
+    mov si, OFFSET sprite_lava_mask
     jmp ost_fin
-ost_13:
+    
+ost_bridge:
     cmp bl, TILE_BRIDGE
     jne ost_fin
     mov di, OFFSET sprite_bridge
-    mov si, OFFSET sprite_bridge_mask    ; ← NUEVO
+    mov si, OFFSET sprite_bridge_mask
 
 ost_fin:
     pop bx
@@ -1187,13 +1192,10 @@ dibujar_sprite_planar_16x16 PROC
     call dibujar_sprite_planar_16x16_opt
     ret
 dibujar_sprite_planar_16x16 ENDP
-; Wrapper para mantener compatibilidad
-; IN: DI = sprite data, CX = X, DX = Y
+
 dibujar_sprite_planar_32x32 PROC
     push si
     
-    ; Determinar qué máscara usar según el sprite
-    ; (esto es temporal, mejorar después)
     mov si, OFFSET jugador_down_a_mask  ; Default
     
     call dibujar_sprite_planar_32x32_opt
