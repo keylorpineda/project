@@ -201,6 +201,8 @@ anim_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
+
+    call debug_mostrar_tile
     
     ; ========================================
     ; AGREGAR PAUSA AQUÍ
@@ -216,10 +218,7 @@ anim_ok:
     ; TEST: Llenar pantalla de color
     ; ========================================
     mov ax, 10h
-    int 10h
-
-    call test_dibujar_tile
-    
+    int 10h   
     ; Apuntar a memoria de video
     mov ax, 0A000h
     mov es, ax
@@ -263,13 +262,28 @@ test_clear:
     ; ========================================
     ; Continuar con el juego normal
     ; ========================================
-    call centrar_camara
-    call renderizar_en_pagina_0
-    call renderizar_en_pagina_1
-    
-    mov ah, 5
-    mov al, 0
-    int 10h
+   call centrar_camara
+
+; ✅ VALIDAR MAPA UNA SOLA VEZ
+mov al, [mapa_datos]
+cmp al, 15
+jbe mapa_ok
+
+; ERROR: Mapa corrupto
+mov ax, 3
+int 10h
+mov dx, OFFSET msg_error
+mov ah, 9
+int 21h
+jmp fin_juego
+
+mapa_ok:
+call renderizar_en_pagina_0
+call renderizar_en_pagina_1
+
+mov ah, 5
+mov al, 0
+int 10h
 
 
 bucle_juego:
@@ -973,18 +987,46 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
+    ; ============================================
+    ; DEBUG: Descomentar para probar un solo tile
+    ; ============================================
+    ; mov di, OFFSET sprite_grass1
+    ; mov si, OFFSET sprite_grass1_mask
+    ; mov cx, 160
+    ; mov dx, 100
+    ; call dibujar_sprite_planar_16x16_opt
+    ; pop bp
+    ; pop di
+    ; pop si
+    ; pop dx
+    ; pop cx
+    ; pop bx
+    ; pop ax
+    ; ret
+    ; ============================================
+    
+    ; Calcular tile inicial de la cámara
     mov ax, camara_px
-    shr ax, 4
+    shr ax, 4               ; tile_x = camara_px / 16
     mov inicio_tile_x, ax
     
     mov ax, camara_py
-    shr ax, 4
+    shr ax, 4               ; tile_y = camara_py / 16
     mov inicio_tile_y, ax
+    
+    ; Calcular offset de scroll fino (pixeles dentro del tile)
+    mov ax, camara_px
+    and ax, 15              ; offset_x = camara_px % 16
+    mov bx, ax              ; BX = offset_x
+    
+    mov ax, camara_py
+    and ax, 15              ; offset_y = camara_py % 16
+    mov bp, ax              ; BP = offset_y
     
     mov temp_fila, 0
 
 dmo_fila_loop:
-    cmp temp_fila, 13
+    cmp temp_fila, 13       ; 12 tiles visibles + 1 extra
     jb dmo_fila_body
     jmp dmo_fin
 
@@ -992,72 +1034,71 @@ dmo_fila_body:
     mov temp_col, 0
 
 dmo_col_loop:
-    cmp temp_col, 21
+    cmp temp_col, 21        ; 20 tiles visibles + 1 extra
     jb dmo_col_body
     jmp dmo_next_fila
 
 dmo_col_body:
-    
-    ; Calcular tile_y y tile_x
+    ; Calcular índice del tile en el mapa
     mov ax, inicio_tile_y
     add ax, temp_fila
     cmp ax, 100
-    jae dmo_next_col
-    mov bp, ax                ; BP = tile_y
+    jae dmo_next_col        ; Fuera del mapa
     
-    mov bx, inicio_tile_x
-    add bx, temp_col
-    cmp bx, 100
-    jae dmo_next_col          ; BX = tile_x
-    
-    ; Índice en mapa
-    push bx
-    mov bx, bp
+    push bx                 ; Guardar offset_x
+    mov bx, ax
     shl bx, 1
     mov ax, [mul100_table + bx]
-    pop bx
-    add ax, bx
-    mov si, ax                ; SI = índice temporal
+    pop bx                  ; Recuperar offset_x
     
-    ; Obtener tile
+    push ax                 ; Guardar base_y
+    mov ax, inicio_tile_x
+    add ax, temp_col
+    cmp ax, 100
+    jae dmo_skip_tile       ; Fuera del mapa
+    
+    pop dx                  ; Recuperar base_y
+    add dx, ax              ; índice = base_y + tile_x
+    mov si, dx
+    
+    ; Obtener tipo de tile
     mov al, [mapa_datos + si]
-    call obtener_sprite_tile  ; DI=data, SI=mask (SOBREESCRIBE SI!)
+    call obtener_sprite_tile    ; Retorna DI=data, SI=mask
     
-    ; Guardar en stack
     push di
     push si
     
-    ; Calcular posición en pantalla
+    ; ✅ CALCULAR POSICIÓN EN PANTALLA
     mov ax, temp_col
-    shl ax, 4
-    sub ax, camara_px
+    shl ax, 4               ; temp_col * 16
+    sub ax, bx              ; Restar offset_x (scroll fino)
     add ax, viewport_x
-    mov cx, ax
+    mov cx, ax              ; CX = posición X
     
     mov ax, temp_fila
-    shl ax, 4
-    sub ax, camara_py
+    shl ax, 4               ; temp_fila * 16
+    sub ax, bp              ; Restar offset_y (scroll fino)
     add ax, viewport_y
-    mov dx, ax
+    mov dx, ax              ; DX = posición Y
     
-    ; Verificar viewport
-    cmp cx, viewport_x
-    jl dmo_skip
-    cmp cx, 480
+    ; Verificar si está dentro del viewport
+    cmp cx, 640
     jge dmo_skip
-    cmp dx, viewport_y
-    jl dmo_skip
-    cmp dx, 271
+    cmp dx, 350
     jge dmo_skip
     
-    ; Recuperar y dibujar
-    pop si
-    pop di
+    ; Dibujar tile
+    pop si                  ; Recuperar máscara
+    pop di                  ; Recuperar datos
     call dibujar_sprite_planar_16x16_opt
     jmp dmo_next_col
 
+dmo_skip_tile:
+    add sp, 2               ; Limpiar stack (pop dx que no se usó)
+    jmp dmo_next_col
+
 dmo_skip:
-    add sp, 4                 ; Limpiar stack
+    add sp, 4               ; Limpiar stack (pop si, pop di)
 
 dmo_next_col:
     inc temp_col
@@ -1158,10 +1199,11 @@ dibujar_jugador_en_offset PROC
     push si
     push di
     
+    ; ✅ CORRECCIÓN: Calcular posición relativa al viewport
     mov ax, jugador_px
-    sub ax, camara_px
-    add ax, viewport_x
-    sub ax, 16
+    sub ax, camara_px        ; Diferencia en pixeles
+    add ax, viewport_x       ; Agregar offset del viewport
+    sub ax, 16               ; Centrar sprite (32/2)
     mov cx, ax
     
     mov ax, jugador_py
@@ -1170,9 +1212,7 @@ dibujar_jugador_en_offset PROC
     sub ax, 16
     mov dx, ax
     
-    call obtener_sprite_jugador      ; ✅ Retorna DI=data, SI=mask (YA CORRECTO)
-    
-    ; ✅ AHORA ESTÁN EN EL ORDEN CORRECTO
+    call obtener_sprite_jugador
     call dibujar_sprite_planar_32x32_opt
     
     pop di
@@ -1182,7 +1222,6 @@ dibujar_jugador_en_offset PROC
     pop ax
     ret
 dibujar_jugador_en_offset ENDP
-
 dibujar_sprite_planar_16x16 PROC
 
     call dibujar_sprite_planar_16x16_opt
@@ -1526,54 +1565,34 @@ sl_fin:
     ret
 saltar_linea ENDP
 
-test_dibujar_tile PROC
+debug_mostrar_tile PROC
     push ax
+    push bx
     push cx
     push dx
-    push di
-    push si
-    push es
     
-    mov ax, 0A000h
-    mov es, ax
+    ; Obtener tile en posición (15, 19)
+    mov bx, 19
+    shl bx, 1
+    mov ax, [mul100_table + bx]
+    add ax, 15
+    mov bx, ax
     
-    ; ✅ Configurar registros EGA ANTES de dibujar
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 0Fh         ; Todos los planos
-    out dx, al
+    mov al, [mapa_datos + bx]
     
-    mov dx, 3CEh
-    mov al, 5           ; Mode register
-    out dx, al
-    inc dx
-    mov al, 0           ; Write Mode 0
-    out dx, al
+    ; Convertir a ASCII y mostrar
+    add al, '0'
+    mov [msg_error], al     ; Reutilizar buffer
+    mov dx, OFFSET msg_error
+    mov ah, 9
+    int 21h
     
-    mov temp_offset, 0
-    
-    ; Dibujar sprite grass en posición 160,79
-    mov di, OFFSET sprite_grass1
-    mov si, OFFSET sprite_grass1_mask
-    mov cx, 160
-    mov dx, 79
-    
-    call dibujar_sprite_planar_16x16_opt
-    
-    ; Esperar tecla
-    mov ah, 0
-    int 16h
-    
-    pop es
-    pop si
-    pop di
     pop dx
     pop cx
+    pop bx
     pop ax
     ret
-test_dibujar_tile ENDP
+debug_mostrar_tile ENDP
 
 INCLUDE OPTCODE.INC
 
