@@ -1047,7 +1047,7 @@ dmo_tile_y_valido:
     mov ax, temp_col
     shl ax, 4               ; AX = columna * 16
     mov bx, sp
-    add bx, 8               ; BX apunta a offset_x en stack (debajo de 4 push)
+    add bx, 6               ; BX apunta a offset_x en stack (debajo de 4 push)
     sub ax, [bx]            ; Restar offset_x
     add ax, viewport_x
     mov cx, ax              ; CX = X en pantalla
@@ -1056,7 +1056,7 @@ dmo_tile_y_valido:
     mov ax, temp_fila
     shl ax, 4               ; AX = fila * 16
     mov bx, sp
-    add bx, 6               ; BX apunta a offset_y en stack
+    add bx, 4               ; BX apunta a offset_y en stack
     sub ax, [bx]            ; Restar offset_y
     add ax, viewport_y
     mov dx, ax              ; DX = Y en pantalla
