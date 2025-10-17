@@ -213,11 +213,26 @@ anim_ok:
 
 mov ax, 10h         ; ← Modo gráfico EGA 640x350, 16 colores
 int 10h  
-mov dx, 3C4h        ; Puerto Sequencer
-mov al, 2           ; Registro Map Mask
+mov dx, 3C4h
+mov al, 2
 out dx, al
-inc dx              ; Puerto de datos
-mov al, 0Fh         ; Habilitar 4 planos (bits 0-3)
+inc dx
+mov al, 0Fh         ; Habilitar todos los planos
+out dx, al
+
+; ✅ Configurar Graphics Controller
+mov dx, 3CEh
+mov al, 5           ; Graphics Mode Register
+out dx, al
+inc dx
+mov al, 0           ; Modo 0 (write mode 0)
+out dx, al
+
+mov dx, 3CEh
+mov al, 3           ; Data Rotate/Function Select
+out dx, al
+inc dx
+mov al, 0           ; No rotation, function = replace
 out dx, al
     ; ========================================
     ; Continuar con el juego normal
@@ -949,111 +964,118 @@ dibujar_mapa_en_offset PROC
     
     ; Calcular tile inicial de la cámara
     mov ax, camara_px
-    shr ax, 4               ; tile_x = camara_px / 16
+    shr ax, 4
     mov inicio_tile_x, ax
     
     mov ax, camara_py
-    shr ax, 4               ; tile_y = camara_py / 16
+    shr ax, 4
     mov inicio_tile_y, ax
     
-    ; Calcular offset de scroll fino (pixeles dentro del tile)
+    ; Calcular offset de scroll fino
     mov ax, camara_px
-    and ax, 15              ; offset_x = camara_px % 16
-    mov bx, ax              ; BX = offset_x
+    and ax, 15
+    push ax                 ; Guardar offset_x en stack
     
     mov ax, camara_py
-    and ax, 15              ; offset_y = camara_py % 16
-    mov bp, ax              ; BP = offset_y
+    and ax, 15
+    push ax                 ; Guardar offset_y en stack
     
     mov temp_fila, 0
 
 dmo_fila_loop:
-    cmp temp_fila, 13       ; 12 tiles visibles + 1 extra
-    jb dmo_fila_body
-    jmp dmo_fin
-
-dmo_fila_body:
-    mov temp_col, 0
+    cmp temp_fila, 13
+    jae dmo_fin             ; Si >= 13 filas, terminar
+    
+    mov temp_col, 0         ; ✅ CRÍTICO: Resetear columna al inicio de cada fila
 
 dmo_col_loop:
-    cmp temp_col, 21        ; 20 tiles visibles + 1 extra
-    jb dmo_col_body
-    jmp dmo_next_fila
-
-dmo_col_body:
-    ; Calcular índice del tile en el mapa
+    cmp temp_col, 21
+    jae dmo_next_fila       ; Si >= 21 columnas, siguiente fila
+    
+    ; ===== CALCULAR tile_y =====
     mov ax, inicio_tile_y
     add ax, temp_fila
     cmp ax, 100
-    jae dmo_next_col        ; Fuera del mapa, siguiente columna
+    jae dmo_next_col        ; ✅ CAMBIO: Si fuera de límite, siguiente columna (no fila)
     
-    ; Calcular base_y usando lookup table
-    mov si, ax              ; Guardar tile_y temporalmente
-    shl ax, 1               ; tile_y * 2 para indexar words
-    mov di, ax
-    mov ax, [mul100_table + di]  ; base_y = tile_y * 100
+    ; ===== CALCULAR ÍNDICE EN MAPA =====
+    push ax                 ; Guardar tile_y
+    shl ax, 1               ; AX *= 2 para indexar mul100_table
+    mov bx, ax
+    mov ax, [mul100_table + bx]
+    pop bx                  ; BX = tile_y
+    push ax                 ; Guardar tile_y * 100
     
-    ; Calcular tile_x
-    push ax                 ; Guardar base_y en stack
+    ; ===== CALCULAR tile_x =====
     mov ax, inicio_tile_x
     add ax, temp_col
     cmp ax, 100
-    pop dx                  ; Recuperar base_y (balancea el stack)
-    jae dmo_next_col        ; Fuera del mapa
+    jae dmo_next_col_pop    ; Si fuera de límite, limpiar stack y siguiente columna
     
-    ; Calcular índice final
-    add dx, ax              ; índice = base_y + tile_x
+    ; ===== CALCULAR ÍNDICE FINAL =====
+    pop dx                  ; DX = tile_y * 100
+    add dx, ax              ; DX = tile_y * 100 + tile_x
     mov si, dx
     
-    ; Obtener tipo de tile del mapa
-    mov al, [mapa_datos + si]
+    ; ===== OBTENER TIPO DE TILE =====
+    push bx
+    mov bx, si
+    mov al, [mapa_datos + bx]
+    pop bx
     
-    ; Verificar que el tile sea válido (0-15)
+    ; ===== VERIFICAR TILE VÁLIDO =====
     cmp al, 15
-    ja dmo_next_col         ; Tile inválido, saltar
+    ja dmo_next_col
     
-    ; Obtener punteros a sprite data y mask
+    ; ===== OBTENER PUNTEROS A SPRITE =====
     call obtener_sprite_tile    ; Retorna DI=data, SI=mask
     
-    ; Guardar punteros
-    push di                 ; Guardar sprite data
-    push si                 ; Guardar sprite mask
-    
     ; ===== CALCULAR POSICIÓN EN PANTALLA =====
+    push di
+    push si
+    
+    ; Calcular X
     mov ax, temp_col
-    shl ax, 4               ; temp_col * 16
-    sub ax, bx              ; Restar offset_x (scroll fino)
+    shl ax, 4               ; AX = columna * 16
+    mov bx, sp
+    add bx, 8               ; BX apunta a offset_x en stack (debajo de 4 push)
+    sub ax, [bx]            ; Restar offset_x
     add ax, viewport_x
-    mov cx, ax              ; CX = posición X en pantalla
+    mov cx, ax              ; CX = X en pantalla
     
+    ; Calcular Y
     mov ax, temp_fila
-    shl ax, 4               ; temp_fila * 16
-    sub ax, bp              ; Restar offset_y (scroll fino)
+    shl ax, 4               ; AX = fila * 16
+    mov bx, sp
+    add bx, 6               ; BX apunta a offset_y en stack
+    sub ax, [bx]            ; Restar offset_y
     add ax, viewport_y
-    mov dx, ax              ; DX = posición Y en pantalla
+    mov dx, ax              ; DX = Y en pantalla
     
-    ; Verificar si está dentro del viewport (culling)
+    ; ===== VERIFICAR VIEWPORT =====
     cmp cx, 640
-    jge dmo_skip_draw
+    jge dmo_skip_tile
     cmp dx, 350
-    jge dmo_skip_draw
-    
-    ; Si X o Y son negativos (con signo), también saltar
-    test cx, 8000h          ; Bit de signo en CX
-    jnz dmo_skip_draw
-    test dx, 8000h          ; Bit de signo en DX
-    jnz dmo_skip_draw
+    jge dmo_skip_tile
+    test cx, 8000h
+    jnz dmo_skip_tile
+    test dx, 8000h
+    jnz dmo_skip_tile
     
     ; ===== DIBUJAR TILE =====
-    pop si                  ; Recuperar máscara
-    pop di                  ; Recuperar datos
+    pop si                  ; SI = mask
+    pop di                  ; DI = data
     call dibujar_sprite_planar_16x16_opt
     jmp dmo_next_col
+    
+dmo_skip_tile:
+    pop si
+    pop di
+    jmp dmo_next_col
 
-dmo_skip_draw:
-    ; Limpiar stack (2 valores: di, si)
-    add sp, 4
-
+dmo_next_col_pop:
+    pop ax                  ; Limpiar stack (tile_y * 100)
+    
 dmo_next_col:
     inc temp_col
     jmp dmo_col_loop
@@ -1063,6 +1085,8 @@ dmo_next_fila:
     jmp dmo_fila_loop
 
 dmo_fin:
+    pop ax                  ; Limpiar offset_y
+    pop ax                  ; Limpiar offset_x
     pop bp
     pop di
     pop si
