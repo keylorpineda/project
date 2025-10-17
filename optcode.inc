@@ -221,9 +221,6 @@ vtt_transitable:
     ret
 verificar_tile_transitable_opt ENDP
 
-; ============================================
-; CONVERSION CON PRE-MASCARAS (16x16) - CORREGIDA
-; ============================================
 convertir_sprite_a_planar_opt PROC
     push ax
     push bx
@@ -236,10 +233,7 @@ convertir_sprite_a_planar_opt PROC
     mov cx, 16          ; 16 filas
     
 cspo_fila:
-    push cx
-    push di
-    push si
-    push bp
+    push cx             ; Solo guardar el contador
     
     ; ===== BYTE IZQUIERDO (pixeles 0-7) =====
     xor bx, bx
@@ -247,7 +241,7 @@ cspo_fila:
     mov cx, 8
     
 cspo_byte_izq:
-    lodsb
+    lodsb               ; SI se auto-incrementa
     shl dl, 1
     shl dh, 1
     shl bl, 1
@@ -271,20 +265,13 @@ cspo_izq_b3:
 cspo_izq_next:
     loop cspo_byte_izq
     
-    ; Guardar byte izquierdo
-    pop bp
-    pop si
-    pop di
-    push di
-    push si
-    push bp
+    ; Guardar byte izquierdo en los 4 planos
+    mov [di], dl        ; Plano 0
+    mov [di+32], dh     ; Plano 1
+    mov [di+64], bl     ; Plano 2
+    mov [di+96], bh     ; Plano 3
     
-    mov [di], dl
-    mov [di+32], dh
-    mov [di+64], bl
-    mov [di+96], bh
-    
-    ; Calcular máscara
+    ; Calcular máscara para este byte
     mov al, dl
     or al, dh
     or al, bl
@@ -297,7 +284,7 @@ cspo_izq_next:
     mov cx, 8
     
 cspo_byte_der:
-    lodsb
+    lodsb               ; SI se auto-incrementa
     shl dl, 1
     shl dh, 1
     shl bl, 1
@@ -322,31 +309,25 @@ cspo_der_next:
     loop cspo_byte_der
     
     ; Guardar byte derecho
-    pop bp
-    pop si
-    pop di
+    mov [di+1], dl      ; Plano 0
+    mov [di+33], dh     ; Plano 1
+    mov [di+65], bl     ; Plano 2
+    mov [di+97], bh     ; Plano 3
     
-    mov [di+1], dl
-    mov [di+33], dh
-    mov [di+65], bl
-    mov [di+97], bh
-    
-    ; Calcular máscara (CORREGIDO)
+    ; Calcular máscara para este byte
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
     mov [bp+1], al
     
-    ; ✅ CRÍTICO: NO avanzar SI (ya avanzó 16 con lodsb)
-    add di, 2           ; Siguiente fila planar
-    add bp, 2           ; Siguiente fila máscaras
-    ; ← NO: add si, 16  (SI ya está en la posición correcta)
+    ; Avanzar punteros para la siguiente fila
+    add di, 2           ; Siguiente fila planar (2 bytes)
+    add bp, 2           ; Siguiente fila de máscaras (2 bytes)
     
-    pop cx
-    dec cx
-    jz cspo_fin
-    jmp cspo_fila
+    pop cx              ; Recuperar contador de filas
+    dec cx              ; ✅ CAMBIO: Decrementar manualmente
+    jnz cspo_fila       ; ✅ CAMBIO: Saltar si no es cero (permite saltos largos)
 
 cspo_fin:
     pop bp
