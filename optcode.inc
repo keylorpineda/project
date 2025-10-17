@@ -1346,32 +1346,3 @@ dsp32o_fin:
     pop ax
     ret
 dibujar_sprite_planar_32x32_opt ENDP
-```
-
----
-
-## ** EXPLICACION DE LA ESTRUCTURA**
-
-La funcion tiene **4 secciones identicas** (una por cada byte de la fila):
-
-### **Por cada BYTE (0, 1, 2, 3):**
-```
-1. Leer mascara pre-calculada del byte correspondiente
-   - BYTE 0: [si]
-   - BYTE 1: [si+1]
-   - BYTE 2: [si+2]
-   - BYTE 3: [si+3]
-
-2. Para cada PLANO (0, 1, 2, 3):
-   a. Configurar Graphics Controller (read plane)
-   b. Configurar Sequencer (write plane)
-   c. Leer pixel actual de video
-   d. Aplicar mascara de transparencia
-   e. Mezclar con nuevo pixel
-   f. Escribir resultado
-
-3. Avanzar al siguiente byte
-
-; ============================================
-; FIN DE OPTCODE.INC
-; ============================================
