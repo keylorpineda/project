@@ -985,13 +985,18 @@ dibujar_mapa_en_offset PROC
 
 dmo_fila_loop:
     cmp temp_fila, 13
-    jae dmo_fin
-    
+    jb dmo_fila_body
+    jmp dmo_fin
+
+dmo_fila_body:
     mov temp_col, 0
 
 dmo_col_loop:
     cmp temp_col, 21
-    jae dmo_next_fila
+    jb dmo_col_body
+    jmp dmo_next_fila
+
+dmo_col_body:
     
     ; Calcular tile_y y tile_x
     mov ax, inicio_tile_y
