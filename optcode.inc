@@ -1,9 +1,9 @@
 ; ============================================
-; OPTCODE.INC - Motor gráfico optimizado
+; OPTCODE.INC - Motor grafico optimizado
 ; Universidad Nacional - Proyecto II Ciclo 2025
 ; ============================================
 ; Este archivo contiene todas las funciones
-; optimizadas del motor gráfico.
+; optimizadas del motor grafico.
 ; NO compilar directamente, usar INCLUDE.
 ; ============================================
 
@@ -11,7 +11,7 @@
 ; FUNCIONES DE INICIALIZACION
 ; ============================================
 
-; Inicializar todas las tablas de optimización
+; Inicializar todas las tablas de optimizacion
 inicializar_lookup_tables PROC
     call calcular_video_offsets
     call calcular_mul100_table
@@ -19,14 +19,14 @@ inicializar_lookup_tables PROC
     ret
 inicializar_lookup_tables ENDP
 
-; Calcular tabla de offsets de video (Y × 80)
+; Calcular tabla de offsets de video (Y x 80)
 calcular_video_offsets PROC
     push ax
     push cx
     push si
     
     xor ax, ax      ; Offset inicial = 0
-    xor si, si      ; Índice en tabla = 0
+    xor si, si      ; Indice en tabla = 0
     mov cx, 350     ; 350 filas
     
 cvo_loop:
@@ -41,19 +41,19 @@ cvo_loop:
     ret
 calcular_video_offsets ENDP
 
-; Calcular tabla de multiplicación por 100 (Y × 100)
+; Calcular tabla de multiplicacion por 100 (Y x 100)
 calcular_mul100_table PROC
     push ax
     push cx
     push si
     
     xor ax, ax      ; Resultado inicial = 0
-    xor si, si      ; Índice en tabla = 0
+    xor si, si      ; Indice en tabla = 0
     mov cx, 100     ; 100 entradas
     
 cm100_loop:
     mov [mul100_table + si], ax
-    add ax, 100     ; Siguiente múltiplo de 100
+    add ax, 100     ; Siguiente multiplo de 100
     add si, 2       ; Siguiente entrada (word = 2 bytes)
     loop cm100_loop
     
@@ -89,20 +89,20 @@ marcar_tile_sucio PROC
     push ax
     push bx
     
-    ; Verificar límites
+    ; Verificar limites
     cmp cx, 100
     jae mts_fin
     cmp dx, 100
     jae mts_fin
     
-    ; Calcular índice: Y × 100 + X
+    ; Calcular indice: Y x 100 + X
     mov bx, dx
     shl bx, 1
     mov ax, [mul100_table + bx]
     add ax, cx
     mov bx, ax
     
-    ; Marcar con número de frame actual
+    ; Marcar con numero de frame actual
     mov al, frame_counter
     mov [dirty_tiles + bx], al
     
@@ -112,7 +112,7 @@ mts_fin:
     ret
 marcar_tile_sucio ENDP
 
-; Marcar área alrededor del jugador como sucia
+; Marcar area alrededor del jugador como sucia
 ; Marca el tile del jugador + vecinos (9 tiles en total)
 marcar_area_jugador_sucia PROC
     push ax
@@ -192,7 +192,7 @@ verificar_tile_transitable_opt PROC
     push bx
     push dx
     
-    ; Verificar límites del mapa
+    ; Verificar limites del mapa
     cmp cx, 100
     jae vtt_no_transitable
     cmp dx, 100
@@ -233,8 +233,8 @@ verificar_tile_transitable_opt ENDP
 ; CONVERSION CON PRE-MASCARAS (16x16)
 ; ============================================
 
-; Convertir sprite 16x16 a planar Y generar máscaras
-; IN: SI = fuente (datos lineales), DI = destino (planar), BP = destino máscaras
+; Convertir sprite 16x16 a planar Y generar mascaras
+; IN: SI = fuente (datos lineales), DI = destino (planar), BP = destino mascaras
 convertir_sprite_a_planar_opt PROC
     push ax
     push bx
@@ -247,7 +247,7 @@ convertir_sprite_a_planar_opt PROC
     mov cx, 16          ; 16 filas
     
 cspo_fila:
-    ; ===== BYTE IZQUIERDO (píxeles 0-7) =====
+    ; ===== BYTE IZQUIERDO (pixeles 0-7) =====
     push cx
     xor bx, bx
     xor dx, dx
@@ -283,7 +283,7 @@ cspo_izq_next:
     mov [di+64], bl
     mov [di+96], bh
     
-    ; Calcular y guardar máscara
+    ; Calcular y guardar mascara
     mov al, dl
     or al, dh
     or al, bl
@@ -292,7 +292,7 @@ cspo_izq_next:
     inc bp
     inc di
     
-    ; ===== BYTE DERECHO (píxeles 8-15) =====
+    ; ===== BYTE DERECHO (pixeles 8-15) =====
     xor bx, bx
     xor dx, dx
     mov cx, 8
@@ -327,7 +327,7 @@ cspo_der_next:
     mov [di+64], bl
     mov [di+96], bh
     
-    ; Calcular y guardar máscara
+    ; Calcular y guardar mascara
     mov al, dl
     or al, dh
     or al, bl
@@ -354,8 +354,8 @@ convertir_sprite_a_planar_opt ENDP
 ; CONVERSION CON PRE-MASCARAS (32x32)
 ; ============================================
 
-; Convertir sprite 32x32 a planar Y generar máscaras
-; IN: SI = fuente (datos lineales), DI = destino (planar), BP = destino máscaras
+; Convertir sprite 32x32 a planar Y generar mascaras
+; IN: SI = fuente (datos lineales), DI = destino (planar), BP = destino mascaras
 convertir_sprite_32x32_a_planar_opt PROC
     push ax
     push bx
@@ -370,7 +370,7 @@ convertir_sprite_32x32_a_planar_opt PROC
 csp32o_fila:
     push cx
     
-    ; ===== BYTE 0 (píxeles 0-7) =====
+    ; ===== BYTE 0 (pixeles 0-7) =====
     push bp
     xor bx, bx
     xor dx, dx
@@ -405,7 +405,7 @@ csp32o_b0_p3:
     mov [di+256], bl
     mov [di+384], bh
     
-    ; Calcular máscara
+    ; Calcular mascara
     mov al, dl
     or al, dh
     or al, bl
@@ -416,7 +416,7 @@ csp32o_b0_p3:
     push bp
     inc di
     
-    ; ===== BYTE 1 (píxeles 8-15) =====
+    ; ===== BYTE 1 (pixeles 8-15) =====
     xor bx, bx
     xor dx, dx
     mov cx, 8
@@ -460,7 +460,7 @@ csp32o_b1_p3:
     push bp
     inc di
     
-    ; ===== BYTE 2 (píxeles 16-23) =====
+    ; ===== BYTE 2 (pixeles 16-23) =====
     xor bx, bx
     xor dx, dx
     mov cx, 8
@@ -504,7 +504,7 @@ csp32o_b2_p3:
     push bp
     inc di
     
-    ; ===== BYTE 3 (píxeles 24-31) =====
+    ; ===== BYTE 3 (pixeles 24-31) =====
     xor bx, bx
     xor dx, dx
     mov cx, 8
@@ -567,7 +567,7 @@ convertir_sprite_32x32_a_planar_opt ENDP
 ; RENDERIZADO OPTIMIZADO (16x16)
 ; ============================================
 
-; Dibujar sprite 16x16 con máscaras pre-calculadas
+; Dibujar sprite 16x16 con mascaras pre-calculadas
 ; IN: DI = sprite data, SI = sprite masks, CX = X, DX = Y
 dibujar_sprite_planar_16x16_opt PROC
     push ax
@@ -599,9 +599,9 @@ dsp16o_loop_fila:
     
     mov bx, di
     
-    ; Leer máscaras pre-calculadas
-    mov ah, [si]        ; Máscara byte 0
-    mov al, [si+1]      ; Máscara byte 1
+    ; Leer mascaras pre-calculadas
+    mov ah, [si]        ; Mascara byte 0
+    mov al, [si+1]      ; Mascara byte 1
     
     push ax
     
@@ -816,7 +816,7 @@ dibujar_sprite_planar_16x16_opt ENDP
 ; ============================================
 ; RENDERIZADO OPTIMIZADO (32x32) - COMPLETO
 ; ============================================
-; Dibujar sprite 32x32 con máscaras pre-calculadas
+; Dibujar sprite 32x32 con mascaras pre-calculadas
 ; IN: DI = sprite data, SI = sprite masks, CX = X, DX = Y
 ; ============================================
 
@@ -851,9 +851,9 @@ dsp32o_loop_fila:
     mov bx, di
     
     ; =========================================
-    ; BYTE 0 (píxeles 0-7)
+    ; BYTE 0 (pixeles 0-7)
     ; =========================================
-    mov ah, [si]        ; Leer máscara pre-calculada
+    mov ah, [si]        ; Leer mascara pre-calculada
     
     ; PLANO 0
     mov dx, 3CEh
@@ -960,11 +960,11 @@ dsp32o_loop_fila:
     mov es:[di], al
     
     ; =========================================
-    ; BYTE 1 (píxeles 8-15)
+    ; BYTE 1 (pixeles 8-15)
     ; =========================================
     pop si
     push si
-    mov ah, [si+1]      ; Leer máscara pre-calculada
+    mov ah, [si+1]      ; Leer mascara pre-calculada
     
     ; PLANO 0
     mov dx, 3CEh
@@ -1075,11 +1075,11 @@ dsp32o_loop_fila:
     mov es:[di], al
     
     ; =========================================
-    ; BYTE 2 (píxeles 16-23)
+    ; BYTE 2 (pixeles 16-23)
     ; =========================================
     pop si
     push si
-    mov ah, [si+2]      ; Leer máscara pre-calculada
+    mov ah, [si+2]      ; Leer mascara pre-calculada
     
     ; PLANO 0
     mov dx, 3CEh
@@ -1190,11 +1190,11 @@ dsp32o_loop_fila:
     mov es:[di], al
     
     ; =========================================
-    ; BYTE 3 (píxeles 24-31)
+    ; BYTE 3 (pixeles 24-31)
     ; =========================================
     pop si
     push si
-    mov ah, [si+3]      ; Leer máscara pre-calculada
+    mov ah, [si+3]      ; Leer mascara pre-calculada
     
     ; PLANO 0
     mov dx, 3CEh
@@ -1310,7 +1310,7 @@ dsp32o_loop_fila:
     pop bp
     add bp, 80
     pop si
-    add si, 4           ; 4 máscaras por fila
+    add si, 4           ; 4 mascaras por fila
     pop di
     add di, 4           ; 4 bytes de datos por fila
     pop cx
@@ -1350,13 +1350,13 @@ dibujar_sprite_planar_32x32_opt ENDP
 
 ---
 
-## **📋 EXPLICACIÓN DE LA ESTRUCTURA**
+## ** EXPLICACION DE LA ESTRUCTURA**
 
-La función tiene **4 secciones idénticas** (una por cada byte de la fila):
+La funcion tiene **4 secciones identicas** (una por cada byte de la fila):
 
 ### **Por cada BYTE (0, 1, 2, 3):**
 ```
-1. Leer máscara pre-calculada del byte correspondiente
+1. Leer mascara pre-calculada del byte correspondiente
    - BYTE 0: [si]
    - BYTE 1: [si+1]
    - BYTE 2: [si+2]
@@ -1366,7 +1366,7 @@ La función tiene **4 secciones idénticas** (una por cada byte de la fila):
    a. Configurar Graphics Controller (read plane)
    b. Configurar Sequencer (write plane)
    c. Leer pixel actual de video
-   d. Aplicar máscara de transparencia
+   d. Aplicar mascara de transparencia
    e. Mezclar con nuevo pixel
    f. Escribir resultado
 

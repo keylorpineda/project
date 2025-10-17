@@ -11,12 +11,12 @@
 ; OPTIMIZACION #1: LOOKUP TABLES
 ; ============================================
 
-; Tabla de offsets de video (Y × 80)
-; Evita multiplicación en cada cálculo de posición
+; Tabla de offsets de video (Y x 80)
+; Evita multiplicacion en cada calculo de posicion
 video_offsets   dw 350 dup(?)
 
-; Tabla de multiplicación por 100 (Y × 100)
-; Para índices de mapa 100×100
+; Tabla de multiplicacion por 100 (Y x 100)
+; Para indices de mapa 100x100
 mul100_table    dw 100 dup(?)
 
 ; Tabla de transitabilidad de tiles
@@ -27,8 +27,8 @@ tile_walkable   db 256 dup(1)
 ; OPTIMIZACION #2: PRE-MASCARAS
 ; ============================================
 
-; Máscaras pre-calculadas para sprites del jugador (32×32)
-; Cada sprite tiene 32 filas × 4 bytes = 128 bytes de máscara
+; Mascaras pre-calculadas para sprites del jugador (32x32)
+; Cada sprite tiene 32 filas x 4 bytes = 128 bytes de mascara
 jugador_up_a_mask       db 128 dup(0)
 jugador_up_b_mask       db 128 dup(0)
 jugador_down_a_mask     db 128 dup(0)
@@ -38,8 +38,8 @@ jugador_izq_b_mask      db 128 dup(0)
 jugador_der_a_mask      db 128 dup(0)
 jugador_der_b_mask      db 128 dup(0)
 
-; Máscaras pre-calculadas para tiles (16×16)
-; Cada tile tiene 16 filas × 2 bytes = 32 bytes de máscara
+; Mascaras pre-calculadas para tiles (16x16)
+; Cada tile tiene 16 filas x 2 bytes = 32 bytes de mascara
 sprite_grass1_mask      db 32 dup(0)
 sprite_path_mask        db 32 dup(0)
 sprite_water_mask       db 32 dup(0)
@@ -57,7 +57,7 @@ sprite_bridge_mask      db 32 dup(0)
 ; ============================================
 
 ; Mapa de tiles "sucios" que necesitan redibujo
-; Un byte por tile, valor = número de frame en que fue marcado
+; Un byte por tile, valor = numero de frame en que fue marcado
 dirty_tiles     db 10000 dup(0)
 
 ; Contador de frames (se incrementa cada frame)
