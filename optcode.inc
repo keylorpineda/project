@@ -335,11 +335,13 @@ cspo_der_next:
     mov [bp], al
     inc bp
     inc di
-    
+
     pop cx
     dec cx
-    jnz cspo_fila
-    
+    jz cspo_fin_fila
+    jmp cspo_fila
+
+cspo_fin_fila:
     pop bp
     pop di
     pop si
