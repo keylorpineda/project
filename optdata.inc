@@ -45,6 +45,7 @@ sprite_path_mask        db 32 dup(0)
 sprite_water_mask       db 32 dup(0)
 sprite_tree_mask        db 32 dup(0)
 sprite_sand_mask        db 32 dup(0)
+sprite_rock_mask        db 32 dup(0)    ; ← AGREGAR ESTO
 sprite_snow_mask        db 32 dup(0)
 sprite_ice_mask         db 32 dup(0)
 sprite_wall_mask        db 32 dup(0)

@@ -1,23 +1,19 @@
 ; JUEGO EGA - Universidad Nacional - Proyecto II Ciclo 2025
-; VERSIÓN CORREGIDA - Manejo correcto de scroll suave
+; VERSIÓN CORREGIDA Y FUNCIONAL
 .MODEL SMALL
 .STACK 2048
 
 TILE_GRASS1   EQU 0
-TILE_GRASS2   EQU 1
-TILE_FLOWER   EQU 2
 TILE_PATH     EQU 3
 TILE_WATER    EQU 4
 TILE_TREE     EQU 5
 TILE_SAND     EQU 6
-TILE_ROCK     EQU 7
 TILE_SNOW     EQU 8
 TILE_ICE      EQU 9
 TILE_WALL     EQU 10
-TILE_HILL     EQU 11
-TILE_BUSH     EQU 12
 TILE_DIRT     EQU 13
 TILE_LAVA     EQU 14
+TILE_ROCK     EQU 7
 TILE_BRIDGE   EQU 15
 
 TILE_SIZE      EQU 16
@@ -42,6 +38,7 @@ archivo_wall   db 'SPRITES\WALL_1.TXT',0
 arquivo_dirt   db 'SPRITES\DIRT_1.TXT',0
 arquivo_lava   db 'SPRITES\LAVA_1.TXT',0
 arquivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
+archivo_rock   db 'SPRITES\ROCK_1.TXT',0
 
 archivo_player_up_a    db 'SPRITES\PLAYER\UP1.TXT',0
 arquivo_player_up_b    db 'SPRITES\PLAYER\UP2.TXT',0
@@ -64,6 +61,7 @@ sprite_ice_temp      db 256 dup(0)
 sprite_wall_temp     db 256 dup(0)
 sprite_dirt_temp     db 256 dup(0)
 sprite_lava_temp     db 256 dup(0)
+sprite_rock_temp     db 256 dup(0)
 sprite_bridge_temp   db 256 dup(0)
 
 sprite_grass1   db 128 dup(0)
@@ -76,6 +74,7 @@ sprite_ice      db 128 dup(0)
 sprite_wall     db 128 dup(0)
 sprite_dirt     db 128 dup(0)
 sprite_lava     db 128 dup(0)
+sprite_rock     db 128 dup(0)
 sprite_bridge   db 128 dup(0)
 
 jugador_up_a_temp    db 1024 dup(0)
@@ -125,6 +124,9 @@ inicio_tile_y   dw 0
 temp_fila dw 0
 temp_col  dw 0
 
+scroll_offset_x dw 0
+scroll_offset_y dw 0
+
 INCLUDE OPTDATA.INC
 
 msg_titulo  db 'JUEGO EGA - Universidad Nacional',13,10,'$'
@@ -143,16 +145,11 @@ msg_controles db 13,10,'WASD = Mover, ESC = Salir',13,10
 inicio:
     mov ax, @data
     mov ds, ax
-    
-    mov dx, OFFSET msg_titulo
-    mov ah, 9
-    int 21h
-    
     mov dx, OFFSET msg_cargando
     mov ah, 9
     int 21h
     
-    ; Cargar archivos...
+    ; ===== FASE 2: CARGAR MAPA =====
     mov dx, OFFSET msg_mapa
     mov ah, 9
     int 21h
@@ -164,6 +161,7 @@ cm_ok:
     mov ah, 9
     int 21h
     
+    ; ===== FASE 3: CARGAR SPRITES =====
     mov dx, OFFSET msg_sprites
     mov ah, 9
     int 21h
@@ -175,6 +173,7 @@ st_ok:
     mov ah, 9
     int 21h
     
+    ; ===== FASE 4: CARGAR ANIMACIONES =====
     mov dx, OFFSET msg_anim
     mov ah, 9
     int 21h
@@ -186,6 +185,7 @@ anim_ok:
     mov ah, 9
     int 21h
     
+    ; ===== FASE 5: CONVERTIR A PLANAR =====
     mov dx, OFFSET msg_convert
     mov ah, 9
     int 21h
@@ -194,6 +194,7 @@ anim_ok:
     mov ah, 9
     int 21h
     
+    ; ===== FASE 6: INICIALIZAR TABLAS =====
     mov dx, OFFSET msg_tablas
     mov ah, 9
     int 21h
@@ -201,73 +202,75 @@ anim_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
-    ; ========================================
-    ; AGREGAR PAUSA AQUÍ
-    ; ========================================
-    mov dx, OFFSET msg_controles
-    mov ah, 9
-    int 21h
-    
-    mov ah, 0           ; ← ESPERAR TECLA
-    int 16h             ; ← ANTES DE ENTRAR AL MODO GRÁFICO
+    call debug_verificar_todo
 
-mov ax, 10h         ; ← Modo gráfico EGA 640x350, 16 colores
-int 10h  
-mov dx, 3C4h
-mov al, 2
-out dx, al
-inc dx
-mov al, 0Fh         ; Habilitar todos los planos
-out dx, al
-
-; ✅ Configurar Graphics Controller
-mov dx, 3CEh
-mov al, 5           ; Graphics Mode Register
-out dx, al
-inc dx
-mov al, 0           ; Modo 0 (write mode 0)
-out dx, al
-
-mov dx, 3CEh
-mov al, 3           ; Data Rotate/Function Select
-out dx, al
-inc dx
-mov al, 0           ; No rotation, function = replace
-out dx, al
-    ; ========================================
-    ; Continuar con el juego normal
-    ; ========================================
-   call centrar_camara
-
-; ✅ VALIDAR MAPA UNA SOLA VEZ
-mov al, [mapa_datos]
-cmp al, 15
-jbe mapa_ok
-
-; ERROR: Mapa corrupto
-mov ax, 3
-int 10h
-mov dx, OFFSET msg_error
+    mov al, [mapa_datos + 0]
+add al, '0'
+mov [buffer_temp], al
+mov byte ptr [buffer_temp + 1], '$'
+mov dx, OFFSET buffer_temp
 mov ah, 9
 int 21h
-jmp fin_juego
+mov ah, 0
+int 16h
 
-mapa_ok:
-call renderizar_en_pagina_0
-call renderizar_en_pagina_1
+mov dx, OFFSET msg_controles
+mov ah, 9
+int 21h
+mov ah, 0
+int 16h
 
-mov ah, 5
-mov al, 0
-int 10h
+    mov al, [mapa_datos + 0]
+add al, '0'
+mov [buffer_temp], al
+mov byte ptr [buffer_temp + 1], '$'
+mov dx, OFFSET buffer_temp
+mov ah, 9
+int 21h
+mov ah, 0
+int 16h
+    ; ===== FASE 8: ENTRAR A MODO GRÁFICO =====
+    mov ax, 10h
+    int 10h
+    
+    ; ===== FASE 9: CONFIGURAR EGA =====
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 5
+    out dx, al
+    inc dx
+    mov al, 0
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 3
+    out dx, al
+    inc dx
+    mov al, 0
+    out dx, al
+    
+    ; ===== FASE 10: INICIALIZAR JUEGO =====
+    call centrar_camara
+    call renderizar_en_pagina_0
+    call renderizar_en_pagina_1
+    
+    mov ah, 5
+    mov al, 0
+    int 10h
 
-
+; ===== BUCLE PRINCIPAL =====
 bucle_juego:
-    ; Procesar input y actualizar estado
     call procesar_movimiento_continuo
     call actualizar_animacion
     call centrar_camara
     
-    ; *** OPTIMIZACIÓN: Verificar si algo cambió ***
+    ; Verificar si algo cambió
     mov ax, jugador_px
     cmp ax, jugador_px_old
     jne bg_hay_cambio
@@ -282,8 +285,8 @@ bucle_juego:
 
     call esperar_retrace
     jmp bucle_juego
+    
 bg_hay_cambio:
-    ; *** Algo cambió, guardar nuevo estado ***
     mov ax, jugador_px
     mov jugador_px_old, ax
     
@@ -292,9 +295,9 @@ bg_hay_cambio:
     
     mov al, jugador_frame
     mov frame_old, al
-     call esperar_retrace
     
-    ; *** Renderizar normalmente (igual que antes) ***
+    call esperar_retrace
+    
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
@@ -306,7 +309,6 @@ bg_render_p0:
     call renderizar_en_pagina_0
     
 bg_cambiar_pagina:
-    ; Cambiar página visible (sin esperar retrace adicional)
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
@@ -609,6 +611,11 @@ convertir_todos_sprites_planar PROC
     mov bp, OFFSET sprite_sand_mask
     call convertir_sprite_a_planar_opt
 
+    mov si, OFFSET sprite_rock_temp        ; ← AGREGAR ESTO
+mov di, OFFSET sprite_rock             ; ← AGREGAR ESTO
+mov bp, OFFSET sprite_rock_mask        ; ← AGREGAR ESTO
+call convertir_sprite_a_planar_opt  
+
     mov si, OFFSET sprite_snow_temp
     mov di, OFFSET sprite_snow
     mov bp, OFFSET sprite_snow_mask
@@ -720,6 +727,13 @@ cst_load_tree:
 cst_load_sand:
     mov dx, OFFSET archivo_sand
     mov di, OFFSET sprite_sand_temp
+    call cargar_sprite_16x16
+    jnc cst_load_rock
+    jmp cst_error
+
+cst_load_rock:              ; ← AGREGAR ESTO
+    mov dx, OFFSET archivo_rock
+    mov di, OFFSET sprite_rock_temp
     call cargar_sprite_16x16
     jnc cst_load_snow
     jmp cst_error
@@ -962,7 +976,7 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    ; Calcular tile inicial de la cámara
+    ; Calcular tile inicial de la cámara (alineado a 16)
     mov ax, camara_px
     shr ax, 4
     mov inicio_tile_x, ax
@@ -971,131 +985,81 @@ dibujar_mapa_en_offset PROC
     shr ax, 4
     mov inicio_tile_y, ax
     
-    ; Calcular offset de scroll fino
-    mov ax, camara_px
-    and ax, 15
-    push ax                 ; Guardar offset_x en stack
-    
-    mov ax, camara_py
-    and ax, 15
-    push ax                 ; Guardar offset_y en stack
-    
-    mov temp_fila, 0
+    ; Iniciar desde fila 0
+    xor bp, bp              ; BP = fila actual (0-12)
 
-dmo_fila_loop:
-    cmp temp_fila, 13
-    jb dmo_fila_continua    ; Si < 13 filas, continuar
-    jmp dmo_fin             ; Si >= 13 filas, terminar
-
-dmo_fila_continua:
+dmo_fila:
+    cmp bp, 13              ; ¿Terminamos las 13 filas?
+    jae dmo_fin
     
-    mov temp_col, 0         ; ✅ CRÍTICO: Resetear columna al inicio de cada fila
+    xor si, si              ; SI = columna actual (0-20)
 
-dmo_col_loop:
-    cmp temp_col, 21
-    jb dmo_col_continua     ; Si < 21 columnas, continuar
-    jmp dmo_next_fila       ; Si >= 21 columnas, siguiente fila
-
-dmo_col_continua:
+dmo_col:
+    cmp si, 21              ; ¿Terminamos las 21 columnas?
+    jae dmo_next_fila
     
-    ; ===== CALCULAR tile_y =====
+    ; ===== Calcular tile_y =====
     mov ax, inicio_tile_y
-    add ax, temp_fila
+    add ax, bp              ; tile_y = inicio + fila
     cmp ax, 100
-    jb dmo_tile_y_valido    ; ✅ CAMBIO: Si está dentro del límite, continuar
-    jmp dmo_next_col        ; ✅ CAMBIO: Si fuera de límite, siguiente columna (no fila)
-
-dmo_tile_y_valido:
+    jae dmo_next_col        ; Si fuera del mapa, skip
     
-    ; ===== CALCULAR ÍNDICE EN MAPA =====
-    push ax                 ; Guardar tile_y
-    shl ax, 1               ; AX *= 2 para indexar mul100_table
+    ; ===== Calcular índice en mapa (Y × 100 + X) =====
+    mov bx, ax              ; BX = tile_y
+    shl bx, 1               ; BX *= 2
+    mov ax, [mul100_table + bx]  ; AX = tile_y × 100
+    
+    mov bx, inicio_tile_x
+    add bx, si              ; BX = tile_x = inicio + columna
+    cmp bx, 100
+    jae dmo_next_col        ; Si fuera del mapa, skip
+    
+    add ax, bx              ; AX = tile_y × 100 + tile_x
+    
+    ; ===== Leer tipo de tile =====
     mov bx, ax
-    mov ax, [mul100_table + bx]
-    pop bx                  ; BX = tile_y
-    push ax                 ; Guardar tile_y * 100
-    
-    ; ===== CALCULAR tile_x =====
-    mov ax, inicio_tile_x
-    add ax, temp_col
-    cmp ax, 100
-    jae dmo_next_col_pop    ; Si fuera de límite, limpiar stack y siguiente columna
-    
-    ; ===== CALCULAR ÍNDICE FINAL =====
-    pop dx                  ; DX = tile_y * 100
-    add dx, ax              ; DX = tile_y * 100 + tile_x
-    mov si, dx
-    
-    ; ===== OBTENER TIPO DE TILE =====
-    push bx
-    mov bx, si
     mov al, [mapa_datos + bx]
-    pop bx
     
-    ; ===== VERIFICAR TILE VÁLIDO =====
+    ; ===== Verificar tile válido =====
     cmp al, 15
     ja dmo_next_col
     
-    ; ===== OBTENER PUNTEROS A SPRITE =====
+    ; ===== Guardar registros importantes =====
+    push si                 ; Guardar columna
+    push bp                 ; Guardar fila
+    
+    ; ===== Obtener sprite del tile =====
     call obtener_sprite_tile    ; Retorna DI=data, SI=mask
     
-    ; ===== CALCULAR POSICIÓN EN PANTALLA =====
-    push di
-    push si
-    
-    ; Calcular X
-    mov ax, temp_col
-    shl ax, 4               ; AX = columna * 16
-    mov bx, sp
-    add bx, 6               ; BX apunta a offset_x en stack (debajo de 4 push)
-    sub ax, ss:[bx]         ; Restar offset_x (usar segmento de stack)
-    add ax, viewport_x
-    mov cx, ax              ; CX = X en pantalla
-    
-    ; Calcular Y
-    mov ax, temp_fila
-    shl ax, 4               ; AX = fila * 16
-    mov bx, sp
-    add bx, 4               ; BX apunta a offset_y en stack
-    sub ax, ss:[bx]         ; Restar offset_y (usar segmento de stack)
+    ; ===== Calcular posición en pantalla =====
+    pop ax                  ; AX = fila (recuperar BP)
+    push ax                 ; Volver a guardar
+    shl ax, 4               ; AX = fila × 16
     add ax, viewport_y
-    mov dx, ax              ; DX = Y en pantalla
+    mov dx, ax              ; DX = Y
     
-    ; ===== VERIFICAR VIEWPORT =====
-    cmp cx, 640
-    jge dmo_skip_tile
-    cmp dx, 350
-    jge dmo_skip_tile
-    test cx, 8000h
-    jnz dmo_skip_tile
-    test dx, 8000h
-    jnz dmo_skip_tile
+    pop ax                  ; AX = fila (descartar)
+    pop ax                  ; AX = columna (recuperar SI)
+    push ax                 ; Volver a guardar
+    shl ax, 4               ; AX = columna × 16
+    add ax, viewport_x
+    mov cx, ax              ; CX = X
     
-    ; ===== DIBUJAR TILE =====
-    pop si                  ; SI = mask
-    pop di                  ; DI = data
+    ; ===== Dibujar tile =====
     call dibujar_sprite_planar_16x16_opt
-    jmp dmo_next_col
     
-dmo_skip_tile:
-    pop si
-    pop di
-    jmp dmo_next_col
-
-dmo_next_col_pop:
-    pop ax                  ; Limpiar stack (tile_y * 100)
+    ; ===== Restaurar registros =====
+    pop si                  ; Recuperar columna
     
 dmo_next_col:
-    inc temp_col
-    jmp dmo_col_loop
-
+    inc si                  ; Siguiente columna
+    jmp dmo_col
+    
 dmo_next_fila:
-    inc temp_fila
-    jmp dmo_fila_loop
-
+    inc bp                  ; Siguiente fila
+    jmp dmo_fila
+    
 dmo_fin:
-    pop ax                  ; Limpiar offset_y
-    pop ax                  ; Limpiar offset_x
     pop bp
     pop di
     pop si
@@ -1138,11 +1102,17 @@ ost_tree:
     
 ost_sand:
     cmp bl, TILE_SAND
-    jne ost_snow
+    jne ost_rock
     mov di, OFFSET sprite_sand
     mov si, OFFSET sprite_sand_mask
     jmp ost_fin
     
+ost_rock:                   ; ← AGREGAR ESTO
+    cmp bl, TILE_ROCK       ; ← AGREGAR ESTO
+    jne ost_snow            ; ← AGREGAR ESTO
+    mov di, OFFSET sprite_rock       ; ← AGREGAR ESTO
+    mov si, OFFSET sprite_rock_mask  ; ← AGREGAR ESTO
+    jmp ost_fin         
 ost_snow:
     cmp bl, TILE_SNOW
     jne ost_ice
@@ -1220,6 +1190,7 @@ dibujar_jugador_en_offset PROC
     pop ax
     ret
 dibujar_jugador_en_offset ENDP
+
 dibujar_sprite_planar_16x16 PROC
 
     call dibujar_sprite_planar_16x16_opt
@@ -1589,6 +1560,80 @@ debug_mostrar_tile PROC
     ret
 debug_mostrar_tile ENDP
 
+debug_verificar_mapa PROC
+    push ax
+    push bx
+    
+    ; Verificar tile en (25, 25) - debería ser no-cero
+    mov bx, 25
+    shl bx, 1
+    mov ax, [mul100_table + bx]
+    add ax, 25
+    mov bx, ax
+    
+    mov al, [mapa_datos + bx]
+    
+    ; Si es 0, hay un problema
+    test al, al
+    jnz dvm_ok
+    
+    ; Mostrar error
+    mov ax, 3
+    int 10h
+    mov dx, OFFSET msg_error
+    mov ah, 9
+    int 21h
+    mov ah, 0
+    int 16h
+    
+dvm_ok:
+    pop bx
+    pop ax
+    ret
+debug_verificar_mapa ENDP
+
+
+debug_verificar_todo PROC
+    push ax
+    push bx
+    
+    ; Verificar que mul100_table esté inicializada
+    mov bx, 2               ; mul100_table[1]
+    mov ax, [mul100_table + bx]
+    cmp ax, 100
+    je dvt_tabla_ok
+    
+    ; ERROR: Tabla no inicializada
+    mov ax, 3
+    int 10h
+    mov dx, OFFSET msg_error
+    mov ah, 9
+    int 21h
+    mov ah, 0
+    int 16h
+    jmp fin_juego
+    
+dvt_tabla_ok:
+    ; Verificar que el mapa tenga datos
+    mov al, [mapa_datos + 0]
+    test al, al
+    jnz dvt_mapa_ok
+    
+    ; ERROR: Mapa vacío
+    mov ax, 3
+    int 10h
+    mov dx, OFFSET msg_error
+    mov ah, 9
+    int 21h
+    mov ah, 0
+    int 16h
+    jmp fin_juego
+    
+dvt_mapa_ok:
+    pop bx
+    pop ax
+    ret
+debug_verificar_todo ENDP
 INCLUDE OPTCODE.INC
 
 END inicio
