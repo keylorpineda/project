@@ -354,14 +354,20 @@ bucle_juego:
     call centrar_camara
     
     ; Verificar si algo cambió
+    ; Si la cámara solicitó un redibujado forzado (por ejemplo, al mover el
+    ; viewport para lograr scroll suave) debemos evitar saltarnos el render.
+    mov al, force_full_redraw
+    cmp al, 0
+    jne bg_hay_cambio
+
     mov ax, jugador_px
     cmp ax, jugador_px_old
     jne bg_hay_cambio
-    
+
     mov ax, jugador_py
     cmp ax, jugador_py_old
     jne bg_hay_cambio
-    
+
     mov al, jugador_frame
     cmp al, frame_old
     jne bg_hay_cambio
