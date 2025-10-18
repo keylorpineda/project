@@ -308,13 +308,24 @@ rep stosw
 ; ===== INICIALIZAR JUEGO =====
 call centrar_camara
 
+    ; Sincronizar el viewport con la cámara antes del primer dibujado
+    mov ax, camara_px
+    shr ax, 4
+    mov inicio_tile_x, ax
+
+    mov ax, camara_py
+    shr ax, 4
+    mov inicio_tile_y, ax
+
 ; **CRÍTICO**: Renderizar PÁGINA 0 primero
 mov temp_offset, 0
+mov force_full_redraw, 1       ; Asegurar redibujado completo en esta página
 call dibujar_mapa_en_offset
 call dibujar_jugador_en_offset
 
 ; **CRÍTICO**: Renderizar PÁGINA 1
 mov temp_offset, 8000h
+mov force_full_redraw, 1       ; Forzar redibujado total para la segunda página
 call dibujar_mapa_en_offset
 call dibujar_jugador_en_offset
 
