@@ -127,7 +127,33 @@ temp_col  dw 0
 scroll_offset_x dw 0
 scroll_offset_y dw 0
 
-INCLUDE OPTDATA.INC
+; === Variables para OPTCODE.INC ===
+video_offsets   dw 350 dup(?)
+mul100_table    dw 200 dup(?)
+
+sprite_grass1_mask      db 32 dup(0)
+sprite_path_mask        db 32 dup(0)
+sprite_water_mask       db 32 dup(0)
+sprite_tree_mask        db 32 dup(0)
+sprite_sand_mask        db 32 dup(0)
+sprite_rock_mask        db 32 dup(0)
+sprite_snow_mask        db 32 dup(0)
+sprite_ice_mask         db 32 dup(0)
+sprite_wall_mask        db 32 dup(0)
+sprite_dirt_mask        db 32 dup(0)
+sprite_lava_mask        db 32 dup(0)
+sprite_bridge_mask      db 32 dup(0)
+
+jugador_up_a_mask       db 128 dup(0)
+jugador_up_b_mask       db 128 dup(0)
+jugador_down_a_mask     db 128 dup(0)
+jugador_down_b_mask     db 128 dup(0)
+jugador_izq_a_mask      db 128 dup(0)
+jugador_izq_b_mask      db 128 dup(0)
+jugador_der_a_mask      db 128 dup(0)
+jugador_der_b_mask      db 128 dup(0)
+
+INCLUDE OPTSYS.INC
 
 msg_titulo  db 'JUEGO EGA - Universidad Nacional',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
@@ -209,6 +235,7 @@ mov dx, OFFSET msg_tablas
     mov ah, 9
     int 21h
     call inicializar_lookup_tables
+    call inicializar_sistema_opt
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -331,6 +358,17 @@ bg_hay_cambio:
     
     mov al, jugador_frame
     mov frame_old, al
+    
+    ; ===== CALCULAR inicio_tile_x e inicio_tile_y =====
+    ; (El código original ya lo hace en centrar_camara,
+    ;  pero necesitamos asegurarnos que esté actualizado)
+    mov ax, camara_px
+    shr ax, 4
+    mov inicio_tile_x, ax
+    
+    mov ax, camara_py
+    shr ax, 4
+    mov inicio_tile_y, ax
     
     ; Esperar vertical retrace
     call esperar_retrace
@@ -1029,110 +1067,82 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    ; Calcular tile inicial de la cámara
-    mov ax, camara_px
-    shr ax, 4
-    mov inicio_tile_x, ax
+    ; ===== MARCAR TILES AFECTADOS =====
+    call marcar_tiles_afectados
     
-    mov ax, camara_py
-    shr ax, 4
-    mov inicio_tile_y, ax
-    
-    xor bp, bp              ; BP = fila actual (0-12)
-
-dmo_fila:
-    cmp bp, 13
-    jae dmo_fin
-    
-    xor si, si              ; SI = columna actual (0-20)
-
-dmo_col:
-    cmp si, 21
-    jae dmo_next_fila
-    
-    ; ===== Calcular tile_y =====
+    ; ===== Calcular puntero base a primera fila del mapa =====
     mov ax, inicio_tile_y
-    add ax, bp
-    cmp ax, 100
-    jae dmo_next_col
+    shl ax, 1
+    mov bx, [mul100_table + ax]
+    add bx, inicio_tile_x
+    lea di, [mapa_datos + bx]       ; DI = puntero a primera fila en mapa
     
-    ; ===== Calcular índice en mapa (Y × 100 + X) =====
-    mov bx, ax
-    shl bx, 1
-    mov ax, [mul100_table + bx]
-    
-    mov bx, inicio_tile_x
-    add bx, si
-    cmp bx, 100
-    jae dmo_next_col
-    
-    add ax, bx
-    
-    ; ===== Leer tipo de tile =====
-    mov bx, ax
-    mov al, [mapa_datos + bx]
-    
-    cmp al, 15
-    ja dmo_next_col
-    
-    ; ===== Guardar registros de BUCLE (col, fila) =====
-    push si                 ; [Stack]: col
-    push bp                 ; [Stack]: fila, col
-    
-    ; ===== Obtener sprite (pone DI=data, SI=mask) =====
-    call obtener_sprite_tile
-    
-    ; ===== ¡¡¡CORRECCIÓN DEFINITIVA!!! =====
-    ; Preservar DI y SI, y usar BP para el stack frame
-    
-    push si                 ; [Stack]: mask_ptr, fila, col
-    push di                 ; [Stack]: data_ptr, mask_ptr, fila, col
-    
-    ; --- Crear Stack Frame ---
-    push bp                 ; Guardar BP (fila)
-    mov bp, sp              ; BP es ahora el puntero de pila
+    xor bp, bp                       ; BP = fila (0-12)
 
-    ; Stack Frame:
-    ; [bp]    = BP guardado (fila)
-    ; [bp+2]  = data_ptr (DI)
-    ; [bp+4]  = mask_ptr (SI)
-    ; [bp+6]  = fila (BP_guardado)
-    ; [bp+8]  = col (SI_guardado)
+dmo_fila_opt:
+    cmp bp, 13
+    jae dmo_fin_opt
     
-    ; Calcular DX (Y) usando BP
-    mov ax, [bp+6]          ; AX = fila (LEGAL)
-    shl ax, 4               
-    add ax, viewport_y
-    mov dx, ax              ; DX = Y
+    mov bx, di                       ; BX = puntero actual en fila
+    xor si, si                       ; SI = columna (0-20)
+
+dmo_col_opt:
+    cmp si, 21
+    jae dmo_next_fila_opt
     
-    ; Calcular CX (X) usando BP
-    mov ax, [bp+8]          ; AX = col (LEGAL)
-    shl ax, 4               
+    ; ===== VERIFICAR SI TILE ESTÁ SUCIO =====
+    call tile_esta_sucio
+    jz dmo_skip_tile                 ; ZF=1 → tile limpio, saltar
+    
+    ; ===== LEER TILE Y OBTENER SPRITE =====
+    mov al, [bx]
+    inc bx
+    
+    push bx                          ; Guardar puntero en mapa
+    
+    call obtener_sprite_rapido       ; DI=data, SI=mask (3 ciclos)
+    
+    ; ===== CALCULAR POSICIÓN EN PANTALLA =====
+    push si                          ; Guardar máscara
+    push di                          ; Guardar datos
+    
+    ; CX = columna × 16 + viewport_x
+    mov ax, si                       ; SI = columna (guardada antes)
+    shl ax, 4
     add ax, viewport_x
-    mov cx, ax              ; CX = X
+    mov cx, ax
     
-    ; --- Destruir Stack Frame ---
-    pop bp                  ; Restaurar BP (fila)
+    ; DX = fila × 16 + viewport_y
+    mov ax, bp
+    shl ax, 4
+    add ax, viewport_y
+    mov dx, ax
     
-    pop di                  ; Restaurar DI (data_ptr)
-    pop si                  ; Restaurar SI (mask_ptr)
-
-    ; Llamar a dibujar con DI, SI, CX, DX correctos
+    pop di                           ; Restaurar datos
+    pop si                           ; Restaurar máscara
+    
+    ; ===== DIBUJAR SPRITE =====
     call dibujar_sprite_planar_16x16_opt
     
-    ; ===== Restaurar registros de BUCLE =====
-    pop bp                  ; Limpiar 'fila' de la pila
-    pop si                  ; Limpiar 'col' de la pila
+    pop bx                           ; Restaurar puntero en mapa
+    jmp dmo_next_col_opt
+
+dmo_skip_tile:
+    inc bx                           ; Avanzar puntero en mapa
+
+dmo_next_col_opt:
+    inc si
+    jmp dmo_col_opt
+
+dmo_next_fila_opt:
+    add di, 100                      ; Siguiente fila en mapa (Y+1)
+    inc bp
+    jmp dmo_fila_opt
+
+dmo_fin_opt:
+    ; ===== LIMPIAR FLAGS PARA PRÓXIMO FRAME =====
+    call limpiar_dirty_flags
     
-dmo_next_col:
-    inc si                  ; Siguiente columna
-    jmp dmo_col
-    
-dmo_next_fila:
-    inc bp                  ; Siguiente fila
-    jmp dmo_fila
-    
-dmo_fin:
     pop bp
     pop di
     pop si
@@ -1144,92 +1154,7 @@ dmo_fin:
 dibujar_mapa_en_offset ENDP
 
 obtener_sprite_tile PROC
-    push ax
-    push bx
-    
-    mov bl, al
-    
-    ; Default: GRASS1
-    mov di, OFFSET sprite_grass1
-    mov si, OFFSET sprite_grass1_mask
-    
-    cmp bl, TILE_PATH
-    jne ost_water
-    mov di, OFFSET sprite_path
-    mov si, OFFSET sprite_path_mask
-    jmp ost_fin
-    
-ost_water:
-    cmp bl, TILE_WATER
-    jne ost_tree
-    mov di, OFFSET sprite_water
-    mov si, OFFSET sprite_water_mask
-    jmp ost_fin
-    
-ost_tree:
-    cmp bl, TILE_TREE
-    jne ost_sand
-    mov di, OFFSET sprite_tree
-    mov si, OFFSET sprite_tree_mask
-    jmp ost_fin
-    
-ost_sand:
-    cmp bl, TILE_SAND
-    jne ost_rock
-    mov di, OFFSET sprite_sand
-    mov si, OFFSET sprite_sand_mask
-    jmp ost_fin
-    
-ost_rock:                   ; ← AGREGAR ESTO
-    cmp bl, TILE_ROCK       ; ← AGREGAR ESTO
-    jne ost_snow            ; ← AGREGAR ESTO
-    mov di, OFFSET sprite_rock       ; ← AGREGAR ESTO
-    mov si, OFFSET sprite_rock_mask  ; ← AGREGAR ESTO
-    jmp ost_fin         
-ost_snow:
-    cmp bl, TILE_SNOW
-    jne ost_ice
-    mov di, OFFSET sprite_snow
-    mov si, OFFSET sprite_snow_mask
-    jmp ost_fin
-    
-ost_ice:
-    cmp bl, TILE_ICE
-    jne ost_wall
-    mov di, OFFSET sprite_ice
-    mov si, OFFSET sprite_ice_mask
-    jmp ost_fin
-    
-ost_wall:
-    cmp bl, TILE_WALL
-    jne ost_dirt
-    mov di, OFFSET sprite_wall
-    mov si, OFFSET sprite_wall_mask
-    jmp ost_fin
-    
-ost_dirt:
-    cmp bl, TILE_DIRT
-    jne ost_lava
-    mov di, OFFSET sprite_dirt
-    mov si, OFFSET sprite_dirt_mask
-    jmp ost_fin
-    
-ost_lava:
-    cmp bl, TILE_LAVA
-    jne ost_bridge
-    mov di, OFFSET sprite_lava
-    mov si, OFFSET sprite_lava_mask
-    jmp ost_fin
-    
-ost_bridge:
-    cmp bl, TILE_BRIDGE
-    jne ost_fin
-    mov di, OFFSET sprite_bridge
-    mov si, OFFSET sprite_bridge_mask
-
-ost_fin:
-    pop bx
-    pop ax
+    call obtener_sprite_rapido
     ret
 obtener_sprite_tile ENDP
 
