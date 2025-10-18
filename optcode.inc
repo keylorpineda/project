@@ -852,9 +852,15 @@ dibujar_sprite_planar_16x16_opt PROC
     
     ; Clipping
     cmp cx, 480
-    jae dsp16o_ret
+    jb  dsp16o_clip_check_y
+    jmp dsp16o_ret
+
+dsp16o_clip_check_y:
     cmp dx, 350
-    jae dsp16o_ret
+    jb  dsp16o_clip_ok
+    jmp dsp16o_ret
+
+dsp16o_clip_ok:
     
     mov ax, 0A000h
     mov es, ax
