@@ -43,27 +43,34 @@ inicializar_lookup_tables ENDP
 ; DIRTY RECTANGLES - SOLO REDIBUJAR LO NECESARIO
 ; ============================================
 marcar_region_sucia PROC
-    ; Entrada: CX = tile_x, DX = tile_y
     push ax
     push bx
+    push cx
     
-    ; Validar límites
     cmp cx, 100
     jae mrs_fin
     cmp dx, 100
     jae mrs_fin
     
-    ; Calcular índice: Y × 100 + X
     mov bx, dx
     shl bx, 1
     mov ax, [mul100_table + bx]
     add ax, cx
     mov bx, ax
     
-    ; Marcar tile como sucio
+    ; Verificar si ya está sucio
+    cmp byte ptr [dirty_tiles + bx], 0
+    jne mrs_fin
+    
+    ; Marcar y agregar a lista
     mov byte ptr [dirty_tiles + bx], 1
+    mov cx, dirty_count
+    shl cx, 1
+    mov [dirty_list + cx], bx
+    inc dirty_count
     
 mrs_fin:
+    pop cx
     pop bx
     pop ax
     ret
@@ -71,16 +78,29 @@ marcar_region_sucia ENDP
 
 limpiar_tiles_sucios PROC
     push ax
+    push bx
     push cx
-    push di
     
-    mov di, OFFSET dirty_tiles
-    mov cx, 10000
-    xor al, al
-    rep stosb
+    xor bx, bx
+lts_loop:
+    mov ax, dirty_count
+    cmp bx, ax
+    jae lts_fin
     
-    pop di
+    push bx
+    shl bx, 1
+    mov ax, [dirty_list + bx]
+    mov byte ptr [dirty_tiles + ax], 0
+    pop bx
+    
+    inc bx
+    jmp lts_loop
+    
+lts_fin:
+    mov dirty_count, 0
+    
     pop cx
+    pop bx
     pop ax
     ret
 limpiar_tiles_sucios ENDP
@@ -827,173 +847,433 @@ dibujar_sprite_planar_16x16_opt PROC
     push bp
     push es
     
-    ; ✅ CLIPPING: Verificar si está fuera del viewport
-    cmp cx, 480                 ; X >= 480?
-    jae dsp16o_fuera
-    cmp dx, 350                 ; Y >= 350?
-    jae dsp16o_fuera
-    
-    ; Verificar límite superior (con signo)
-    test cx, 8000h              ; X < 0?
-    jnz dsp16o_fuera
-    test dx, 8000h              ; Y < 0?
-    jnz dsp16o_fuera
+    ; Clipping rápido
+    cmp cx, 480
+    jae dsp16o_ret
+    cmp dx, 350
+    jae dsp16o_ret
     
     mov ax, 0A000h
     mov es, ax
     
-    ; Calcular offset de video
+    ; Calcular offset (optimizado)
     mov ax, dx
-    mov bx, 80
-    mul bx
+    shl ax, 6           ; Y * 64
     mov bp, ax
+    shl dx, 4           ; Y * 16
+    add bp, dx          ; BP = Y * 80
     mov ax, cx
     shr ax, 3
     add bp, ax
     add bp, temp_offset
     
-    mov bx, di              ; BX = datos planar
-    ; SI ya tiene la máscara
+    mov dx, 3C5h        ; Ya apuntar a Map Mask Data
+    mov si, bx          ; SI = datos
     
-    mov cx, 16              ; 16 filas
-    jmp dsp16o_fila
-
-dsp16o_fuera:
-    pop es
-    pop bp
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-
-dsp16o_fila:
-    push cx
+    ; ===== MACRO: DIBUJAR_FILA (repetir 16 veces) =====
     
-    ; ✅ OPTIMIZACIÓN: Configurar TODOS los registros UNA SOLA VEZ
-    mov dx, 3C4h            ; Sequence Controller
-    mov al, 2               ; Map Mask register
-    out dx, al
-    inc dx
-    
+    ; FILA 0
     mov di, bp
-    
-    ; === PLANO 0 ===
     mov al, 1
     out dx, al
-    
-    mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx]
-    and al, ah
-    or al, ch
-    stosb                   ; ES:[DI++] = AL
-    
-    mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+1]
-    and al, ah
-    or al, ch
-    stosb
-    
-    ; === PLANO 1 ===
+    movsb
+    movsb
+    sub si, 2
     mov di, bp
     mov al, 2
     out dx, al
-    
-    mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+32]
-    and al, ah
-    or al, ch
-    stosb
-    
-    mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+33]
-    and al, ah
-    or al, ch
-    stosb
-    
-    ; === PLANO 2 ===
+    mov ax, [si+32]
+    stosw
     mov di, bp
     mov al, 4
     out dx, al
-    
-    mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+64]
-    and al, ah
-    or al, ch
-    stosb
-    
-    mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+65]
-    and al, ah
-    or al, ch
-    stosb
-    
-    ; === PLANO 3 ===
+    mov ax, [si+64]
+    stosw
     mov di, bp
     mov al, 8
     out dx, al
-    
-    mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+96]
-    and al, ah
-    or al, ch
-    stosb
-    
-    mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+97]
-    and al, ah
-    or al, ch
-    stosb
-    
-    ; Siguiente fila
+    mov ax, [si+96]
+    stosw
     add si, 2
-    add bx, 2
     add bp, 80
     
-    pop cx
-    dec cx
-    jnz dsp16o_fila
-
-dsp16o_fin:
-    ; Restaurar Map Mask
-    mov dx, 3C5h
+    ; FILA 1
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 2
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 3
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 4
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 5
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 6
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 7
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 8
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 9
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 10
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 11
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 12
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 13
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 14
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    add si, 2
+    add bp, 80
+    
+    ; FILA 15
+    mov di, bp
+    mov al, 1
+    out dx, al
+    movsb
+    movsb
+    sub si, 2
+    mov di, bp
+    mov al, 2
+    out dx, al
+    mov ax, [si+32]
+    stosw
+    mov di, bp
+    mov al, 4
+    out dx, al
+    mov ax, [si+64]
+    stosw
+    mov di, bp
+    mov al, 8
+    out dx, al
+    mov ax, [si+96]
+    stosw
+    
     mov al, 0Fh
     out dx, al
     
+dsp16o_ret:
     pop es
     pop bp
     pop di
@@ -1015,69 +1295,87 @@ dibujar_sprite_planar_32x32_opt PROC
     push bp
     push es
     
-    ; ✅ CLIPPING
+    ; Clipping
     cmp cx, 480
-    jae dsp32o_fuera
+    jae dsp32o_ret
     cmp dx, 350
-    jae dsp32o_fuera
+    jae dsp32o_ret
     test cx, 8000h
-    jnz dsp32o_fuera
+    jnz dsp32o_ret
     test dx, 8000h
-    jnz dsp32o_fuera
+    jnz dsp32o_ret
     
     mov ax, 0A000h
     mov es, ax
     
+    ; Calcular offset
     mov ax, dx
-    mov bx, 80
-    mul bx
+    mov bp, 80
+    mul bp
     mov bp, ax
     mov ax, cx
     shr ax, 3
     add bp, ax
     add bp, temp_offset
     
-    mov bx, di
-    mov cx, 32
-    jmp dsp32o_fila
-
-dsp32o_fuera:
-    pop es
-    pop bp
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-
-dsp32o_fila:
-    push cx
-    
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     
-    ; === PLANO 0 ===
+    ; BX = datos planar, SI = máscara
+    push si                 ; Guardar puntero a máscara
+    mov cx, 32              ; 32 filas
+
+dsp32o_fila:
+    pop si                  ; Recuperar máscara
+    push si
+    push cx
+    push bp
+    push bx
+    
     mov di, bp
+    
+    ; ===== PLANO 0 =====
     mov al, 1
     out dx, al
     
     ; Byte 0
-    mov ah, [si]
+    mov ah, [si]            ; AH = máscara
+    test ah, ah
+    jz dsp32o_p0_b0_skip    ; Si máscara = 0, saltar
+    cmp ah, 0FFh
+    je dsp32o_p0_b0_opaque  ; Si máscara = FF, copiar directo
+    
+    ; Transparencia parcial
     mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
+    not cl                  ; CL = ~máscara
+    mov ch, es:[di]         ; CH = fondo
+    and ch, cl              ; CH = fondo AND ~máscara
+    mov al, [bx]            ; AL = sprite
+    and al, ah              ; AL = sprite AND máscara
+    or al, ch               ; AL = mezcla
+    mov es:[di], al
+    jmp dsp32o_p0_b0_next
+    
+dsp32o_p0_b0_opaque:
     mov al, [bx]
-    and al, ah
-    or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p0_b0_next
+    
+dsp32o_p0_b0_skip:
+    ; No hacer nada, dejar fondo
+    
+dsp32o_p0_b0_next:
+    inc di
     
     ; Byte 1
     mov ah, [si+1]
+    test ah, ah
+    jz dsp32o_p0_b1_skip
+    cmp ah, 0FFh
+    je dsp32o_p0_b1_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1085,10 +1383,26 @@ dsp32o_fila:
     mov al, [bx+1]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p0_b1_next
+    
+dsp32o_p0_b1_opaque:
+    mov al, [bx+1]
+    mov es:[di], al
+    jmp dsp32o_p0_b1_next
+    
+dsp32o_p0_b1_skip:
+    
+dsp32o_p0_b1_next:
+    inc di
     
     ; Byte 2
     mov ah, [si+2]
+    test ah, ah
+    jz dsp32o_p0_b2_skip
+    cmp ah, 0FFh
+    je dsp32o_p0_b2_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1096,10 +1410,26 @@ dsp32o_fila:
     mov al, [bx+2]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p0_b2_next
+    
+dsp32o_p0_b2_opaque:
+    mov al, [bx+2]
+    mov es:[di], al
+    jmp dsp32o_p0_b2_next
+    
+dsp32o_p0_b2_skip:
+    
+dsp32o_p0_b2_next:
+    inc di
     
     ; Byte 3
     mov ah, [si+3]
+    test ah, ah
+    jz dsp32o_p0_b3_skip
+    cmp ah, 0FFh
+    je dsp32o_p0_b3_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1107,14 +1437,30 @@ dsp32o_fila:
     mov al, [bx+3]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p0_b3_next
     
-    ; === PLANO 1 ===
+dsp32o_p0_b3_opaque:
+    mov al, [bx+3]
+    mov es:[di], al
+    jmp dsp32o_p0_b3_next
+    
+dsp32o_p0_b3_skip:
+    
+dsp32o_p0_b3_next:
+    
+    ; ===== PLANO 1 =====
     mov di, bp
     mov al, 2
     out dx, al
     
+    ; Byte 0
     mov ah, [si]
+    test ah, ah
+    jz dsp32o_p1_b0_skip
+    cmp ah, 0FFh
+    je dsp32o_p1_b0_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1122,9 +1468,26 @@ dsp32o_fila:
     mov al, [bx+128]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p1_b0_next
     
+dsp32o_p1_b0_opaque:
+    mov al, [bx+128]
+    mov es:[di], al
+    jmp dsp32o_p1_b0_next
+    
+dsp32o_p1_b0_skip:
+    
+dsp32o_p1_b0_next:
+    inc di
+    
+    ; Byte 1
     mov ah, [si+1]
+    test ah, ah
+    jz dsp32o_p1_b1_skip
+    cmp ah, 0FFh
+    je dsp32o_p1_b1_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1132,9 +1495,26 @@ dsp32o_fila:
     mov al, [bx+129]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p1_b1_next
     
+dsp32o_p1_b1_opaque:
+    mov al, [bx+129]
+    mov es:[di], al
+    jmp dsp32o_p1_b1_next
+    
+dsp32o_p1_b1_skip:
+    
+dsp32o_p1_b1_next:
+    inc di
+    
+    ; Byte 2
     mov ah, [si+2]
+    test ah, ah
+    jz dsp32o_p1_b2_skip
+    cmp ah, 0FFh
+    je dsp32o_p1_b2_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1142,9 +1522,26 @@ dsp32o_fila:
     mov al, [bx+130]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p1_b2_next
     
+dsp32o_p1_b2_opaque:
+    mov al, [bx+130]
+    mov es:[di], al
+    jmp dsp32o_p1_b2_next
+    
+dsp32o_p1_b2_skip:
+    
+dsp32o_p1_b2_next:
+    inc di
+    
+    ; Byte 3
     mov ah, [si+3]
+    test ah, ah
+    jz dsp32o_p1_b3_skip
+    cmp ah, 0FFh
+    je dsp32o_p1_b3_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1152,14 +1549,30 @@ dsp32o_fila:
     mov al, [bx+131]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p1_b3_next
     
-    ; === PLANO 2 ===
+dsp32o_p1_b3_opaque:
+    mov al, [bx+131]
+    mov es:[di], al
+    jmp dsp32o_p1_b3_next
+    
+dsp32o_p1_b3_skip:
+    
+dsp32o_p1_b3_next:
+    
+    ; ===== PLANO 2 =====
     mov di, bp
     mov al, 4
     out dx, al
     
+    ; Byte 0
     mov ah, [si]
+    test ah, ah
+    jz dsp32o_p2_b0_skip
+    cmp ah, 0FFh
+    je dsp32o_p2_b0_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1167,9 +1580,26 @@ dsp32o_fila:
     mov al, [bx+256]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p2_b0_next
     
+dsp32o_p2_b0_opaque:
+    mov al, [bx+256]
+    mov es:[di], al
+    jmp dsp32o_p2_b0_next
+    
+dsp32o_p2_b0_skip:
+    
+dsp32o_p2_b0_next:
+    inc di
+    
+    ; Byte 1
     mov ah, [si+1]
+    test ah, ah
+    jz dsp32o_p2_b1_skip
+    cmp ah, 0FFh
+    je dsp32o_p2_b1_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1177,9 +1607,26 @@ dsp32o_fila:
     mov al, [bx+257]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p2_b1_next
     
+dsp32o_p2_b1_opaque:
+    mov al, [bx+257]
+    mov es:[di], al
+    jmp dsp32o_p2_b1_next
+    
+dsp32o_p2_b1_skip:
+    
+dsp32o_p2_b1_next:
+    inc di
+    
+    ; Byte 2
     mov ah, [si+2]
+    test ah, ah
+    jz dsp32o_p2_b2_skip
+    cmp ah, 0FFh
+    je dsp32o_p2_b2_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1187,9 +1634,26 @@ dsp32o_fila:
     mov al, [bx+258]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p2_b2_next
     
+dsp32o_p2_b2_opaque:
+    mov al, [bx+258]
+    mov es:[di], al
+    jmp dsp32o_p2_b2_next
+    
+dsp32o_p2_b2_skip:
+    
+dsp32o_p2_b2_next:
+    inc di
+    
+    ; Byte 3
     mov ah, [si+3]
+    test ah, ah
+    jz dsp32o_p2_b3_skip
+    cmp ah, 0FFh
+    je dsp32o_p2_b3_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1197,14 +1661,30 @@ dsp32o_fila:
     mov al, [bx+259]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p2_b3_next
     
-    ; === PLANO 3 ===
+dsp32o_p2_b3_opaque:
+    mov al, [bx+259]
+    mov es:[di], al
+    jmp dsp32o_p2_b3_next
+    
+dsp32o_p2_b3_skip:
+    
+dsp32o_p2_b3_next:
+    
+    ; ===== PLANO 3 =====
     mov di, bp
     mov al, 8
     out dx, al
     
+    ; Byte 0
     mov ah, [si]
+    test ah, ah
+    jz dsp32o_p3_b0_skip
+    cmp ah, 0FFh
+    je dsp32o_p3_b0_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1212,9 +1692,26 @@ dsp32o_fila:
     mov al, [bx+384]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p3_b0_next
     
+dsp32o_p3_b0_opaque:
+    mov al, [bx+384]
+    mov es:[di], al
+    jmp dsp32o_p3_b0_next
+    
+dsp32o_p3_b0_skip:
+    
+dsp32o_p3_b0_next:
+    inc di
+    
+    ; Byte 1
     mov ah, [si+1]
+    test ah, ah
+    jz dsp32o_p3_b1_skip
+    cmp ah, 0FFh
+    je dsp32o_p3_b1_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1222,9 +1719,26 @@ dsp32o_fila:
     mov al, [bx+385]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p3_b1_next
     
+dsp32o_p3_b1_opaque:
+    mov al, [bx+385]
+    mov es:[di], al
+    jmp dsp32o_p3_b1_next
+    
+dsp32o_p3_b1_skip:
+    
+dsp32o_p3_b1_next:
+    inc di
+    
+    ; Byte 2
     mov ah, [si+2]
+    test ah, ah
+    jz dsp32o_p3_b2_skip
+    cmp ah, 0FFh
+    je dsp32o_p3_b2_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1232,9 +1746,26 @@ dsp32o_fila:
     mov al, [bx+386]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p3_b2_next
     
+dsp32o_p3_b2_opaque:
+    mov al, [bx+386]
+    mov es:[di], al
+    jmp dsp32o_p3_b2_next
+    
+dsp32o_p3_b2_skip:
+    
+dsp32o_p3_b2_next:
+    inc di
+    
+    ; Byte 3
     mov ah, [si+3]
+    test ah, ah
+    jz dsp32o_p3_b3_skip
+    cmp ah, 0FFh
+    je dsp32o_p3_b3_opaque
+    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1242,22 +1773,39 @@ dsp32o_fila:
     mov al, [bx+387]
     and al, ah
     or al, ch
-    stosb
+    mov es:[di], al
+    jmp dsp32o_p3_b3_next
+    
+dsp32o_p3_b3_opaque:
+    mov al, [bx+387]
+    mov es:[di], al
+    jmp dsp32o_p3_b3_next
+    
+dsp32o_p3_b3_skip:
+    
+dsp32o_p3_b3_next:
     
     ; Siguiente fila
-    add si, 4
+    pop bx
     add bx, 4
+    pop bp
     add bp, 80
-    
     pop cx
+    add si, 4
+    push si
     dec cx
-    jnz dsp32o_fila
+    jnz dsp32o_fila_jmp
+    jmp dsp32o_fin
+    
+dsp32o_fila_jmp:
+    jmp dsp32o_fila
 
 dsp32o_fin:
-    mov dx, 3C5h
+    pop si
     mov al, 0Fh
     out dx, al
     
+dsp32o_ret:
     pop es
     pop bp
     pop di
