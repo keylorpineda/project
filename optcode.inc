@@ -852,9 +852,15 @@ dibujar_sprite_planar_16x16_opt PROC
     
     ; Clipping
     cmp cx, 320          ; ✅ CAMBIO: verificar límite correcto
-    jae dsp16o_ret
+    jb dsp16o_clip_ok_x
+    jmp dsp16o_ret
+
+dsp16o_clip_ok_x:
     cmp dx, 224          ; ✅ CAMBIO: 14*16 = 224
-    jae dsp16o_ret
+    jb dsp16o_clip_ok_y
+    jmp dsp16o_ret
+
+dsp16o_clip_ok_y:
 
     mov ax, 0A000h
     mov es, ax
@@ -1109,7 +1115,10 @@ dsp16o_p3b1_next:
     add si, 2
     push si
     dec cx
-    jnz dsp16o_fila
+    jz dsp16o_loop_done
+    jmp dsp16o_fila
+
+dsp16o_loop_done:
 
     pop si
     mov al, 0Fh
@@ -1139,13 +1148,25 @@ dibujar_sprite_planar_32x32_opt PROC
     
     ; Clipping mejorado
     cmp cx, 288          ; 320-32 = 288
-    jae dsp32o_ret
+    jb dsp32o_clip_ok_x
+    jmp dsp32o_ret
+
+dsp32o_clip_ok_x:
     cmp dx, 192          ; 224-32 = 192
-    jae dsp32o_ret
+    jb dsp32o_clip_ok_y
+    jmp dsp32o_ret
+
+dsp32o_clip_ok_y:
     test cx, 8000h
-    jnz dsp32o_ret
+    jz dsp32o_clip_ok_signx
+    jmp dsp32o_ret
+
+dsp32o_clip_ok_signx:
     test dx, 8000h
-    jnz dsp32o_ret
+    jz dsp32o_clip_ok_ready
+    jmp dsp32o_ret
+
+dsp32o_clip_ok_ready:
 
     mov ax, 0A000h
     mov es, ax
@@ -1637,13 +1658,10 @@ dsp32o_p3_b3_next:
     add si, 4
     push si
     dec cx
-    jnz dsp32o_fila_jmp
-    jmp dsp32o_fin
-    
-dsp32o_fila_jmp:
+    jz dsp32o_loop_done
     jmp dsp32o_fila
 
-dsp32o_fin:
+dsp32o_loop_done:
     pop si
     mov al, 0Fh
     out dx, al
