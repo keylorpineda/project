@@ -1210,7 +1210,8 @@ dmo_dibujar:
     sub dx, scroll_offset_y
     
     mov cx, bx
-    
+    mov bx, di              ; ✅ Pasar puntero de datos planar en BX
+
     ; Dibujar
     push di
     push si
