@@ -1082,7 +1082,10 @@ dibujar_mapa_en_offset PROC
     ; ===== Calcular puntero base a primera fila del mapa =====
     mov ax, inicio_tile_y
     shl ax, 1
-    mov bx, [mul100_table + ax]
+    mov si, ax
+    mov bx, OFFSET mul100_table
+    add bx, si
+    mov bx, [bx]
     add bx, inicio_tile_x
     lea di, [mapa_datos + bx]       ; DI = puntero a primera fila en mapa
     
