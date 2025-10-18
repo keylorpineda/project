@@ -66,7 +66,8 @@ marcar_region_sucia PROC
     mov byte ptr [dirty_tiles + bx], 1
     mov cx, dirty_count
     shl cx, 1
-    mov [dirty_list + cx], bx
+    mov si, cx
+    mov [dirty_list + si], bx
     inc dirty_count
     
 mrs_fin:
@@ -849,10 +850,15 @@ dibujar_sprite_planar_16x16_opt PROC
     
     ; Clipping rápido
     cmp cx, 480
-    jae dsp16o_ret
+    jb dsp16o_check_y
+    jmp dsp16o_ret
+
+dsp16o_check_y:
     cmp dx, 350
-    jae dsp16o_ret
-    
+    jb dsp16o_clip_ok
+    jmp dsp16o_ret
+
+dsp16o_clip_ok:
     mov ax, 0A000h
     mov es, ax
     
@@ -1297,14 +1303,25 @@ dibujar_sprite_planar_32x32_opt PROC
     
     ; Clipping
     cmp cx, 480
-    jae dsp32o_ret
+    jb dsp32o_check_y
+    jmp dsp32o_ret
+
+dsp32o_check_y:
     cmp dx, 350
-    jae dsp32o_ret
+    jb dsp32o_check_x_sign
+    jmp dsp32o_ret
+
+dsp32o_check_x_sign:
     test cx, 8000h
-    jnz dsp32o_ret
+    jz dsp32o_check_y_sign
+    jmp dsp32o_ret
+
+dsp32o_check_y_sign:
     test dx, 8000h
-    jnz dsp32o_ret
-    
+    jz dsp32o_clip_ok
+    jmp dsp32o_ret
+
+dsp32o_clip_ok:
     mov ax, 0A000h
     mov es, ax
     
