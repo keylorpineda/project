@@ -115,8 +115,8 @@ camara_py   dw 304
 pagina_visible db 0
 pagina_dibujo  db 1
 
-viewport_x  dw 160
-viewport_y  dw 79
+viewport_x  dw 0
+viewport_y  dw 0
 
 temp_offset     dw 0
 inicio_tile_x   dw 0
@@ -271,7 +271,10 @@ rep stosw
 
 ; ===== INICIALIZAR JUEGO =====
 call centrar_camara
-
+mov cx, 10000
+mov di, OFFSET dirty_tiles
+mov al, 1
+rep stosb
 ; **CRÍTICO**: Renderizar PÁGINA 0 primero
 mov temp_offset, 0
 call dibujar_mapa_en_offset
@@ -290,6 +293,7 @@ mov jugador_py_old, ax
 mov al, jugador_frame
 mov frame_old, al
 
+call limpiar_tiles_sucios
 ; **CRÍTICO**: Mostrar página 0 y configurar variables
 mov ah, 5
 mov al, 0
@@ -321,20 +325,36 @@ bucle_juego:
     call esperar_retrace
     jmp bucle_juego
     
+; CÓDIGO CORREGIDO
 bg_hay_cambio:
-    ; Actualizar estado
-    mov ax, jugador_px
-    mov jugador_px_old, ax
+    ; ✅ 1. MARCAR REGIÓN NUEVA COMO SUCIA (usa globales actuales)
+    call marcar_region_jugador
     
-    mov ax, jugador_py
-    mov jugador_py_old, ax
+    ; ✅ 2. MARCAR REGIÓN ANTERIOR COMO SUCIA
+    push ax
+    push bx
+    mov ax, jugador_px      ; Guardar nuevos (AX = new_x)
+    mov bx, jugador_py      ; Guardar nuevos (BX = new_y)
     
+    mov ax, jugador_px_old  ; Cargar viejos
+    mov jugador_px, ax      ; Global = old_x
+    mov ax, jugador_py_old  ; Cargar viejos
+    mov jugador_py, ax      ; Global = old_y
+    
+    call marcar_region_jugador ; Marcar región vieja
+    
+    pop bx                  ; Restaurar nuevos (BX = new_y)
+    pop ax                  ; Restaurar nuevos (AX = new_x)
+    mov jugador_px, ax      ; Global = new_x
+    mov jugador_py, bx      ; Global = new_y
+    
+    ; ✅ 3. GUARDAR ESTADO ACTUAL PARA EL PRÓXIMO FRAME
+    mov jugador_px_old, ax  ; old_x = new_x
+    mov jugador_py_old, bx  ; old_y = new_y
     mov al, jugador_frame
     mov frame_old, al
     
-    ; Esperar vertical retrace
     call esperar_retrace
-    
     ; Renderizar en la página que NO está visible
     mov al, pagina_dibujo
     test al, 1
@@ -344,6 +364,7 @@ bg_hay_cambio:
     mov temp_offset, 8000h
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
+    call limpiar_tiles_sucios
     jmp bg_cambiar_pagina
     
 bg_render_p0:
@@ -351,6 +372,7 @@ bg_render_p0:
     mov temp_offset, 0
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
+    call limpiar_tiles_sucios  
     
 bg_cambiar_pagina:
     ; Cambiar página visible
@@ -1020,6 +1042,10 @@ dibujar_todo_en_offset PROC
     ret
 dibujar_todo_en_offset ENDP
 
+; filepath: c:\ASM\project\proyec.asm
+
+; REEMPLAZAR la sección problemática (línea ~1900-1930):
+
 dibujar_mapa_en_offset PROC
     push ax
     push bx
@@ -1056,80 +1082,82 @@ dmo_col:
     cmp ax, 100
     jae dmo_next_col
     
-    ; ===== Calcular índice en mapa (Y × 100 + X) =====
+    ; ===== Calcular índice en mapa =====
     mov bx, ax
     shl bx, 1
     mov ax, [mul100_table + bx]
     
+    ; ===== Calcular tile_x =====
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 100
     jae dmo_next_col
     
-    add ax, bx
+    add ax, bx              ; AX = índice en mapa_datos
+    
+    ; ===== Verificar si tile está sucio =====
+    push bx
+    mov bx, ax
+    cmp byte ptr [dirty_tiles + bx], 0
+    pop bx
+    je dmo_next_col
     
     ; ===== Leer tipo de tile =====
+    push bx
     mov bx, ax
     mov al, [mapa_datos + bx]
+    pop bx
     
+    ; Verificar tile válido
     cmp al, 15
     ja dmo_next_col
     
-    ; ===== Guardar registros de BUCLE (col, fila) =====
-    push si                 ; [Stack]: col
-    push bp                 ; [Stack]: fila, col
+    ; ✅ GUARDAR BP Y SI en variables temporales
+    mov temp_fila, bp       ; Guardar fila
+    mov temp_col, si        ; Guardar columna
     
-    ; ===== Obtener sprite (pone DI=data, SI=mask) =====
+    ; ===== Obtener sprite (DI=data, SI=mask) =====
     call obtener_sprite_tile
     
-    ; ===== ¡¡¡CORRECCIÓN DEFINITIVA!!! =====
-    ; Preservar DI y SI, y usar BP para el stack frame
+    ; ✅ GUARDAR punteros a sprite en stack
+    push di                 ; Datos del sprite
+    push si                 ; Máscara del sprite
     
-    push si                 ; [Stack]: mask_ptr, fila, col
-    push di                 ; [Stack]: data_ptr, mask_ptr, fila, col
+    ; ✅ RECUPERAR fila/columna de variables
+    mov ax, temp_col        ; AX = columna
+    mov bx, temp_fila       ; BX = fila
     
-    ; --- Crear Stack Frame ---
-    push bp                 ; Guardar BP (fila)
-    mov bp, sp              ; BP es ahora el puntero de pila
-
-    ; Stack Frame:
-    ; [bp]    = BP guardado (fila)
-    ; [bp+2]  = data_ptr (DI)
-    ; [bp+4]  = mask_ptr (SI)
-    ; [bp+6]  = fila (BP_guardado)
-    ; [bp+8]  = col (SI_guardado)
-    
-    ; Calcular DX (Y) usando BP
-    mov ax, [bp+6]          ; AX = fila (LEGAL)
-    shl ax, 4               
+    ; ===== Calcular posición en pantalla =====
+    ; Calcular Y = fila * 16 + viewport_y
+    push ax                 ; Guardar columna
+    mov ax, bx              ; AX = fila
+    shl ax, 4               ; AX = fila * 16
     add ax, viewport_y
-    mov dx, ax              ; DX = Y
+    mov dx, ax              ; DX = Y en pantalla
     
-    ; Calcular CX (X) usando BP
-    mov ax, [bp+8]          ; AX = col (LEGAL)
-    shl ax, 4               
+    ; Calcular X = columna * 16 + viewport_x
+    pop ax                  ; Recuperar columna
+    shl ax, 4               ; AX = columna * 16
     add ax, viewport_x
-    mov cx, ax              ; CX = X
+    mov cx, ax              ; CX = X en pantalla
     
-    ; --- Destruir Stack Frame ---
-    pop bp                  ; Restaurar BP (fila)
+    ; ===== RECUPERAR punteros a sprite =====
+    pop si                  ; SI = máscara
+    pop di                  ; DI = datos
     
-    pop di                  ; Restaurar DI (data_ptr)
-    pop si                  ; Restaurar SI (mask_ptr)
-
-    ; Llamar a dibujar con DI, SI, CX, DX correctos
+    ; ===== DIBUJAR SPRITE =====
     call dibujar_sprite_planar_16x16_opt
     
-    ; ===== Restaurar registros de BUCLE =====
-    pop bp                  ; Limpiar 'fila' de la pila
-    pop si                  ; Limpiar 'col' de la pila
+    ; ===== RESTAURAR registros de loop =====
+    mov si, temp_col        ; Restaurar columna
+    mov bp, temp_fila       ; Restaurar fila
     
 dmo_next_col:
-    inc si                  ; Siguiente columna
+    inc si
     jmp dmo_col
     
 dmo_next_fila:
-    inc bp                  ; Siguiente fila
+    inc bp
     jmp dmo_fila
     
 dmo_fin:

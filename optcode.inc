@@ -39,6 +39,166 @@ ilt_loop_video:
     pop ax
     ret
 inicializar_lookup_tables ENDP
+; ============================================
+; DIRTY RECTANGLES - SOLO REDIBUJAR LO NECESARIO
+; ============================================
+marcar_region_sucia PROC
+    ; Entrada: CX = tile_x, DX = tile_y
+    push ax
+    push bx
+    
+    ; Validar límites
+    cmp cx, 100
+    jae mrs_fin
+    cmp dx, 100
+    jae mrs_fin
+    
+    ; Calcular índice: Y × 100 + X
+    mov bx, dx
+    shl bx, 1
+    mov ax, [mul100_table + bx]
+    add ax, cx
+    mov bx, ax
+    
+    ; Marcar tile como sucio
+    mov byte ptr [dirty_tiles + bx], 1
+    
+mrs_fin:
+    pop bx
+    pop ax
+    ret
+marcar_region_sucia ENDP
+
+limpiar_tiles_sucios PROC
+    push ax
+    push cx
+    push di
+    
+    mov di, OFFSET dirty_tiles
+    mov cx, 10000
+    xor al, al
+    rep stosb
+    
+    pop di
+    pop cx
+    pop ax
+    ret
+limpiar_tiles_sucios ENDP
+
+; ============================================
+; MARCAR REGIÓN 3x3 ALREDEDOR DEL JUGADOR
+; ============================================
+marcar_region_jugador PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    
+    ; Calcular tile del jugador
+    mov ax, jugador_px
+    shr ax, 4
+    mov bx, ax              ; BX = tile_x jugador
+    
+    mov ax, jugador_py
+    shr ax, 4
+    mov dx, ax              ; DX = tile_y jugador
+    
+    ; Marcar región 3×3 (jugador ocupa 2×2 tiles)
+    mov cx, bx
+    dec cx                  ; tile_x - 1
+    push dx
+    dec dx                  ; tile_y - 1
+    call marcar_region_sucia
+    pop dx
+    
+    mov cx, bx              ; tile_x
+    push dx
+    dec dx
+    call marcar_region_sucia
+    pop dx
+    
+    mov cx, bx
+    inc cx                  ; tile_x + 1
+    push dx
+    dec dx
+    call marcar_region_sucia
+    pop dx
+    
+    mov cx, bx
+    inc cx
+    inc cx                  ; tile_x + 2
+    push dx
+    dec dx
+    call marcar_region_sucia
+    pop dx
+    
+    ; Fila actual
+    mov cx, bx
+    dec cx
+    call marcar_region_sucia
+    
+    mov cx, bx
+    call marcar_region_sucia
+    
+    mov cx, bx
+    inc cx
+    call marcar_region_sucia
+    
+    mov cx, bx
+    inc cx
+    inc cx
+    call marcar_region_sucia
+    
+    ; Fila +1
+    mov cx, bx
+    dec cx
+    inc dx
+    call marcar_region_sucia
+    dec dx
+    
+    mov cx, bx
+    inc dx
+    call marcar_region_sucia
+    dec dx
+    
+    mov cx, bx
+    inc cx
+    inc dx
+    call marcar_region_sucia
+    dec dx
+    
+    mov cx, bx
+    inc cx
+    inc cx
+    inc dx
+    call marcar_region_sucia
+    dec dx
+    
+    ; Fila +2
+    mov cx, bx
+    dec cx
+    inc dx
+    inc dx
+    call marcar_region_sucia
+    
+    mov cx, bx
+    call marcar_region_sucia
+    
+    mov cx, bx
+    inc cx
+    call marcar_region_sucia
+    
+    mov cx, bx
+    inc cx
+    inc cx
+    call marcar_region_sucia
+    
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+marcar_region_jugador ENDP
 
 ; ============================================
 ; VERIFICACIÓN DE TRANSITABILIDAD (OK)
