@@ -669,7 +669,6 @@ cc_x_pos:
     jle cc_x_ok
     mov ax, 1280
 cc_x_ok:
-    mov camara_px, ax
 
     ; Actualizar desplazamiento de scroll horizontal (remainder de 16)
     mov dx, scroll_offset_x
@@ -677,9 +676,12 @@ cc_x_ok:
     and bx, 0Fh
     mov scroll_offset_x, bx
     cmp bx, dx
-    je cc_skip_force_x
+    je cc_store_cam_x
     mov force_full_redraw, 2        ; Forzar redraw en ambas páginas
-cc_skip_force_x:
+
+cc_store_cam_x:
+    and ax, 0FFF0h                  ; ✅ Alinear cámara al grid de 16 px
+    mov camara_px, ax
 
     mov ax, jugador_py
     sub ax, 96
@@ -690,7 +692,6 @@ cc_y_pos:
     jle cc_y_ok
     mov ax, 1408
 cc_y_ok:
-    mov camara_py, ax
 
     ; Actualizar desplazamiento de scroll vertical (remainder de 16)
     mov dx, scroll_offset_y
@@ -698,8 +699,12 @@ cc_y_ok:
     and bx, 0Fh
     mov scroll_offset_y, bx
     cmp bx, dx
-    je cc_fin
+    je cc_store_cam_y
     mov force_full_redraw, 2        ; Forzar redraw en ambas páginas
+
+cc_store_cam_y:
+    and ax, 0FFF0h                  ; ✅ Alinear cámara al grid de 16 px
+    mov camara_py, ax
 
 cc_fin:
     pop dx
