@@ -280,7 +280,7 @@ mov camara_px_old, ax
 mov ax, camara_py
 mov camara_py_old, ax
 
-; Asegurar que dirty_tiles se llene en el segmento de datos
+; ✅ Marcar TODO como sucio para el primer renderizado
 push ds
 pop es
 mov cx, 10000
@@ -288,20 +288,23 @@ mov di, OFFSET dirty_tiles
 mov al, 1
 rep stosb
 
-; Restaurar ES al segmento de video para siguientes operaciones de VRAM
+; Restaurar ES al segmento de video
 mov ax, VIDEO_SEG
 mov es, ax
-; **CRÍTICO**: Renderizar PÁGINA 0 primero
+
+; ✅ Renderizar AMBAS páginas inicialmente
 mov temp_offset, 0
 call dibujar_mapa_en_offset
 call dibujar_jugador_en_offset
 
-; **CRÍTICO**: Renderizar PÁGINA 1
 mov temp_offset, 8000h
 call dibujar_mapa_en_offset
 call dibujar_jugador_en_offset
 
-; Guardar estado inicial
+; ✅ Limpiar dirty tiles DESPUÉS de renderizar ambas
+call limpiar_tiles_sucios
+
+; ✅ Guardar estado inicial
 mov ax, jugador_px
 mov jugador_px_old, ax
 mov ax, jugador_py
@@ -309,8 +312,7 @@ mov jugador_py_old, ax
 mov al, jugador_frame
 mov frame_old, al
 
-call limpiar_tiles_sucios
-; **CRÍTICO**: Mostrar página 0 y configurar variables
+; ✅ Mostrar página 0 y configurar variables
 mov ah, 5
 mov al, 0
 int 10h
@@ -318,13 +320,13 @@ int 10h
 mov pagina_visible, 0
 mov pagina_dibujo, 1
 
-; ===== BUCLE PRINCIPAL =====
+; ===== BUCLE PRINCIPAL OPTIMIZADO =====
 bucle_juego:
     call procesar_movimiento_continuo
     call actualizar_animacion
     call centrar_camara
     
-    ; Verificar si algo cambió
+    ; Verificar cambios de posición
     mov ax, jugador_px
     cmp ax, jugador_px_old
     jne bg_hay_cambio
@@ -336,75 +338,86 @@ bucle_juego:
     mov al, jugador_frame
     cmp al, frame_old
     jne bg_hay_cambio
+    
+    mov ax, camara_px
+    cmp ax, camara_px_old
+    jne bg_hay_cambio
+    
+    mov ax, camara_py
+    cmp ax, camara_py_old
+    jne bg_hay_cambio
 
-    ; Si no hay cambios, solo esperar
+    ; Sin cambios, solo esperar vsync
     call esperar_retrace
     jmp bucle_juego
     
-; CÓDIGO CORREGIDO
 bg_hay_cambio:
-    ; ✅ Redibujar viewport completo si la cámara se movió
+    ; Verificar si la cámara se movió
     mov ax, camara_px
     cmp ax, camara_px_old
-    jne bg_marcar_viewport
+    jne bg_camara_movio
     mov ax, camara_py
     cmp ax, camara_py_old
-    jne bg_marcar_viewport
-    jmp bg_marcar_jugador
-
-bg_marcar_viewport:
+    je bg_solo_jugador
+    
+bg_camara_movio:
+    ; Cámara movida = marcar todo el viewport
     call marcar_viewport_completo
-
-bg_marcar_jugador:
-    ; ✅ 1. MARCAR REGIÓN ANTERIOR PRIMERO
-    mov ax, jugador_px            ; Guardar posición actual
-    mov bx, jugador_py
-
-    mov cx, jugador_px_old        ; Usar posición previa para marcar dirty
-    mov dx, jugador_py_old
-    mov jugador_px, cx
-    mov jugador_py, dx
-
-    call marcar_region_jugador
-
-    mov jugador_px, ax            ; Restaurar posición actual
+    jmp bg_marcar_jugador_done
+    
+bg_solo_jugador:
+    ; Solo jugador movido = marcar regiones específicas
+    
+    ; Guardar posición actual
+    push jugador_px
+    push jugador_py
+    
+    ; Marcar región antigua
+    mov ax, jugador_px_old
+    mov bx, jugador_py_old
+    mov jugador_px, ax
     mov jugador_py, bx
-
-    ; ✅ 2. MARCAR REGIÓN ACTUAL
     call marcar_region_jugador
     
-    ; ✅ 3. ESPERAR RETRACE
+    ; Restaurar posición actual
+    pop jugador_py
+    pop jugador_px
+    
+    ; Marcar región nueva
+    call marcar_region_jugador
+    
+bg_marcar_jugador_done:
+    ; ✅ CRÍTICO: Esperar retrace ANTES de renderizar
     call esperar_retrace
     
-    ; ✅ 4. RENDERIZAR PÁGINA OCULTA
+    ; Renderizar en página oculta
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
     
+    ; Renderizar en página 1 (offset 8000h)
     mov temp_offset, 8000h
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
-    jmp bg_cambiar_pagina
+    jmp bg_flip
     
 bg_render_p0:
+    ; Renderizar en página 0 (offset 0)
     mov temp_offset, 0
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
     
-bg_cambiar_pagina:
-    ; ✅ 5. LIMPIAR FLAGS (después de renderizar AMBAS)
-    call limpiar_tiles_sucios
-    
-    ; ✅ 6. CAMBIAR PÁGINA VISIBLE
+bg_flip:
+    ; Cambiar página visible (sin espera adicional)
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
     
-    ; ✅ 7. INTERCAMBIAR PÁGINAS
+    ; Intercambiar variables de página
     xor pagina_dibujo, 1
     xor pagina_visible, 1
     
-    ; ✅ 8. GUARDAR ESTADO
+    ; Guardar estado para próximo frame
     mov ax, jugador_px
     mov jugador_px_old, ax
     mov ax, jugador_py
@@ -415,9 +428,11 @@ bg_cambiar_pagina:
     mov camara_px_old, ax
     mov ax, camara_py
     mov camara_py_old, ax
-
+    
+    ; Limpiar dirty tiles al final
+    call limpiar_tiles_sucios
+    
     jmp bucle_juego
-
 error_carga:
     mov dx, OFFSET msg_error
     mov ah, 9
@@ -653,30 +668,54 @@ actualizar_animacion ENDP
 centrar_camara PROC
     push ax
     push bx
+    push dx
     
-    ; Alinear cámara a múltiplos de 16
+    ; Calcular posición objetivo
     mov ax, jugador_px
     sub ax, 160
     jge cc_x_pos
     xor ax, ax
 cc_x_pos:
-    cmp ax, 1280        ; ✅ CAMBIO: 100×16-320 = 1280 (antes 480)
-    jle cc_x_ok
+    cmp ax, 1280
+    jle cc_x_limite
     mov ax, 1280
-cc_x_ok:
+cc_x_limite:
+    ; ✅ SNAP a múltiplos de 8 (reduce dirty tiles)
+    and ax, 0FFF8h
+    
+    ; Solo actualizar si cambió significativamente
+    mov bx, camara_px
+    sub bx, ax
+    jns cc_x_abs
+    neg bx
+cc_x_abs:
+    cmp bx, 8               ; Tolerancia de 8 píxeles
+    jb cc_y_check
     mov camara_px, ax
     
+cc_y_check:
     mov ax, jugador_py
     sub ax, 96
     jge cc_y_pos
     xor ax, ax
 cc_y_pos:
-    cmp ax, 1408        ; ✅ CAMBIO: 100×16-192 = 1408 (antes 608)
-    jle cc_y_ok
+    cmp ax, 1408
+    jle cc_y_limite
     mov ax, 1408
-cc_y_ok:
+cc_y_limite:
+    and ax, 0FFF8h
+    
+    mov bx, camara_py
+    sub bx, ax
+    jns cc_y_abs
+    neg bx
+cc_y_abs:
+    cmp bx, 8
+    jb cc_fin
     mov camara_py, ax
     
+cc_fin:
+    pop dx
     pop bx
     pop ax
     ret
@@ -1347,17 +1386,29 @@ esperar_retrace PROC
     
     mov dx, 3DAh
     
-    ; Esperar hasta que NO esté en retrace (evita empezar a mitad)
-er_wait_not_retrace:
+    ; ✅ Esperar final de retrace anterior (evita empezar a mitad)
+er_wait_display:
     in al, dx
     test al, 8
-    jnz er_wait_not_retrace
+    jnz er_wait_display
     
-    ; Ahora esperar hasta que EMPIECE el retrace
-er_wait_start:
+    ; ✅ Esperar inicio del próximo retrace
+er_wait_vblank:
     in al, dx
     test al, 8
-    jz er_wait_start
+    jz er_wait_vblank
+    
+    ; ✅ CRÍTICO: Esperar 3 scanlines para estabilidad
+    mov cx, 3
+er_wait_scanlines:
+    in al, dx
+    test al, 1          ; Horizontal retrace
+    jnz er_wait_scanlines
+er_wait_next:
+    in al, dx
+    test al, 1
+    jz er_wait_next
+    loop er_wait_scanlines
     
     pop dx
     pop ax
