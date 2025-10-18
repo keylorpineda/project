@@ -213,7 +213,7 @@ int 16h
     ; ===== FASE 8: ENTRAR A MODO GRÁFICO =====
     mov ax, 10h
     int 10h
-    
+    call inicializar_paleta_ega 
     ;; ===== FASE 9: CONFIGURAR EGA MODO 10h =====
 ; Configurar Sequence Controller
 mov dx, 3C4h
@@ -336,6 +336,13 @@ fin_juego:
     int 10h
     mov ax, 4C00h
     int 21h
+
+inicializar_paleta_ega PROC
+    mov dx, 3C0h
+    mov al, 20h
+    out dx, al
+    ret
+inicializar_paleta_ega ENDP
 
 procesar_movimiento_continuo PROC
     push ax
