@@ -328,21 +328,19 @@ bucle_juego:
 ; CÓDIGO CORREGIDO
 bg_hay_cambio:
     ; ✅ 1. MARCAR REGIÓN ANTERIOR PRIMERO
-    push ax
-    push bx
-    
-    mov ax, jugador_px_old
-    mov bx, jugador_py_old
-    mov jugador_px, ax
-    mov jugador_py, bx
-    
+    mov ax, jugador_px            ; Guardar posición actual
+    mov bx, jugador_py
+
+    mov cx, jugador_px_old        ; Usar posición previa para marcar dirty
+    mov dx, jugador_py_old
+    mov jugador_px, cx
+    mov jugador_py, dx
+
     call marcar_region_jugador
-    
-    pop bx
-    pop ax
-    mov jugador_px, ax
+
+    mov jugador_px, ax            ; Restaurar posición actual
     mov jugador_py, bx
-    
+
     ; ✅ 2. MARCAR REGIÓN ACTUAL
     call marcar_region_jugador
     
