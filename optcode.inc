@@ -117,7 +117,7 @@ vtt_transitable:
 verificar_tile_transitable_opt ENDP
 
 ; ============================================
-; CONVERSIÓN PLANAR REPARADA - 16x16
+; CONVERSIÓN PLANAR CORREGIDA - 16x16
 ; ============================================
 convertir_sprite_a_planar_opt PROC
     push ax
@@ -133,23 +133,29 @@ convertir_sprite_a_planar_opt PROC
 cspo_fila:
     push cx
     
+    ; ===== BYTE IZQUIERDO (pixeles 0-7) =====
     ; Limpiar acumuladores
     xor bx, bx          ; BH/BL = planos 3/2
     xor dx, dx          ; DH/DL = planos 1/0
     
-    ; ===== BYTE IZQUIERDO (pixeles 0-7) =====
     mov cx, 8
     
 cspo_byte_izq:
     lodsb               ; Leer píxel
     
-    ; Construir bits MSB-first
-    shl dl, 1           ; Plano 0
-    shl dh, 1           ; Plano 1
-    shl bl, 1           ; Plano 2
-    shl bh, 1           ; Plano 3
+    ; ✅ CORRECCIÓN: Rotar LEFT para MSB-first
+    rol dl, 1           ; Plano 0 - bit más antiguo va a MSB
+    rol dh, 1           ; Plano 1
+    rol bl, 1           ; Plano 2
+    rol bh, 1           ; Plano 3
     
-    ; Extraer bits del color
+    ; Limpiar bits LSB antes de OR
+    and dl, 0FEh
+    and dh, 0FEh
+    and bl, 0FEh
+    and bh, 0FEh
+    
+    ; Extraer bits del color e insertar en LSB
     test al, 01h
     jz cspo_izq_b1
     or dl, 1
@@ -174,11 +180,12 @@ cspo_izq_next:
     mov [di+64], bl     ; Plano 2
     mov [di+96], bh     ; Plano 3
     
-    ; Generar máscara (1 donde hay píxel, 0 transparente)
+    ; Generar máscara - 1 donde hay píxel no-transparente
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
+    not al              ; ✅ INVERTIR: 0=dibujar, 1=skip
     mov [bp], al
     
     ; ===== BYTE DERECHO (pixeles 8-15) =====
@@ -189,10 +196,15 @@ cspo_izq_next:
 cspo_byte_der:
     lodsb
     
-    shl dl, 1
-    shl dh, 1
-    shl bl, 1
-    shl bh, 1
+    rol dl, 1
+    rol dh, 1
+    rol bl, 1
+    rol bh, 1
+    
+    and dl, 0FEh
+    and dh, 0FEh
+    and bl, 0FEh
+    and bh, 0FEh
     
     test al, 01h
     jz cspo_der_b1
@@ -223,6 +235,7 @@ cspo_der_next:
     or al, dh
     or al, bl
     or al, bh
+    not al
     mov [bp+1], al
     
     ; Siguiente fila
@@ -246,7 +259,7 @@ cspo_fin:
 convertir_sprite_a_planar_opt ENDP
 
 ; ============================================
-; CONVERSIÓN PLANAR REPARADA - 32x32
+; CONVERSIÓN PLANAR CORREGIDA - 32x32
 ; ============================================
 convertir_sprite_32x32_a_planar_opt PROC
     push ax
@@ -269,10 +282,14 @@ csp32_fila:
     
 csp32_b0:
     lodsb
-    shl dl, 1
-    shl dh, 1
-    shl bl, 1
-    shl bh, 1
+    rol dl, 1
+    rol dh, 1
+    rol bl, 1
+    rol bh, 1
+    and dl, 0FEh
+    and dh, 0FEh
+    and bl, 0FEh
+    and bh, 0FEh
     test al, 01h
     jz csp32_b0_1
     or dl, 1
@@ -300,6 +317,7 @@ csp32_b0_next:
     or al, dh
     or al, bl
     or al, bh
+    not al
     mov [bp], al
     
     ; ===== BYTE 1 (pixeles 8-15) =====
@@ -309,10 +327,14 @@ csp32_b0_next:
     
 csp32_b1:
     lodsb
-    shl dl, 1
-    shl dh, 1
-    shl bl, 1
-    shl bh, 1
+    rol dl, 1
+    rol dh, 1
+    rol bl, 1
+    rol bh, 1
+    and dl, 0FEh
+    and dh, 0FEh
+    and bl, 0FEh
+    and bh, 0FEh
     test al, 01h
     jz csp32_b1_1
     or dl, 1
@@ -340,6 +362,7 @@ csp32_b1_next:
     or al, dh
     or al, bl
     or al, bh
+    not al
     mov [bp+1], al
     
     ; ===== BYTE 2 (pixeles 16-23) =====
@@ -349,10 +372,14 @@ csp32_b1_next:
     
 csp32_b2:
     lodsb
-    shl dl, 1
-    shl dh, 1
-    shl bl, 1
-    shl bh, 1
+    rol dl, 1
+    rol dh, 1
+    rol bl, 1
+    rol bh, 1
+    and dl, 0FEh
+    and dh, 0FEh
+    and bl, 0FEh
+    and bh, 0FEh
     test al, 01h
     jz csp32_b2_1
     or dl, 1
@@ -380,6 +407,7 @@ csp32_b2_next:
     or al, dh
     or al, bl
     or al, bh
+    not al
     mov [bp+2], al
     
     ; ===== BYTE 3 (pixeles 24-31) =====
@@ -389,10 +417,14 @@ csp32_b2_next:
     
 csp32_b3:
     lodsb
-    shl dl, 1
-    shl dh, 1
-    shl bl, 1
-    shl bh, 1
+    rol dl, 1
+    rol dh, 1
+    rol bl, 1
+    rol bh, 1
+    and dl, 0FEh
+    and dh, 0FEh
+    and bl, 0FEh
+    and bh, 0FEh
     test al, 01h
     jz csp32_b3_1
     or dl, 1
@@ -420,6 +452,7 @@ csp32_b3_next:
     or al, dh
     or al, bl
     or al, bh
+    not al
     mov [bp+3], al
     
     ; Siguiente fila
@@ -443,7 +476,7 @@ csp32_fin:
 convertir_sprite_32x32_a_planar_opt ENDP
 
 ; ============================================
-; DIBUJADO CON MÁSCARAS - 16x16
+; DIBUJADO SIMPLIFICADO - 16x16
 ; ============================================
 dibujar_sprite_planar_16x16_opt PROC
     push ax
@@ -454,7 +487,7 @@ dibujar_sprite_planar_16x16_opt PROC
     push di
     push bp
     
-    ; Calcular offset
+    ; Calcular offset de video
     mov bx, dx
     shl bx, 1
     mov ax, [video_offsets + bx]
@@ -473,9 +506,9 @@ dsp16_fila:
     push si
     push bp
     
-    mov bx, di          ; BX = datos planares
+    mov bx, di
     
-    ; ===== BYTE 0 - Todos los planos =====
+    ; ===== BYTE 0 =====
     ; Plano 0
     mov dx, 3C4h
     mov al, 2
@@ -484,14 +517,9 @@ dsp16_fila:
     mov al, 1
     out dx, al
     
-    mov al, [si]        ; Máscara
-    test al, al
-    jz dsp16_byte0_p1
-    
-    mov al, [bx]        ; Datos
+    mov al, [bx]
     mov es:[bp], al
     
-dsp16_byte0_p1:
     ; Plano 1
     mov dx, 3C4h
     mov al, 2
@@ -499,15 +527,10 @@ dsp16_byte0_p1:
     inc dx
     mov al, 2
     out dx, al
-    
-    mov al, [si]
-    test al, al
-    jz dsp16_byte0_p2
     
     mov al, [bx+32]
     mov es:[bp], al
     
-dsp16_byte0_p2:
     ; Plano 2
     mov dx, 3C4h
     mov al, 2
@@ -516,14 +539,9 @@ dsp16_byte0_p2:
     mov al, 4
     out dx, al
     
-    mov al, [si]
-    test al, al
-    jz dsp16_byte0_p3
-    
     mov al, [bx+64]
     mov es:[bp], al
     
-dsp16_byte0_p3:
     ; Plano 3
     mov dx, 3C4h
     mov al, 2
@@ -532,15 +550,10 @@ dsp16_byte0_p3:
     mov al, 8
     out dx, al
     
-    mov al, [si]
-    test al, al
-    jz dsp16_byte1
-    
     mov al, [bx+96]
     mov es:[bp], al
     
-    ; ===== BYTE 1 - Todos los planos =====
-dsp16_byte1:
+    ; ===== BYTE 1 =====
     ; Plano 0
     mov dx, 3C4h
     mov al, 2
@@ -549,14 +562,9 @@ dsp16_byte1:
     mov al, 1
     out dx, al
     
-    mov al, [si+1]
-    test al, al
-    jz dsp16_byte1_p1
-    
     mov al, [bx+1]
     mov es:[bp+1], al
     
-dsp16_byte1_p1:
     ; Plano 1
     mov dx, 3C4h
     mov al, 2
@@ -565,14 +573,9 @@ dsp16_byte1_p1:
     mov al, 2
     out dx, al
     
-    mov al, [si+1]
-    test al, al
-    jz dsp16_byte1_p2
-    
     mov al, [bx+33]
     mov es:[bp+1], al
     
-dsp16_byte1_p2:
     ; Plano 2
     mov dx, 3C4h
     mov al, 2
@@ -581,14 +584,9 @@ dsp16_byte1_p2:
     mov al, 4
     out dx, al
     
-    mov al, [si+1]
-    test al, al
-    jz dsp16_byte1_p3
-    
     mov al, [bx+65]
     mov es:[bp+1], al
     
-dsp16_byte1_p3:
     ; Plano 3
     mov dx, 3C4h
     mov al, 2
@@ -597,14 +595,10 @@ dsp16_byte1_p3:
     mov al, 8
     out dx, al
     
-    mov al, [si+1]
-    test al, al
-    jz dsp16_next_fila
-    
     mov al, [bx+97]
     mov es:[bp+1], al
     
-dsp16_next_fila:
+    ; Siguiente fila
     pop bp
     add bp, 80
     pop si
@@ -617,7 +611,6 @@ dsp16_next_fila:
     jmp dsp16_fila
 
 dsp16_end:
-    
     ; Restaurar
     mov dx, 3C4h
     mov al, 2
@@ -637,7 +630,7 @@ dsp16_end:
 dibujar_sprite_planar_16x16_opt ENDP
 
 ; ============================================
-; DIBUJADO CON MÁSCARAS - 32x32
+; DIBUJADO SIMPLIFICADO - 32x32
 ; ============================================
 dibujar_sprite_planar_32x32_opt PROC
     push ax
@@ -669,249 +662,154 @@ dsp32_fila:
     mov bx, di
     
     ; ===== BYTE 0 =====
-    ; Plano 0
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 1
     out dx, al
-    
-    mov al, [si]
-    test al, al
-    jz dsp32_b0_p1
     mov al, [bx]
     mov es:[bp], al
     
-dsp32_b0_p1:
-    ; Plano 1
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 2
     out dx, al
-    
-    mov al, [si]
-    test al, al
-    jz dsp32_b0_p2
     mov al, [bx+128]
     mov es:[bp], al
     
-dsp32_b0_p2:
-    ; Plano 2
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 4
     out dx, al
-    
-    mov al, [si]
-    test al, al
-    jz dsp32_b0_p3
     mov al, [bx+256]
     mov es:[bp], al
     
-dsp32_b0_p3:
-    ; Plano 3
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 8
     out dx, al
-    
-    mov al, [si]
-    test al, al
-    jz dsp32_b1
     mov al, [bx+384]
     mov es:[bp], al
     
     ; ===== BYTE 1 =====
-dsp32_b1:
-    ; Plano 0
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 1
     out dx, al
-    
-    mov al, [si+1]
-    test al, al
-    jz dsp32_b1_p1
     mov al, [bx+1]
     mov es:[bp+1], al
     
-dsp32_b1_p1:
-    ; Plano 1
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 2
     out dx, al
-    
-    mov al, [si+1]
-    test al, al
-    jz dsp32_b1_p2
     mov al, [bx+129]
     mov es:[bp+1], al
     
-dsp32_b1_p2:
-    ; Plano 2
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 4
     out dx, al
-    
-    mov al, [si+1]
-    test al, al
-    jz dsp32_b1_p3
     mov al, [bx+257]
     mov es:[bp+1], al
     
-dsp32_b1_p3:
-    ; Plano 3
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 8
     out dx, al
-    
-    mov al, [si+1]
-    test al, al
-    jz dsp32_b2
     mov al, [bx+385]
     mov es:[bp+1], al
     
     ; ===== BYTE 2 =====
-dsp32_b2:
-    ; Plano 0
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 1
     out dx, al
-    
-    mov al, [si+2]
-    test al, al
-    jz dsp32_b2_p1
     mov al, [bx+2]
     mov es:[bp+2], al
     
-dsp32_b2_p1:
-    ; Plano 1
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 2
     out dx, al
-    
-    mov al, [si+2]
-    test al, al
-    jz dsp32_b2_p2
     mov al, [bx+130]
     mov es:[bp+2], al
     
-dsp32_b2_p2:
-    ; Plano 2
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 4
     out dx, al
-    
-    mov al, [si+2]
-    test al, al
-    jz dsp32_b2_p3
     mov al, [bx+258]
     mov es:[bp+2], al
     
-dsp32_b2_p3:
-    ; Plano 3
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 8
     out dx, al
-    
-    mov al, [si+2]
-    test al, al
-    jz dsp32_b3
     mov al, [bx+386]
     mov es:[bp+2], al
     
     ; ===== BYTE 3 =====
-dsp32_b3:
-    ; Plano 0
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 1
     out dx, al
-    
-    mov al, [si+3]
-    test al, al
-    jz dsp32_b3_p1
     mov al, [bx+3]
     mov es:[bp+3], al
     
-dsp32_b3_p1:
-    ; Plano 1
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 2
     out dx, al
-    
-    mov al, [si+3]
-    test al, al
-    jz dsp32_b3_p2
     mov al, [bx+131]
     mov es:[bp+3], al
     
-dsp32_b3_p2:
-    ; Plano 2
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 4
     out dx, al
-    
-    mov al, [si+3]
-    test al, al
-    jz dsp32_b3_p3
     mov al, [bx+259]
     mov es:[bp+3], al
     
-dsp32_b3_p3:
-    ; Plano 3
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 8
     out dx, al
-    
-    mov al, [si+3]
-    test al, al
-    jz dsp32_next_fila
     mov al, [bx+387]
     mov es:[bp+3], al
     
-dsp32_next_fila:
+    ; Siguiente fila
     pop bp
     add bp, 80
     pop si
@@ -924,7 +822,6 @@ dsp32_next_fila:
     jmp dsp32_fila
 
 dsp32_end:
-    
     mov dx, 3C4h
     mov al, 2
     out dx, al
