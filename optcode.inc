@@ -813,7 +813,10 @@ dsp16o_fila:
     
     pop cx
     dec cx
-    jnz dsp16o_fila
+    jz dsp16o_fin
+    jmp dsp16o_fila
+
+dsp16o_fin:
     
     ; Restaurar registros EGA
     mov dx, 3C4h
@@ -1124,7 +1127,10 @@ dsp32o_fila:
     
     pop cx
     dec cx
-    jnz dsp32o_fila
+    jz dsp32o_fin
+    jmp dsp32o_fila
+
+dsp32o_fin:
     
     ; Restaurar
     mov dx, 3C4h
