@@ -1109,17 +1109,18 @@ dmo_col_opt:
     ; ===== LEER TILE Y OBTENER SPRITE =====
     mov al, [bx]
     inc bx
-    
+
     push bx                          ; Guardar puntero en mapa
-    
+
+    mov dx, si                       ; Guardar índice de columna antes de obtener el sprite
     call obtener_sprite_rapido       ; DI=data, SI=mask (3 ciclos)
-    
+
     ; ===== CALCULAR POSICIÓN EN PANTALLA =====
     push si                          ; Guardar máscara
     push di                          ; Guardar datos
-    
+
     ; CX = columna × 16 + viewport_x
-    mov ax, si                       ; SI = columna (guardada antes)
+    mov ax, dx                       ; Recuperar columna actual
     shl ax, 4
     add ax, viewport_x
     mov cx, ax
