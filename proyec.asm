@@ -1135,38 +1135,50 @@ dibujar_mapa_en_offset PROC
 dmo_loop:
     mov ax, dirty_count
     cmp bp, ax
-    jae dmo_fin
-    
+    jb dmo_tiene_tile
+    jmp dmo_fin
+
+dmo_tiene_tile:
     ; Obtener índice del tile sucio
     mov bx, bp
     shl bx, 1
     mov ax, [dirty_list + bx]
-    
+
     ; Calcular tile_x, tile_y desde índice
     xor dx, dx
     mov cx, 100
     div cx              ; AX = Y, DX = X
-    
+
     mov bx, dx          ; BX = tile_x
     mov dx, ax          ; DX = tile_y
-    
+
     ; Verificar si está en viewport
     mov ax, dx
     cmp ax, inicio_tile_y
-    jb dmo_next
+    jae dmo_check_y_max
+    jmp dmo_next
+
+dmo_check_y_max:
     mov cx, inicio_tile_y
     add cx, 14
     cmp ax, cx
-    jae dmo_next
-    
+    jb dmo_check_x_min
+    jmp dmo_next
+
+dmo_check_x_min:
     mov ax, bx
     cmp ax, inicio_tile_x
-    jb dmo_next
+    jae dmo_check_x_max
+    jmp dmo_next
+
+dmo_check_x_max:
     mov cx, inicio_tile_x
     add cx, 22
     cmp ax, cx
-    jae dmo_next
-    
+    jb dmo_dibujar
+    jmp dmo_next
+
+dmo_dibujar:
     ; Calcular índice en mapa
     push bx
     mov bx, dx
