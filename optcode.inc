@@ -440,7 +440,6 @@ dibujar_sprite_planar_16x16_opt PROC
     mov ax, 0A000h
     mov es, ax
     
-    ; Calcular offset de video
     mov ax, dx
     mov bx, 80
     mul bx
@@ -449,36 +448,39 @@ dibujar_sprite_planar_16x16_opt PROC
     shr ax, 3
     add si, ax
     
-    ; BX = datos planar, BP = máscaras
-    mov bx, di
-    push bp
+    mov bx, di      ; BX = datos planar
     
-    mov cx, 16
+    mov cx, 16      ; 16 filas
 
 dsp16o_fila:
     push cx
     push si
     push bx
-    push bp                ; ✅ REPARADO: Guardar BP
-    mov bp, sp             ; ✅ REPARADO: BP ahora apunta al marco de la pila
     
-    ; Stack: [bp] [bx] [si] [cx] [mask_ptr] ...
-    ; bp+2 -> bx
-    ; bp+4 -> si
-    ; bp+6 -> cx
-    ; bp+8 -> mask_ptr (¡este es el que queremos!)
+    mov bp, si      ; BP = Puntero de video para esta fila
     
-    mov di, [bp+8]         ; ✅ REPARADO: Usar [bp+8] en lugar de [sp+8]
+    ; --- ✅ NUEVA MÁSCARA AL VUELO (Color 0 = Transparente) ---
+    ; Mascara = P0 | P1 | P2 | P3
+    mov al, [bx]        ; Plano 0, Byte 0
+    or al, [bx+32]      ; Plano 1, Byte 0
+    or al, [bx+64]      ; Plano 2, Byte 0
+    or al, [bx+96]      ; Plano 3, Byte 0
+    mov ah, al          ; AH = máscara byte 0
+
+    mov al, [bx+1]      ; Plano 0, Byte 1
+    or al, [bx+33]      ; Plano 1, Byte 1
+    or al, [bx+65]      ; Plano 2, Byte 1
+    or al, [bx+97]      ; Plano 3, Byte 1
+    ; AL = máscara byte 1
     
-    ; BYTE 0
-    mov ah, [di]
+    push ax             ; Guardar máscaras (AH, AL) en la pila
     
-    ; Plano 0
+    ; --- PLANO 0 ---
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    xor al, al
+    mov al, 0
     out dx, al
     mov dx, 3C4h
     mov al, 2
@@ -486,23 +488,35 @@ dsp16o_fila:
     inc dx
     mov al, 1
     out dx, al
-    pop si
-    push si
-    mov cl, ah
-    not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx]
-    and ch, cl
-    or al, ch
-    pop si
-    push si
-    mov es:[si], al
     
-    ; Plano 1
+    pop ax
+    push ax
+    mov di, bp
+    
+    mov cl, ah          ; Máscara byte 0
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, ah
+    mov al, [bx]        ; Dato plano 0, byte 0
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    inc di
+    
+    pop ax
+    push ax
+    mov cl, al          ; Máscara byte 1
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+1]      ; Dato plano 0, byte 1
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    
+    ; --- PLANO 1 ---
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -515,23 +529,35 @@ dsp16o_fila:
     inc dx
     mov al, 2
     out dx, al
-    pop si
-    push si
+    
+    pop ax
+    push ax
+    mov di, bp
+    
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+32]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+32]     ; Dato plano 1, byte 0
+    and al, cl
     or al, ch
-    pop si
-    push si
-    mov es:[si], al
+    mov es:[di], al
+    inc di
     
-    ; Plano 2
+    pop ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+33]     ; Dato plano 1, byte 1
+    and al, cl
+    or al, ch
+    mov es:[di], al
+
+    ; --- PLANO 2 ---
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -544,23 +570,35 @@ dsp16o_fila:
     inc dx
     mov al, 4
     out dx, al
-    pop si
-    push si
+    
+    pop ax
+    push ax
+    mov di, bp
+    
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+64]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+64]     ; Dato plano 2, byte 0
+    and al, cl
     or al, ch
-    pop si
-    push si
-    mov es:[si], al
+    mov es:[di], al
+    inc di
     
-    ; Plano 3
+    pop ax
+    push ax
+    mov cl, al
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov cl, al
+    mov al, [bx+65]     ; Dato plano 2, byte 1
+    and al, cl
+    or al, ch
+    mov es:[di], al
+
+    ; --- PLANO 3 ---
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -573,154 +611,43 @@ dsp16o_fila:
     inc dx
     mov al, 8
     out dx, al
-    pop si
-    push si
+    
+    pop ax
+    mov di, bp
+    
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+96]
+    mov ch, es:[di]
     and ch, cl
-    or al, ch
-    pop si
-    push si
-    mov es:[si], al
-    
-    ; BYTE 1
-    mov di, [bp+8]         ; ✅ REPARADO: Usar [bp+8] en lugar de [sp+8]
-    mov ah, [di+1]
-    
-    ; Plano 0
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    xor al, al
-    out dx, al
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 1
-    out dx, al
-    pop si
-    push si
-    inc si
     mov cl, ah
+    mov al, [bx+96]     ; Dato plano 3, byte 0
+    and al, cl
+    or al, ch
+    mov es:[di], al
+    inc di
+    
+    mov cl, al          ; Máscara byte 1
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+1]
+    mov ch, es:[di]
     and ch, cl
-    or al, ch
-    mov es:[si], al
-    
-    ; Plano 1
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 1
-    out dx, al
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    pop si
-    push si
-    inc si
-    mov cl, ah
-    not cl
-    mov al, es:[si]
+    mov al, [bx+97]     ; Dato plano 3, byte 1
     and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+33]
-    and ch, cl
     or al, ch
-    mov es:[si], al
+    mov es:[di], al
     
-    ; Plano 2
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    pop si
-    push si
-    inc si
-    mov cl, ah
-    not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+65]
-    and ch, cl
-    or al, ch
-    mov es:[si], al
-    
-    ; Plano 3
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 3
-    out dx, al
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 8
-    out dx, al
-    pop si
-    push si
-    inc si
-    mov cl, ah
-    not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+97]
-    and ch, cl
-    or al, ch
-    mov es:[si], al
-    
-    ; Siguiente fila
-    add WORD PTR [bp+8], 2    ; ✅ REPARADO: Usar [bp+8] en lugar de [sp+6]
-    pop bp                    ; ✅ REPARADO: Restaurar BP
+    ; --- Siguiente Fila ---
     pop bx
     add bx, 2
     pop si
     add si, 80
+    
     pop cx
-    ; loop dsp16o_fila        ; <-- Original (Error)
-    dec cx                    ; ✅ REPARADO: Reemplazo de LOOP
-    jz  dsp16o_fin_loop       ; ✅ Alternativa: evita "out of range"
-    jmp NEAR PTR dsp16o_fila  ; ✅ Salto incondicional con desplazamiento de 16 bits
+    dec cx
+    jz dsp16o_fin_loop
+    jmp dsp16o_fila
 dsp16o_fin_loop:
     
-    pop bp
-    
+    ; Restaurar
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -766,30 +693,31 @@ dibujar_sprite_planar_32x32_opt PROC
     shr ax, 3
     add si, ax
     
-    mov bx, di
-    push bp
+    mov bx, di      ; BX = datos planar
     
-    mov cx, 32
+    mov cx, 32      ; 32 filas
 
 dsp32o_fila:
     push cx
     push si
     push bx
-    push bp                ; ✅ REPARADO: Guardar BP
-    mov bp, sp             ; ✅ REPARADO: BP ahora apunta al marco de la pila
-                           ; bp+8 apunta al mask_ptr
     
-    mov di, [bp+8]         ; ✅ REPARADO: Usar [bp+8]
+    mov bp, si      ; BP = Puntero de video para esta fila
     
-    ; BYTE 0
-    mov ah, [di]
+    ; --- ✅ NUEVA MÁSCARA AL VUELO (Color 0 = Transparente) ---
+    ; --- BYTE 0 ---
+    mov al, [bx]        ; P0
+    or al, [bx+128]     ; P1
+    or al, [bx+256]     ; P2
+    or al, [bx+384]     ; P3
+    mov ah, al          ; AH = máscara byte 0
     
     ; Plano 0
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    xor al, al
+    mov al, 0
     out dx, al
     mov dx, 3C4h
     mov al, 2
@@ -797,21 +725,16 @@ dsp32o_fila:
     inc dx
     mov al, 1
     out dx, al
-    pop si
-    push si
+    mov di, bp
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx]
+    and al, cl
     or al, ch
-    pop si
-    push si
-    mov es:[si], al
+    mov es:[di], al
     
     ; Plano 1
     mov dx, 3CEh
@@ -826,21 +749,16 @@ dsp32o_fila:
     inc dx
     mov al, 2
     out dx, al
-    pop si
-    push si
+    mov di, bp
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+128]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+128]
+    and al, cl
     or al, ch
-    pop si
-    push si
-    mov es:[si], al
+    mov es:[di], al
     
     ; Plano 2
     mov dx, 3CEh
@@ -855,22 +773,17 @@ dsp32o_fila:
     inc dx
     mov al, 4
     out dx, al
-    pop si
-    push si
+    mov di, bp
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+256]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+256]
+    and al, cl
     or al, ch
-    pop si
-    push si
-    mov es:[si], al
-    
+    mov es:[di], al
+
     ; Plano 3
     mov dx, 3CEh
     mov al, 4
@@ -884,36 +797,31 @@ dsp32o_fila:
     inc dx
     mov al, 8
     out dx, al
-    pop si
-    push si
+    mov di, bp
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+384]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+384]
+    and al, cl
     or al, ch
-    pop si
-    push si
-    mov es:[si], al
+    mov es:[di], al
     
-    ; BYTE 1
-    mov di, [bp+8]         ; ✅ REPARADO: Usar [bp+8]
-    mov ah, [di+1]
-    
-    pop si
-    push si
-    inc si
+    ; --- ✅ NUEVA MÁSCARA AL VUELO ---
+    ; --- BYTE 1 ---
+    mov al, [bx+1]      ; P0
+    or al, [bx+129]     ; P1
+    or al, [bx+257]     ; P2
+    or al, [bx+385]     ; P3
+    mov ah, al          ; AH = máscara byte 1
     
     ; Plano 0
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    xor al, al
+    mov al, 0
     out dx, al
     mov dx, 3C4h
     mov al, 2
@@ -921,18 +829,18 @@ dsp32o_fila:
     inc dx
     mov al, 1
     out dx, al
+    mov di, bp
+    inc di
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+1]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+1]
+    and al, cl
     or al, ch
-    mov es:[si], al
-    
+    mov es:[di], al
+
     ; Plano 1
     mov dx, 3CEh
     mov al, 4
@@ -946,17 +854,17 @@ dsp32o_fila:
     inc dx
     mov al, 2
     out dx, al
+    mov di, bp
+    inc di
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+129]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+129]
+    and al, cl
     or al, ch
-    mov es:[si], al
+    mov es:[di], al
     
     ; Plano 2
     mov dx, 3CEh
@@ -971,18 +879,18 @@ dsp32o_fila:
     inc dx
     mov al, 4
     out dx, al
+    mov di, bp
+    inc di
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+257]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+257]
+    and al, cl
     or al, ch
-    mov es:[si], al
-    
+    mov es:[di], al
+
     ; Plano 3
     mov dx, 3CEh
     mov al, 4
@@ -996,32 +904,32 @@ dsp32o_fila:
     inc dx
     mov al, 8
     out dx, al
+    mov di, bp
+    inc di
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+385]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+385]
+    and al, cl
     or al, ch
-    mov es:[si], al
+    mov es:[di], al
     
-    ; BYTE 2
-    mov di, [bp+8]         ; ✅ REPARADO: Usar [bp+8]
-    mov ah, [di+2]
-    
-    pop si
-    push si
-    add si, 2
+    ; --- ✅ NUEVA MÁSCARA AL VUELO ---
+    ; --- BYTE 2 ---
+    mov al, [bx+2]
+    or al, [bx+130]
+    or al, [bx+258]
+    or al, [bx+386]
+    mov ah, al          ; AH = máscara byte 2
     
     ; Plano 0
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    xor al, al
+    mov al, 0
     out dx, al
     mov dx, 3C4h
     mov al, 2
@@ -1029,18 +937,18 @@ dsp32o_fila:
     inc dx
     mov al, 1
     out dx, al
+    mov di, bp
+    add di, 2
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+2]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+2]
+    and al, cl
     or al, ch
-    mov es:[si], al
-    
+    mov es:[di], al
+
     ; Plano 1
     mov dx, 3CEh
     mov al, 4
@@ -1054,17 +962,17 @@ dsp32o_fila:
     inc dx
     mov al, 2
     out dx, al
+    mov di, bp
+    add di, 2
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+130]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+130]
+    and al, cl
     or al, ch
-    mov es:[si], al
+    mov es:[di], al
     
     ; Plano 2
     mov dx, 3CEh
@@ -1079,18 +987,18 @@ dsp32o_fila:
     inc dx
     mov al, 4
     out dx, al
+    mov di, bp
+    add di, 2
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+258]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+258]
+    and al, cl
     or al, ch
-    mov es:[si], al
-    
+    mov es:[di], al
+
     ; Plano 3
     mov dx, 3CEh
     mov al, 4
@@ -1104,32 +1012,32 @@ dsp32o_fila:
     inc dx
     mov al, 8
     out dx, al
+    mov di, bp
+    add di, 2
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+386]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+386]
+    and al, cl
     or al, ch
-    mov es:[si], al
+    mov es:[di], al
     
-    ; BYTE 3
-    mov di, [bp+8]         ; ✅ REPARADO: Usar [bp+8]
-    mov ah, [di+3]
-    
-    pop si
-    push si
-    add si, 3
+    ; --- ✅ NUEVA MÁSCARA AL VUELO ---
+    ; --- BYTE 3 ---
+    mov al, [bx+3]
+    or al, [bx+131]
+    or al, [bx+259]
+    or al, [bx+387]
+    mov ah, al          ; AH = máscara byte 3
     
     ; Plano 0
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    xor al, al
+    mov al, 0
     out dx, al
     mov dx, 3C4h
     mov al, 2
@@ -1137,18 +1045,18 @@ dsp32o_fila:
     inc dx
     mov al, 1
     out dx, al
+    mov di, bp
+    add di, 3
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+3]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+3]
+    and al, cl
     or al, ch
-    mov es:[si], al
-    
+    mov es:[di], al
+
     ; Plano 1
     mov dx, 3CEh
     mov al, 4
@@ -1162,17 +1070,17 @@ dsp32o_fila:
     inc dx
     mov al, 2
     out dx, al
+    mov di, bp
+    add di, 3
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+131]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+131]
+    and al, cl
     or al, ch
-    mov es:[si], al
+    mov es:[di], al
     
     ; Plano 2
     mov dx, 3CEh
@@ -1187,18 +1095,18 @@ dsp32o_fila:
     inc dx
     mov al, 4
     out dx, al
+    mov di, bp
+    add di, 3
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+259]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+259]
+    and al, cl
     or al, ch
-    mov es:[si], al
-    
+    mov es:[di], al
+
     ; Plano 3
     mov dx, 3CEh
     mov al, 4
@@ -1212,34 +1120,31 @@ dsp32o_fila:
     inc dx
     mov al, 8
     out dx, al
+    mov di, bp
+    add di, 3
     mov cl, ah
     not cl
-    mov al, es:[si]
-    and al, cl
-    mov cl, ah
-    pop bx
-    push bx
-    mov ch, [bx+387]
+    mov ch, es:[di]
     and ch, cl
+    mov cl, ah
+    mov al, [bx+387]
+    and al, cl
     or al, ch
-    mov es:[si], al
+    mov es:[di], al
     
-    ; Siguiente fila
-    add WORD PTR [bp+8], 4    ; ✅ REPARADO: Usar [bp+8]
-    pop bp                    ; ✅ REPARADO: Restaurar BP
+    ; --- Siguiente Fila ---
     pop bx
     add bx, 4
     pop si
     add si, 80
+    
     pop cx
-    ; loop dsp32o_fila        ; <-- Original (Error)
-    dec cx                    ; ✅ REPARADO: Reemplazo de LOOP largo
-    jz dsp32o_fin_loop        ; ✅ REPARADO: Salir si CX=0
-    jmp dsp32o_fila           ; ✅ REPARADO: JMP NEAR de vuelta
-dsp32o_fin_loop:                ; ✅ REPARADO: Etiqueta de salida del bucle
+    dec cx
+    jz dsp32o_fin_loop
+    jmp dsp32o_fila
+dsp32o_fin_loop:
     
-    pop bp
-    
+    ; Restaurar
     mov dx, 3C4h
     mov al, 2
     out dx, al
