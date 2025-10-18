@@ -25,8 +25,8 @@ iso_clear:
     inc di
     loop iso_clear
     
-    ; ===== PASO 3: Forzar primer frame completo =====
-    mov force_full_redraw, 1
+    ; ===== PASO 3: Forzar primer frame completo (ambas páginas) =====
+    mov force_full_redraw, 2        ; Necesitamos dos frames (doble buffer)
     mov frame_counter_opt, 0    ; ✅ Empezar en 0
     
     ; ===== PASO 4: Inicializar caché =====
@@ -165,7 +165,7 @@ marcar_tiles_afectados PROC
 
 mta_camara_movio:
     ; ✅ CORRECCIÓN: Cuando la cámara se mueve, forzar redibujado completo
-    mov force_full_redraw, 1
+    mov force_full_redraw, 2        ; Preparar ambos buffers para el nuevo estado
     
     mov ax, inicio_tile_x
     mov last_cam_tile_x, ax
@@ -303,10 +303,10 @@ tile_esta_sucio PROC
     push bx
     push cx
     
-    ; ✅ CRÍTICO: Si force_full_redraw = 1, TODOS están sucios
-    cmp force_full_redraw, 1
-    jne tes_check_normal
-    
+    ; ✅ CRÍTICO: Si force_full_redraw ≠ 0, TODOS están sucios
+    cmp force_full_redraw, 0
+    je tes_check_normal
+
     ; Establecer ZF=0 (sucio)
     mov al, 1
     or al, al               ; ZF=0
@@ -349,8 +349,12 @@ tile_esta_sucio ENDP
 limpiar_dirty_flags PROC
     push ax
     
-    ; ✅ CRÍTICO: Limpiar force_full_redraw DESPUÉS del primer frame
-    mov force_full_redraw, 0
+    ; ✅ CRÍTICO: Reducir el contador de full redraw (dos páginas)
+    cmp force_full_redraw, 0
+    je ldf_done
+    dec force_full_redraw
+
+ldf_done:
     
     pop ax
     ret

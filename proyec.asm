@@ -158,7 +158,7 @@ sprite_data_ptrs    dw 256 dup(0)
 sprite_mask_ptrs    dw 256 dup(0)
 dirty_map           db 273 dup(0)    ; 21×13 tiles visibles
 frame_counter_opt   db 0
-force_full_redraw   db 1
+force_full_redraw   db 1           ; Contador de frames para redibujado total
 last_cam_tile_x     dw 0
 last_cam_tile_y     dw 0
 last_player_tile_x  dw 0
@@ -678,7 +678,7 @@ cc_x_ok:
     mov scroll_offset_x, bx
     cmp bx, dx
     je cc_skip_force_x
-    mov force_full_redraw, 1
+    mov force_full_redraw, 2        ; Forzar redraw en ambas páginas
 cc_skip_force_x:
 
     mov ax, jugador_py
@@ -699,7 +699,7 @@ cc_y_ok:
     mov scroll_offset_y, bx
     cmp bx, dx
     je cc_fin
-    mov force_full_redraw, 1
+    mov force_full_redraw, 2        ; Forzar redraw en ambas páginas
 
 cc_fin:
     pop dx
@@ -1151,8 +1151,10 @@ dmo_no_extra_row:
 
 dmo_fila_opt:
     cmp bp, 13
-    jae dmo_extra_row_check
+    jb dmo_fila_loop_body
+    jmp dmo_extra_row_check
 
+dmo_fila_loop_body:
     mov bx, di                       ; BX = puntero actual en fila
     xor si, si                       ; SI = columna (0-20)
 
@@ -1250,7 +1252,10 @@ dmo_next_fila_opt:
 dmo_extra_row_check:
     mov ax, temp_fila
     cmp ax, 0
-    je dmo_fin_opt
+    jne dmo_extra_row_needed
+    jmp dmo_fin_opt
+
+dmo_extra_row_needed:
 
     ; ===== Dibujar fila adicional (scroll vertical) =====
     ; Recalcular puntero base a la fila nueva =====
