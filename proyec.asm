@@ -210,65 +210,83 @@ mov ah, 9
 int 21h
 mov ah, 0
 int 16h
-    ; ===== FASE 8: ENTRAR A MODO GRÁFICO =====
-    mov ax, 10h
-    int 10h
-    call inicializar_paleta_ega 
-    ;; ===== FASE 9: CONFIGURAR EGA MODO 10h =====
-; Configurar Sequence Controller
+
+; ===== ENTRAR A MODO GRÁFICO =====
+mov ax, 10h
+int 10h
+
+; ===== CONFIGURAR PALETA =====
+call inicializar_paleta_ega
+
+; ===== CONFIGURAR REGISTROS EGA =====
+; Sequence Controller - Map Mask
 mov dx, 3C4h
-mov al, 2           ; Map Mask Register
+mov al, 2
 out dx, al
 inc dx
 mov al, 0Fh         ; Habilitar los 4 planos
 out dx, al
 
-; Configurar Graphics Controller
+; Graphics Controller - Modo de escritura
 mov dx, 3CEh
-mov al, 5           ; Graphics Mode Register
+mov al, 5
 out dx, al
 inc dx
 mov al, 0           ; Write Mode 0
 out dx, al
 
+; Graphics Controller - Bit Mask
 mov dx, 3CEh
-mov al, 3           ; Data Rotate/Function Select
+mov al, 8
 out dx, al
 inc dx
-mov al, 0           ; No rotate, replace
+mov al, 0FFh
 out dx, al
 
-mov dx, 3CEh
-mov al, 8           ; Bit Mask Register
-out dx, al
-inc dx
-mov al, 0FFh        ; Todos los bits habilitados
-out dx, al
-
+; ===== LIMPIAR AMBAS PÁGINAS =====
 mov ax, VIDEO_SEG
 mov es, ax
 
-; Activar escritura en los 4 planos
-mov dx, 3C4h
-mov al, 2
-out dx, al
-inc dx
-mov al, 0Fh
-out dx, al
-
-; Llenar de ceros = negro en todos los planos
+; Limpiar página 0 (offset 0)
 xor di, di
-mov cx, 28000       ; 640x350/8 = 28000 bytes por plano
+mov cx, 14000       ; 28000 bytes / 2 = 14000 words
 xor ax, ax
-rep stosw           ; Usa STOSW (16 bits) para mayor velocidad
-    ; ===== FASE 10: INICIALIZAR JUEGO =====
-    call centrar_camara
-    call renderizar_en_pagina_0
-    call renderizar_en_pagina_1
-    
-    mov ah, 5
-    mov al, 0
-    int 10h
+rep stosw
+
+; Limpiar página 1 (offset 8000h)
+mov di, 8000h
+mov cx, 14000
+xor ax, ax
+rep stosw
+
+; ===== INICIALIZAR JUEGO =====
+call centrar_camara
+
+; **CRÍTICO**: Renderizar PÁGINA 0 primero
+mov temp_offset, 0
+call dibujar_mapa_en_offset
+call dibujar_jugador_en_offset
+
+; **CRÍTICO**: Renderizar PÁGINA 1
+mov temp_offset, 8000h
+call dibujar_mapa_en_offset
+call dibujar_jugador_en_offset
+
+; Guardar estado inicial
+mov ax, jugador_px
+mov jugador_px_old, ax
+mov ax, jugador_py
+mov jugador_py_old, ax
+mov al, jugador_frame
+mov frame_old, al
+
+; **CRÍTICO**: Mostrar página 0 y configurar variables
+mov ah, 5
+mov al, 0
+int 10h
+
+mov pagina_visible, 0
+mov pagina_dibujo, 1
 
 ; ===== BUCLE PRINCIPAL =====
 bucle_juego:
@@ -289,10 +307,12 @@ bucle_juego:
     cmp al, frame_old
     jne bg_hay_cambio
 
+    ; Si no hay cambios, solo esperar
     call esperar_retrace
     jmp bucle_juego
     
 bg_hay_cambio:
+    ; Actualizar estado
     mov ax, jugador_px
     mov jugador_px_old, ax
     
@@ -302,23 +322,33 @@ bg_hay_cambio:
     mov al, jugador_frame
     mov frame_old, al
     
+    ; Esperar vertical retrace
     call esperar_retrace
     
+    ; Renderizar en la página que NO está visible
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
     
-    call renderizar_en_pagina_1
+    ; Renderizar en página 1
+    mov temp_offset, 8000h
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
     jmp bg_cambiar_pagina
     
 bg_render_p0:
-    call renderizar_en_pagina_0
+    ; Renderizar en página 0
+    mov temp_offset, 0
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
     
 bg_cambiar_pagina:
+    ; Cambiar página visible
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
     
+    ; Intercambiar páginas
     xor pagina_dibujo, 1
     xor pagina_visible, 1
     
