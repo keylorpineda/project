@@ -989,7 +989,7 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    ; Calcular tile inicial de la cámara (alineado a 16)
+    ; Calcular tile inicial de la cámara
     mov ax, camara_px
     shr ax, 4
     mov inicio_tile_x, ax
@@ -998,71 +998,91 @@ dibujar_mapa_en_offset PROC
     shr ax, 4
     mov inicio_tile_y, ax
     
-    ; Iniciar desde fila 0
     xor bp, bp              ; BP = fila actual (0-12)
 
 dmo_fila:
-    cmp bp, 13              ; ¿Terminamos las 13 filas?
+    cmp bp, 13
     jae dmo_fin
     
     xor si, si              ; SI = columna actual (0-20)
 
 dmo_col:
-    cmp si, 21              ; ¿Terminamos las 21 columnas?
+    cmp si, 21
     jae dmo_next_fila
     
     ; ===== Calcular tile_y =====
     mov ax, inicio_tile_y
-    add ax, bp              ; tile_y = inicio + fila
+    add ax, bp
     cmp ax, 100
-    jae dmo_next_col        ; Si fuera del mapa, skip
+    jae dmo_next_col
     
     ; ===== Calcular índice en mapa (Y × 100 + X) =====
-    mov bx, ax              ; BX = tile_y
-    shl bx, 1               ; BX *= 2
-    mov ax, [mul100_table + bx]  ; AX = tile_y × 100
+    mov bx, ax
+    shl bx, 1
+    mov ax, [mul100_table + bx]
     
     mov bx, inicio_tile_x
-    add bx, si              ; BX = tile_x = inicio + columna
+    add bx, si
     cmp bx, 100
-    jae dmo_next_col        ; Si fuera del mapa, skip
+    jae dmo_next_col
     
-    add ax, bx              ; AX = tile_y × 100 + tile_x
+    add ax, bx
     
     ; ===== Leer tipo de tile =====
     mov bx, ax
     mov al, [mapa_datos + bx]
     
-    ; ===== Verificar tile válido =====
     cmp al, 15
     ja dmo_next_col
     
-    ; ===== Guardar registros importantes =====
-    push si                 ; Guardar columna
-    push bp                 ; Guardar fila
+    ; ===== Guardar registros de BUCLE (col, fila) =====
+    push si                 ; [Stack]: col
+    push bp                 ; [Stack]: fila, col
     
-    ; ===== Obtener sprite del tile =====
-    call obtener_sprite_tile    ; Retorna DI=data, SI=mask
+    ; ===== Obtener sprite (pone DI=data, SI=mask) =====
+    call obtener_sprite_tile
     
-    ; ===== Calcular posición en pantalla =====
-    pop ax                  ; AX = fila (recuperar BP)
-    push ax                 ; Volver a guardar
-    shl ax, 4               ; AX = fila × 16
+    ; ===== ¡¡¡CORRECCIÓN DEFINITIVA!!! =====
+    ; Preservar DI y SI, y usar BP para el stack frame
+    
+    push si                 ; [Stack]: mask_ptr, fila, col
+    push di                 ; [Stack]: data_ptr, mask_ptr, fila, col
+    
+    ; --- Crear Stack Frame ---
+    push bp                 ; Guardar BP (fila)
+    mov bp, sp              ; BP es ahora el puntero de pila
+
+    ; Stack Frame:
+    ; [bp]    = BP guardado (fila)
+    ; [bp+2]  = data_ptr (DI)
+    ; [bp+4]  = mask_ptr (SI)
+    ; [bp+6]  = fila (BP_guardado)
+    ; [bp+8]  = col (SI_guardado)
+    
+    ; Calcular DX (Y) usando BP
+    mov ax, [bp+6]          ; AX = fila (LEGAL)
+    shl ax, 4               
     add ax, viewport_y
     mov dx, ax              ; DX = Y
     
-    pop ax                  ; AX = fila (descartar)
-    pop ax                  ; AX = columna (recuperar SI)
-    push ax                 ; Volver a guardar
-    shl ax, 4               ; AX = columna × 16
+    ; Calcular CX (X) usando BP
+    mov ax, [bp+8]          ; AX = col (LEGAL)
+    shl ax, 4               
     add ax, viewport_x
     mov cx, ax              ; CX = X
     
-    ; ===== Dibujar tile =====
+    ; --- Destruir Stack Frame ---
+    pop bp                  ; Restaurar BP (fila)
+    
+    pop di                  ; Restaurar DI (data_ptr)
+    pop si                  ; Restaurar SI (mask_ptr)
+
+    ; Llamar a dibujar con DI, SI, CX, DX correctos
     call dibujar_sprite_planar_16x16_opt
     
-    ; ===== Restaurar registros =====
-    pop si                  ; Recuperar columna
+    ; ===== Restaurar registros de BUCLE =====
+    pop bp                  ; Limpiar 'fila' de la pila
+    pop si                  ; Limpiar 'col' de la pila
     
 dmo_next_col:
     inc si                  ; Siguiente columna
@@ -1180,10 +1200,10 @@ dibujar_jugador_en_offset PROC
     push si
     push di
     
-    ; ✅ CORRECCIÓN: Calcular posición relativa al viewport
+    ; Calcular posición relativa al viewport
     mov ax, jugador_px
-    sub ax, camara_px        ; Diferencia en pixeles
-    add ax, viewport_x       ; Agregar offset del viewport
+    sub ax, camara_px
+    add ax, viewport_x
     sub ax, 16               ; Centrar sprite (32/2)
     mov cx, ax
     
@@ -1193,7 +1213,8 @@ dibujar_jugador_en_offset PROC
     sub ax, 16
     mov dx, ax
     
-    call obtener_sprite_jugador
+    call obtener_sprite_jugador    
+
     call dibujar_sprite_planar_32x32_opt
     
     pop di
@@ -1203,23 +1224,6 @@ dibujar_jugador_en_offset PROC
     pop ax
     ret
 dibujar_jugador_en_offset ENDP
-
-dibujar_sprite_planar_16x16 PROC
-
-    call dibujar_sprite_planar_16x16_opt
-    ret
-dibujar_sprite_planar_16x16 ENDP
-
-dibujar_sprite_planar_32x32 PROC
-    push si
-    
-    mov si, OFFSET jugador_down_a_mask  ; Default
-    
-    call dibujar_sprite_planar_32x32_opt
-    
-    pop si
-    ret
-dibujar_sprite_planar_32x32 ENDP
 
 esperar_retrace PROC
     push ax
