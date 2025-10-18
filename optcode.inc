@@ -39,228 +39,7 @@ ilt_loop_video:
     pop ax
     ret
 inicializar_lookup_tables ENDP
-; ============================================
-; DIRTY RECTANGLES - SOLO REDIBUJAR LO NECESARIO
-; ============================================
-marcar_region_sucia PROC
-    push ax
-    push bx
-    push cx
-    
-    cmp cx, 100
-    jae mrs_fin
-    cmp dx, 100
-    jae mrs_fin
-    
-    mov bx, dx
-    shl bx, 1
-    mov ax, [mul100_table + bx]
-    add ax, cx
-    mov bx, ax
-    
-    ; Verificar si ya está sucio
-    cmp byte ptr [dirty_tiles + bx], 0
-    jne mrs_fin
-    
-    ; Marcar y agregar a lista
-    mov byte ptr [dirty_tiles + bx], 1
-    mov cx, dirty_count
-    shl cx, 1
-    mov si, cx
-    mov [dirty_list + si], bx
-    inc dirty_count
-    
-mrs_fin:
-    pop cx
-    pop bx
-    pop ax
-    ret
-marcar_region_sucia ENDP
 
-limpiar_tiles_sucios PROC
-    push ax
-    push bx
-    push cx
-    
-    xor bx, bx
-lts_loop:
-    mov ax, dirty_count
-    cmp bx, ax
-    jae lts_fin
-    
-    push bx
-    shl bx, 1
-    mov ax, [dirty_list + bx]
-    mov si, ax
-    mov byte ptr [dirty_tiles + si], 0
-    pop bx
-    
-    inc bx
-    jmp lts_loop
-    
-lts_fin:
-    mov dirty_count, 0
-    
-    pop cx
-    pop bx
-    pop ax
-    ret
-limpiar_tiles_sucios ENDP
-
-marcar_region_jugador PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    
-    mov ax, jugador_px
-    shr ax, 4
-    mov bx, ax              ; BX = tile_x
-    
-    mov ax, jugador_py
-    shr ax, 4
-    mov dx, ax              ; DX = tile_y
-    
-    ; ===== MARCAR 4×4 (jugador 2×2 + borde) =====
-    push dx
-    
-    ; FILA -1
-    dec dx
-    
-    mov cx, bx
-    dec cx
-    call marcar_region_sucia
-    mov cx, bx
-    call marcar_region_sucia
-    mov cx, bx
-    inc cx
-    call marcar_region_sucia
-    mov cx, bx
-    add cx, 2
-    call marcar_region_sucia
-    
-    ; FILA 0
-    pop dx
-    push dx
-    
-    mov cx, bx
-    dec cx
-    call marcar_region_sucia
-    mov cx, bx
-    call marcar_region_sucia
-    mov cx, bx
-    inc cx
-    call marcar_region_sucia
-    mov cx, bx
-    add cx, 2
-    call marcar_region_sucia
-    
-    ; FILA 1
-    pop dx
-    push dx
-    inc dx
-    
-    mov cx, bx
-    dec cx
-    call marcar_region_sucia
-    mov cx, bx
-    call marcar_region_sucia
-    mov cx, bx
-    inc cx
-    call marcar_region_sucia
-    mov cx, bx
-    add cx, 2
-    call marcar_region_sucia
-    
-    ; FILA 2
-    pop dx
-    add dx, 2
-    
-    mov cx, bx
-    dec cx
-    call marcar_region_sucia
-    mov cx, bx
-    call marcar_region_sucia
-    mov cx, bx
-    inc cx
-    call marcar_region_sucia
-    mov cx, bx
-    add cx, 2
-    call marcar_region_sucia
-    
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-marcar_region_jugador ENDP
-
-marcar_viewport_completo PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-    push bp
-
-    mov ax, camara_px
-    shr ax, 4
-    mov inicio_tile_x, ax
-
-    mov ax, camara_py
-    shr ax, 4
-    mov inicio_tile_y, ax
-
-    xor bp, bp              ; Fila dentro del viewport
-
-mvc_fila:
-    cmp bp, 14              ; Solo 14 filas visibles
-    jae mvc_fin
-
-    xor si, si              ; Columna dentro del viewport
-
-mvc_col:
-    cmp si, 20              ; ✅ CORRECTO: Solo 20 columnas (320/16=20)
-    jae mvc_next_fila
-
-    ; Calcular tile_y global
-    mov dx, inicio_tile_y
-    add dx, bp
-    cmp dx, 100             ; ✅ Verificar límite Y
-    jae mvc_skip_col
-
-    ; Calcular tile_x global
-    mov cx, inicio_tile_x
-    add cx, si
-    cmp cx, 100             ; ✅ Verificar límite X
-    jae mvc_skip_col
-
-    ; ✅ CRÍTICO: Llamar con CX=x, DX=y
-    push si
-    push bp
-    call marcar_region_sucia
-    pop bp
-    pop si
-
-mvc_skip_col:
-    inc si
-    jmp mvc_col
-
-mvc_next_fila:
-    inc bp
-    jmp mvc_fila
-
-mvc_fin:
-    pop bp
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-marcar_viewport_completo ENDP
 ; ============================================
 ; VERIFICACIÓN DE TRANSITABILIDAD (OK)
 ; ============================================
@@ -373,7 +152,7 @@ cspo_i3:
     or al, dh
     or al, bl
     or al, bh
-    mov ds:[bp], al        ; ✅ SIN NOT - directamente
+    mov [bp], al        ; ✅ SIN NOT - directamente
     
     ; ===== BYTE DERECHO (píxeles 8-15) =====
     xor bx, bx
@@ -416,7 +195,7 @@ cspo_d3:
     or al, dh
     or al, bl
     or al, bh
-    mov ds:[bp+1], al      ; ✅ SIN NOT
+    mov [bp+1], al      ; ✅ SIN NOT
     
     ; Siguiente fila
     add di, 2
@@ -494,7 +273,7 @@ csp32o_b0_3:
     or al, dh
     or al, bl
     or al, bh
-    mov ds:[bp], al
+    mov [bp], al
     
     inc di
     inc bp
@@ -538,7 +317,7 @@ csp32o_b1_3:
     or al, dh
     or al, bl
     or al, bh
-    mov ds:[bp], al
+    mov [bp], al
     
     inc di
     inc bp
@@ -582,7 +361,7 @@ csp32o_b2_3:
     or al, dh
     or al, bl
     or al, bh
-    mov ds:[bp], al
+    mov [bp], al
     
     inc di
     inc bp
@@ -626,7 +405,7 @@ csp32o_b3_3:
     or al, dh
     or al, bl
     or al, bh
-    mov ds:[bp], al
+    mov [bp], al
     
     inc di
     inc bp
@@ -850,61 +629,48 @@ dibujar_sprite_planar_16x16_opt PROC
     push bp
     push es
     
-    ; Clipping
-    cmp cx, 320          ; ✅ CAMBIO: verificar límite correcto
-    jb dsp16o_clip_ok_x
-    jmp dsp16o_ret
-
-dsp16o_clip_ok_x:
-    cmp dx, 224          ; ✅ CAMBIO: 14*16 = 224
-    jb dsp16o_clip_ok_y
-    jmp dsp16o_ret
-
-dsp16o_clip_ok_y:
-
     mov ax, 0A000h
     mov es, ax
     
-    ; ✅ CORRECCIÓN CRÍTICA: Calcular offset correctamente
+    ; Calcular offset de video
     mov ax, dx
-    mov di, 80
-    mul di              ; AX = Y * 80
-    mov bp, ax
-    
+    mov bx, 80
+    mul bx
+    mov bp, ax              ; BP = offset base de fila
     mov ax, cx
-    shr ax, 3           ; Dividir X entre 8 para obtener byte
-    add bp, ax          ; BP = offset base
-    add bp, temp_offset ; ✅ AGREGAR el offset de página
+    shr ax, 3
+    add bp, ax
+    add bp, temp_offset
     
-    ; Configurar puerto
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx              ; DX = 3C5h
+    mov bx, di              ; BX = datos planar
+    ; SI ya tiene la máscara pre-calculada
     
-    push si             ; Guardar puntero a máscara
-    mov cx, 16          ; 16 filas
+    mov cx, 16              ; 16 filas
 
 dsp16o_fila:
-    pop si
-    push si
     push cx
     push bp
     push bx
+    push si
     
-    mov di, bp
-    
-    ; ===== PLANO 0 - BYTE 0 =====
+    ; --- PLANO 0 ---
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 0
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
     mov al, 1
     out dx, al
     
-    mov ah, [si]        ; AH = máscara
-    test ah, ah
-    jz dsp16o_p0b0_skip
-    cmp ah, 0FFh
-    je dsp16o_p0b0_opaque
+    mov di, bp
     
-    ; Transparencia parcial
+    ; Byte 0
+    mov ah, [si]            ; Máscara pre-calculada
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -913,26 +679,10 @@ dsp16o_fila:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp16o_p0b0_next
-    
-dsp16o_p0b0_opaque:
-    mov al, [bx]
-    mov es:[di], al
-    
-dsp16o_p0b0_skip:
-dsp16o_p0b0_next:
-    
-    ; ===== PLANO 0 - BYTE 1 =====
     inc di
-    mov al, 1
-    out dx, al
     
+    ; Byte 1
     mov ah, [si+1]
-    test ah, ah
-    jz dsp16o_p0b1_skip
-    cmp ah, 0FFh
-    je dsp16o_p0b1_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -941,26 +691,24 @@ dsp16o_p0b0_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp16o_p0b1_next
     
-dsp16o_p0b1_opaque:
-    mov al, [bx+1]
-    mov es:[di], al
-    
-dsp16o_p0b1_skip:
-dsp16o_p0b1_next:
-    
-    ; ===== PLANO 1 =====
-    mov di, bp
+    ; --- PLANO 1 ---
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
     mov al, 2
     out dx, al
     
-    mov ah, [si]
-    test ah, ah
-    jz dsp16o_p1b0_skip
-    cmp ah, 0FFh
-    je dsp16o_p1b0_opaque
+    mov di, bp
     
+    mov ah, [si]
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -969,22 +717,9 @@ dsp16o_p0b1_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp16o_p1b0_next
-    
-dsp16o_p1b0_opaque:
-    mov al, [bx+32]
-    mov es:[di], al
-    
-dsp16o_p1b0_skip:
-dsp16o_p1b0_next:
     inc di
     
     mov ah, [si+1]
-    test ah, ah
-    jz dsp16o_p1b1_skip
-    cmp ah, 0FFh
-    je dsp16o_p1b1_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -993,26 +728,24 @@ dsp16o_p1b0_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp16o_p1b1_next
-    
-dsp16o_p1b1_opaque:
-    mov al, [bx+33]
-    mov es:[di], al
-    
-dsp16o_p1b1_skip:
-dsp16o_p1b1_next:
-    
-    ; ===== PLANO 2 =====
-    mov di, bp
+
+    ; --- PLANO 2 ---
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
     mov al, 4
     out dx, al
     
-    mov ah, [si]
-    test ah, ah
-    jz dsp16o_p2b0_skip
-    cmp ah, 0FFh
-    je dsp16o_p2b0_opaque
+    mov di, bp
     
+    mov ah, [si]
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1021,22 +754,9 @@ dsp16o_p1b1_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp16o_p2b0_next
-    
-dsp16o_p2b0_opaque:
-    mov al, [bx+64]
-    mov es:[di], al
-    
-dsp16o_p2b0_skip:
-dsp16o_p2b0_next:
     inc di
     
     mov ah, [si+1]
-    test ah, ah
-    jz dsp16o_p2b1_skip
-    cmp ah, 0FFh
-    je dsp16o_p2b1_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1045,26 +765,24 @@ dsp16o_p2b0_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp16o_p2b1_next
-    
-dsp16o_p2b1_opaque:
-    mov al, [bx+65]
-    mov es:[di], al
-    
-dsp16o_p2b1_skip:
-dsp16o_p2b1_next:
-    
-    ; ===== PLANO 3 =====
-    mov di, bp
+
+    ; --- PLANO 3 ---
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 3
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
     mov al, 8
     out dx, al
     
-    mov ah, [si]
-    test ah, ah
-    jz dsp16o_p3b0_skip
-    cmp ah, 0FFh
-    je dsp16o_p3b0_opaque
+    mov di, bp
     
+    mov ah, [si]
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1073,22 +791,9 @@ dsp16o_p2b1_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp16o_p3b0_next
-    
-dsp16o_p3b0_opaque:
-    mov al, [bx+96]
-    mov es:[di], al
-    
-dsp16o_p3b0_skip:
-dsp16o_p3b0_next:
     inc di
     
     mov ah, [si+1]
-    test ah, ah
-    jz dsp16o_p3b1_skip
-    cmp ah, 0FFh
-    je dsp16o_p3b1_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1097,34 +802,36 @@ dsp16o_p3b0_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp16o_p3b1_next
-    
-dsp16o_p3b1_opaque:
-    mov al, [bx+97]
-    mov es:[di], al
-    
-dsp16o_p3b1_skip:
-dsp16o_p3b1_next:
     
     ; Siguiente fila
+    pop si
+    add si, 2               ; Siguiente fila de máscara
     pop bx
-    add bx, 2
+    add bx, 2               ; Siguiente fila de datos
     pop bp
-    add bp, 80
+    add bp, 80              ; Siguiente línea de video
+    
     pop cx
-    add si, 2
-    push si
     dec cx
-    jz dsp16o_loop_done
+    jz dsp16o_fin
     jmp dsp16o_fila
 
-dsp16o_loop_done:
-
-    pop si
+dsp16o_fin:
+    
+    ; Restaurar registros EGA
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
     mov al, 0Fh
     out dx, al
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    xor al, al
+    out dx, al
     
-dsp16o_ret:
     pop es
     pop bp
     pop di
@@ -1146,100 +853,60 @@ dibujar_sprite_planar_32x32_opt PROC
     push bp
     push es
     
-    ; Clipping mejorado
-    cmp cx, 288          ; 320-32 = 288
-    jb dsp32o_clip_ok_x
-    jmp dsp32o_ret
-
-dsp32o_clip_ok_x:
-    cmp dx, 192          ; 224-32 = 192
-    jb dsp32o_clip_ok_y
-    jmp dsp32o_ret
-
-dsp32o_clip_ok_y:
-    test cx, 8000h
-    jz dsp32o_clip_ok_signx
-    jmp dsp32o_ret
-
-dsp32o_clip_ok_signx:
-    test dx, 8000h
-    jz dsp32o_clip_ok_ready
-    jmp dsp32o_ret
-
-dsp32o_clip_ok_ready:
-
     mov ax, 0A000h
     mov es, ax
     
-    ; ✅ CORRECCIÓN CRÍTICA: Calcular offset correctamente
+    ; Calcular offset base
     mov ax, dx
-    mov di, 80
-    mul di              ; AX = Y * 80
+    mov bx, 80
+    mul bx
     mov bp, ax
-    
     mov ax, cx
-    shr ax, 3           ; Dividir X entre 8
+    shr ax, 3
     add bp, ax
-    add bp, temp_offset ; ✅ AGREGAR el offset de página
+    add bp, temp_offset
     
+    mov bx, di              ; BX = datos planar
+    ; SI ya tiene máscara pre-calculada
+    
+    mov cx, 32              ; 32 filas
+
+dsp32o_fila:
+    push cx
+    push bp
+    push bx
+    push si
+    
+    ; ===== PLANO 0 =====
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 0
+    out dx, al
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    
-    ; BX = datos planar, SI = máscara
-    push si                 
-    mov cx, 32
-
-dsp32o_fila:
-    pop si                  ; Recuperar máscara
-    push si
-    push cx
-    push bp
-    push bx
-    
-    mov di, bp
-    
-    ; ===== PLANO 0 =====
     mov al, 1
     out dx, al
     
+    mov di, bp
+    
     ; Byte 0
-    mov ah, [si]            ; AH = máscara
-    test ah, ah
-    jz dsp32o_p0_b0_skip    ; Si máscara = 0, saltar
-    cmp ah, 0FFh
-    je dsp32o_p0_b0_opaque  ; Si máscara = FF, copiar directo
-    
-    ; Transparencia parcial
+    mov ah, [si]
     mov cl, ah
-    not cl                  ; CL = ~máscara
-    mov ch, es:[di]         ; CH = fondo
-    and ch, cl              ; CH = fondo AND ~máscara
-    mov al, [bx]            ; AL = sprite
-    and al, ah              ; AL = sprite AND máscara
-    or al, ch               ; AL = mezcla
-    mov es:[di], al
-    jmp dsp32o_p0_b0_next
-    
-dsp32o_p0_b0_opaque:
+    not cl
+    mov ch, es:[di]
+    and ch, cl
     mov al, [bx]
+    and al, ah
+    or al, ch
     mov es:[di], al
-    jmp dsp32o_p0_b0_next
-    
-dsp32o_p0_b0_skip:
-    ; No hacer nada, dejar fondo
-    
-dsp32o_p0_b0_next:
     inc di
     
     ; Byte 1
     mov ah, [si+1]
-    test ah, ah
-    jz dsp32o_p0_b1_skip
-    cmp ah, 0FFh
-    je dsp32o_p0_b1_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1248,25 +915,10 @@ dsp32o_p0_b0_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p0_b1_next
-    
-dsp32o_p0_b1_opaque:
-    mov al, [bx+1]
-    mov es:[di], al
-    jmp dsp32o_p0_b1_next
-    
-dsp32o_p0_b1_skip:
-    
-dsp32o_p0_b1_next:
     inc di
     
     ; Byte 2
     mov ah, [si+2]
-    test ah, ah
-    jz dsp32o_p0_b2_skip
-    cmp ah, 0FFh
-    je dsp32o_p0_b2_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1275,25 +927,10 @@ dsp32o_p0_b1_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p0_b2_next
-    
-dsp32o_p0_b2_opaque:
-    mov al, [bx+2]
-    mov es:[di], al
-    jmp dsp32o_p0_b2_next
-    
-dsp32o_p0_b2_skip:
-    
-dsp32o_p0_b2_next:
     inc di
     
     ; Byte 3
     mov ah, [si+3]
-    test ah, ah
-    jz dsp32o_p0_b3_skip
-    cmp ah, 0FFh
-    je dsp32o_p0_b3_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1302,29 +939,24 @@ dsp32o_p0_b2_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p0_b3_next
-    
-dsp32o_p0_b3_opaque:
-    mov al, [bx+3]
-    mov es:[di], al
-    jmp dsp32o_p0_b3_next
-    
-dsp32o_p0_b3_skip:
-    
-dsp32o_p0_b3_next:
     
     ; ===== PLANO 1 =====
-    mov di, bp
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
     mov al, 2
     out dx, al
     
-    ; Byte 0
+    mov di, bp
+    
     mov ah, [si]
-    test ah, ah
-    jz dsp32o_p1_b0_skip
-    cmp ah, 0FFh
-    je dsp32o_p1_b0_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1333,25 +965,9 @@ dsp32o_p0_b3_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p1_b0_next
-    
-dsp32o_p1_b0_opaque:
-    mov al, [bx+128]
-    mov es:[di], al
-    jmp dsp32o_p1_b0_next
-    
-dsp32o_p1_b0_skip:
-    
-dsp32o_p1_b0_next:
     inc di
     
-    ; Byte 1
     mov ah, [si+1]
-    test ah, ah
-    jz dsp32o_p1_b1_skip
-    cmp ah, 0FFh
-    je dsp32o_p1_b1_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1360,25 +976,9 @@ dsp32o_p1_b0_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p1_b1_next
-    
-dsp32o_p1_b1_opaque:
-    mov al, [bx+129]
-    mov es:[di], al
-    jmp dsp32o_p1_b1_next
-    
-dsp32o_p1_b1_skip:
-    
-dsp32o_p1_b1_next:
     inc di
     
-    ; Byte 2
     mov ah, [si+2]
-    test ah, ah
-    jz dsp32o_p1_b2_skip
-    cmp ah, 0FFh
-    je dsp32o_p1_b2_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1387,25 +987,9 @@ dsp32o_p1_b1_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p1_b2_next
-    
-dsp32o_p1_b2_opaque:
-    mov al, [bx+130]
-    mov es:[di], al
-    jmp dsp32o_p1_b2_next
-    
-dsp32o_p1_b2_skip:
-    
-dsp32o_p1_b2_next:
     inc di
     
-    ; Byte 3
     mov ah, [si+3]
-    test ah, ah
-    jz dsp32o_p1_b3_skip
-    cmp ah, 0FFh
-    je dsp32o_p1_b3_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1414,29 +998,24 @@ dsp32o_p1_b2_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p1_b3_next
-    
-dsp32o_p1_b3_opaque:
-    mov al, [bx+131]
-    mov es:[di], al
-    jmp dsp32o_p1_b3_next
-    
-dsp32o_p1_b3_skip:
-    
-dsp32o_p1_b3_next:
     
     ; ===== PLANO 2 =====
-    mov di, bp
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
     mov al, 4
     out dx, al
     
-    ; Byte 0
+    mov di, bp
+    
     mov ah, [si]
-    test ah, ah
-    jz dsp32o_p2_b0_skip
-    cmp ah, 0FFh
-    je dsp32o_p2_b0_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1445,25 +1024,9 @@ dsp32o_p1_b3_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p2_b0_next
-    
-dsp32o_p2_b0_opaque:
-    mov al, [bx+256]
-    mov es:[di], al
-    jmp dsp32o_p2_b0_next
-    
-dsp32o_p2_b0_skip:
-    
-dsp32o_p2_b0_next:
     inc di
     
-    ; Byte 1
     mov ah, [si+1]
-    test ah, ah
-    jz dsp32o_p2_b1_skip
-    cmp ah, 0FFh
-    je dsp32o_p2_b1_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1472,25 +1035,9 @@ dsp32o_p2_b0_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p2_b1_next
-    
-dsp32o_p2_b1_opaque:
-    mov al, [bx+257]
-    mov es:[di], al
-    jmp dsp32o_p2_b1_next
-    
-dsp32o_p2_b1_skip:
-    
-dsp32o_p2_b1_next:
     inc di
     
-    ; Byte 2
     mov ah, [si+2]
-    test ah, ah
-    jz dsp32o_p2_b2_skip
-    cmp ah, 0FFh
-    je dsp32o_p2_b2_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1499,25 +1046,9 @@ dsp32o_p2_b1_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p2_b2_next
-    
-dsp32o_p2_b2_opaque:
-    mov al, [bx+258]
-    mov es:[di], al
-    jmp dsp32o_p2_b2_next
-    
-dsp32o_p2_b2_skip:
-    
-dsp32o_p2_b2_next:
     inc di
     
-    ; Byte 3
     mov ah, [si+3]
-    test ah, ah
-    jz dsp32o_p2_b3_skip
-    cmp ah, 0FFh
-    je dsp32o_p2_b3_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1526,29 +1057,24 @@ dsp32o_p2_b2_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p2_b3_next
-    
-dsp32o_p2_b3_opaque:
-    mov al, [bx+259]
-    mov es:[di], al
-    jmp dsp32o_p2_b3_next
-    
-dsp32o_p2_b3_skip:
-    
-dsp32o_p2_b3_next:
     
     ; ===== PLANO 3 =====
-    mov di, bp
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 3
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
     mov al, 8
     out dx, al
     
-    ; Byte 0
+    mov di, bp
+    
     mov ah, [si]
-    test ah, ah
-    jz dsp32o_p3_b0_skip
-    cmp ah, 0FFh
-    je dsp32o_p3_b0_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1557,25 +1083,9 @@ dsp32o_p2_b3_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p3_b0_next
-    
-dsp32o_p3_b0_opaque:
-    mov al, [bx+384]
-    mov es:[di], al
-    jmp dsp32o_p3_b0_next
-    
-dsp32o_p3_b0_skip:
-    
-dsp32o_p3_b0_next:
     inc di
     
-    ; Byte 1
     mov ah, [si+1]
-    test ah, ah
-    jz dsp32o_p3_b1_skip
-    cmp ah, 0FFh
-    je dsp32o_p3_b1_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1584,25 +1094,9 @@ dsp32o_p3_b0_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p3_b1_next
-    
-dsp32o_p3_b1_opaque:
-    mov al, [bx+385]
-    mov es:[di], al
-    jmp dsp32o_p3_b1_next
-    
-dsp32o_p3_b1_skip:
-    
-dsp32o_p3_b1_next:
     inc di
     
-    ; Byte 2
     mov ah, [si+2]
-    test ah, ah
-    jz dsp32o_p3_b2_skip
-    cmp ah, 0FFh
-    je dsp32o_p3_b2_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1611,25 +1105,9 @@ dsp32o_p3_b1_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p3_b2_next
-    
-dsp32o_p3_b2_opaque:
-    mov al, [bx+386]
-    mov es:[di], al
-    jmp dsp32o_p3_b2_next
-    
-dsp32o_p3_b2_skip:
-    
-dsp32o_p3_b2_next:
     inc di
     
-    ; Byte 3
     mov ah, [si+3]
-    test ah, ah
-    jz dsp32o_p3_b3_skip
-    cmp ah, 0FFh
-    je dsp32o_p3_b3_opaque
-    
     mov cl, ah
     not cl
     mov ch, es:[di]
@@ -1638,35 +1116,36 @@ dsp32o_p3_b2_next:
     and al, ah
     or al, ch
     mov es:[di], al
-    jmp dsp32o_p3_b3_next
-    
-dsp32o_p3_b3_opaque:
-    mov al, [bx+387]
-    mov es:[di], al
-    jmp dsp32o_p3_b3_next
-    
-dsp32o_p3_b3_skip:
-    
-dsp32o_p3_b3_next:
     
     ; Siguiente fila
+    pop si
+    add si, 4
     pop bx
     add bx, 4
     pop bp
     add bp, 80
+    
     pop cx
-    add si, 4
-    push si
     dec cx
-    jz dsp32o_loop_done
+    jz dsp32o_fin
     jmp dsp32o_fila
 
-dsp32o_loop_done:
-    pop si
+dsp32o_fin:
+    
+    ; Restaurar
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
     mov al, 0Fh
     out dx, al
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    xor al, al
+    out dx, al
     
-dsp32o_ret:
     pop es
     pop bp
     pop di
