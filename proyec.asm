@@ -1117,7 +1117,10 @@ dmo_fila_body:
 
 dmo_col:
     cmp si, 22
-    jae dmo_next_fila
+     jb dmo_col_body
+    jmp dmo_next_fila
+
+dmo_col_body:
     
     ; ===== Calcular tile_y =====
     mov ax, inicio_tile_y
