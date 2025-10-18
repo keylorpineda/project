@@ -35,7 +35,9 @@ iso_clear:
     mov last_cam_tile_y, ax
     mov last_player_tile_x, ax
     mov last_player_tile_y, ax
-    
+    mov last_player_px, ax
+    mov last_player_py, ax
+
     pop di
     pop cx
     pop bx
@@ -147,6 +149,8 @@ marcar_tiles_afectados PROC
     push bx
     push cx
     push dx
+    push si
+    push di
     
     ; ✅ CRÍTICO: Incrementar frame counter ANTES de verificar
     inc frame_counter_opt
@@ -166,78 +170,127 @@ marcar_tiles_afectados PROC
 mta_camara_movio:
     ; ✅ CORRECCIÓN: Cuando la cámara se mueve, forzar redibujado completo
     mov force_full_redraw, 2        ; Preparar ambos buffers para el nuevo estado
-    
+
     mov ax, inicio_tile_x
     mov last_cam_tile_x, ax
     mov ax, inicio_tile_y
     mov last_cam_tile_y, ax
-    
-    jmp mta_fin
 
-mta_check_player:
-    ; ===== DETECTAR MOVIMIENTO DE JUGADOR =====
+    mov ax, jugador_px
+    mov last_player_px, ax
+    mov ax, jugador_py
+    mov last_player_py, ax
+
     mov ax, jugador_px
     add ax, 8
     shr ax, 4
-    mov bx, ax
-    
+    mov last_player_tile_x, ax
+
     mov ax, jugador_py
     add ax, 8
     shr ax, 4
-    mov cx, ax
-    
-    cmp bx, last_player_tile_x
+    mov last_player_tile_y, ax
+
+    jmp mta_fin
+
+mta_check_player:
+    ; ===== DETECTAR MOVIMIENTO DE JUGADOR EN PIXELES =====
+    mov ax, jugador_px
+    cmp ax, last_player_px
     jne mta_player_movio
-    cmp cx, last_player_tile_y
+
+    mov ax, jugador_py
+    cmp ax, last_player_py
     jne mta_player_movio
-    
+
     jmp mta_fin
 
 mta_player_movio:
     ; ===== MARCAR TILES ANTIGUOS (2×2) =====
-    mov ax, last_player_tile_x
+    mov ax, last_player_px
     cmp ax, 0FFFFh
     je mta_skip_old
-    
-    mov dx, last_player_tile_y
+
+    mov si, ax
+    mov ax, last_player_py
+    mov di, ax
+
+    mov ax, si
+    add ax, 8
+    shr ax, 4
+    mov bx, ax                ; Tile X anterior
+
+    mov ax, di
+    add ax, 8
+    shr ax, 4
+    mov cx, ax                ; Tile Y anterior
+
+    mov ax, bx
+    mov dx, cx
     call marcar_tile_si_visible
-    
-    mov ax, last_player_tile_x
+
+    mov ax, bx
     inc ax
-    mov dx, last_player_tile_y
+    mov dx, cx
     call marcar_tile_si_visible
-    
-    mov ax, last_player_tile_x
-    mov dx, last_player_tile_y
+
+    mov ax, bx
+    mov dx, cx
     inc dx
     call marcar_tile_si_visible
-    
-    mov ax, last_player_tile_x
+
+    mov ax, bx
     inc ax
-    mov dx, last_player_tile_y
+    mov dx, cx
     inc dx
     call marcar_tile_si_visible
 
 mta_skip_old:
     ; ===== MARCAR TILES NUEVOS (2×2) =====
+    mov ax, jugador_px
+    mov si, ax
+    add ax, 8
+    shr ax, 4
+    mov bx, ax                ; Tile X actual
+
+    mov ax, jugador_py
+    mov di, ax
+    add ax, 8
+    shr ax, 4
+    mov cx, ax                ; Tile Y actual
+
     mov ax, bx
     mov dx, cx
     call marcar_tile_si_visible
-    
-    inc ax
-    call marcar_tile_si_visible
-    
+
     mov ax, bx
+    inc ax
+    mov dx, cx
+    call marcar_tile_si_visible
+
+    mov ax, bx
+    mov dx, cx
     inc dx
     call marcar_tile_si_visible
-    
+
+    mov ax, bx
     inc ax
+    mov dx, cx
+    inc dx
     call marcar_tile_si_visible
-    
-    mov last_player_tile_x, bx
-    mov last_player_tile_y, cx
+
+    mov ax, bx
+    mov last_player_tile_x, ax
+    mov ax, cx
+    mov last_player_tile_y, ax
+    mov ax, si
+    mov last_player_px, ax
+    mov ax, di
+    mov last_player_py, ax
 
 mta_fin:
+    pop di
+    pop si
     pop dx
     pop cx
     pop bx

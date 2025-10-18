@@ -163,6 +163,8 @@ last_cam_tile_x     dw 0
 last_cam_tile_y     dw 0
 last_player_tile_x  dw 0
 last_player_tile_y  dw 0
+last_player_px      dw 0
+last_player_py      dw 0
 
 msg_titulo  db 'JUEGO EGA - Universidad Nacional',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
