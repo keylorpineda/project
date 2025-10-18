@@ -715,14 +715,9 @@ dsp16o_fila:
     pop cx
     ; loop dsp16o_fila        ; <-- Original (Error)
     dec cx                    ; ✅ REPARADO: Reemplazo de LOOP
-    jnz dsp16o_fila           ; ✅ REPARADO: JNZ funciona, pero si falla, usar JZ/JMP
-    
-    ; === NOTA: Si JNZ también da "out of range", usa este bloque:
-    ; dec cx
-    ; jz dsp16o_fin_loop
-    ; jmp dsp16o_fila
-; dsp16o_fin_loop:
-    ; === Fin de la nota
+    jz  dsp16o_fin_loop       ; ✅ Alternativa: evita "out of range"
+    jmp NEAR PTR dsp16o_fila  ; ✅ Salto incondicional con desplazamiento de 16 bits
+dsp16o_fin_loop:
     
     pop bp
     
