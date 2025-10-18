@@ -1121,19 +1121,44 @@ dibujar_mapa_en_offset PROC
     mov bx, [bx]
     add bx, inicio_tile_x
     lea di, [mapa_datos + bx]       ; DI = puntero a primera fila en mapa
-    
+
+    ; ===== Determinar si se requieren filas/columnas extra por scroll =====
+    xor ax, ax
+    mov temp_col, ax                ; 0 = sin columna extra
+    mov temp_fila, ax               ; 0 = sin fila extra
+
+    mov ax, scroll_offset_x
+    cmp ax, 0
+    je dmo_no_extra_col
+    mov ax, inicio_tile_x
+    add ax, 21
+    cmp ax, 100
+    jae dmo_no_extra_col
+    mov temp_col, 1                 ; Se dibuja columna 22 (índice 21)
+dmo_no_extra_col:
+
+    mov ax, scroll_offset_y
+    cmp ax, 0
+    je dmo_no_extra_row
+    mov ax, inicio_tile_y
+    add ax, 13
+    cmp ax, 100
+    jae dmo_no_extra_row
+    mov temp_fila, 1                ; Se dibuja fila 14 (índice 13)
+dmo_no_extra_row:
+
     xor bp, bp                       ; BP = fila (0-12)
 
 dmo_fila_opt:
     cmp bp, 13
-    jae dmo_fin_opt
-    
+    jae dmo_extra_row_check
+
     mov bx, di                       ; BX = puntero actual en fila
     xor si, si                       ; SI = columna (0-20)
 
 dmo_col_opt:
     cmp si, 21
-    jae dmo_next_fila_opt
+    jae dmo_extra_col_opt
     
     ; ===== VERIFICAR SI TILE ESTÁ SUCIO =====
     call tile_esta_sucio
@@ -1182,10 +1207,138 @@ dmo_next_col_opt:
     inc si
     jmp dmo_col_opt
 
+dmo_extra_col_opt:
+    mov ax, temp_col
+    cmp ax, 0
+    je dmo_next_fila_opt
+
+    mov al, [bx]
+    inc bx
+
+    push bx
+
+    mov dx, si                       ; SI contiene 21 en esta ruta
+    call obtener_sprite_rapido
+
+    push si
+    push di
+
+    mov ax, dx
+    shl ax, 4
+    add ax, viewport_x
+    sub ax, scroll_offset_x
+    mov cx, ax
+
+    mov ax, bp
+    shl ax, 4
+    add ax, viewport_y
+    sub ax, scroll_offset_y
+    mov dx, ax
+
+    pop di
+    pop si
+
+    call dibujar_sprite_planar_16x16_opt
+
+    pop bx
+
 dmo_next_fila_opt:
     add di, 100                      ; Siguiente fila en mapa (Y+1)
     inc bp
     jmp dmo_fila_opt
+
+dmo_extra_row_check:
+    mov ax, temp_fila
+    cmp ax, 0
+    je dmo_fin_opt
+
+    ; ===== Dibujar fila adicional (scroll vertical) =====
+    ; Recalcular puntero base a la fila nueva =====
+    mov ax, inicio_tile_y
+    add ax, 13
+    shl ax, 1
+    mov si, ax
+    mov bx, OFFSET mul100_table
+    add bx, si
+    mov bx, [bx]
+    add bx, inicio_tile_x
+    lea di, [mapa_datos + bx]
+
+    mov bp, 13
+    mov bx, di
+    xor si, si
+
+dmo_extra_row_loop:
+    cmp si, 21
+    jae dmo_extra_row_column
+
+    mov al, [bx]
+    inc bx
+
+    push bx
+
+    mov dx, si
+    call obtener_sprite_rapido
+
+    push si
+    push di
+
+    mov ax, dx
+    shl ax, 4
+    add ax, viewport_x
+    sub ax, scroll_offset_x
+    mov cx, ax
+
+    mov ax, bp
+    shl ax, 4
+    add ax, viewport_y
+    sub ax, scroll_offset_y
+    mov dx, ax
+
+    pop di
+    pop si
+
+    call dibujar_sprite_planar_16x16_opt
+
+    pop bx
+
+    inc si
+    jmp dmo_extra_row_loop
+
+dmo_extra_row_column:
+    mov ax, temp_col
+    cmp ax, 0
+    je dmo_fin_opt
+
+    mov al, [bx]
+    inc bx
+
+    push bx
+
+    mov dx, si                       ; SI = 21 para la columna extra
+    call obtener_sprite_rapido
+
+    push si
+    push di
+
+    mov ax, dx
+    shl ax, 4
+    add ax, viewport_x
+    sub ax, scroll_offset_x
+    mov cx, ax
+
+    mov ax, bp
+    shl ax, 4
+    add ax, viewport_y
+    sub ax, scroll_offset_y
+    mov dx, ax
+
+    pop di
+    pop si
+
+    call dibujar_sprite_planar_16x16_opt
+
+    pop bx
 
 dmo_fin_opt:
     ; ===== LIMPIAR FLAGS PARA PRÓXIMO FRAME =====
