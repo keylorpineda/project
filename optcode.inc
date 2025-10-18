@@ -263,7 +263,8 @@ cspo_d3:
     
     pop cx
     dec cx
-    jnz cspo_fila
+    jz cspo_fin
+    jmp cspo_fila
 
 cspo_fin:
     pop bp
@@ -464,7 +465,8 @@ csp32o_b3_3:
     ; Siguiente fila
     pop cx
     dec cx
-    jnz csp32o_fila
+    jz csp32o_fin
+    jmp csp32o_fila
 
 csp32o_fin:
     pop bp
@@ -765,7 +767,10 @@ dsp16o_loop_fila:
     add di, 2
     pop cx
     dec cx
-    jnz dsp16o_loop_fila
+    jz dsp16o_fin_filas
+    jmp dsp16o_loop_fila
+
+dsp16o_fin_filas:
 
     ; Restaurar EGA
     mov dx, 3C4h
@@ -1360,7 +1365,10 @@ dsp32o_loop_fila:
     add si, 4           ; Siguiente fila de máscaras (4 bytes)
     pop cx
     dec cx
-    jnz dsp32o_loop_fila
+    jz dsp32o_fin_filas
+    jmp dsp32o_loop_fila
+
+dsp32o_fin_filas:
 
     ; ============================================
     ; Restaurar registros EGA
