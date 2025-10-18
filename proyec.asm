@@ -661,7 +661,7 @@ centrar_camara PROC
     push bx
     push dx
 
-    ; Alinear cámara a múltiplos de 16
+    ; Calcular posición objetivo de la cámara
     mov ax, jugador_px
     sub ax, 160
     jge cc_x_pos
@@ -673,16 +673,15 @@ cc_x_pos:
 cc_x_ok:
 
     ; Actualizar desplazamiento de scroll horizontal (remainder de 16)
-    mov dx, scroll_offset_x
-    mov bx, ax
-    and bx, 0Fh
-    mov scroll_offset_x, bx
-    cmp bx, dx
+    mov dx, ax
+    and dx, 0Fh
+    mov bx, scroll_offset_x
+    cmp dx, bx
     je cc_store_cam_x
     mov force_full_redraw, 2        ; Forzar redraw en ambas páginas
 
 cc_store_cam_x:
-    and ax, 0FFF0h                  ; ✅ Alinear cámara al grid de 16 px
+    mov scroll_offset_x, dx
     mov camara_px, ax
 
     mov ax, jugador_py
@@ -696,16 +695,15 @@ cc_y_pos:
 cc_y_ok:
 
     ; Actualizar desplazamiento de scroll vertical (remainder de 16)
-    mov dx, scroll_offset_y
-    mov bx, ax
-    and bx, 0Fh
-    mov scroll_offset_y, bx
-    cmp bx, dx
+    mov dx, ax
+    and dx, 0Fh
+    mov bx, scroll_offset_y
+    cmp dx, bx
     je cc_store_cam_y
     mov force_full_redraw, 2        ; Forzar redraw en ambas páginas
 
 cc_store_cam_y:
-    and ax, 0FFF0h                  ; ✅ Alinear cámara al grid de 16 px
+    mov scroll_offset_y, dx
     mov camara_py, ax
 
 cc_fin:
@@ -1390,14 +1388,12 @@ dibujar_jugador_en_offset PROC
     mov ax, jugador_px
     sub ax, camara_px
     add ax, viewport_x
-    sub ax, scroll_offset_x
     sub ax, 16               ; Centrar sprite (32/2)
     mov cx, ax
 
     mov ax, jugador_py
     sub ax, camara_py
     add ax, viewport_y
-    sub ax, scroll_offset_y
     sub ax, 16
     mov dx, ax
     
