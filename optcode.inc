@@ -173,6 +173,71 @@ marcar_region_jugador PROC
     ret
 marcar_region_jugador ENDP
 
+marcar_viewport_completo PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+
+    mov ax, camara_px
+    shr ax, 4
+    mov inicio_tile_x, ax
+
+    mov ax, camara_py
+    shr ax, 4
+    mov inicio_tile_y, ax
+
+    xor bp, bp              ; Fila dentro del viewport
+
+mvc_fila:
+    cmp bp, 14
+    jae mvc_fin
+
+    xor si, si              ; Columna dentro del viewport
+
+mvc_col:
+    cmp si, 22
+    jae mvc_next_fila
+
+    mov ax, inicio_tile_y
+    add ax, bp
+    cmp ax, 100
+    jae mvc_skip_col
+
+    mov dx, inicio_tile_x
+    add dx, si
+    cmp dx, 100
+    jae mvc_skip_col
+
+    mov bx, ax
+    shl bx, 1
+    mov cx, [mul100_table + bx]
+    add cx, dx
+    mov bx, cx
+    mov byte ptr [dirty_tiles + bx], 1
+
+mvc_skip_col:
+    inc si
+    jmp mvc_col
+
+mvc_next_fila:
+    inc bp
+    jmp mvc_fila
+
+mvc_fin:
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+marcar_viewport_completo ENDP
+
 ; ============================================
 ; VERIFICACIÓN DE TRANSITABILIDAD (OK)
 ; ============================================
