@@ -112,6 +112,9 @@ pasos_dados db 0
 camara_px   dw 240
 camara_py   dw 304
 
+camara_px_old   dw 240
+camara_py_old   dw 304
+
 pagina_visible db 0
 pagina_dibujo  db 1
 
@@ -272,6 +275,11 @@ rep stosw
 ; ===== INICIALIZAR JUEGO =====
 call centrar_camara
 
+mov ax, camara_px
+mov camara_px_old, ax
+mov ax, camara_py
+mov camara_py_old, ax
+
 ; Asegurar que dirty_tiles se llene en el segmento de datos
 push ds
 pop es
@@ -335,6 +343,19 @@ bucle_juego:
     
 ; CÓDIGO CORREGIDO
 bg_hay_cambio:
+    ; ✅ Redibujar viewport completo si la cámara se movió
+    mov ax, camara_px
+    cmp ax, camara_px_old
+    jne bg_marcar_viewport
+    mov ax, camara_py
+    cmp ax, camara_py_old
+    jne bg_marcar_viewport
+    jmp bg_marcar_jugador
+
+bg_marcar_viewport:
+    call marcar_viewport_completo
+
+bg_marcar_jugador:
     ; ✅ 1. MARCAR REGIÓN ANTERIOR PRIMERO
     mov ax, jugador_px            ; Guardar posición actual
     mov bx, jugador_py
@@ -390,7 +411,11 @@ bg_cambiar_pagina:
     mov jugador_py_old, ax
     mov al, jugador_frame
     mov frame_old, al
-    
+    mov ax, camara_px
+    mov camara_px_old, ax
+    mov ax, camara_py
+    mov camara_py_old, ax
+
     jmp bucle_juego
 
 error_carga:
@@ -1070,19 +1095,28 @@ dibujar_mapa_en_offset PROC
     mov ax, camara_py
     shr ax, 4
     mov inicio_tile_y, ax
-    
-    xor bp, bp              ; BP = fila actual (0-12)
+
+    ; Guardar desplazamientos finos para scroll suave
+    mov ax, camara_px
+    and ax, 0Fh
+    mov scroll_offset_x, ax
+
+    mov ax, camara_py
+    and ax, 0Fh
+    mov scroll_offset_y, ax
+
+    xor bp, bp              ; BP = fila actual (0-13)
 
 dmo_fila:
-    cmp bp, 13
-   jb dmo_fila_body
+    cmp bp, 14
+    jb dmo_fila_body
     jmp dmo_fin
 
 dmo_fila_body:
-    xor si, si              ; SI = columna actual (0-20)
+    xor si, si              ; SI = columna actual (0-21)
 
 dmo_col:
-    cmp si, 21
+    cmp si, 22
     jae dmo_next_fila
     
     ; ===== Calcular tile_y =====
@@ -1142,12 +1176,14 @@ dmo_col:
     mov ax, bx              ; AX = fila
     shl ax, 4               ; AX = fila * 16
     add ax, viewport_y
+    sub ax, scroll_offset_y
     mov dx, ax              ; DX = Y en pantalla
     
     ; Calcular X = columna * 16 + viewport_x
     pop ax                  ; Recuperar columna
     shl ax, 4               ; AX = columna * 16
     add ax, viewport_x
+    sub ax, scroll_offset_x
     mov cx, ax              ; CX = X en pantalla
     
     ; ===== RECUPERAR punteros a sprite =====
