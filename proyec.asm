@@ -657,7 +657,8 @@ actualizar_animacion ENDP
 centrar_camara PROC
     push ax
     push bx
-    
+    push dx
+
     ; Alinear cámara a múltiplos de 16
     mov ax, jugador_px
     sub ax, 160
@@ -669,7 +670,17 @@ cc_x_pos:
     mov ax, 1280
 cc_x_ok:
     mov camara_px, ax
-    
+
+    ; Actualizar desplazamiento de scroll horizontal (remainder de 16)
+    mov dx, scroll_offset_x
+    mov bx, ax
+    and bx, 0Fh
+    mov scroll_offset_x, bx
+    cmp bx, dx
+    je cc_skip_force_x
+    mov force_full_redraw, 1
+cc_skip_force_x:
+
     mov ax, jugador_py
     sub ax, 96
     jge cc_y_pos
@@ -680,7 +691,18 @@ cc_y_pos:
     mov ax, 1408
 cc_y_ok:
     mov camara_py, ax
-    
+
+    ; Actualizar desplazamiento de scroll vertical (remainder de 16)
+    mov dx, scroll_offset_y
+    mov bx, ax
+    and bx, 0Fh
+    mov scroll_offset_y, bx
+    cmp bx, dx
+    je cc_fin
+    mov force_full_redraw, 1
+
+cc_fin:
+    pop dx
     pop bx
     pop ax
     ret
@@ -1134,12 +1156,14 @@ dmo_col_opt:
     mov ax, dx                       ; Recuperar columna actual
     shl ax, 4
     add ax, viewport_x
+    sub ax, scroll_offset_x
     mov cx, ax
-    
+
     ; DX = fila × 16 + viewport_y
     mov ax, bp
     shl ax, 4
     add ax, viewport_y
+    sub ax, scroll_offset_y
     mov dx, ax
     
     pop di                           ; Restaurar datos
@@ -1193,12 +1217,14 @@ dibujar_jugador_en_offset PROC
     mov ax, jugador_px
     sub ax, camara_px
     add ax, viewport_x
+    sub ax, scroll_offset_x
     sub ax, 16               ; Centrar sprite (32/2)
     mov cx, ax
-    
+
     mov ax, jugador_py
     sub ax, camara_py
     add ax, viewport_y
+    sub ax, scroll_offset_y
     sub ax, 16
     mov dx, ax
     
