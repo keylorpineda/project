@@ -271,10 +271,18 @@ rep stosw
 
 ; ===== INICIALIZAR JUEGO =====
 call centrar_camara
+
+; Asegurar que dirty_tiles se llene en el segmento de datos
+push ds
+pop es
 mov cx, 10000
 mov di, OFFSET dirty_tiles
 mov al, 1
 rep stosb
+
+; Restaurar ES al segmento de video para siguientes operaciones de VRAM
+mov ax, VIDEO_SEG
+mov es, ax
 ; **CRÍTICO**: Renderizar PÁGINA 0 primero
 mov temp_offset, 0
 call dibujar_mapa_en_offset
@@ -328,21 +336,19 @@ bucle_juego:
 ; CÓDIGO CORREGIDO
 bg_hay_cambio:
     ; ✅ 1. MARCAR REGIÓN ANTERIOR PRIMERO
-    push ax
-    push bx
-    
-    mov ax, jugador_px_old
-    mov bx, jugador_py_old
-    mov jugador_px, ax
-    mov jugador_py, bx
-    
+    mov ax, jugador_px            ; Guardar posición actual
+    mov bx, jugador_py
+
+    mov cx, jugador_px_old        ; Usar posición previa para marcar dirty
+    mov dx, jugador_py_old
+    mov jugador_px, cx
+    mov jugador_py, dx
+
     call marcar_region_jugador
-    
-    pop bx
-    pop ax
-    mov jugador_px, ax
+
+    mov jugador_px, ax            ; Restaurar posición actual
     mov jugador_py, bx
-    
+
     ; ✅ 2. MARCAR REGIÓN ACTUAL
     call marcar_region_jugador
     
