@@ -186,16 +186,26 @@ anim_ok:
     int 21h
     
     ; ===== FASE 5: CONVERTIR A PLANAR =====
-    mov dx, OFFSET msg_convert
-    mov ah, 9
-    int 21h
-    call convertir_todos_sprites_planar
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
-    
-    ; ===== FASE 6: INICIALIZAR TABLAS =====
-    mov dx, OFFSET msg_tablas
+mov dx, OFFSET msg_convert
+mov ah, 9
+int 21h
+call convertir_todos_sprites_planar
+mov dx, OFFSET msg_ok
+mov ah, 9
+int 21h
+
+; ===== FASE 5B: PRE-CALCULAR MÁSCARAS (CRÍTICO) =====
+mov dx, OFFSET msg_convert
+mov ah, 9
+int 21h
+call precalcular_mascaras_tiles
+call precalcular_mascaras_jugador
+mov dx, OFFSET msg_ok
+mov ah, 9
+int 21h
+
+; ===== FASE 6: INICIALIZAR TABLAS =====
+mov dx, OFFSET msg_tablas
     mov ah, 9
     int 21h
     call inicializar_lookup_tables
