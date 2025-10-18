@@ -271,10 +271,18 @@ rep stosw
 
 ; ===== INICIALIZAR JUEGO =====
 call centrar_camara
+
+; Asegurar que dirty_tiles se llene en el segmento de datos
+push ds
+pop es
 mov cx, 10000
 mov di, OFFSET dirty_tiles
 mov al, 1
 rep stosb
+
+; Restaurar ES al segmento de video para siguientes operaciones de VRAM
+mov ax, VIDEO_SEG
+mov es, ax
 ; **CRÍTICO**: Renderizar PÁGINA 0 primero
 mov temp_offset, 0
 call dibujar_mapa_en_offset
