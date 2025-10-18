@@ -1,14 +1,6 @@
 ; ============================================
-; OPTSYS.INC - Sistema de Optimización FASE 1
+; OPTSYS.INC - VERSIÓN CORREGIDA FINAL
 ; Universidad Nacional - Proyecto II Ciclo 2025
-; ============================================
-; IMPLEMENTACIÓN DESDE CERO:
-; - Tabla de punteros de sprites (sin comparaciones)
-; - Sistema de dirty tiles (redibujo selectivo)
-; ============================================
-
-; ============================================
-; DATOS DEL SISTEMA DE OPTIMIZACIÓN
 ; ============================================
 
 ; ============================================
@@ -19,22 +11,23 @@ inicializar_sistema_opt PROC
     push ax
     push bx
     push cx
+    push di
     
     ; ===== PASO 1: Inicializar tabla de punteros =====
     call init_sprite_table
     
-    ; ===== PASO 2: Limpiar dirty map =====
+    ; ===== PASO 2: LIMPIAR dirty map completamente =====
+    mov di, OFFSET dirty_map
+    xor al, al                  ; ✅ Inicializar en 0
     mov cx, 273
-    xor ax, ax
-    mov bx, OFFSET dirty_map
-iso_clear_loop:
-    mov [bx], al
-    inc bx
-    loop iso_clear_loop
+iso_clear:
+    mov [di], al
+    inc di
+    loop iso_clear
     
     ; ===== PASO 3: Forzar primer frame completo =====
     mov force_full_redraw, 1
-    mov frame_counter_opt, 0
+    mov frame_counter_opt, 0    ; ✅ Empezar en 0
     
     ; ===== PASO 4: Inicializar caché =====
     mov ax, 0FFFFh
@@ -43,6 +36,7 @@ iso_clear_loop:
     mov last_player_tile_x, ax
     mov last_player_tile_y, ax
     
+    pop di
     pop cx
     pop bx
     pop ax
@@ -50,14 +44,13 @@ iso_clear_loop:
 inicializar_sistema_opt ENDP
 
 ; ============================================
-; TABLA DE PUNTEROS - Mapeo de Tiles
+; TABLA DE PUNTEROS (sin cambios)
 ; ============================================
 
 init_sprite_table PROC
     push ax
     push bx
     
-    ; Por defecto: GRASS1 para todos los tiles
     mov cx, 256
     mov bx, OFFSET sprite_data_ptrs
 ist_default_loop:
@@ -72,69 +65,56 @@ ist_mask_loop:
     add bx, 2
     loop ist_mask_loop
     
-    ; ===== Mapear cada tipo de tile =====
-    
-    ; TILE_PATH (3)
     mov bx, TILE_PATH
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_path
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_path_mask
     
-    ; TILE_WATER (4)
     mov bx, TILE_WATER
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_water
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_water_mask
     
-    ; TILE_TREE (5)
     mov bx, TILE_TREE
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_tree
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_tree_mask
     
-    ; TILE_SAND (6)
     mov bx, TILE_SAND
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_sand
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_sand_mask
     
-    ; TILE_ROCK (7)
     mov bx, TILE_ROCK
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_rock
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_rock_mask
     
-    ; TILE_SNOW (8)
     mov bx, TILE_SNOW
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_snow
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_snow_mask
     
-    ; TILE_ICE (9)
     mov bx, TILE_ICE
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_ice
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_ice_mask
     
-    ; TILE_WALL (10)
     mov bx, TILE_WALL
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_wall
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_wall_mask
     
-    ; TILE_DIRT (13)
     mov bx, TILE_DIRT
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_dirt
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_dirt_mask
     
-    ; TILE_LAVA (14)
     mov bx, TILE_LAVA
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_lava
     mov word ptr [sprite_mask_ptrs + bx], OFFSET sprite_lava_mask
     
-    ; TILE_BRIDGE (15)
     mov bx, TILE_BRIDGE
     shl bx, 1
     mov word ptr [sprite_data_ptrs + bx], OFFSET sprite_bridge
@@ -145,13 +125,7 @@ ist_mask_loop:
     ret
 init_sprite_table ENDP
 
-; ============================================
-; OBTENER SPRITE (3 CICLOS vs 40+ antes)
-; ============================================
-
 obtener_sprite_rapido PROC
-    ; Entrada: AL = tipo de tile
-    ; Salida: DI = datos planar, SI = máscara
     push bx
     
     xor bh, bh
@@ -165,7 +139,7 @@ obtener_sprite_rapido PROC
 obtener_sprite_rapido ENDP
 
 ; ============================================
-; SISTEMA DE DIRTY TILES
+; SISTEMA DE DIRTY TILES - COMPLETAMENTE REESCRITO
 ; ============================================
 
 marcar_tiles_afectados PROC
@@ -174,25 +148,25 @@ marcar_tiles_afectados PROC
     push cx
     push dx
     
-    ; Incrementar frame counter
+    ; ✅ CRÍTICO: Incrementar frame counter ANTES de verificar
     inc frame_counter_opt
+    mov al, frame_counter_opt
     
     ; ===== DETECTAR MOVIMIENTO DE CÁMARA =====
-    mov ax, inicio_tile_x
-    cmp ax, last_cam_tile_x
+    mov bx, inicio_tile_x
+    cmp bx, last_cam_tile_x
     jne mta_camara_movio
     
-    mov ax, inicio_tile_y
-    cmp ax, last_cam_tile_y
+    mov bx, inicio_tile_y
+    cmp bx, last_cam_tile_y
     jne mta_camara_movio
     
     jmp mta_check_player
 
 mta_camara_movio:
-    ; Si la cámara se movió, forzar redibujado completo
+    ; ✅ CORRECCIÓN: Cuando la cámara se mueve, forzar redibujado completo
     mov force_full_redraw, 1
     
-    ; Actualizar caché de cámara
     mov ax, inicio_tile_x
     mov last_cam_tile_x, ax
     mov ax, inicio_tile_y
@@ -202,59 +176,64 @@ mta_camara_movio:
 
 mta_check_player:
     ; ===== DETECTAR MOVIMIENTO DE JUGADOR =====
-    ; Calcular tile actual del jugador
     mov ax, jugador_px
+    add ax, 8
     shr ax, 4
-    mov bx, ax              ; BX = player_tile_x actual
+    mov bx, ax
     
     mov ax, jugador_py
+    add ax, 8
     shr ax, 4
-    mov cx, ax              ; CX = player_tile_y actual
+    mov cx, ax
     
-    ; Comparar con posición anterior
     cmp bx, last_player_tile_x
     jne mta_player_movio
     cmp cx, last_player_tile_y
     jne mta_player_movio
     
-    ; No hubo cambios
     jmp mta_fin
 
 mta_player_movio:
-    ; ===== MARCAR TILES ANTIGUOS DEL JUGADOR =====
+    ; ===== MARCAR TILES ANTIGUOS (2×2) =====
     mov ax, last_player_tile_x
     cmp ax, 0FFFFh
-    je mta_skip_old         ; Primera iteración
+    je mta_skip_old
     
     mov dx, last_player_tile_y
     call marcar_tile_si_visible
     
+    mov ax, last_player_tile_x
     inc ax
+    mov dx, last_player_tile_y
     call marcar_tile_si_visible
     
+    mov ax, last_player_tile_x
+    mov dx, last_player_tile_y
     inc dx
     call marcar_tile_si_visible
     
-    dec ax
+    mov ax, last_player_tile_x
+    inc ax
+    mov dx, last_player_tile_y
+    inc dx
     call marcar_tile_si_visible
 
 mta_skip_old:
-    ; ===== MARCAR TILES NUEVOS DEL JUGADOR =====
-    mov ax, bx              ; player_tile_x actual
-    mov dx, cx              ; player_tile_y actual
-    
+    ; ===== MARCAR TILES NUEVOS (2×2) =====
+    mov ax, bx
+    mov dx, cx
     call marcar_tile_si_visible
     
     inc ax
     call marcar_tile_si_visible
     
+    mov ax, bx
     inc dx
     call marcar_tile_si_visible
     
-    dec ax
+    inc ax
     call marcar_tile_si_visible
     
-    ; Actualizar caché del jugador
     mov last_player_tile_x, bx
     mov last_player_tile_y, cx
 
@@ -267,15 +246,17 @@ mta_fin:
 marcar_tiles_afectados ENDP
 
 ; ============================================
-; MARCAR UN TILE COMO SUCIO (si está visible)
+; MARCAR UN TILE - VERSIÓN SIMPLIFICADA
 ; ============================================
 
 marcar_tile_si_visible PROC
-    ; Entrada: AX = tile_x, DX = tile_y
+    ; Entrada: AX = tile_x (mundo), DX = tile_y (mundo)
+    push ax
     push bx
     push cx
+    push dx
     
-    ; Convertir a coordenadas relativas al viewport
+    ; Convertir a coordenadas relativas
     sub ax, inicio_tile_x
     sub dx, inicio_tile_y
     
@@ -289,23 +270,25 @@ marcar_tile_si_visible PROC
     cmp dx, 13
     jge mtsv_fin
     
-    ; Calcular índice en dirty_map: y×21 + x
-    mov bx, dx
-    mov cx, 21
-    push ax
-    mov ax, bx
-    mul cx
-    pop cx
-    add ax, cx
-    mov bx, ax
+    ; Calcular índice: Y×21 + X
+    mov cx, ax              ; Guardar X
+    mov ax, dx              ; AX = Y
+    mov bx, 21
+    mul bx                  ; AX = Y×21
+    add ax, cx              ; AX = Y×21 + X
     
-    ; Marcar tile
+    cmp ax, 273
+    jae mtsv_fin
+    
+    mov bx, ax
     mov al, frame_counter_opt
     mov [dirty_map + bx], al
 
 mtsv_fin:
+    pop dx
     pop cx
     pop bx
+    pop ax
     ret
 marcar_tile_si_visible ENDP
 
@@ -314,39 +297,59 @@ marcar_tile_si_visible ENDP
 ; ============================================
 
 tile_esta_sucio PROC
-    ; Entrada: SI = columna, BP = fila
-    ; Salida: ZF=0 (JNZ) si está sucio
+    ; Entrada: SI = columna (0-20), BP = fila (0-12)
+    ; Salida: ZF = 0 si está sucio, ZF = 1 si está limpio
     push ax
     push bx
+    push cx
     
-    ; Si hay redibujado forzado, todos están sucios
+    ; ✅ CRÍTICO: Si force_full_redraw = 1, TODOS están sucios
     cmp force_full_redraw, 1
-    je tes_sucio
+    jne tes_check_normal
     
+    ; Establecer ZF=0 (sucio)
+    mov al, 1
+    or al, al               ; ZF=0
+    jmp tes_fin
+
+tes_check_normal:
     ; Calcular índice: fila×21 + columna
     mov ax, bp
-    mov bx, 21
-    mul bx
+    mov cx, 21
+    mul cx
     add ax, si
-    mov bx, ax
     
-    ; Comparar con frame actual
+    cmp ax, 273
+    jae tes_limpio
+    
+    mov bx, ax
     mov al, [dirty_map + bx]
     cmp al, frame_counter_opt
+    jne tes_limpio
     
-tes_sucio:
+    ; Está sucio (ZF=0)
+    or al, 1                ; ZF=0
+    jmp tes_fin
+
+tes_limpio:
+    ; Está limpio (ZF=1)
+    xor al, al              ; ZF=1
+
+tes_fin:
+    pop cx
     pop bx
     pop ax
     ret
 tile_esta_sucio ENDP
 
 ; ============================================
-; LIMPIAR FLAGS DE REDIBUJADO
+; LIMPIAR FLAGS
 ; ============================================
 
 limpiar_dirty_flags PROC
     push ax
     
+    ; ✅ CRÍTICO: Limpiar force_full_redraw DESPUÉS del primer frame
     mov force_full_redraw, 0
     
     pop ax
