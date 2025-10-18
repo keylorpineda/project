@@ -373,7 +373,7 @@ cspo_i3:
     or al, dh
     or al, bl
     or al, bh
-    mov [bp], al        ; ✅ SIN NOT - directamente
+    mov ds:[bp], al        ; ✅ SIN NOT - directamente
     
     ; ===== BYTE DERECHO (píxeles 8-15) =====
     xor bx, bx
@@ -416,7 +416,7 @@ cspo_d3:
     or al, dh
     or al, bl
     or al, bh
-    mov [bp+1], al      ; ✅ SIN NOT
+    mov ds:[bp+1], al      ; ✅ SIN NOT
     
     ; Siguiente fila
     add di, 2
@@ -494,7 +494,7 @@ csp32o_b0_3:
     or al, dh
     or al, bl
     or al, bh
-    mov [bp], al
+    mov ds:[bp], al
     
     inc di
     inc bp
@@ -538,7 +538,7 @@ csp32o_b1_3:
     or al, dh
     or al, bl
     or al, bh
-    mov [bp], al
+    mov ds:[bp], al
     
     inc di
     inc bp
@@ -582,7 +582,7 @@ csp32o_b2_3:
     or al, dh
     or al, bl
     or al, bh
-    mov [bp], al
+    mov ds:[bp], al
     
     inc di
     inc bp
@@ -626,7 +626,7 @@ csp32o_b3_3:
     or al, dh
     or al, bl
     or al, bh
-    mov [bp], al
+    mov ds:[bp], al
     
     inc di
     inc bp
