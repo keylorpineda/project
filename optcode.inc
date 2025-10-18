@@ -612,7 +612,11 @@ dsp16_next_fila:
     pop di
     add di, 2
     pop cx
-    loop dsp16_fila
+    dec cx
+    jz dsp16_end
+    jmp dsp16_fila
+
+dsp16_end:
     
     ; Restaurar
     mov dx, 3C4h
@@ -915,7 +919,11 @@ dsp32_next_fila:
     pop di
     add di, 4
     pop cx
-    loop dsp32_fila
+    dec cx
+    jz dsp32_end
+    jmp dsp32_fila
+
+dsp32_end:
     
     mov dx, 3C4h
     mov al, 2
