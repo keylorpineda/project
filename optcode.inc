@@ -85,112 +85,85 @@ limpiar_tiles_sucios PROC
     ret
 limpiar_tiles_sucios ENDP
 
-; ============================================
-; MARCAR REGIÓN 3x3 ALREDEDOR DEL JUGADOR
-; ============================================
 marcar_region_jugador PROC
     push ax
     push bx
     push cx
     push dx
     
-    ; Calcular tile del jugador
     mov ax, jugador_px
     shr ax, 4
-    mov bx, ax              ; BX = tile_x jugador
+    mov bx, ax              ; BX = tile_x
     
     mov ax, jugador_py
     shr ax, 4
-    mov dx, ax              ; DX = tile_y jugador
+    mov dx, ax              ; DX = tile_y
     
-    ; Marcar región 3×3 (jugador ocupa 2×2 tiles)
-    mov cx, bx
-    dec cx                  ; tile_x - 1
+    ; ===== MARCAR 4×4 (jugador 2×2 + borde) =====
     push dx
-    dec dx                  ; tile_y - 1
-    call marcar_region_sucia
-    pop dx
     
-    mov cx, bx              ; tile_x
-    push dx
+    ; FILA -1
     dec dx
-    call marcar_region_sucia
-    pop dx
     
-    mov cx, bx
-    inc cx                  ; tile_x + 1
-    push dx
-    dec dx
-    call marcar_region_sucia
-    pop dx
-    
-    mov cx, bx
-    inc cx
-    inc cx                  ; tile_x + 2
-    push dx
-    dec dx
-    call marcar_region_sucia
-    pop dx
-    
-    ; Fila actual
     mov cx, bx
     dec cx
     call marcar_region_sucia
-    
     mov cx, bx
     call marcar_region_sucia
-    
     mov cx, bx
     inc cx
     call marcar_region_sucia
-    
     mov cx, bx
-    inc cx
-    inc cx
+    add cx, 2
     call marcar_region_sucia
     
-    ; Fila +1
+    ; FILA 0
+    pop dx
+    push dx
+    
     mov cx, bx
     dec cx
-    inc dx
     call marcar_region_sucia
-    dec dx
-    
     mov cx, bx
-    inc dx
     call marcar_region_sucia
-    dec dx
-    
     mov cx, bx
     inc cx
-    inc dx
     call marcar_region_sucia
-    dec dx
-    
     mov cx, bx
-    inc cx
-    inc cx
-    inc dx
+    add cx, 2
     call marcar_region_sucia
-    dec dx
     
-    ; Fila +2
+    ; FILA 1
+    pop dx
+    push dx
+    inc dx
+    
     mov cx, bx
     dec cx
-    inc dx
-    inc dx
     call marcar_region_sucia
-    
     mov cx, bx
     call marcar_region_sucia
-    
     mov cx, bx
     inc cx
     call marcar_region_sucia
+    mov cx, bx
+    add cx, 2
+    call marcar_region_sucia
+    
+    ; FILA 2
+    pop dx
+    add dx, 2
     
     mov cx, bx
+    dec cx
+    call marcar_region_sucia
+    mov cx, bx
+    call marcar_region_sucia
+    mov cx, bx
     inc cx
-    inc cx
+    call marcar_region_sucia
+    mov cx, bx
+    add cx, 2
     call marcar_region_sucia
     
     pop dx

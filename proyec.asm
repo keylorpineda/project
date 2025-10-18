@@ -115,8 +115,8 @@ camara_py   dw 304
 pagina_visible db 0
 pagina_dibujo  db 1
 
-viewport_x  dw 0
-viewport_y  dw 0
+viewport_x  dw 160
+viewport_y  dw 79
 
 temp_offset     dw 0
 inicio_tile_x   dw 0
@@ -327,62 +327,63 @@ bucle_juego:
     
 ; CÓDIGO CORREGIDO
 bg_hay_cambio:
-    ; ✅ 1. MARCAR REGIÓN NUEVA COMO SUCIA (usa globales actuales)
-    call marcar_region_jugador
-    
-    ; ✅ 2. MARCAR REGIÓN ANTERIOR COMO SUCIA
+    ; ✅ 1. MARCAR REGIÓN ANTERIOR PRIMERO
     push ax
     push bx
-    mov ax, jugador_px      ; Guardar nuevos (AX = new_x)
-    mov bx, jugador_py      ; Guardar nuevos (BX = new_y)
     
-    mov ax, jugador_px_old  ; Cargar viejos
-    mov jugador_px, ax      ; Global = old_x
-    mov ax, jugador_py_old  ; Cargar viejos
-    mov jugador_py, ax      ; Global = old_y
+    mov ax, jugador_px_old
+    mov bx, jugador_py_old
+    mov jugador_px, ax
+    mov jugador_py, bx
     
-    call marcar_region_jugador ; Marcar región vieja
+    call marcar_region_jugador
     
-    pop bx                  ; Restaurar nuevos (BX = new_y)
-    pop ax                  ; Restaurar nuevos (AX = new_x)
-    mov jugador_px, ax      ; Global = new_x
-    mov jugador_py, bx      ; Global = new_y
+    pop bx
+    pop ax
+    mov jugador_px, ax
+    mov jugador_py, bx
     
-    ; ✅ 3. GUARDAR ESTADO ACTUAL PARA EL PRÓXIMO FRAME
-    mov jugador_px_old, ax  ; old_x = new_x
-    mov jugador_py_old, bx  ; old_y = new_y
-    mov al, jugador_frame
-    mov frame_old, al
+    ; ✅ 2. MARCAR REGIÓN ACTUAL
+    call marcar_region_jugador
     
+    ; ✅ 3. ESPERAR RETRACE
     call esperar_retrace
-    ; Renderizar en la página que NO está visible
+    
+    ; ✅ 4. RENDERIZAR PÁGINA OCULTA
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
     
-    ; Renderizar en página 1
     mov temp_offset, 8000h
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
-    call limpiar_tiles_sucios
     jmp bg_cambiar_pagina
     
 bg_render_p0:
-    ; Renderizar en página 0
     mov temp_offset, 0
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
-    call limpiar_tiles_sucios  
     
 bg_cambiar_pagina:
-    ; Cambiar página visible
+    ; ✅ 5. LIMPIAR FLAGS (después de renderizar AMBAS)
+    call limpiar_tiles_sucios
+    
+    ; ✅ 6. CAMBIAR PÁGINA VISIBLE
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
     
-    ; Intercambiar páginas
+    ; ✅ 7. INTERCAMBIAR PÁGINAS
     xor pagina_dibujo, 1
     xor pagina_visible, 1
+    
+    ; ✅ 8. GUARDAR ESTADO
+    mov ax, jugador_px
+    mov jugador_px_old, ax
+    mov ax, jugador_py
+    mov jugador_py_old, ax
+    mov al, jugador_frame
+    mov frame_old, al
     
     jmp bucle_juego
 
@@ -1068,8 +1069,10 @@ dibujar_mapa_en_offset PROC
 
 dmo_fila:
     cmp bp, 13
-    jae dmo_fin
-    
+   jb dmo_fila_body
+    jmp dmo_fin
+
+dmo_fila_body:
     xor si, si              ; SI = columna actual (0-20)
 
 dmo_col:
