@@ -204,27 +204,8 @@ anim_ok:
     int 21h
     call debug_verificar_todo
 
-    mov al, [mapa_datos + 0]
-add al, '0'
-mov [buffer_temp], al
-mov byte ptr [buffer_temp + 1], '$'
-mov dx, OFFSET buffer_temp
-mov ah, 9
-int 21h
-mov ah, 0
-int 16h
 
 mov dx, OFFSET msg_controles
-mov ah, 9
-int 21h
-mov ah, 0
-int 16h
-
-    mov al, [mapa_datos + 0]
-add al, '0'
-mov [buffer_temp], al
-mov byte ptr [buffer_temp + 1], '$'
-mov dx, OFFSET buffer_temp
 mov ah, 9
 int 21h
 mov ah, 0
@@ -254,7 +235,7 @@ int 16h
     inc dx
     mov al, 0
     out dx, al
-    
+
     ; ===== FASE 10: INICIALIZAR JUEGO =====
     call centrar_camara
     call renderizar_en_pagina_0
