@@ -275,7 +275,6 @@ mov cx, 14000
 xor ax, ax
 rep stosw
 
-; ===== INICIALIZAR JUEGO =====
 call centrar_camara
 
 mov ax, camara_px
@@ -283,28 +282,22 @@ mov camara_px_old, ax
 mov ax, camara_py
 mov camara_py_old, ax
 
-; ✅ Marcar TODO como sucio para el primer renderizado
-push ds
-pop es
-mov cx, 10000
-mov di, OFFSET dirty_tiles
-mov al, 1
-rep stosb
-
-; Restaurar ES al segmento de video
+; ✅ Configurar ES para video
 mov ax, VIDEO_SEG
 mov es, ax
 
-; ✅ Renderizar AMBAS páginas inicialmente
+; ✅ Marcar viewport y renderizar página 0
+call marcar_viewport_completo
 mov temp_offset, 0
 call dibujar_mapa_en_offset
 call dibujar_jugador_en_offset
+call limpiar_tiles_sucios
 
-mov temp_offset, 8000h
+; ✅ Marcar viewport y renderizar página 1 (offset 28000 bytes = 7000h words)
+call marcar_viewport_completo
+mov temp_offset, 7000h       ; ✅ CORRECTO: 28000 / 4 = 7000h
 call dibujar_mapa_en_offset
 call dibujar_jugador_en_offset
-
-; ✅ Limpiar dirty tiles DESPUÉS de renderizar ambas
 call limpiar_tiles_sucios
 
 ; ✅ Guardar estado inicial
@@ -315,7 +308,7 @@ mov jugador_py_old, ax
 mov al, jugador_frame
 mov frame_old, al
 
-; ✅ Mostrar página 0 y configurar variables
+; ✅ Mostrar página 0
 mov ah, 5
 mov al, 0
 int 10h
@@ -369,34 +362,34 @@ bg_camara_movio:
     jmp bg_marcar_jugador_done
     
 bg_solo_jugador:
-    ; Solo jugador movido = marcar regiones específicas
+    ; ✅ CORRECTO: Guardar posición en registros temporales
+    mov si, jugador_px_old
+    mov di, jugador_py_old
     
-    ; Guardar posición actual
-    push jugador_px
-    push jugador_py
-    
-    ; Marcar región antigua
-    mov ax, jugador_px_old
-    mov bx, jugador_py_old
-    mov jugador_px, ax
-    mov jugador_py, bx
+    ; Marcar región antigua (temporal en SI/DI)
+    mov jugador_px, si
+    mov jugador_py, di
     call marcar_region_jugador
     
-    ; Restaurar posición actual
-    pop jugador_py
-    pop jugador_px
+    ; Restaurar posición actual desde variables
+    mov ax, jugador_px_old
+    add ax, VELOCIDAD           ; Recuperar valor actual
+    mov jugador_px, ax
+    mov ax, jugador_py_old
+    add ax, VELOCIDAD
+    mov jugador_py, ax
     
     ; Marcar región nueva
     call marcar_region_jugador
+    jmp bg_marcar_jugador_done
     
 bg_marcar_jugador_done:
-    ; ✅ CRÍTICO: Esperar retrace ANTES de renderizar
     call esperar_retrace
     
-    ; Renderizar en página oculta
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
+    jmp bg_render_p1   
     
     ; Renderizar en página 1 (offset 8000h)
     mov temp_offset, 8000h
@@ -409,9 +402,16 @@ bg_render_p0:
     mov temp_offset, 0
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
+    jmp bg_flip
+    
+bg_render_p1:
+    ; Renderizar en página 1 (offset 7000h)
+    mov temp_offset, 7000h      ; ✅ CORRECTO
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
     
 bg_flip:
-    ; Cambiar página visible (sin espera adicional)
+    ; Cambiar página visible
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
@@ -432,7 +432,7 @@ bg_flip:
     mov ax, camara_py
     mov camara_py_old, ax
     
-    ; Limpiar dirty tiles al final
+    ; Limpiar dirty tiles
     call limpiar_tiles_sucios
     
     jmp bucle_juego
@@ -1116,10 +1116,6 @@ dibujar_todo_en_offset PROC
     ret
 dibujar_todo_en_offset ENDP
 
-; filepath: c:\ASM\project\proyec.asm
-
-; REEMPLAZAR la sección problemática (línea ~1900-1930):
-
 dibujar_mapa_en_offset PROC
     push ax
     push bx
@@ -1128,6 +1124,15 @@ dibujar_mapa_en_offset PROC
     push si
     push di
     push bp
+    
+    ; ✅ CRÍTICO: Calcular inicio_tile_x/y ANTES del loop
+    mov ax, camara_px
+    shr ax, 4
+    mov inicio_tile_x, ax
+    
+    mov ax, camara_py
+    shr ax, 4
+    mov inicio_tile_y, ax
     
     ; ✅ SOLO recorrer tiles sucios
     xor bp, bp              ; BP = índice en dirty_list
@@ -1228,6 +1233,7 @@ dmo_fin:
     ret
 dibujar_mapa_en_offset ENDP
 
+
 obtener_sprite_tile PROC
     ; Entrada: AL = tipo de tile
     ; Salida: DI = datos, SI = máscara
@@ -1260,7 +1266,7 @@ ost_4:
     ret
     
 ost_5:
-    cmp al, TILE_TREE
+    cmp al, TILE_ROCK           ; ✅ CAMBIO CRÍTICO - antes decía TILE_TREE
     jne ost_6
     mov di, OFFSET sprite_rock
     mov si, OFFSET sprite_rock_mask
@@ -1316,6 +1322,7 @@ obtener_sprite_tile ENDP
 
 dibujar_jugador_en_offset PROC
     push ax
+    push bx
     push cx
     push dx
     push si
@@ -1325,23 +1332,27 @@ dibujar_jugador_en_offset PROC
     mov ax, jugador_px
     sub ax, camara_px
     add ax, viewport_x
-    sub ax, 16               ; Centrar sprite (32/2)
+    sub ax, 8               ; ✅ CORRECTO: Centrar sprite 32×32 (32/4=8 en modo planar)
     mov cx, ax
     
     mov ax, jugador_py
     sub ax, camara_py
     add ax, viewport_y
-    sub ax, 16
+    sub ax, 16              ; Centrar verticalmente
     mov dx, ax
     
-    call obtener_sprite_jugador    
-
+    call obtener_sprite_jugador
+    
+    ; BX debe tener los datos planar
+    mov bx, di              ; obtener_sprite_jugador devuelve DI=datos, SI=máscara
+    
     call dibujar_sprite_planar_32x32_opt
     
     pop di
     pop si
     pop dx
     pop cx
+    pop bx
     pop ax
     ret
 dibujar_jugador_en_offset ENDP

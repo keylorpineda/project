@@ -91,7 +91,8 @@ lts_loop:
     push bx
     shl bx, 1
     mov ax, [dirty_list + bx]
-    mov byte ptr [dirty_tiles + ax], 0
+    mov si, ax
+    mov byte ptr [dirty_tiles + si], 0
     pop bx
     
     inc bx
@@ -214,31 +215,33 @@ marcar_viewport_completo PROC
     xor bp, bp              ; Fila dentro del viewport
 
 mvc_fila:
-    cmp bp, 14
+    cmp bp, 14              ; Solo 14 filas visibles
     jae mvc_fin
 
     xor si, si              ; Columna dentro del viewport
 
 mvc_col:
-    cmp si, 22
+    cmp si, 20              ; ✅ CORRECTO: Solo 20 columnas (320/16=20)
     jae mvc_next_fila
 
-    mov ax, inicio_tile_y
-    add ax, bp
-    cmp ax, 100
+    ; Calcular tile_y global
+    mov dx, inicio_tile_y
+    add dx, bp
+    cmp dx, 100             ; ✅ Verificar límite Y
     jae mvc_skip_col
 
-    mov dx, inicio_tile_x
-    add dx, si
-    cmp dx, 100
+    ; Calcular tile_x global
+    mov cx, inicio_tile_x
+    add cx, si
+    cmp cx, 100             ; ✅ Verificar límite X
     jae mvc_skip_col
 
-    mov bx, ax
-    shl bx, 1
-    mov cx, [mul100_table + bx]
-    add cx, dx
-    mov bx, cx
-    mov byte ptr [dirty_tiles + bx], 1
+    ; ✅ CRÍTICO: Llamar con CX=x, DX=y
+    push si
+    push bp
+    call marcar_region_sucia
+    pop bp
+    pop si
 
 mvc_skip_col:
     inc si
@@ -258,7 +261,6 @@ mvc_fin:
     pop ax
     ret
 marcar_viewport_completo ENDP
-
 ; ============================================
 ; VERIFICACIÓN DE TRANSITABILIDAD (OK)
 ; ============================================
@@ -848,434 +850,291 @@ dibujar_sprite_planar_16x16_opt PROC
     push bp
     push es
     
-    ; Clipping rápido
+    ; Clipping
     cmp cx, 480
-    jb dsp16o_check_y
-    jmp dsp16o_ret
-
-dsp16o_check_y:
+    jae dsp16o_ret
     cmp dx, 350
-    jb dsp16o_clip_ok
-    jmp dsp16o_ret
-
-dsp16o_clip_ok:
+    jae dsp16o_ret
+    
     mov ax, 0A000h
     mov es, ax
     
-    ; Calcular offset (optimizado)
-    mov ax, dx
-    shl ax, 6           ; Y * 64
+    ; Calcular offset
+    push bx             ; BX = datos planar
+    mov bx, dx
+    shl bx, 1
+    mov ax, [video_offsets + bx]
+    add ax, temp_offset
     mov bp, ax
-    shl dx, 4           ; Y * 16
-    add bp, dx          ; BP = Y * 80
+    
     mov ax, cx
     shr ax, 3
     add bp, ax
-    add bp, temp_offset
+    pop bx
     
-    mov dx, 3C5h        ; Ya apuntar a Map Mask Data
-    mov si, bx          ; SI = datos
+    ; Configurar puerto
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx              ; DX = 3C5h
     
-    ; ===== MACRO: DIBUJAR_FILA (repetir 16 veces) =====
+    push si             ; Guardar puntero a máscara
+    mov cx, 16          ; 16 filas
+
+dsp16o_fila:
+    pop si
+    push si
+    push cx
+    push bp
+    push bx
     
-    ; FILA 0
     mov di, bp
+    
+    ; ===== BYTE 0 - PLANO 0 =====
     mov al, 1
     out dx, al
-    movsb
-    movsb
-    sub si, 2
+    
+    mov ah, [si]        ; AH = máscara
+    test ah, ah
+    jz dsp16o_p0b0_skip
+    cmp ah, 0FFh
+    je dsp16o_p0b0_opaque
+    
+    ; Transparencia parcial
+    mov cl, ah
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov al, [bx]
+    and al, ah
+    or al, ch
+    mov es:[di], al
+    jmp dsp16o_p0b0_next
+    
+dsp16o_p0b0_opaque:
+    mov al, [bx]
+    mov es:[di], al
+    jmp dsp16o_p0b0_next
+    
+dsp16o_p0b0_skip:
+    
+dsp16o_p0b0_next:
+    
+    ; ===== BYTE 1 - PLANO 0 =====
+    inc di
+    mov al, 1
+    out dx, al
+    
+    mov ah, [si+1]
+    test ah, ah
+    jz dsp16o_p0b1_skip
+    cmp ah, 0FFh
+    je dsp16o_p0b1_opaque
+    
+    mov cl, ah
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov al, [bx+1]
+    and al, ah
+    or al, ch
+    mov es:[di], al
+    jmp dsp16o_p0b1_next
+    
+dsp16o_p0b1_opaque:
+    mov al, [bx+1]
+    mov es:[di], al
+    jmp dsp16o_p0b1_next
+    
+dsp16o_p0b1_skip:
+    
+dsp16o_p0b1_next:
+    
+    ; ===== PLANO 1 =====
     mov di, bp
     mov al, 2
     out dx, al
-    mov ax, [si+32]
-    stosw
+    
+    mov ah, [si]
+    test ah, ah
+    jz dsp16o_p1b0_skip
+    cmp ah, 0FFh
+    je dsp16o_p1b0_opaque
+    
+    mov cl, ah
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov al, [bx+32]
+    and al, ah
+    or al, ch
+    mov es:[di], al
+    jmp dsp16o_p1b0_next
+    
+dsp16o_p1b0_opaque:
+    mov al, [bx+32]
+    mov es:[di], al
+    jmp dsp16o_p1b0_next
+    
+dsp16o_p1b0_skip:
+    
+dsp16o_p1b0_next:
+    inc di
+    
+    mov ah, [si+1]
+    test ah, ah
+    jz dsp16o_p1b1_skip
+    cmp ah, 0FFh
+    je dsp16o_p1b1_opaque
+    
+    mov cl, ah
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov al, [bx+33]
+    and al, ah
+    or al, ch
+    mov es:[di], al
+    jmp dsp16o_p1b1_next
+    
+dsp16o_p1b1_opaque:
+    mov al, [bx+33]
+    mov es:[di], al
+    jmp dsp16o_p1b1_next
+    
+dsp16o_p1b1_skip:
+    
+dsp16o_p1b1_next:
+    
+    ; ===== PLANO 2 =====
     mov di, bp
     mov al, 4
     out dx, al
-    mov ax, [si+64]
-    stosw
+    
+    mov ah, [si]
+    test ah, ah
+    jz dsp16o_p2b0_skip
+    cmp ah, 0FFh
+    je dsp16o_p2b0_opaque
+    
+    mov cl, ah
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov al, [bx+64]
+    and al, ah
+    or al, ch
+    mov es:[di], al
+    jmp dsp16o_p2b0_next
+    
+dsp16o_p2b0_opaque:
+    mov al, [bx+64]
+    mov es:[di], al
+    jmp dsp16o_p2b0_next
+    
+dsp16o_p2b0_skip:
+    
+dsp16o_p2b0_next:
+    inc di
+    
+    mov ah, [si+1]
+    test ah, ah
+    jz dsp16o_p2b1_skip
+    cmp ah, 0FFh
+    je dsp16o_p2b1_opaque
+    
+    mov cl, ah
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov al, [bx+65]
+    and al, ah
+    or al, ch
+    mov es:[di], al
+    jmp dsp16o_p2b1_next
+    
+dsp16o_p2b1_opaque:
+    mov al, [bx+65]
+    mov es:[di], al
+    jmp dsp16o_p2b1_next
+    
+dsp16o_p2b1_skip:
+    
+dsp16o_p2b1_next:
+    
+    ; ===== PLANO 3 =====
     mov di, bp
     mov al, 8
     out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
+    
+    mov ah, [si]
+    test ah, ah
+    jz dsp16o_p3b0_skip
+    cmp ah, 0FFh
+    je dsp16o_p3b0_opaque
+    
+    mov cl, ah
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov al, [bx+96]
+    and al, ah
+    or al, ch
+    mov es:[di], al
+    jmp dsp16o_p3b0_next
+    
+dsp16o_p3b0_opaque:
+    mov al, [bx+96]
+    mov es:[di], al
+    jmp dsp16o_p3b0_next
+    
+dsp16o_p3b0_skip:
+    
+dsp16o_p3b0_next:
+    inc di
+    
+    mov ah, [si+1]
+    test ah, ah
+    jz dsp16o_p3b1_skip
+    cmp ah, 0FFh
+    je dsp16o_p3b1_opaque
+    
+    mov cl, ah
+    not cl
+    mov ch, es:[di]
+    and ch, cl
+    mov al, [bx+97]
+    and al, ah
+    or al, ch
+    mov es:[di], al
+    jmp dsp16o_p3b1_next
+    
+dsp16o_p3b1_opaque:
+    mov al, [bx+97]
+    mov es:[di], al
+    jmp dsp16o_p3b1_next
+    
+dsp16o_p3b1_skip:
+    
+dsp16o_p3b1_next:
+    
+    ; Siguiente fila
+    pop bx
+    add bx, 2
+    pop bp
     add bp, 80
-    
-    ; FILA 1
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
+    pop cx
     add si, 2
-    add bp, 80
+    push si
+    dec cx
+    jnz dsp16o_fila_jmp
+    jmp dsp16o_fin
     
-    ; FILA 2
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 3
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 4
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 5
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 6
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 7
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 8
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 9
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 10
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 11
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 12
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 13
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 14
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    add si, 2
-    add bp, 80
-    
-    ; FILA 15
-    mov di, bp
-    mov al, 1
-    out dx, al
-    movsb
-    movsb
-    sub si, 2
-    mov di, bp
-    mov al, 2
-    out dx, al
-    mov ax, [si+32]
-    stosw
-    mov di, bp
-    mov al, 4
-    out dx, al
-    mov ax, [si+64]
-    stosw
-    mov di, bp
-    mov al, 8
-    out dx, al
-    mov ax, [si+96]
-    stosw
-    
+dsp16o_fila_jmp:
+    jmp dsp16o_fila
+
+dsp16o_fin:
+    pop si
     mov al, 0Fh
     out dx, al
     
