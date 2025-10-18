@@ -1174,32 +1174,33 @@ dmo_col_opt:
 
     mov dx, si                       ; Guardar índice de columna antes de obtener el sprite
     call obtener_sprite_rapido       ; DI=data, SI=mask (3 ciclos)
+    mov ax, dx                       ; AX = columna actual (para restaurar luego)
 
     ; ===== CALCULAR POSICIÓN EN PANTALLA =====
     push si                          ; Guardar máscara
     push di                          ; Guardar datos
 
     ; CX = columna × 16 + viewport_x
-    mov ax, dx                       ; Recuperar columna actual
-    shl ax, 4
-    add ax, viewport_x
-    sub ax, scroll_offset_x
-    mov cx, ax
+    shl dx, 4                        ; DX todavía contiene la columna
+    add dx, viewport_x
+    sub dx, scroll_offset_x
+    mov cx, dx
 
     ; DX = fila × 16 + viewport_y
-    mov ax, bp
-    shl ax, 4
-    add ax, viewport_y
-    sub ax, scroll_offset_y
-    mov dx, ax
-    
+    mov bx, bp
+    shl bx, 4
+    add bx, viewport_y
+    sub bx, scroll_offset_y
+    mov dx, bx
+
     pop di                           ; Restaurar datos
     pop si                           ; Restaurar máscara
-    
+
     ; ===== DIBUJAR SPRITE =====
     call dibujar_sprite_planar_16x16_opt
-    
+
     pop bx                           ; Restaurar puntero en mapa
+    mov si, ax                       ; Recuperar índice de columna para el bucle
     jmp dmo_next_col_opt
 
 dmo_skip_tile:
@@ -1222,20 +1223,21 @@ dmo_extra_col_opt:
     mov dx, si                       ; SI contiene 21 en esta ruta
     call obtener_sprite_rapido
 
+    mov ax, dx                       ; AX = columna actual
+
     push si
     push di
 
-    mov ax, dx
-    shl ax, 4
-    add ax, viewport_x
-    sub ax, scroll_offset_x
-    mov cx, ax
+    shl dx, 4
+    add dx, viewport_x
+    sub dx, scroll_offset_x
+    mov cx, dx
 
-    mov ax, bp
-    shl ax, 4
-    add ax, viewport_y
-    sub ax, scroll_offset_y
-    mov dx, ax
+    mov bx, bp
+    shl bx, 4
+    add bx, viewport_y
+    sub bx, scroll_offset_y
+    mov dx, bx
 
     pop di
     pop si
@@ -1243,6 +1245,7 @@ dmo_extra_col_opt:
     call dibujar_sprite_planar_16x16_opt
 
     pop bx
+    mov si, ax                       ; Restaurar índice de columna
 
 dmo_next_fila_opt:
     add di, 100                      ; Siguiente fila en mapa (Y+1)
@@ -1285,20 +1288,21 @@ dmo_extra_row_loop:
     mov dx, si
     call obtener_sprite_rapido
 
+    mov ax, dx                       ; AX = columna actual
+
     push si
     push di
 
-    mov ax, dx
-    shl ax, 4
-    add ax, viewport_x
-    sub ax, scroll_offset_x
-    mov cx, ax
+    shl dx, 4
+    add dx, viewport_x
+    sub dx, scroll_offset_x
+    mov cx, dx
 
-    mov ax, bp
-    shl ax, 4
-    add ax, viewport_y
-    sub ax, scroll_offset_y
-    mov dx, ax
+    mov bx, bp
+    shl bx, 4
+    add bx, viewport_y
+    sub bx, scroll_offset_y
+    mov dx, bx
 
     pop di
     pop si
@@ -1306,6 +1310,8 @@ dmo_extra_row_loop:
     call dibujar_sprite_planar_16x16_opt
 
     pop bx
+
+    mov si, ax                       ; Restaurar índice de columna
 
     inc si
     jmp dmo_extra_row_loop
@@ -1323,20 +1329,21 @@ dmo_extra_row_column:
     mov dx, si                       ; SI = 21 para la columna extra
     call obtener_sprite_rapido
 
+    mov ax, dx                       ; AX = columna actual
+
     push si
     push di
 
-    mov ax, dx
-    shl ax, 4
-    add ax, viewport_x
-    sub ax, scroll_offset_x
-    mov cx, ax
+    shl dx, 4
+    add dx, viewport_x
+    sub dx, scroll_offset_x
+    mov cx, dx
 
-    mov ax, bp
-    shl ax, 4
-    add ax, viewport_y
-    sub ax, scroll_offset_y
-    mov dx, ax
+    mov bx, bp
+    shl bx, 4
+    add bx, viewport_y
+    sub bx, scroll_offset_y
+    mov dx, bx
 
     pop di
     pop si
@@ -1344,6 +1351,7 @@ dmo_extra_row_column:
     call dibujar_sprite_planar_16x16_opt
 
     pop bx
+    mov si, ax
 
 dmo_fin_opt:
     ; ===== LIMPIAR FLAGS PARA PRÓXIMO FRAME =====
