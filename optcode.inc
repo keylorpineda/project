@@ -134,7 +134,6 @@ cspo_fila:
     push cx
     
     ; ===== BYTE IZQUIERDO (pixeles 0-7) =====
-    ; Limpiar acumuladores
     xor bx, bx          ; BH/BL = planos 3/2
     xor dx, dx          ; DH/DL = planos 1/0
     
@@ -143,8 +142,8 @@ cspo_fila:
 cspo_byte_izq:
     lodsb               ; Leer píxel
     
-    ; ✅ CORRECCIÓN: Rotar LEFT para MSB-first
-    rol dl, 1           ; Plano 0 - bit más antiguo va a MSB
+    ; Rotar LEFT para MSB-first
+    rol dl, 1           ; Plano 0
     rol dh, 1           ; Plano 1
     rol bl, 1           ; Plano 2
     rol bh, 1           ; Plano 3
@@ -180,12 +179,20 @@ cspo_izq_next:
     mov [di+64], bl     ; Plano 2
     mov [di+96], bh     ; Plano 3
     
-    ; Generar máscara - 1 donde hay píxel no-transparente
+    ; ===== GENERAR MÁSCARA BYTE IZQUIERDO =====
+    ; Si todos los planos = 0, entonces color = 0 = transparente
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
-    not al              ; ✅ INVERTIR: 0=dibujar, 1=skip
+    ; AL = 0 si color es 0 (transparente)
+    ; AL ≠ 0 si hay algún color (opaco)
+    mov ah, al
+    xor al, al          ; Asumir opaco (máscara = 0x00)
+    test ah, ah
+    jnz cspo_masc_izq
+    mov al, 0FFh        ; Transparente (máscara = 0xFF)
+cspo_masc_izq:
     mov [bp], al
     
     ; ===== BYTE DERECHO (pixeles 8-15) =====
@@ -230,12 +237,17 @@ cspo_der_next:
     mov [di+65], bl
     mov [di+97], bh
     
-    ; Generar máscara
+    ; ===== GENERAR MÁSCARA BYTE DERECHO =====
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
-    not al
+    mov ah, al
+    xor al, al
+    test ah, ah
+    jnz cspo_masc_der
+    mov al, 0FFh
+cspo_masc_der:
     mov [bp+1], al
     
     ; Siguiente fila
@@ -313,11 +325,17 @@ csp32_b0_next:
     mov [di+256], bl
     mov [di+384], bh
     
+    ; Máscara byte 0
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
-    not al
+    mov ah, al
+    xor al, al
+    test ah, ah
+    jnz csp32_m0
+    mov al, 0FFh
+csp32_m0:
     mov [bp], al
     
     ; ===== BYTE 1 (pixeles 8-15) =====
@@ -358,11 +376,17 @@ csp32_b1_next:
     mov [di+257], bl
     mov [di+385], bh
     
+    ; Máscara byte 1
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
-    not al
+    mov ah, al
+    xor al, al
+    test ah, ah
+    jnz csp32_m1
+    mov al, 0FFh
+csp32_m1:
     mov [bp+1], al
     
     ; ===== BYTE 2 (pixeles 16-23) =====
@@ -403,11 +427,17 @@ csp32_b2_next:
     mov [di+258], bl
     mov [di+386], bh
     
+    ; Máscara byte 2
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
-    not al
+    mov ah, al
+    xor al, al
+    test ah, ah
+    jnz csp32_m2
+    mov al, 0FFh
+csp32_m2:
     mov [bp+2], al
     
     ; ===== BYTE 3 (pixeles 24-31) =====
@@ -448,11 +478,17 @@ csp32_b3_next:
     mov [di+259], bl
     mov [di+387], bh
     
+    ; Máscara byte 3
     mov al, dl
     or al, dh
     or al, bl
     or al, bh
-    not al
+    mov ah, al
+    xor al, al
+    test ah, ah
+    jnz csp32_m3
+    mov al, 0FFh
+csp32_m3:
     mov [bp+3], al
     
     ; Siguiente fila
@@ -475,9 +511,6 @@ csp32_fin:
     ret
 convertir_sprite_32x32_a_planar_opt ENDP
 
-; ============================================
-; DIBUJADO SIMPLIFICADO - 16x16
-; ============================================
 dibujar_sprite_planar_16x16_opt PROC
     push ax
     push bx
@@ -506,98 +539,64 @@ dsp16_fila:
     push si
     push bp
     
-    mov bx, di
+    ; ===== BYTE 0 CON MÁSCARA =====
+    mov al, [si]        ; Máscara byte 0
+    not al              ; 1=dibujar, 0=skip
+    test al, al
+    jz dsp16_b0_skip
     
-    ; ===== BYTE 0 =====
-    ; Plano 0
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 1
-    out dx, al
-    
-    mov al, [bx]
-    mov es:[bp], al
-    
-    ; Plano 1
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    
-    mov al, [bx+32]
-    mov es:[bp], al
-    
-    ; Plano 2
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    
-    mov al, [bx+64]
-    mov es:[bp], al
-    
-    ; Plano 3
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
+    ; Configurar máscara de bits
+    mov dx, 3CEh
+    mov ah, al
     mov al, 8
     out dx, al
+    inc dx
+    mov al, ah
+    out dx, al
     
-    mov al, [bx+96]
-    mov es:[bp], al
-    
-    ; ===== BYTE 1 =====
-    ; Plano 0
+    ; Escribir todos los planos a la vez
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 1
+    mov al, 0Fh
     out dx, al
     
+    mov al, es:[bp]     ; Leer (latch)
+    mov bx, di
+    mov al, [bx]        ; Dato - EGA mezcla con máscara
+    mov es:[bp], al
+
+dsp16_b0_skip:
+
+    ; ===== BYTE 1 CON MÁSCARA =====
+    mov al, [si+1]      ; Máscara byte 1
+    not al
+    test al, al
+    jz dsp16_b1_skip
+    
+    mov dx, 3CEh
+    mov ah, al
+    mov al, 8
+    out dx, al
+    inc dx
+    mov al, ah
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    
+    mov al, es:[bp+1]
+    mov bx, di
     mov al, [bx+1]
     mov es:[bp+1], al
-    
-    ; Plano 1
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    
-    mov al, [bx+33]
-    mov es:[bp+1], al
-    
-    ; Plano 2
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    
-    mov al, [bx+65]
-    mov es:[bp+1], al
-    
-    ; Plano 3
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 8
-    out dx, al
-    
-    mov al, [bx+97]
-    mov es:[bp+1], al
-    
+
+dsp16_b1_skip:
+
     ; Siguiente fila
     pop bp
     add bp, 80
@@ -607,11 +606,18 @@ dsp16_fila:
     add di, 2
     pop cx
     dec cx
-    jz dsp16_end
+    jz dsp16_salir
     jmp dsp16_fila
 
-dsp16_end:
-    ; Restaurar
+dsp16_salir:
+    ; Restaurar registros de EGA
+    mov dx, 3CEh
+    mov al, 8
+    out dx, al
+    inc dx
+    mov al, 0FFh
+    out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -630,7 +636,7 @@ dsp16_end:
 dibujar_sprite_planar_16x16_opt ENDP
 
 ; ============================================
-; DIBUJADO SIMPLIFICADO - 32x32
+; DIBUJADO CON TRANSPARENCIA - 32x32
 ; ============================================
 dibujar_sprite_planar_32x32_opt PROC
     push ax
@@ -659,156 +665,120 @@ dsp32_fila:
     push si
     push bp
     
-    mov bx, di
+    ; ===== BYTE 0 CON MÁSCARA =====
+    mov al, [si]        ; Máscara byte 0
+    not al              ; 1=dibujar, 0=skip
+    test al, al
+    jz dsp32_b0_skip
     
-    ; ===== BYTE 0 =====
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 1
-    out dx, al
-    mov al, [bx]
-    mov es:[bp], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    mov al, [bx+128]
-    mov es:[bp], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    mov al, [bx+256]
-    mov es:[bp], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
+    ; Configurar máscara de bits
+    mov dx, 3CEh
+    mov ah, al
     mov al, 8
     out dx, al
-    mov al, [bx+384]
-    mov es:[bp], al
+    inc dx
+    mov al, ah
+    out dx, al
     
-    ; ===== BYTE 1 =====
+    ; Escribir todos los planos a la vez
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 1
+    mov al, 0Fh
     out dx, al
+    
+    mov al, es:[bp]     ; Leer (latch)
+    mov bx, di
+    mov al, [bx]        ; Plano 0 - La EGA mezcla automáticamente
+    mov es:[bp], al
+
+dsp32_b0_skip:
+
+    ; ===== BYTE 1 =====
+    mov al, [si+1]
+    not al
+    test al, al
+    jz dsp32_b1_skip
+    
+    mov dx, 3CEh
+    mov ah, al
+    mov al, 8
+    out dx, al
+    inc dx
+    mov al, ah
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    
+    mov al, es:[bp+1]
+    mov bx, di
     mov al, [bx+1]
     mov es:[bp+1], al
+
+dsp32_b1_skip:
+
+    ; ===== BYTE 2 =====
+    mov al, [si+2]
+    not al
+    test al, al
+    jz dsp32_b2_skip
     
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    mov al, [bx+129]
-    mov es:[bp+1], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    mov al, [bx+257]
-    mov es:[bp+1], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
+    mov dx, 3CEh
+    mov ah, al
     mov al, 8
     out dx, al
-    mov al, [bx+385]
-    mov es:[bp+1], al
+    inc dx
+    mov al, ah
+    out dx, al
     
-    ; ===== BYTE 2 =====
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 1
+    mov al, 0Fh
     out dx, al
+    
+    mov al, es:[bp+2]
+    mov bx, di
     mov al, [bx+2]
     mov es:[bp+2], al
+
+dsp32_b2_skip:
+
+    ; ===== BYTE 3 =====
+    mov al, [si+3]
+    not al
+    test al, al
+    jz dsp32_b3_skip
     
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    mov al, [bx+130]
-    mov es:[bp+2], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    mov al, [bx+258]
-    mov es:[bp+2], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
+    mov dx, 3CEh
+    mov ah, al
     mov al, 8
     out dx, al
-    mov al, [bx+386]
-    mov es:[bp+2], al
+    inc dx
+    mov al, ah
+    out dx, al
     
-    ; ===== BYTE 3 =====
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 1
+    mov al, 0Fh
     out dx, al
+    
+    mov al, es:[bp+3]
+    mov bx, di
     mov al, [bx+3]
     mov es:[bp+3], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    mov al, [bx+131]
-    mov es:[bp+3], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-    mov al, [bx+259]
-    mov es:[bp+3], al
-    
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 8
-    out dx, al
-    mov al, [bx+387]
-    mov es:[bp+3], al
-    
+
+dsp32_b3_skip:
+
     ; Siguiente fila
     pop bp
     add bp, 80
@@ -818,10 +788,18 @@ dsp32_fila:
     add di, 4
     pop cx
     dec cx
-    jz dsp32_end
+    jz dsp32_salir
     jmp dsp32_fila
 
-dsp32_end:
+dsp32_salir:
+    ; Restaurar registros de EGA
+    mov dx, 3CEh
+    mov al, 8
+    out dx, al
+    inc dx
+    mov al, 0FFh
+    out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al

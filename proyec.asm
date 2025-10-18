@@ -214,28 +214,53 @@ int 16h
     mov ax, 10h
     int 10h
     
-    ; ===== FASE 9: CONFIGURAR EGA =====
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 0Fh
-    out dx, al
-    
-    mov dx, 3CEh
-    mov al, 5
-    out dx, al
-    inc dx
-    mov al, 0
-    out dx, al
-    
-    mov dx, 3CEh
-    mov al, 3
-    out dx, al
-    inc dx
-    mov al, 0
-    out dx, al
+    ;; ===== FASE 9: CONFIGURAR EGA MODO 10h =====
+; Configurar Sequence Controller
+mov dx, 3C4h
+mov al, 2           ; Map Mask Register
+out dx, al
+inc dx
+mov al, 0Fh         ; Habilitar los 4 planos
+out dx, al
 
+; Configurar Graphics Controller
+mov dx, 3CEh
+mov al, 5           ; Graphics Mode Register
+out dx, al
+inc dx
+mov al, 0           ; Write Mode 0
+out dx, al
+
+mov dx, 3CEh
+mov al, 3           ; Data Rotate/Function Select
+out dx, al
+inc dx
+mov al, 0           ; No rotate, replace
+out dx, al
+
+mov dx, 3CEh
+mov al, 8           ; Bit Mask Register
+out dx, al
+inc dx
+mov al, 0FFh        ; Todos los bits habilitados
+out dx, al
+
+mov ax, VIDEO_SEG
+mov es, ax
+
+; Activar escritura en los 4 planos
+mov dx, 3C4h
+mov al, 2
+out dx, al
+inc dx
+mov al, 0Fh
+out dx, al
+
+; Llenar de ceros = negro en todos los planos
+xor di, di
+mov cx, 28000       ; 640x350/8 = 28000 bytes por plano
+xor ax, ax
+rep stosw           ; Usa STOSW (16 bits) para mayor velocidad
     ; ===== FASE 10: INICIALIZAR JUEGO =====
     call centrar_camara
     call renderizar_en_pagina_0
