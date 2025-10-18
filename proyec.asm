@@ -153,7 +153,16 @@ jugador_izq_b_mask      db 128 dup(0)
 jugador_der_a_mask      db 128 dup(0)
 jugador_der_b_mask      db 128 dup(0)
 
-INCLUDE OPTSYS.INC
+; === Sistema de Optimización (datos) ===
+sprite_data_ptrs    dw 256 dup(0)
+sprite_mask_ptrs    dw 256 dup(0)
+dirty_map           db 273 dup(0)    ; 21×13 tiles visibles
+frame_counter_opt   db 0
+force_full_redraw   db 1
+last_cam_tile_x     dw 0
+last_cam_tile_y     dw 0
+last_player_tile_x  dw 0
+last_player_tile_y  dw 0
 
 msg_titulo  db 'JUEGO EGA - Universidad Nacional',13,10,'$'
 msg_cargando db 'Cargando archivos...',13,10,'$'
@@ -1616,6 +1625,7 @@ dvt_mapa_ok:
     pop ax
     ret
 debug_verificar_todo ENDP
+INCLUDE OPTSYS.INC
 INCLUDE OPTCODE.INC
 
 END inicio

@@ -11,21 +11,6 @@
 ; DATOS DEL SISTEMA DE OPTIMIZACIÓN
 ; ============================================
 
-; --- Tabla de Punteros de Sprites (256 entradas) ---
-sprite_data_ptrs    dw 256 dup(0)
-sprite_mask_ptrs    dw 256 dup(0)
-
-; --- Sistema de Dirty Tiles ---
-dirty_map           db 273 dup(0)    ; 21×13 = 273 tiles en viewport
-frame_counter_opt   db 0
-force_full_redraw   db 1             ; Flag: 1=forzar redibujado completo
-
-; --- Caché de Estado Anterior ---
-last_cam_tile_x     dw 0
-last_cam_tile_y     dw 0
-last_player_tile_x  dw 0
-last_player_tile_y  dw 0
-
 ; ============================================
 ; INICIALIZACIÓN DEL SISTEMA
 ; ============================================
@@ -169,7 +154,8 @@ obtener_sprite_rapido PROC
     ; Salida: DI = datos planar, SI = máscara
     push bx
     
-    movzx bx, al
+    xor bh, bh
+    mov bl, al
     shl bx, 1
     mov di, [sprite_data_ptrs + bx]
     mov si, [sprite_mask_ptrs + bx]
