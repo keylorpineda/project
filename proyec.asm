@@ -295,7 +295,7 @@ call limpiar_tiles_sucios
 
 ; ✅ Marcar viewport y renderizar página 1 (offset 28000 bytes = 7000h words)
 call marcar_viewport_completo
-mov temp_offset, 7000h       ; ✅ CORRECTO: 28000 / 4 = 7000h
+mov temp_offset, 8000h       ; ✅ CORRECTO: 28000 / 4 = 7000h
 call dibujar_mapa_en_offset
 call dibujar_jugador_en_offset
 call limpiar_tiles_sucios
@@ -406,7 +406,7 @@ bg_render_p0:
     
 bg_render_p1:
     ; Renderizar en página 1 (offset 7000h)
-    mov temp_offset, 7000h      ; ✅ CORRECTO
+    mov temp_offset, 8000h      ; ✅ CORRECTO
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
     

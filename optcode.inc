@@ -851,32 +851,24 @@ dibujar_sprite_planar_16x16_opt PROC
     push es
     
     ; Clipping
-    cmp cx, 480
-    jb  dsp16o_clip_check_y
-    jmp dsp16o_ret
+    cmp cx, 320          ; ✅ CAMBIO: verificar límite correcto
+    jae dsp16o_ret
+    cmp dx, 224          ; ✅ CAMBIO: 14*16 = 224
+    jae dsp16o_ret
 
-dsp16o_clip_check_y:
-    cmp dx, 350
-    jb  dsp16o_clip_ok
-    jmp dsp16o_ret
-
-dsp16o_clip_ok:
-    
     mov ax, 0A000h
     mov es, ax
     
-    ; Calcular offset
-    push bx             ; BX = datos planar
-    mov bx, dx
-    shl bx, 1
-    mov ax, [video_offsets + bx]
-    add ax, temp_offset
+    ; ✅ CORRECCIÓN CRÍTICA: Calcular offset correctamente
+    mov ax, dx
+    mov di, 80
+    mul di              ; AX = Y * 80
     mov bp, ax
     
     mov ax, cx
-    shr ax, 3
-    add bp, ax
-    pop bx
+    shr ax, 3           ; Dividir X entre 8 para obtener byte
+    add bp, ax          ; BP = offset base
+    add bp, temp_offset ; ✅ AGREGAR el offset de página
     
     ; Configurar puerto
     mov dx, 3C4h
@@ -896,7 +888,7 @@ dsp16o_fila:
     
     mov di, bp
     
-    ; ===== BYTE 0 - PLANO 0 =====
+    ; ===== PLANO 0 - BYTE 0 =====
     mov al, 1
     out dx, al
     
@@ -920,13 +912,11 @@ dsp16o_fila:
 dsp16o_p0b0_opaque:
     mov al, [bx]
     mov es:[di], al
-    jmp dsp16o_p0b0_next
     
 dsp16o_p0b0_skip:
-    
 dsp16o_p0b0_next:
     
-    ; ===== BYTE 1 - PLANO 0 =====
+    ; ===== PLANO 0 - BYTE 1 =====
     inc di
     mov al, 1
     out dx, al
@@ -950,10 +940,8 @@ dsp16o_p0b0_next:
 dsp16o_p0b1_opaque:
     mov al, [bx+1]
     mov es:[di], al
-    jmp dsp16o_p0b1_next
     
 dsp16o_p0b1_skip:
-    
 dsp16o_p0b1_next:
     
     ; ===== PLANO 1 =====
@@ -980,10 +968,8 @@ dsp16o_p0b1_next:
 dsp16o_p1b0_opaque:
     mov al, [bx+32]
     mov es:[di], al
-    jmp dsp16o_p1b0_next
     
 dsp16o_p1b0_skip:
-    
 dsp16o_p1b0_next:
     inc di
     
@@ -1006,10 +992,8 @@ dsp16o_p1b0_next:
 dsp16o_p1b1_opaque:
     mov al, [bx+33]
     mov es:[di], al
-    jmp dsp16o_p1b1_next
     
 dsp16o_p1b1_skip:
-    
 dsp16o_p1b1_next:
     
     ; ===== PLANO 2 =====
@@ -1036,10 +1020,8 @@ dsp16o_p1b1_next:
 dsp16o_p2b0_opaque:
     mov al, [bx+64]
     mov es:[di], al
-    jmp dsp16o_p2b0_next
     
 dsp16o_p2b0_skip:
-    
 dsp16o_p2b0_next:
     inc di
     
@@ -1062,10 +1044,8 @@ dsp16o_p2b0_next:
 dsp16o_p2b1_opaque:
     mov al, [bx+65]
     mov es:[di], al
-    jmp dsp16o_p2b1_next
     
 dsp16o_p2b1_skip:
-    
 dsp16o_p2b1_next:
     
     ; ===== PLANO 3 =====
@@ -1092,10 +1072,8 @@ dsp16o_p2b1_next:
 dsp16o_p3b0_opaque:
     mov al, [bx+96]
     mov es:[di], al
-    jmp dsp16o_p3b0_next
     
 dsp16o_p3b0_skip:
-    
 dsp16o_p3b0_next:
     inc di
     
@@ -1118,10 +1096,8 @@ dsp16o_p3b0_next:
 dsp16o_p3b1_opaque:
     mov al, [bx+97]
     mov es:[di], al
-    jmp dsp16o_p3b1_next
     
 dsp16o_p3b1_skip:
-    
 dsp16o_p3b1_next:
     
     ; Siguiente fila
@@ -1133,13 +1109,8 @@ dsp16o_p3b1_next:
     add si, 2
     push si
     dec cx
-    jnz dsp16o_fila_jmp
-    jmp dsp16o_fin
-    
-dsp16o_fila_jmp:
-    jmp dsp16o_fila
+    jnz dsp16o_fila
 
-dsp16o_fin:
     pop si
     mov al, 0Fh
     out dx, al
@@ -1166,39 +1137,29 @@ dibujar_sprite_planar_32x32_opt PROC
     push bp
     push es
     
-    ; Clipping
-    cmp cx, 480
-    jb dsp32o_check_y
-    jmp dsp32o_ret
-
-dsp32o_check_y:
-    cmp dx, 350
-    jb dsp32o_check_x_sign
-    jmp dsp32o_ret
-
-dsp32o_check_x_sign:
+    ; Clipping mejorado
+    cmp cx, 288          ; 320-32 = 288
+    jae dsp32o_ret
+    cmp dx, 192          ; 224-32 = 192
+    jae dsp32o_ret
     test cx, 8000h
-    jz dsp32o_check_y_sign
-    jmp dsp32o_ret
-
-dsp32o_check_y_sign:
+    jnz dsp32o_ret
     test dx, 8000h
-    jz dsp32o_clip_ok
-    jmp dsp32o_ret
+    jnz dsp32o_ret
 
-dsp32o_clip_ok:
     mov ax, 0A000h
     mov es, ax
     
-    ; Calcular offset
+    ; ✅ CORRECCIÓN CRÍTICA: Calcular offset correctamente
     mov ax, dx
-    mov bp, 80
-    mul bp
+    mov di, 80
+    mul di              ; AX = Y * 80
     mov bp, ax
+    
     mov ax, cx
-    shr ax, 3
+    shr ax, 3           ; Dividir X entre 8
     add bp, ax
-    add bp, temp_offset
+    add bp, temp_offset ; ✅ AGREGAR el offset de página
     
     mov dx, 3C4h
     mov al, 2
@@ -1206,8 +1167,8 @@ dsp32o_clip_ok:
     inc dx
     
     ; BX = datos planar, SI = máscara
-    push si                 ; Guardar puntero a máscara
-    mov cx, 32              ; 32 filas
+    push si                 
+    mov cx, 32
 
 dsp32o_fila:
     pop si                  ; Recuperar máscara
