@@ -1461,6 +1461,7 @@ dmo_col:
     pop si                  ; Restaurar SI (mask_ptr)
 
     ; Llamar a dibujar con DI, SI, CX, DX correctos
+    call ajustar_coords_scroll
     call dibujar_sprite_planar_16x16_opt
     
     ; ===== Restaurar registros de BUCLE =====
@@ -1600,7 +1601,7 @@ dibujar_jugador_en_offset PROC
     add ax, viewport_y
     sub ax, 16
     mov dx, ax
-    
+
     call obtener_sprite_jugador
     call dibujar_sprite_planar_32x32_opt
     
