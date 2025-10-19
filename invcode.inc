@@ -322,6 +322,7 @@ drm_dibujar:
     ; CX, DX ya tienen las coordenadas
     ; DI = datos del sprite
     ; SI = máscara del sprite
+    call ajustar_coords_scroll
     call dibujar_sprite_planar_16x16_opt
 
     pop bx                      ; Restaurar máscara
