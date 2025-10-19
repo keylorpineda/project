@@ -202,14 +202,20 @@ drm_loop:
     mov al, num_recursos_cargados
     mov ah, 0
     cmp si, ax
-    jae drm_fin
+    jb drm_loop_continue
+    jmp drm_fin
+
+drm_loop_continue:
     
     ; Verificar si ya fue recogido
     push bx
     mov ax, recursos_recogidos
     and ax, bx
     pop bx
-    jnz drm_next
+    jz drm_procesar
+    jmp drm_next
+
+drm_procesar:
     
     ; Obtener posición del recurso
     push bx
@@ -240,16 +246,28 @@ drm_loop:
     mov ax, cx
     sub ax, camara_px
     cmp ax, -16
-    jl drm_next_pop
+    jge drm_visible_x_min_ok
+    jmp drm_next_pop
+
+drm_visible_x_min_ok:
     cmp ax, 320
-    jg drm_next_pop
+    jle drm_visible_x_max_ok
+    jmp drm_next_pop
+
+drm_visible_x_max_ok:
     
     mov ax, dx
     sub ax, camara_py
     cmp ax, -16
-    jl drm_next_pop
+    jge drm_visible_y_min_ok
+    jmp drm_next_pop
+
+drm_visible_y_min_ok:
     cmp ax, 192
-    jg drm_next_pop
+    jle drm_visible_y_max_ok
+    jmp drm_next_pop
+
+drm_visible_y_max_ok:
     
     ; Calcular posición en pantalla
     mov ax, cx

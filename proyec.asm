@@ -1691,8 +1691,10 @@ cargar_recursos_desde_mapa PROC
     mov ax, 3D00h
     mov dx, OFFSET archivo_mapa
     int 21h
-    jc crm_error
+    jnc crm_open_ok
+    jmp crm_error
 
+crm_open_ok:
     mov carga_recursos_handle, ax
 
 crm_loop:
@@ -1760,10 +1762,11 @@ crm_estado_en_progreso:
     jne crm_estado_y
     mov carga_recursos_estado, 2
     cmp carga_recursos_guardar, 0
-    je crm_loop
+    je crm_estado_x_skip
     mov di, carga_recursos_offset
     mov al, bl
     mov [recursos_mapa + di], al
+crm_estado_x_skip:
     jmp crm_loop
 
 crm_estado_y:
@@ -1771,10 +1774,11 @@ crm_estado_y:
     jne crm_estado_tipo
     mov carga_recursos_estado, 3
     cmp carga_recursos_guardar, 0
-    je crm_loop
+    je crm_estado_y_skip
     mov di, carga_recursos_offset
     mov al, bl
     mov [recursos_mapa + di + 1], al
+crm_estado_y_skip:
     jmp crm_loop
 
 crm_estado_tipo:
@@ -1782,16 +1786,17 @@ crm_estado_tipo:
     jne crm_estado_cant
     mov carga_recursos_estado, 4
     cmp carga_recursos_guardar, 0
-    je crm_loop
+    je crm_estado_tipo_skip
     mov di, carga_recursos_offset
     mov al, bl
     mov [recursos_mapa + di + 2], al
+crm_estado_tipo_skip:
     jmp crm_loop
 
 crm_estado_cant:
     mov carga_recursos_estado, 0
     cmp carga_recursos_guardar, 0
-    je crm_loop
+    je crm_estado_cant_skip
 
     cmp bx, 255
     jbe crm_cant_ok
@@ -1806,6 +1811,9 @@ crm_cant_ok:
 
     inc num_recursos_cargados
     mov carga_recursos_guardar, 0
+    jmp crm_loop
+
+crm_estado_cant_skip:
     jmp crm_loop
 
 crm_fin_lectura:
