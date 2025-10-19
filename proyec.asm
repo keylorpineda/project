@@ -95,6 +95,8 @@ camara_py   dw 304
 
 pagina_visible db 0
 pagina_dibujo  db 1
+even
+pagina_offsets dw 0, 8000h
 
 viewport_x  dw 160
 viewport_y  dw 79
@@ -464,13 +466,12 @@ anim_ok:
     mov al, jugador_frame
     mov frame_old, al
 
-; **CRÍTICO**: Mostrar página 0 y configurar variables
-mov ah, 5
-mov al, 0
-int 10h
+    ; **CRÍTICO**: Mostrar página 0 y configurar variables
+    mov al, 0
+    call mostrar_pagina
 
-mov pagina_visible, 0
-mov pagina_dibujo, 1
+    mov pagina_visible, 0
+    mov pagina_dibujo, 1
 
 ; ===== BUCLE PRINCIPAL =====
 bucle_juego:
@@ -535,14 +536,11 @@ bg_redraw_reset:
 
 bg_redraw_done:
 
-    ; Esperar vertical retrace
-    call esperar_retrace
-    
     ; Renderizar en la página que NO está visible
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
-    
+
     ; Renderizar en página 1
     mov temp_offset, 8000h
     call dibujar_todo_en_offset
@@ -552,12 +550,14 @@ bg_render_p0:
     ; Renderizar en página 0
     mov temp_offset, 0
     call dibujar_todo_en_offset
-    
+
 bg_cambiar_pagina:
-    ; Cambiar página visible
-    mov ah, 5
+    ; Esperar retrace justo antes de mostrar la página para evitar parpadeos
+    call esperar_retrace
+
+    ; Cambiar página visible utilizando el inicio de pantalla correcto
     mov al, pagina_dibujo
-    int 10h
+    call mostrar_pagina
     
     ; Intercambiar páginas
     xor pagina_dibujo, 1
@@ -1617,6 +1617,39 @@ djo_salir:
     pop ax
     ret
 dibujar_jugador_en_offset ENDP
+
+mostrar_pagina PROC
+    push ax
+    push bx
+    push cx
+    push dx
+
+    mov bl, al
+    xor bh, bh
+    shl bx, 1
+    mov ax, [pagina_offsets + bx]
+    mov cx, ax
+    shr cx, 1
+
+    mov dx, 3D4h
+    mov al, 0Ch
+    out dx, al
+    inc dx
+    mov al, ch
+    out dx, al
+    dec dx
+    mov al, 0Dh
+    out dx, al
+    inc dx
+    mov al, cl
+    out dx, al
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+mostrar_pagina ENDP
 
 esperar_retrace PROC
     push ax
