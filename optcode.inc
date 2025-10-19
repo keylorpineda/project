@@ -1139,6 +1139,13 @@ dsp16_p3_done:
     ret
 dibujar_sprite_planar_16x16_opt ENDP
 
+; ============================================
+; REEMPLAZAR COMPLETO en OPTCODE.INC
+; Buscar: dibujar_sprite_planar_32x32_opt PROC
+; Borrar todo hasta: dibujar_sprite_planar_32x32_opt ENDP
+; Pegar esto:
+; ============================================
+
 dibujar_sprite_planar_32x32_opt PROC
     push ax
     push bx
@@ -1152,16 +1159,17 @@ dibujar_sprite_planar_32x32_opt PROC
     mov ax, 0A000h
     mov es, ax
     
+    ; ✅ OPTIMIZACIÓN: Usar tabla video_offsets
     mov ax, dx
-    mov bp, 80
-    mul bp
-    mov bp, ax
+    shl ax, 1
+    mov bp, [video_offsets + ax]
     mov ax, cx
     shr ax, 3
     add bp, ax
     add bp, temp_offset
     
-    mov bx, di
+    mov bx, di              ; BX = datos
+    ; SI = máscara
     
     ; ===== PLANO 0 =====
     mov dx, 3CEh
@@ -1181,12 +1189,14 @@ dibujar_sprite_planar_32x32_opt PROC
     push bp
     push bx
     push si
-    mov cx, 32
     
-dsp32_p0:
+    ; ✅ Desenrollar: 4 filas por iteración (32/4 = 8 iteraciones)
+    mov cx, 8
+    
+dsp32_p0_loop:
     mov di, bp
     
-    ; Byte 0
+    ; Fila 1 - 4 bytes
     mov ah, [si]
     mov al, ah
     not al
@@ -1196,7 +1206,6 @@ dsp32_p0:
     or al, dl
     mov es:[di], al
     
-    ; Byte 1
     mov ah, [si+1]
     mov al, ah
     not al
@@ -1206,7 +1215,6 @@ dsp32_p0:
     or al, dl
     mov es:[di+1], al
     
-    ; Byte 2
     mov ah, [si+2]
     mov al, ah
     not al
@@ -1216,7 +1224,6 @@ dsp32_p0:
     or al, dl
     mov es:[di+2], al
     
-    ; Byte 3
     mov ah, [si+3]
     mov al, ah
     not al
@@ -1226,10 +1233,125 @@ dsp32_p0:
     or al, dl
     mov es:[di+3], al
     
-    add bp, 80
-    add si, 4
-    add bx, 4
-    loop dsp32_p0
+    ; Fila 2 - 4 bytes
+    add di, 80
+    mov ah, [si+4]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+4]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+5]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+5]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+6]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+6]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+7]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+7]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    ; Fila 3 - 4 bytes
+    add di, 80
+    mov ah, [si+8]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+8]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+9]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+9]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+10]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+10]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+11]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+11]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    ; Fila 4 - 4 bytes
+    add di, 80
+    mov ah, [si+12]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+12]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+13]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+13]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+14]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+14]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+15]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+15]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    add bp, 320             ; 80 * 4 filas
+    add si, 16              ; 4 bytes * 4 filas
+    add bx, 16
+    dec cx
+    jnz dsp32_p0_loop
     
     pop si
     pop bx
@@ -1253,11 +1375,12 @@ dsp32_p0:
     push bp
     push bx
     push si
-    mov cx, 32
+    mov cx, 8
     
-dsp32_p1:
+dsp32_p1_loop:
     mov di, bp
     
+    ; Fila 1
     mov ah, [si]
     mov al, ah
     not al
@@ -1294,10 +1417,125 @@ dsp32_p1:
     or al, dl
     mov es:[di+3], al
     
-    add bp, 80
-    add si, 4
-    add bx, 4
-    loop dsp32_p1
+    ; Fila 2
+    add di, 80
+    mov ah, [si+4]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+132]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+5]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+133]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+6]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+134]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+7]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+135]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    ; Fila 3
+    add di, 80
+    mov ah, [si+8]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+136]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+9]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+137]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+10]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+138]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+11]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+139]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    ; Fila 4
+    add di, 80
+    mov ah, [si+12]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+140]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+13]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+141]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+14]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+142]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+15]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+143]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    add bp, 320
+    add si, 16
+    add bx, 16
+    dec cx
+    jnz dsp32_p1_loop
     
     pop si
     pop bx
@@ -1321,11 +1559,12 @@ dsp32_p1:
     push bp
     push bx
     push si
-    mov cx, 32
+    mov cx, 8
     
-dsp32_p2:
+dsp32_p2_loop:
     mov di, bp
     
+    ; Fila 1
     mov ah, [si]
     mov al, ah
     not al
@@ -1362,10 +1601,125 @@ dsp32_p2:
     or al, dl
     mov es:[di+3], al
     
-    add bp, 80
-    add si, 4
-    add bx, 4
-    loop dsp32_p2
+    ; Fila 2
+    add di, 80
+    mov ah, [si+4]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+260]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+5]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+261]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+6]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+262]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+7]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+263]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    ; Fila 3
+    add di, 80
+    mov ah, [si+8]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+264]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+9]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+265]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+10]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+266]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+11]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+267]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    ; Fila 4
+    add di, 80
+    mov ah, [si+12]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+268]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+13]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+269]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+14]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+270]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+15]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+271]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    add bp, 320
+    add si, 16
+    add bx, 16
+    dec cx
+    jnz dsp32_p2_loop
     
     pop si
     pop bx
@@ -1386,11 +1740,12 @@ dsp32_p2:
     mov al, 8
     out dx, al
     
-    mov cx, 32
+    mov cx, 8
     
-dsp32_p3:
+dsp32_p3_loop:
     mov di, bp
     
+    ; Fila 1
     mov ah, [si]
     mov al, ah
     not al
@@ -1427,10 +1782,125 @@ dsp32_p3:
     or al, dl
     mov es:[di+3], al
     
-    add bp, 80
-    add si, 4
-    add bx, 4
-    loop dsp32_p3
+    ; Fila 2
+    add di, 80
+    mov ah, [si+4]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+388]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+5]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+389]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+6]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+390]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+7]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+391]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    ; Fila 3
+    add di, 80
+    mov ah, [si+8]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+392]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+9]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+393]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+10]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+394]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+11]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+395]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    ; Fila 4
+    add di, 80
+    mov ah, [si+12]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+396]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+13]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+397]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    mov ah, [si+14]
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+398]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
+    
+    mov ah, [si+15]
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+399]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    add bp, 320
+    add si, 16
+    add bx, 16
+    dec cx
+    jnz dsp32_p3_loop
     
     ; Restaurar
     mov dx, 3C4h
