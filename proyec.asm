@@ -1311,11 +1311,20 @@ renderizar_en_pagina_1 ENDP
 
 dibujar_todo_en_offset PROC
     push ax
-    
+
     mov temp_offset, ax
+    cmp inventario_abierto, 0
+    jne dto_modo_inventario
+
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
-    
+    jmp dto_fin
+
+dto_modo_inventario:
+    call dibujar_inventario
+
+dto_fin:
+
     pop ax
     ret
 dibujar_todo_en_offset ENDP
