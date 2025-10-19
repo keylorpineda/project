@@ -515,11 +515,21 @@ bg_hay_cambio:
     
     mov ax, jugador_py
     mov jugador_py_old, ax
-    
+
     mov al, jugador_frame
     mov frame_old, al
 
+    mov al, requiere_redibujar
+    cmp al, 0
+    je bg_redraw_reset
+    dec al
+    mov requiere_redibujar, al
+    jmp bg_redraw_done
+
+bg_redraw_reset:
     mov requiere_redibujar, 0
+
+bg_redraw_done:
 
     ; Esperar vertical retrace
     call esperar_retrace
@@ -682,7 +692,7 @@ pmc_toggle_procesar:
     mov inventario_toggle_bloqueado, 1
     xor inventario_abierto, 1
     mov moviendo, 0
-    mov requiere_redibujar, 1
+    mov requiere_redibujar, 2     ; Forzar dos redibujos para limpiar ambas páginas
     jmp pmc_fin
 
 pmc_no_movimiento_local:
