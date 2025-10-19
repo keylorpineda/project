@@ -153,6 +153,20 @@ recursos_recogidos dw 0
 
 NUM_RECURSOS EQU 15
 
+recursos_mapa       db NUM_RECURSOS * 3 dup(0)   ; [x, y, tipo]
+recursos_cantidad   db NUM_RECURSOS dup(0)       ; Cantidad por recurso
+num_recursos_cargados db 0                      ; Total cargado desde mapa
+
+; Variables auxiliares para carga de recursos desde el mapa
+carga_recursos_estado      db 0
+carga_recursos_guardar     db 0
+carga_recursos_comentario  db 0
+carga_recursos_char_pend   db 0
+carga_recursos_tiene_pend  db 0
+carga_recursos_handle      dw 0
+carga_recursos_temp        dw 0
+carga_recursos_offset      dw 0
+
 sprite_cristal_temp db 256 dup(0)
 sprite_gema_temp    db 256 dup(0)
 sprite_moneda_temp  db 256 dup(0)
@@ -238,6 +252,10 @@ inicio:
     jnc cm_ok
     jmp error_carga
 cm_ok:
+    call cargar_recursos_desde_mapa
+    jnc crm_ok
+    jmp error_carga
+crm_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
@@ -1500,6 +1518,251 @@ cm_fin:
     pop ax
     ret
 cargar_mapa ENDP
+
+cargar_recursos_obtener_char PROC
+    push dx
+    push cx
+    push bx
+
+    cmp carga_recursos_tiene_pend, 0
+    je croc_leer
+
+    mov al, carga_recursos_char_pend
+    mov carga_recursos_tiene_pend, 0
+    clc
+    jmp croc_fin
+
+croc_leer:
+    mov bx, carga_recursos_handle
+    mov ah, 3Fh
+    mov cx, 1
+    mov dx, OFFSET buffer_temp
+    int 21h
+    cmp ax, 0
+    jne croc_ok
+    stc
+    jmp croc_fin
+
+croc_ok:
+    mov al, [buffer_temp]
+    clc
+
+croc_fin:
+    pop bx
+    pop cx
+    pop dx
+    ret
+cargar_recursos_obtener_char ENDP
+
+cargar_recursos_leer_numero PROC
+    push bx
+    push cx
+    push dx
+    push si
+
+    mov carga_recursos_temp, 0
+
+crln_loop:
+    sub al, '0'
+    mov ah, 0
+    mov si, ax
+    mov ax, carga_recursos_temp
+    mov cx, 10
+    mul cx
+    add ax, si
+    mov carga_recursos_temp, ax
+
+    call cargar_recursos_obtener_char
+    jc crln_fin
+
+    cmp al, '0'
+    jb crln_set_pend
+    cmp al, '9'
+    jbe crln_loop
+
+crln_set_pend:
+    mov carga_recursos_char_pend, al
+    mov carga_recursos_tiene_pend, 1
+
+crln_fin:
+    mov ax, carga_recursos_temp
+
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    ret
+cargar_recursos_leer_numero ENDP
+
+cargar_recursos_desde_mapa PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov recursos_tipo1, 0
+    mov recursos_tipo2, 0
+    mov recursos_tipo3, 0
+    mov recursos_recogidos, 0
+    mov num_recursos_cargados, 0
+
+    cld
+    mov di, OFFSET recursos_mapa
+    mov cx, NUM_RECURSOS * 3
+    mov al, 0
+    rep stosb
+
+    mov di, OFFSET recursos_cantidad
+    mov cx, NUM_RECURSOS
+    mov al, 0
+    rep stosb
+
+    mov carga_recursos_estado, 0
+    mov carga_recursos_guardar, 0
+    mov carga_recursos_comentario, 0
+    mov carga_recursos_tiene_pend, 0
+
+    mov ax, 3D00h
+    mov dx, OFFSET archivo_mapa
+    int 21h
+    jc crm_error
+
+    mov carga_recursos_handle, ax
+
+crm_loop:
+    call cargar_recursos_obtener_char
+    jc crm_fin_lectura
+
+    cmp carga_recursos_comentario, 0
+    je crm_no_comentario
+    cmp al, 10
+    jne crm_loop
+    mov carga_recursos_comentario, 0
+    jmp crm_loop
+
+crm_no_comentario:
+    cmp al, ';'
+    jne crm_no_puntoycoma
+    mov carga_recursos_comentario, 1
+    jmp crm_loop
+
+crm_no_puntoycoma:
+    cmp carga_recursos_estado, 0
+    jne crm_estado_en_progreso
+
+    cmp al, 'R'
+    je crm_inicio_recurso
+    cmp al, 'r'
+    jne crm_loop
+
+crm_inicio_recurso:
+    cmp num_recursos_cargados, NUM_RECURSOS
+    jb crm_guardar
+    mov carga_recursos_guardar, 0
+    mov carga_recursos_estado, 1
+    jmp crm_loop
+
+crm_guardar:
+    mov carga_recursos_guardar, 1
+    mov al, num_recursos_cargados
+    mov ah, 0
+    mov bl, 3
+    mul bl
+    mov carga_recursos_offset, ax
+    mov carga_recursos_estado, 1
+    jmp crm_loop
+
+crm_estado_en_progreso:
+    cmp al, ' '
+    je crm_loop
+    cmp al, 9
+    je crm_loop
+    cmp al, 13
+    je crm_loop
+    cmp al, 10
+    je crm_loop
+
+    cmp al, '0'
+    jb crm_loop
+    cmp al, '9'
+    ja crm_loop
+
+    call cargar_recursos_leer_numero
+    mov bx, ax
+
+    cmp carga_recursos_estado, 1
+    jne crm_estado_y
+    mov carga_recursos_estado, 2
+    cmp carga_recursos_guardar, 0
+    je crm_loop
+    mov di, carga_recursos_offset
+    mov al, bl
+    mov [recursos_mapa + di], al
+    jmp crm_loop
+
+crm_estado_y:
+    cmp carga_recursos_estado, 2
+    jne crm_estado_tipo
+    mov carga_recursos_estado, 3
+    cmp carga_recursos_guardar, 0
+    je crm_loop
+    mov di, carga_recursos_offset
+    mov al, bl
+    mov [recursos_mapa + di + 1], al
+    jmp crm_loop
+
+crm_estado_tipo:
+    cmp carga_recursos_estado, 3
+    jne crm_estado_cant
+    mov carga_recursos_estado, 4
+    cmp carga_recursos_guardar, 0
+    je crm_loop
+    mov di, carga_recursos_offset
+    mov al, bl
+    mov [recursos_mapa + di + 2], al
+    jmp crm_loop
+
+crm_estado_cant:
+    mov carga_recursos_estado, 0
+    cmp carga_recursos_guardar, 0
+    je crm_loop
+
+    cmp bx, 255
+    jbe crm_cant_ok
+    mov bx, 255
+
+crm_cant_ok:
+    mov al, num_recursos_cargados
+    mov ah, 0
+    mov si, ax
+    mov al, bl
+    mov [recursos_cantidad + si], al
+
+    inc num_recursos_cargados
+    mov carga_recursos_guardar, 0
+    jmp crm_loop
+
+crm_fin_lectura:
+    mov bx, carga_recursos_handle
+    mov ah, 3Eh
+    int 21h
+    clc
+    jmp crm_fin
+
+crm_error:
+    stc
+
+crm_fin:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+cargar_recursos_desde_mapa ENDP
 
 cargar_sprite_16x16 PROC
     push ax

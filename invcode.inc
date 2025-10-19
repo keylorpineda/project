@@ -25,7 +25,9 @@ verificar_colision_recursos PROC
     mov bx, 1                   ; Máscara de bit
 
 vcr_loop:
-    cmp si, NUM_RECURSOS
+    mov al, num_recursos_cargados
+    mov ah, 0
+    cmp si, ax
     jae vcr_fin
     
     ; Verificar si ya fue recogido
@@ -142,7 +144,9 @@ dibujar_recursos_en_mapa PROC
     mov bx, 1                   ; Máscara de bit
     
 drm_loop:
-    cmp si, NUM_RECURSOS
+    mov al, num_recursos_cargados
+    mov ah, 0
+    cmp si, ax
     jae drm_fin
     
     ; Verificar si ya fue recogido
