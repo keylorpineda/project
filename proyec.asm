@@ -114,6 +114,7 @@ scroll_offset_y dw 0
 ; Estado del inventario
 inventario_abierto db 0          ; 0 = cerrado, 1 = abierto
 inventario_toggle_bloqueado db 0 ; Evita rebotes al abrir/cerrar
+requiere_redibujar db 0          ; Fuerza un render cuando cambia el estado
 
 ; Estructura de items (3 tipos de recursos × 5 instancias cada uno)
 ; Tipo 1: Cristales (azul)
@@ -500,10 +501,13 @@ bucle_juego:
     cmp al, frame_old
     jne bg_hay_cambio
 
+    cmp requiere_redibujar, 0
+    jne bg_hay_cambio
+
     ; Si no hay cambios, solo esperar
     call esperar_retrace
     jmp bucle_juego
-    
+
 bg_hay_cambio:
     ; Actualizar estado
     mov ax, jugador_px
@@ -514,7 +518,9 @@ bg_hay_cambio:
     
     mov al, jugador_frame
     mov frame_old, al
-    
+
+    mov requiere_redibujar, 0
+
     ; Esperar vertical retrace
     call esperar_retrace
     
@@ -676,6 +682,7 @@ pmc_toggle_procesar:
     mov inventario_toggle_bloqueado, 1
     xor inventario_abierto, 1
     mov moviendo, 0
+    mov requiere_redibujar, 1
     jmp pmc_fin
 
 pmc_no_movimiento_local:
