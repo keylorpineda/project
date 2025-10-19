@@ -620,10 +620,10 @@ pmc_verificar_derecha_scan:
     cmp al, 4Dh
     jne pmc_verificar_derecha_letra
     jmp pmc_derecha
-
+; ----- CÓDIGO CORREGIDO -----
 pmc_verificar_derecha_letra:
     cmp al, 'D'
-    jne pmc_no_movimiento_local
+    jne pmc_verificar_inventario  ; <-- CORRECCIÓN: Salta a la siguiente comprobación
     jmp pmc_derecha
 
 pmc_verificar_inventario:          ; ← AGREGAR ESTO
