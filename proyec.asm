@@ -109,6 +109,12 @@ frame_old       db 0
 moviendo db 0
 pasos_dados db 0
 
+render_fila     dw 0
+render_columna  dw 0
+render_offset   dw 0
+sprite_data_ptr dw 0
+sprite_mask_ptr dw 0
+
 camara_px   dw 240
 camara_py   dw 304
 
