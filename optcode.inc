@@ -660,7 +660,8 @@ dibujar_sprite_planar_16x16_opt PROC
     ; ✅ OPTIMIZACIÓN 1: Usar tabla de video_offsets
     mov ax, dx
     shl ax, 1
-    mov bp, [video_offsets + ax]
+    mov bx, ax
+    mov bp, [video_offsets + bx]
     mov ax, cx
     shr ax, 3
     add bp, ax
@@ -776,7 +777,11 @@ dsp16_p0:
     add bp, 320
     add si, 8
     add bx, 8
-    loop dsp16_p0
+    dec cx
+    jz dsp16_p0_done
+    jmp dsp16_p0
+
+dsp16_p0_done:
     
     pop si
     pop bx
@@ -883,7 +888,11 @@ dsp16_p1:
     add bp, 320
     add si, 8
     add bx, 8
-    loop dsp16_p1
+    dec cx
+    jz dsp16_p1_done
+    jmp dsp16_p1
+
+dsp16_p1_done:
     
     pop si
     pop bx
@@ -990,7 +999,11 @@ dsp16_p2:
     add bp, 320
     add si, 8
     add bx, 8
-    loop dsp16_p2
+    dec cx
+    jz dsp16_p2_done
+    jmp dsp16_p2
+
+dsp16_p2_done:
     
     pop si
     pop bx
@@ -1094,7 +1107,11 @@ dsp16_p3:
     add bp, 320
     add si, 8
     add bx, 8
-    loop dsp16_p3
+    dec cx
+    jz dsp16_p3_done
+    jmp dsp16_p3
+
+dsp16_p3_done:
     
     ; Restaurar
     mov dx, 3C4h
