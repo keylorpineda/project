@@ -218,7 +218,10 @@ drm_loop:
     mov al, num_recursos_cargados
     xor ah, ah
     cmp si, ax
-    jae NEAR PTR drm_fin        ; Si ya procesamos todos, salir
+    jb  drm_continuar           ; Si aún hay recursos, continuar
+    jmp drm_fin                 ; Si ya procesamos todos, salir
+
+drm_continuar:
 
     ; Verificar si ya fue recogido
     mov ax, recursos_recogidos
