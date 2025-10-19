@@ -264,15 +264,15 @@ dibujar_inventario PROC
     mov dx, INV_Y
     mov ax, INV_WIDTH
     mov bx, INV_HEIGHT
-    mov al, COLOR_FONDO
+    mov si, COLOR_FONDO
     call dibujar_rectangulo_lleno
-    
+
     ; Dibujar marco
     mov cx, INV_X
     mov dx, INV_Y
     mov ax, INV_WIDTH
     mov bx, INV_HEIGHT
-    mov al, COLOR_MARCO
+    mov si, COLOR_MARCO
     call dibujar_rectangulo_vacio
     
     ; Dibujar sprite del jugador (izquierda)
@@ -357,8 +357,10 @@ dsi_loop:
     push dx
     mov ax, ITEM_SIZE
     mov bx, ITEM_SIZE
-    mov al, COLOR_ITEM_SLOT
+    push si
+    mov si, COLOR_ITEM_SLOT
     call dibujar_rectangulo_vacio
+    pop si
     pop dx
     pop cx
     
@@ -485,7 +487,8 @@ dibujar_estadisticas PROC
     
 de_no_victoria:
     pop dx
-    pop cxpop bx
+    pop cx
+    pop bx
     pop ax
     ret
 dibujar_estadisticas ENDP
@@ -510,8 +513,10 @@ dibujar_barra_progreso PROC
     push dx
     mov ax, 60                  ; Ancho de la barra
     mov bx, 8                   ; Alto de la barra
-    mov al, COLOR_BARRA_VACIA
+    push si
+    mov si, COLOR_BARRA_VACIA
     call dibujar_rectangulo_lleno
+    pop si
     pop dx
     pop cx
     
@@ -529,8 +534,10 @@ dibujar_barra_progreso PROC
     mov bx, ax                  ; BX = ancho calculado
     mov ax, bx                  ; AX también
     mov bx, 8                   ; Alto
-    mov al, COLOR_BARRA_LLENA
+    push si
+    mov si, COLOR_BARRA_LLENA
     call dibujar_rectangulo_lleno
+    pop si
     
 dbp_fin:
     pop di
@@ -544,7 +551,7 @@ dibujar_barra_progreso ENDP
 
 ; ============================================
 ; DIBUJAR RECTÁNGULO LLENO
-; Entrada: CX = X, DX = Y, AX = ancho, BX = alto, AL (último) = color
+; Entrada: CX = X, DX = Y, AX = ancho, BX = alto, SI = color (0-15)
 ; ============================================
 dibujar_rectangulo_lleno PROC
     push ax
@@ -557,20 +564,18 @@ dibujar_rectangulo_lleno PROC
     push bp
     
     mov bp, ax                  ; BP = ancho
-    mov si, bx                  ; SI = alto
-    mov di, ax                  ; Guardar ancho antes de que AL cambie
-    and di, 0FFh                ; DI = color (solo byte bajo)
-    
+    mov di, bx                  ; DI = alto
+
     mov ax, VIDEO_SEG
     mov es, ax
-    
+
 drl_fila:
-    test si, si
+    test di, di
     jz drl_fin
-    
+
     push cx
     push dx
-    
+
     ; Calcular offset de video
     mov bx, dx
     shl bx, 1
@@ -580,10 +585,11 @@ drl_fila:
     add ax, bx
     add ax, temp_offset
     mov bx, ax                  ; BX = offset de video
-    
+
     ; Dibujar línea horizontal
-    mov ax, di                  ; AL = color
-    
+    mov ax, si
+    and ax, 0FFh
+
     ; Configurar para escribir en todos los planos
     mov dx, 3C4h
     push ax
@@ -602,14 +608,14 @@ drl_pixel:
     mov es:[bx], al
     inc bx
     loop drl_pixel
-    
+
     pop dx
     pop cx
-    
+
     inc dx                      ; Siguiente fila
-    dec si
+    dec di
     jmp drl_fila
-    
+
 drl_fin:
     pop bp
     pop es
@@ -624,70 +630,61 @@ dibujar_rectangulo_lleno ENDP
 
 ; ============================================
 ; DIBUJAR RECTÁNGULO VACÍO (solo marco)
-; Entrada: CX = X, DX = Y, AX = ancho, BX = alto, AL (último) = color
-; ============================================
+; Entrada: CX = X, DX = Y, AX = ancho, BX = alto, SI = color (0-15)
 dibujar_rectangulo_vacio PROC
     push ax
     push bx
     push cx
     push dx
     push si
-    
-    mov si, ax                  ; Guardar ancho
-    and si, 0FFh                ; SI = color
-    push ax
-    push bx
-    
+    push di
+    push bp
+
+    mov di, ax                  ; Guardar ancho
+    mov bp, bx                  ; Guardar alto
+
     ; Línea superior
     push cx
     push dx
-    pop ax                      ; AX = ancho original
-    mov bx, 1                   ; Alto = 1
-    mov al, sil                 ; Color
-    call dibujar_rectangulo_lleno
-    pop dx
-    pop cx
-    
-    ; Línea inferior
-    pop bx                      ; Recuperar alto original
-    push bx
-    add dx, bx
-    dec dx
-    push cx
-    push dx
-    pop ax
+    mov ax, di
     mov bx, 1
-    mov al, sil
     call dibujar_rectangulo_lleno
     pop dx
     pop cx
-    sub dx, bx
-    inc dx
-    
-    ; Línea izquierda
-    pop bx                      ; Alto original
-    pop ax                      ; Ancho original
-    push ax
-    push bx
+
+    ; Línea inferior
     push cx
     push dx
-    mov ax, 8                   ; Ancho = 8 píxeles
-    ; BX ya tiene el alto
-    mov al, sil
+    add dx, bp
+    dec dx
+    mov ax, di
+    mov bx, 1
     call dibujar_rectangulo_lleno
     pop dx
     pop cx
-    
+
+    ; Línea izquierda
+    push cx
+    push dx
+    mov ax, 8
+    mov bx, bp
+    call dibujar_rectangulo_lleno
+    pop dx
+    pop cx
+
     ; Línea derecha
-    pop bx
-    pop ax
-    add cx, ax
+    push cx
+    push dx
+    add cx, di
     sub cx, 8
     mov ax, 8
-    ; BX ya tiene el alto
-    mov al, sil
+    mov bx, bp
     call dibujar_rectangulo_lleno
-    
+    pop dx
+    pop cx
+
+    pop bp
+    pop di
     pop si
     pop dx
     pop cx
