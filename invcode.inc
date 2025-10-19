@@ -339,9 +339,6 @@ drm_fin:
     ret
 dibujar_recursos_en_mapa ENDP
 
-; ============================================
-; DIBUJAR INVENTARIO - VERSIÓN CORREGIDA
-; ============================================
 dibujar_inventario PROC
     push ax
     push bx
@@ -351,7 +348,37 @@ dibujar_inventario PROC
     push di
     
     cmp inventario_abierto, 0
-    je di_salir_directo         ; ✅ Si está cerrado, no hacer NADA
+    je di_salir_directo
+    
+    ; ✅ LIMPIAR TODA LA PANTALLA CON NEGRO (AMBOS PLANOS)
+    push es
+    mov ax, VIDEO_SEG
+    mov es, ax
+    
+    ; Configurar para escribir en todos los planos
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    
+    ; Limpiar página actual
+    mov di, temp_offset
+    mov cx, 14000
+    xor ax, ax
+    rep stosw
+    
+    pop es
+    
+    ; ✅ DIBUJAR FONDO DEL PANEL (NEGRO - YA ESTÁ LIMPIO)
+    ; Solo dibujar el marco
+    mov cx, INV_X
+    mov dx, INV_Y
+    mov ax, INV_WIDTH
+    mov bx, INV_HEIGHT
+    mov si, COLOR_MARCO
+    call dibujar_rectangulo_vacio
     
     ; ✅ PASO 1: LIMPIAR TODA LA PANTALLA CON NEGRO
     mov cx, 0
@@ -405,21 +432,17 @@ di_salir_directo:
     ret
 dibujar_inventario ENDP
 
-; ============================================
-; DIBUJAR JUGADOR EN INVENTARIO
-; ============================================
 dibujar_jugador_inventario PROC
     push cx
     push dx
     push si
     push di
     
-    ; Obtener sprite actual del jugador
     call obtener_sprite_jugador
     
-    ; Dibujar en posición fija
-    mov cx, ZONA_PLAYER_X
-    mov dx, ZONA_PLAYER_Y
+    ; ✅ POSICIÓN CORREGIDA: IZQUIERDA DEL PANEL
+    mov cx, INV_X + 30          ; X = 190 (columna izquierda)
+    mov dx, INV_Y + 100         ; Y = 150 (centrado verticalmente)
     
     call dibujar_sprite_planar_32x32_opt
     
@@ -455,16 +478,23 @@ dsim_procesar:
     mov ax, si
     xor dx, dx
     mov bx, 4
-    div bx                      ; AX = fila (0-1), DX = columna (0-3)
+    div bx                      ; AX = fila, DX = columna
     
     mov bp, ax                  ; BP = fila
     
-    ; CX = X del slot
-    mov ax, dx
-    mov bx, 50                  ; Espaciado horizontal
+    ; ✅ CX = X del slot (CENTRADO EN EL PANEL)
+    mov ax, dx                  ; AX = columna (0-3)
+    mov bx, 50                  ; Espaciado
     mul bx
-    add ax, 240                 ; X inicial de la zona de items
+    add ax, INV_X + 100         ; Centrado horizontalmente
     mov cx, ax
+    
+    ; ✅ DX = Y del slot
+    mov ax, bp                  ; AX = fila (0-1)
+    mov bx, 50
+    mul bx
+    add ax, INV_Y + 80          ; Centrado verticalmente
+    mov dx, ax
     
     ; DX = Y del slot
     mov ax, bp
@@ -592,16 +622,17 @@ dibujar_estadisticas_mejorado PROC
     push dx
     push si
 
-    mov dx, 90                  ; Y inicial (más arriba)
+    ; ✅ POSICIÓN CORREGIDA: MÁS A LA DERECHA Y ARRIBA
+    mov dx, INV_Y + 30          ; Y = 80 (arriba del todo)
+    mov cx, INV_X + INV_WIDTH - 120  ; X = 360 (columna derecha)
 
     ; Título "RECURSOS"
-    mov cx, 470
+    mov si, OFFSET msg_recursos
     mov si, OFFSET msg_recursos
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
     add dx, 20
-    mov cx, 470
     mov si, OFFSET msg_objetivo
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
@@ -609,28 +640,23 @@ dibujar_estadisticas_mejorado PROC
     add dx, 25
 
     ; ===== CRISTALES =====
-    mov cx, 470
     mov si, OFFSET msg_cristales
     mov al, 12                  ; Azul brillante
     call dibujar_texto_simple
 
     add dx, 15
-    mov cx, 470
     mov al, recursos_tipo1
     xor ah, ah
     call dibujar_numero
 
-    mov cx, 490
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    mov cx, 505
     mov ax, META_POR_TIPO
     call dibujar_numero
 
     add dx, 12
-    mov cx, 470
     mov al, recursos_tipo1
     xor ah, ah
     mov bx, META_POR_TIPO
@@ -639,28 +665,23 @@ dibujar_estadisticas_mejorado PROC
     add dx, 25
 
     ; ===== GEMAS =====
-    mov cx, 470
     mov si, OFFSET msg_gemas
     mov al, 12                  ; Rojo brillante
     call dibujar_texto_simple
 
     add dx, 15
-    mov cx, 470
     mov al, recursos_tipo2
     xor ah, ah
     call dibujar_numero
 
-    mov cx, 490
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    mov cx, 505
     mov ax, META_POR_TIPO
     call dibujar_numero
 
     add dx, 12
-    mov cx, 470
     mov al, recursos_tipo2
     xor ah, ah
     mov bx, META_POR_TIPO
@@ -669,28 +690,27 @@ dibujar_estadisticas_mejorado PROC
     add dx, 25
 
     ; ===== MONEDAS =====
-    mov cx, 470
+
     mov si, OFFSET msg_monedas
     mov al, 14                  ; Amarillo
     call dibujar_texto_simple
 
     add dx, 15
-    mov cx, 470
+
     mov al, recursos_tipo3
     xor ah, ah
     call dibujar_numero
 
-    mov cx, 490
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    mov cx, 505
+
     mov ax, META_POR_TIPO
     call dibujar_numero
 
     add dx, 12
-    mov cx, 470
+ 
     mov al, recursos_tipo3
     xor ah, ah
     mov bx, META_POR_TIPO
@@ -709,7 +729,6 @@ dibujar_estadisticas_mejorado PROC
     cmp al, META_POR_TIPO
     jb dem_no_victoria
 
-    mov cx, 450
     mov si, OFFSET msg_completado
     mov al, 10                  ; Verde brillante
     call dibujar_texto_simple

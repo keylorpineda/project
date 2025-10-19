@@ -692,9 +692,19 @@ pmc_toggle_inventario:
 
 pmc_toggle_procesar:
     mov inventario_toggle_bloqueado, 1
+    
+    ; ✅ Si estamos CERRANDO el inventario, limpiar HUD
+    cmp inventario_abierto, 1
+    jne pmc_toggle_abrir
+    
+    ; Cerrar: limpiar estado
+    mov hud_recoger_activo, 0
+    mov hud_recoger_contador, 0
+    
+pmc_toggle_abrir:
     xor inventario_abierto, 1
     mov moviendo, 0
-    mov requiere_redibujar, 2     ; Forzar dos redibujos para limpiar ambas páginas
+    mov requiere_redibujar, 2
     jmp pmc_fin
 
 pmc_no_movimiento_local:
@@ -1309,18 +1319,17 @@ dibujar_todo_en_offset PROC
     push ax
 
     mov temp_offset, ax
-    cmp inventario_abierto, 0
-    jne dto_modo_inventario
-
+    
+    ; ✅ SIEMPRE dibujar el mapa y jugador PRIMERO
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
-    jmp dto_fin
-
-dto_modo_inventario:
+    
+    ; ✅ LUEGO dibujar inventario ENCIMA (si está abierto)
+    cmp inventario_abierto, 0
+    je dto_fin
     call dibujar_inventario
 
 dto_fin:
-
     pop ax
     ret
 dibujar_todo_en_offset ENDP
@@ -1536,6 +1545,10 @@ dibujar_jugador_en_offset PROC
     push si
     push di
     
+    ; ✅ SOLO DIBUJAR SI EL INVENTARIO ESTÁ CERRADO
+    cmp inventario_abierto, 1
+    je djo_skip_jugador
+    
     ; Calcular posición relativa al viewport
     mov ax, jugador_px
     sub ax, camara_px
@@ -1552,11 +1565,19 @@ dibujar_jugador_en_offset PROC
     call obtener_sprite_jugador
     call dibujar_sprite_planar_32x32_opt
     
-    ; Dibujar animación de recolección
-    call dibujar_animacion_recoger
+    ; Dibujar HUD de recolección
+    call dibujar_hud_recoleccion
+
+djo_skip_jugador:
     
-    ; Dibujar panel de inventario (si está abierto)
-    call dibujar_inventario
+    mov ax, jugador_py
+    sub ax, camara_py
+    add ax, viewport_y
+    sub ax, 16
+    mov dx, ax
+    
+    call obtener_sprite_jugador
+    call dibujar_sprite_planar_32x32_opt
     
     pop di
     pop si
