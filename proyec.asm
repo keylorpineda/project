@@ -52,18 +52,8 @@ archivo_player_der_b   db 'SPRITES\PLAYER\RIGHT2.TXT',0
 
 mapa_datos  db 10000 dup(0)
 
-sprite_grass1_temp   db 256 dup(0)
-sprite_path_temp     db 256 dup(0)
-sprite_water_temp    db 256 dup(0)
-sprite_tree_temp     db 256 dup(0)
-sprite_sand_temp     db 256 dup(0)
-sprite_snow_temp     db 256 dup(0)
-sprite_ice_temp      db 256 dup(0)
-sprite_wall_temp     db 256 dup(0)
-sprite_dirt_temp     db 256 dup(0)
-sprite_lava_temp     db 256 dup(0)
-sprite_rock_temp     db 256 dup(0)
-sprite_bridge_temp   db 256 dup(0)
+sprite_buffer_16   db 256 dup(0)
+sprite_buffer_32   db 1024 dup(0)
 
 sprite_grass1   db 128 dup(0)
 sprite_path     db 128 dup(0)
@@ -78,16 +68,7 @@ sprite_lava     db 128 dup(0)
 sprite_rock     db 128 dup(0)
 sprite_bridge   db 128 dup(0)
 
-jugador_up_a_temp    db 1024 dup(0)
-jugador_up_b_temp    db 1024 dup(0)
-jugador_down_a_temp  db 1024 dup(0)
-jugador_down_b_temp  db 1024 dup(0)
-jugador_izq_a_temp   db 1024 dup(0)
-jugador_izq_b_temp   db 1024 dup(0)
-jugador_der_a_temp   db 1024 dup(0)
-jugador_der_b_temp   db 1024 dup(0)
-
-jugador_up_a    db 512 dup(0)    
+jugador_up_a    db 512 dup(0)
 jugador_up_b    db 512 dup(0)
 jugador_down_a  db 512 dup(0)
 jugador_down_b  db 512 dup(0)
@@ -168,10 +149,6 @@ carga_recursos_handle      dw 0
 carga_recursos_temp        dw 0
 carga_recursos_offset      dw 0
 
-sprite_cristal_temp db 256 dup(0)
-sprite_gema_temp    db 256 dup(0)
-sprite_moneda_temp  db 256 dup(0)
-
 sprite_cristal      db 128 dup(0)
 sprite_gema         db 128 dup(0)
 sprite_moneda       db 128 dup(0)
@@ -230,7 +207,7 @@ msg_cargando db 'Cargando archivos...',13,10,'$'
 msg_mapa    db 'Mapa: $'
 msg_sprites db 'Sprites terreno: $'
 msg_anim    db 'Sprites jugador: $'
-msg_convert db 'Convirtiendo...$'
+msg_convert db 'Generando mascaras...$'
 msg_tablas  db 'Lookup tables: $' 
 msg_ok      db 'OK',13,10,'$'
 msg_error   db 'ERROR',13,10,'$'
@@ -285,27 +262,18 @@ anim_ok:
     mov ah, 9
     int 21h
     
-    ; ===== FASE 5: CONVERTIR A PLANAR =====
-mov dx, OFFSET msg_convert
-mov ah, 9
-int 21h
-call convertir_todos_sprites_planar
-mov dx, OFFSET msg_ok
-mov ah, 9
-int 21h
+    ; ===== FASE 5: PRE-CALCULAR MÁSCARAS (CRÍTICO) =====
+    mov dx, OFFSET msg_convert
+    mov ah, 9
+    int 21h
+    call precalcular_mascaras_tiles
+    call precalcular_mascaras_jugador
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
 
-; ===== FASE 5B: PRE-CALCULAR MÁSCARAS (CRÍTICO) =====
-mov dx, OFFSET msg_convert
-mov ah, 9
-int 21h
-call precalcular_mascaras_tiles
-call precalcular_mascaras_jugador
-mov dx, OFFSET msg_ok
-mov ah, 9
-int 21h
-
-; ===== FASE 6: INICIALIZAR TABLAS =====
-mov dx, OFFSET msg_tablas
+    ; ===== FASE 6: INICIALIZAR TABLAS =====
+    mov dx, OFFSET msg_tablas
     mov ah, 9
     int 21h
     call inicializar_lookup_tables
@@ -315,80 +283,80 @@ mov dx, OFFSET msg_tablas
     call debug_verificar_todo
 
 
-mov dx, OFFSET msg_controles
-mov ah, 9
-int 21h
-mov ah, 0
-int 16h
+    mov dx, OFFSET msg_controles
+    mov ah, 9
+    int 21h
+    mov ah, 0
+    int 16h
 
 ; ===== ENTRAR A MODO GRÁFICO =====
-mov ax, 10h
-int 10h
+    mov ax, 10h
+    int 10h
 
 ; ===== CONFIGURAR PALETA =====
-call inicializar_paleta_ega
+    call inicializar_paleta_ega
 
 ; ===== CONFIGURAR REGISTROS EGA =====
 ; Sequence Controller - Map Mask
-mov dx, 3C4h
-mov al, 2
-out dx, al
-inc dx
-mov al, 0Fh         ; Habilitar los 4 planos
-out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh         ; Habilitar los 4 planos
+    out dx, al
 
 ; Graphics Controller - Modo de escritura
-mov dx, 3CEh
-mov al, 5
-out dx, al
-inc dx
-mov al, 0           ; Write Mode 0
-out dx, al
+    mov dx, 3CEh
+    mov al, 5
+    out dx, al
+    inc dx
+    mov al, 0           ; Write Mode 0
+    out dx, al
 
 ; Graphics Controller - Bit Mask
-mov dx, 3CEh
-mov al, 8
-out dx, al
-inc dx
-mov al, 0FFh
-out dx, al
+    mov dx, 3CEh
+    mov al, 8
+    out dx, al
+    inc dx
+    mov al, 0FFh
+    out dx, al
 
 ; ===== LIMPIAR AMBAS PÁGINAS =====
-mov ax, VIDEO_SEG
-mov es, ax
+    mov ax, VIDEO_SEG
+    mov es, ax
 
 ; Limpiar página 0 (offset 0)
-xor di, di
-mov cx, 14000       ; 28000 bytes / 2 = 14000 words
-xor ax, ax
-rep stosw
+    xor di, di
+    mov cx, 14000       ; 28000 bytes / 2 = 14000 words
+    xor ax, ax
+    rep stosw
 
 ; Limpiar página 1 (offset 8000h)
-mov di, 8000h
-mov cx, 14000
-xor ax, ax
-rep stosw
+    mov di, 8000h
+    mov cx, 14000
+    xor ax, ax
+    rep stosw
 
 ; ===== INICIALIZAR JUEGO =====
-call centrar_camara
+    call centrar_camara
 
 ; **CRÍTICO**: Renderizar PÁGINA 0 primero
-mov temp_offset, 0
-call dibujar_mapa_en_offset
-call dibujar_jugador_en_offset
+    mov temp_offset, 0
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
 
 ; **CRÍTICO**: Renderizar PÁGINA 1
-mov temp_offset, 8000h
-call dibujar_mapa_en_offset
-call dibujar_jugador_en_offset
+    mov temp_offset, 8000h
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
 
 ; Guardar estado inicial
-mov ax, jugador_px
-mov jugador_px_old, ax
-mov ax, jugador_py
-mov jugador_py_old, ax
-mov al, jugador_frame
-mov frame_old, al
+    mov ax, jugador_px
+    mov jugador_px_old, ax
+    mov ax, jugador_py
+    mov jugador_py_old, ax
+    mov al, jugador_frame
+    mov frame_old, al
 
 ; **CRÍTICO**: Mostrar página 0 y configurar variables
 mov ah, 5
@@ -754,223 +722,148 @@ verificar_tile_transitable PROC
     ret
 verificar_tile_transitable ENDP
 
-convertir_todos_sprites_planar PROC
-    push si
-    push di
-    push bp
-    
-    ; ===== TILES 16x16 CON MÁSCARAS =====
-    mov si, OFFSET sprite_grass1_temp
-    mov di, OFFSET sprite_grass1
-    mov bp, OFFSET sprite_grass1_mask
-    call convertir_sprite_a_planar_opt
-
-    mov si, OFFSET sprite_path_temp
-    mov di, OFFSET sprite_path
-    mov bp, OFFSET sprite_path_mask
-    call convertir_sprite_a_planar_opt
-    
-    mov si, OFFSET sprite_water_temp
-    mov di, OFFSET sprite_water
-    mov bp, OFFSET sprite_water_mask
-    call convertir_sprite_a_planar_opt
-    
-    mov si, OFFSET sprite_tree_temp
-    mov di, OFFSET sprite_tree
-    mov bp, OFFSET sprite_tree_mask
-    call convertir_sprite_a_planar_opt
-    
-    mov si, OFFSET sprite_sand_temp
-    mov di, OFFSET sprite_sand
-    mov bp, OFFSET sprite_sand_mask
-    call convertir_sprite_a_planar_opt
-
-    mov si, OFFSET sprite_rock_temp        ; ← AGREGAR ESTO
-mov di, OFFSET sprite_rock             ; ← AGREGAR ESTO
-mov bp, OFFSET sprite_rock_mask        ; ← AGREGAR ESTO
-call convertir_sprite_a_planar_opt  
-
-    mov si, OFFSET sprite_snow_temp
-    mov di, OFFSET sprite_snow
-    mov bp, OFFSET sprite_snow_mask
-    call convertir_sprite_a_planar_opt
-    
-    mov si, OFFSET sprite_ice_temp
-    mov di, OFFSET sprite_ice
-    mov bp, OFFSET sprite_ice_mask
-    call convertir_sprite_a_planar_opt
-    
-    mov si, OFFSET sprite_wall_temp
-    mov di, OFFSET sprite_wall
-    mov bp, OFFSET sprite_wall_mask
-    call convertir_sprite_a_planar_opt
-
-    mov si, OFFSET sprite_dirt_temp
-    mov di, OFFSET sprite_dirt
-    mov bp, OFFSET sprite_dirt_mask
-    call convertir_sprite_a_planar_opt
-    
-    mov si, OFFSET sprite_lava_temp
-    mov di, OFFSET sprite_lava
-    mov bp, OFFSET sprite_lava_mask
-    call convertir_sprite_a_planar_opt
-    
-    mov si, OFFSET sprite_bridge_temp
-    mov di, OFFSET sprite_bridge
-    mov bp, OFFSET sprite_bridge_mask
-    call convertir_sprite_a_planar_opt
-
-    ; ===== RECURSOS =====           ; ← AGREGAR ESTO
-    mov si, OFFSET sprite_cristal_temp
-    mov di, OFFSET sprite_cristal
-    mov bp, OFFSET sprite_cristal_mask
-    call convertir_sprite_a_planar_opt
-    
-    mov si, OFFSET sprite_gema_temp
-    mov di, OFFSET sprite_gema
-    mov bp, OFFSET sprite_gema_mask
-    call convertir_sprite_a_planar_opt
-    
-    mov si, OFFSET sprite_moneda_temp
-    mov di, OFFSET sprite_moneda
-    mov bp, OFFSET sprite_moneda_mask
-    call convertir_sprite_a_planar_opt
-    
-    ; ===== JUGADOR 32x32 CON MÁSCARAS =====
-    mov si, OFFSET jugador_up_a_temp
-    mov di, OFFSET jugador_up_a
-    mov bp, OFFSET jugador_up_a_mask
-    call convertir_sprite_32x32_a_planar_opt
-    
-    mov si, OFFSET jugador_up_b_temp
-    mov di, OFFSET jugador_up_b
-    mov bp, OFFSET jugador_up_b_mask
-    call convertir_sprite_32x32_a_planar_opt
-    
-    mov si, OFFSET jugador_down_a_temp
-    mov di, OFFSET jugador_down_a
-    mov bp, OFFSET jugador_down_a_mask
-    call convertir_sprite_32x32_a_planar_opt
-    
-    mov si, OFFSET jugador_down_b_temp
-    mov di, OFFSET jugador_down_b
-    mov bp, OFFSET jugador_down_b_mask
-    call convertir_sprite_32x32_a_planar_opt
-    
-    mov si, OFFSET jugador_izq_a_temp
-    mov di, OFFSET jugador_izq_a
-    mov bp, OFFSET jugador_izq_a_mask
-    call convertir_sprite_32x32_a_planar_opt
-    
-    mov si, OFFSET jugador_izq_b_temp
-    mov di, OFFSET jugador_izq_b
-    mov bp, OFFSET jugador_izq_b_mask
-    call convertir_sprite_32x32_a_planar_opt
-    
-    mov si, OFFSET jugador_der_a_temp
-    mov di, OFFSET jugador_der_a
-    mov bp, OFFSET jugador_der_a_mask
-    call convertir_sprite_32x32_a_planar_opt
-    
-    mov si, OFFSET jugador_der_b_temp
-    mov di, OFFSET jugador_der_b
-    mov bp, OFFSET jugador_der_b_mask
-    call convertir_sprite_32x32_a_planar_opt
-    
-    pop bp
-    pop di
-    pop si
-    ret
-convertir_todos_sprites_planar ENDP
 
 cargar_sprites_terreno PROC
     push dx
     push di
-    
+    push si
+    push bp
+
     mov dx, OFFSET archivo_grass1
-    mov di, OFFSET sprite_grass1_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_path
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_grass1
+    mov bp, OFFSET sprite_grass1_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_path:
     mov dx, OFFSET archivo_path
-    mov di, OFFSET sprite_path_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_water
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_path
+    mov bp, OFFSET sprite_path_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_water:
     mov dx, OFFSET archivo_water
-    mov di, OFFSET sprite_water_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_tree
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_water
+    mov bp, OFFSET sprite_water_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_tree:
     mov dx, OFFSET archivo_tree
-    mov di, OFFSET sprite_tree_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_sand
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_tree
+    mov bp, OFFSET sprite_tree_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_sand:
     mov dx, OFFSET archivo_sand
-    mov di, OFFSET sprite_sand_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_rock
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_sand
+    mov bp, OFFSET sprite_sand_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_rock:              ; ← AGREGAR ESTO
     mov dx, OFFSET archivo_rock
-    mov di, OFFSET sprite_rock_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_snow
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_rock
+    mov bp, OFFSET sprite_rock_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_snow:
     mov dx, OFFSET archivo_snow
-    mov di, OFFSET sprite_snow_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_ice
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_snow
+    mov bp, OFFSET sprite_snow_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_ice:
     mov dx, OFFSET archivo_ice
-    mov di, OFFSET sprite_ice_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_wall
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_ice
+    mov bp, OFFSET sprite_ice_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_wall:
     mov dx, OFFSET archivo_wall
-    mov di, OFFSET sprite_wall_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_dirt
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_wall
+    mov bp, OFFSET sprite_wall_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_dirt:
     mov dx, OFFSET arquivo_dirt
-    mov di, OFFSET sprite_dirt_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_lava
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_dirt
+    mov bp, OFFSET sprite_dirt_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_lava:
     mov dx, OFFSET arquivo_lava
-    mov di, OFFSET sprite_lava_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_load_bridge
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_lava
+    mov bp, OFFSET sprite_lava_mask
+    call convertir_sprite_a_planar_opt
 
-cst_load_bridge:
     mov dx, OFFSET arquivo_bridge
-    mov di, OFFSET sprite_bridge_temp
+    mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jnc cst_success
-    jmp cst_error
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_bridge
+    mov bp, OFFSET sprite_bridge_mask
+    call convertir_sprite_a_planar_opt
 
-cst_success:
+    mov dx, OFFSET archivo_cristal
+    mov di, OFFSET sprite_buffer_16
+    call cargar_sprite_16x16
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_cristal
+    mov bp, OFFSET sprite_cristal_mask
+    call convertir_sprite_a_planar_opt
+
+    mov dx, OFFSET archivo_gema
+    mov di, OFFSET sprite_buffer_16
+    call cargar_sprite_16x16
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_gema
+    mov bp, OFFSET sprite_gema_mask
+    call convertir_sprite_a_planar_opt
+
+    mov dx, OFFSET archivo_moneda
+    mov di, OFFSET sprite_buffer_16
+    call cargar_sprite_16x16
+    jc cst_error
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_moneda
+    mov bp, OFFSET sprite_moneda_mask
+    call convertir_sprite_a_planar_opt
+
     clc
     jmp cst_fin
 
@@ -978,6 +871,8 @@ cst_error:
     stc
 
 cst_fin:
+    pop bp
+    pop si
     pop di
     pop dx
     ret
@@ -988,70 +883,90 @@ cargar_sprites_terreno ENDP
 cargar_animaciones_jugador PROC
     push dx
     push di
-    
+    push si
+    push bp
+
     mov dx, OFFSET archivo_player_up_a
-    mov di, OFFSET jugador_up_a_temp
-    call cargar_sprite_32x32        ; CAMBIO AQUÍ
-    jnc caj_load_up_b
-    jmp caj_error
+    mov di, OFFSET sprite_buffer_32
+    call cargar_sprite_32x32
+    jc caj_error
+    mov si, OFFSET sprite_buffer_32
+    mov di, OFFSET jugador_up_a
+    mov bp, OFFSET jugador_up_a_mask
+    call convertir_sprite_32x32_a_planar_opt
 
-caj_load_up_b:
     mov dx, OFFSET arquivo_player_up_b
-    mov di, OFFSET jugador_up_b_temp
-    call cargar_sprite_32x32        ; CAMBIO AQUÍ
-    jnc caj_load_down_a
-    jmp caj_error
+    mov di, OFFSET sprite_buffer_32
+    call cargar_sprite_32x32
+    jc caj_error
+    mov si, OFFSET sprite_buffer_32
+    mov di, OFFSET jugador_up_b
+    mov bp, OFFSET jugador_up_b_mask
+    call convertir_sprite_32x32_a_planar_opt
 
-caj_load_down_a:
     mov dx, OFFSET archivo_player_down_a
-    mov di, OFFSET jugador_down_a_temp
-    call cargar_sprite_32x32        ; CAMBIO AQUÍ
-    jnc caj_load_down_b
-    jmp caj_error
+    mov di, OFFSET sprite_buffer_32
+    call cargar_sprite_32x32
+    jc caj_error
+    mov si, OFFSET sprite_buffer_32
+    mov di, OFFSET jugador_down_a
+    mov bp, OFFSET jugador_down_a_mask
+    call convertir_sprite_32x32_a_planar_opt
 
-caj_load_down_b:
     mov dx, OFFSET archivo_player_down_b
-    mov di, OFFSET jugador_down_b_temp
-    call cargar_sprite_32x32        ; CAMBIO AQUÍ
-    jnc caj_load_left_a
-    jmp caj_error
+    mov di, OFFSET sprite_buffer_32
+    call cargar_sprite_32x32
+    jc caj_error
+    mov si, OFFSET sprite_buffer_32
+    mov di, OFFSET jugador_down_b
+    mov bp, OFFSET jugador_down_b_mask
+    call convertir_sprite_32x32_a_planar_opt
 
-caj_load_left_a:
     mov dx, OFFSET archivo_player_izq_a
-    mov di, OFFSET jugador_izq_a_temp
-    call cargar_sprite_32x32        ; CAMBIO AQUÍ
-    jnc caj_load_left_b
-    jmp caj_error
+    mov di, OFFSET sprite_buffer_32
+    call cargar_sprite_32x32
+    jc caj_error
+    mov si, OFFSET sprite_buffer_32
+    mov di, OFFSET jugador_izq_a
+    mov bp, OFFSET jugador_izq_a_mask
+    call convertir_sprite_32x32_a_planar_opt
 
-caj_load_left_b:
-    mov dx, OFFSET archivo_player_izq_b
-    mov di, OFFSET jugador_izq_b_temp
-    call cargar_sprite_32x32        ; CAMBIO AQUÍ
-    jnc caj_load_right_a
-    jmp caj_error
+    mov dx, OFFSET arquivo_player_izq_b
+    mov di, OFFSET sprite_buffer_32
+    call cargar_sprite_32x32
+    jc caj_error
+    mov si, OFFSET sprite_buffer_32
+    mov di, OFFSET jugador_izq_b
+    mov bp, OFFSET jugador_izq_b_mask
+    call convertir_sprite_32x32_a_planar_opt
 
-caj_load_right_a:
     mov dx, OFFSET archivo_player_der_a
-    mov di, OFFSET jugador_der_a_temp
-    call cargar_sprite_32x32        ; CAMBIO AQUÍ
-    jnc caj_load_right_b
-    jmp caj_error
+    mov di, OFFSET sprite_buffer_32
+    call cargar_sprite_32x32
+    jc caj_error
+    mov si, OFFSET sprite_buffer_32
+    mov di, OFFSET jugador_der_a
+    mov bp, OFFSET jugador_der_a_mask
+    call convertir_sprite_32x32_a_planar_opt
 
-caj_load_right_b:
     mov dx, OFFSET archivo_player_der_b
-    mov di, OFFSET jugador_der_b_temp
-    call cargar_sprite_32x32        ; CAMBIO AQUÍ
-    jnc caj_success
-    jmp caj_error
+    mov di, OFFSET sprite_buffer_32
+    call cargar_sprite_32x32
+    jc caj_error
+    mov si, OFFSET sprite_buffer_32
+    mov di, OFFSET jugador_der_b
+    mov bp, OFFSET jugador_der_b_mask
+    call convertir_sprite_32x32_a_planar_opt
 
-caj_success:
     clc
     jmp caj_fin
-    
+
 caj_error:
     stc
-    
+
 caj_fin:
+    pop bp
+    pop si
     pop di
     pop dx
     ret
