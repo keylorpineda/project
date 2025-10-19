@@ -476,6 +476,7 @@ bucle_juego:
     call pantalla_victoria
     jmp fin_juego  
     
+    bg_continuar:
     ; Verificar si algo cambió
     mov ax, jugador_px
     cmp ax, jugador_px_old
