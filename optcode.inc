@@ -1976,6 +1976,17 @@ centrar_camara_suave PROC
     ; ✅ Mantener la cámara fija: reutilizar centrado discreto
     call centrar_camara
 
+    ; ✅ Alinear la cámara a la cuadrícula de 16×16 para evitar sub-píxel
+    mov ax, camara_px
+    shr ax, 4
+    shl ax, 4
+    mov camara_px, ax
+
+    mov ax, camara_py
+    shr ax, 4
+    shl ax, 4
+    mov camara_py, ax
+
     ; ✅ Deshabilitar cualquier desplazamiento sub-píxel
     xor ax, ax
     mov scroll_offset_x, ax
