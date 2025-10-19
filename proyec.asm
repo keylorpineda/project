@@ -668,93 +668,63 @@ aa_fin:
     ret
 actualizar_animacion ENDP
 
-; ============================================
-; CENTRAR_CAMARA - VERSIÓN CORREGIDA
-; ============================================
-
 centrar_camara PROC
     push ax
     push bx
     push dx
 
-    ; ===== CALCULAR POSICIÓN OBJETIVO DE CÁMARA =====
+    ; ===== CALCULAR POSICIÓN OBJETIVO (X) =====
     mov ax, jugador_px
-    sub ax, 160
-    jge cc_x_pos
-    xor ax, ax
-cc_x_pos:
-    cmp ax, 1280        ; 100×16-320 = 1280
-    jle cc_x_ok
+    sub ax, 160                 ; Centrar horizontalmente
+    jge cc_x_positive
+    xor ax, ax                  ; No negativo
+cc_x_positive:
+    cmp ax, 1280                ; Límite derecho (100×16 - 320)
+    jbe cc_x_valid
     mov ax, 1280
-cc_x_ok:
-
-    ; ===== DETECTAR CAMBIO EN SCROLL HORIZONTAL =====
-    mov dx, ax
-    and dx, 0Fh         ; DX = nuevo scroll_offset_x
-    mov bx, scroll_offset_x
-    cmp dx, bx
-    je cc_store_cam_x
-    
-    ; ✅ CAMBIO DETECTADO - FORZAR REDRAW
-    mov force_full_redraw, 2
-
-cc_store_cam_x:
-    mov scroll_offset_x, dx
+cc_x_valid:
     mov camara_px, ax
-
-    ; ===== CALCULAR ALIGNED OFFSET Y PIXEL PAN =====
+    
+    ; ===== CALCULAR SCROLL HORIZONTAL =====
+    mov dx, ax
+    and dx, 0Fh                 ; scroll_offset_x = camara_px % 16
+    mov scroll_offset_x, dx
+    
     mov bx, dx
-    and bx, 0FFF8h      ; Alinear a múltiplo de 8
+    and bx, 0FFF8h              ; Alinear a byte (múltiplo de 8)
     mov scroll_offset_x_aligned, bx
-
+    
     mov al, dl
-    and al, 7           ; Pixel pan (0-7)
+    and al, 7                   ; Pixel pan = 0-7
     mov scroll_pixel_pan_x, al
     call actualizar_pixel_pan
 
-    ; ===== CALCULAR POSICIÓN VERTICAL =====
+    ; ===== CALCULAR POSICIÓN OBJETIVO (Y) =====
     mov ax, jugador_py
-    sub ax, 96
-    jge cc_y_pos
+    sub ax, 96                  ; Centrar verticalmente
+    jge cc_y_positive
     xor ax, ax
-cc_y_pos:
-    cmp ax, 1408        ; 100×16-192 = 1408
-    jle cc_y_ok
+cc_y_positive:
+    cmp ax, 1408                ; Límite inferior (100×16 - 192)
+    jbe cc_y_valid
     mov ax, 1408
-cc_y_ok:
-
-    ; ===== DETECTAR CAMBIO EN SCROLL VERTICAL =====
-    mov dx, ax
-    and dx, 0Fh
-    mov bx, scroll_offset_y
-    cmp dx, bx
-    je cc_store_cam_y
-    
-    ; ✅ CAMBIO DETECTADO
-    mov force_full_redraw, 2
-
-cc_store_cam_y:
-    mov scroll_offset_y, dx
+cc_y_valid:
     mov camara_py, ax
+    
+    ; ===== CALCULAR SCROLL VERTICAL =====
+    mov dx, ax
+    and dx, 0Fh                 ; scroll_offset_y = camara_py % 16
+    mov scroll_offset_y, dx
 
-    ; ✅ CRÍTICO: ACTUALIZAR inicio_tile_x e inicio_tile_y
+    ; ===== CALCULAR TILE INICIAL (VIEWPORT) =====
     mov ax, camara_px
-    shr ax, 4
-    cmp ax, 100                 ; ✅ Validar límite
-    jb cc_tile_x_ok
-    mov ax, 84                  ; 100 - 16 tiles visible
-cc_tile_x_ok:
+    shr ax, 4                   ; camara_px / 16
     mov inicio_tile_x, ax
-
+    
     mov ax, camara_py
-    shr ax, 4
-    cmp ax, 100
-    jb cc_tile_y_ok
-    mov ax, 88                  ; 100 - 12 tiles visible
-cc_tile_y_ok:
+    shr ax, 4                   ; camara_py / 16
     mov inicio_tile_y, ax
 
-cc_fin:
     pop dx
     pop bx
     pop ax
@@ -1177,7 +1147,7 @@ dibujar_todo_en_offset PROC
 dibujar_todo_en_offset ENDP
 
 ; ============================================
-; DIBUJAR_MAPA_EN_OFFSET - VERSIÓN CORREGIDA
+; DIBUJAR_MAPA_EN_OFFSET - COMPLETAMENTE REESCRITO
 ; ============================================
 
 dibujar_mapa_en_offset PROC
@@ -1189,308 +1159,277 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    ; ===== MARCAR TILES AFECTADOS =====
     call marcar_tiles_afectados
     
-    ; ===== VALIDAR inicio_tile_x/y =====
-    mov ax, inicio_tile_x
-    cmp ax, 100
-    jb dmo_tile_x_ok
-    mov ax, 0                   ; ✅ Clamp a 0 si es inválido
-    mov inicio_tile_x, ax
-dmo_tile_x_ok:
-
-    mov ax, inicio_tile_y
-    cmp ax, 100
-    jb dmo_tile_y_ok
-    mov ax, 0
-    mov inicio_tile_y, ax
-dmo_tile_y_ok:
-
-    ; ===== CALCULAR PUNTERO BASE AL MAPA =====
-    mov ax, inicio_tile_y
-    cmp ax, 200                 ; ✅ Verificar límite de tabla
-    jb dmo_lookup_ok
-    xor ax, ax
-dmo_lookup_ok:
-    shl ax, 1                   ; AX = inicio_tile_y × 2
-    mov bx, ax
-    mov ax, [mul100_table + bx] ; AX = inicio_tile_y × 100
-    add ax, inicio_tile_x
+    ; ===== CALCULAR OFFSET BASE EN MAPA =====
+    ; offset = inicio_tile_y × 100 + inicio_tile_x
     
-    ; ✅ VALIDAR offset en mapa_datos
-    cmp ax, 9900                ; 100×100 - 100 = margen seguro
-    jb dmo_offset_ok
-    xor ax, ax
-dmo_offset_ok:
+    mov ax, inicio_tile_y
+    mov cx, 100
+    mul cx                      ; AX = inicio_tile_y × 100
+    add ax, inicio_tile_x       ; AX = offset completo
     
-    lea di, [mapa_datos + bx]   ; ✅ Usar AX, no BX
-    mov di, ax                  ; ✅ CORRECCIÓN CRÍTICA
-    add di, OFFSET mapa_datos
-
-    ; ===== DETERMINAR FILAS/COLUMNAS EXTRA =====
+    mov si, ax                  ; SI = offset base en mapa_datos
+    
+    ; ===== DETERMINAR SI NECESITAMOS COLUMNA/FILA EXTRA =====
     xor ax, ax
     mov temp_col, ax
     mov temp_fila, ax
-
+    
+    ; ¿Necesitamos columna 22?
     mov ax, scroll_offset_x
     test ax, ax
-    jz dmo_no_extra_col
+    jz dmo_no_col_extra
     
     mov ax, inicio_tile_x
     add ax, 21
     cmp ax, 100
-    jae dmo_no_extra_col
+    jae dmo_no_col_extra
     mov temp_col, 1
-dmo_no_extra_col:
-
+    
+dmo_no_col_extra:
+    ; ¿Necesitamos fila 14?
     mov ax, scroll_offset_y
     test ax, ax
-    jz dmo_no_extra_row
+    jz dmo_no_row_extra
     
     mov ax, inicio_tile_y
     add ax, 13
     cmp ax, 100
-    jae dmo_no_extra_row
+    jae dmo_no_row_extra
     mov temp_fila, 1
-dmo_no_extra_row:
-
-    xor bp, bp                  ; BP = fila actual (0-12)
-
-; ===== BUCLE PRINCIPAL DE FILAS =====
-dmo_fila_opt:
-    cmp bp, 13
-    jb dmo_procesar_fila
-    jmp dmo_extra_row_check
-
-dmo_procesar_fila:
     
-    mov bx, di                  ; BX = puntero a fila actual
-    xor si, si                  ; SI = columna actual (0-20)
+dmo_no_row_extra:
 
-dmo_col_opt:
-    cmp si, 21
-    jae dmo_extra_col_opt
+    ; ===== BUCLE PRINCIPAL: FILAS 0-12 =====
+    xor bp, bp                  ; BP = fila actual (0-12)
+    
+dmo_loop_filas:
+    cmp bp, 13
+    jae dmo_check_fila_extra
+    
+    ; ===== BUCLE COLUMNAS 0-20 =====
+    push si                     ; Guardar offset de inicio de fila
+    xor cx, cx                  ; CX = columna actual (0-20)
+    
+dmo_loop_columnas:
+    cmp cx, 21
+    jae dmo_check_col_extra
     
     ; ===== VERIFICAR SI TILE ESTÁ SUCIO =====
+    push cx
+    push bp
+    mov si, cx                  ; tile_esta_sucio espera SI=columna
     call tile_esta_sucio
-    jz dmo_skip_tile
+    pop bp
+    pop cx
+    jz dmo_skip_tile            ; Tile limpio, saltar
     
-    ; ===== LEER TILE Y VALIDAR =====
-    mov al, [bx]
-    inc bx
+    ; ===== LEER TILE DEL MAPA =====
+    push si                     ; Guardar offset actual
     
-    ; ✅ PROTECCIÓN: Si tile > 15, usar grass
-    cmp al, 15
-    jbe dmo_tile_valid
-    xor al, al                  ; Default a grass
-dmo_tile_valid:
-
-    push bx                     ; Guardar puntero en mapa
-
-    mov dx, si                  ; Guardar columna
-    call obtener_sprite_rapido  ; DI=data, SI=mask
-    
-    mov ax, dx                  ; Restaurar columna
-
-    push si                     ; Guardar máscara
-    push di                     ; Guardar datos
-
-    ; ===== CALCULAR POSICIÓN EN PANTALLA =====
-    shl dx, 4                   ; columna × 16
-    add dx, viewport_x
-    sub dx, scroll_offset_x_aligned
-    mov cx, dx                  ; CX = X pantalla
-
-    mov bx, bp
-    shl bx, 4                   ; fila × 16
-    add bx, viewport_y
-    sub bx, scroll_offset_y
-    mov dx, bx                  ; DX = Y pantalla
-
-    pop di                      ; Restaurar datos
-    pop si                      ; Restaurar máscara
-
-    ; ===== DIBUJAR SPRITE =====
-    call dibujar_sprite_planar_16x16_opt
-
-    pop bx                      ; Restaurar puntero en mapa
-    mov si, ax                  ; Restaurar columna
-    jmp dmo_next_col_opt
-
-dmo_skip_tile:
-    inc bx                      ; Saltar tile limpio
-
-dmo_next_col_opt:
-    inc si
-    jmp dmo_col_opt
-
-; ===== COLUMNA EXTRA (scroll horizontal) =====
-dmo_extra_col_opt:
-    mov ax, temp_col
-    test ax, ax
-    jz dmo_next_fila_opt
-
-    mov al, [bx]
-    inc bx
-
-    ; ✅ Validar tile
-    cmp al, 15
-    jbe dmo_extra_valid
-    xor al, al
-dmo_extra_valid:
-
+    ; Calcular offset real: base_fila + columna
+    pop bx                      ; BX = offset actual
     push bx
-
-    mov dx, si
-    call obtener_sprite_rapido
-
-    mov ax, dx
-
+    
+    mov al, [mapa_datos + bx]   ; ✅ LEER DIRECTAMENTE CON OFFSET
+    inc si                      ; Avanzar para próxima columna
+    
+    ; ===== OBTENER SPRITE =====
+    push cx
+    push bp
+    call obtener_sprite_rapido  ; DI=data, SI=mask
+    pop bp
+    pop cx
+    
+    ; ===== CALCULAR POSICIÓN EN PANTALLA =====
     push si
     push di
-
-    shl dx, 4
-    add dx, viewport_x
-    sub dx, scroll_offset_x_aligned
-    mov cx, dx
-
-    mov bx, bp
-    shl bx, 4
-    add bx, viewport_y
-    sub bx, scroll_offset_y
-    mov dx, bx
-
+    
+    ; X = columna × 16 + viewport_x - scroll_offset_x_aligned
+    mov ax, cx
+    shl ax, 4                   ; × 16
+    add ax, viewport_x
+    sub ax, scroll_offset_x_aligned
+    push ax                     ; Guardar X
+    
+    ; Y = fila × 16 + viewport_y - scroll_offset_y
+    mov ax, bp
+    shl ax, 4
+    add ax, viewport_y
+    sub ax, scroll_offset_y
+    mov dx, ax                  ; DX = Y
+    
+    pop cx                      ; CX = X
+    
+    pop di                      ; Restaurar DI=data
+    pop si                      ; Restaurar SI=mask
+    
+    call dibujar_sprite_planar_16x16_opt
+    
+    pop si                      ; Restaurar offset
+    inc si                      ; Siguiente tile
+    jmp dmo_next_col
+    
+dmo_skip_tile:
+    inc si                      ; Saltar tile limpio
+    
+dmo_next_col:
+    inc cx
+    jmp dmo_loop_columnas
+    
+; ===== COLUMNA EXTRA (22) SI ES NECESARIA =====
+dmo_check_col_extra:
+    mov ax, temp_col
+    test ax, ax
+    jz dmo_end_fila
+    
+    ; Verificar límites
+    mov ax, inicio_tile_x
+    add ax, 21
+    cmp ax, 100
+    jae dmo_end_fila
+    
+    ; Leer tile columna 22
+    mov al, [mapa_datos + si]
+    inc si
+    
+    push cx
+    push bp
+    call obtener_sprite_rapido
+    pop bp
+    pop cx
+    
+    push si
+    push di
+    
+    ; X = 21 × 16 + viewport_x - scroll_offset_x_aligned
+    mov ax, 21
+    shl ax, 4
+    add ax, viewport_x
+    sub ax, scroll_offset_x_aligned
+    push ax
+    
+    mov ax, bp
+    shl ax, 4
+    add ax, viewport_y
+    sub ax, scroll_offset_y
+    mov dx, ax
+    
+    pop cx
     pop di
     pop si
-
+    
     call dibujar_sprite_planar_16x16_opt
-
-    pop bx
-    mov si, ax
-
-dmo_next_fila_opt:
-    add di, 100                 ; Siguiente fila en mapa
+    
+dmo_end_fila:
+    pop si                      ; Restaurar offset de inicio de fila
+    add si, 100                 ; Siguiente fila (Y+1 en mapa)
     inc bp
-    jmp dmo_fila_opt
+    jmp dmo_loop_filas
 
-; ===== FILA EXTRA (scroll vertical) =====
-dmo_extra_row_check:
+; ===== FILA EXTRA (14) SI ES NECESARIA =====
+dmo_check_fila_extra:
     mov ax, temp_fila
     test ax, ax
-    jnz dmo_extra_row_continue
-    jmp dmo_fin_opt
-
-dmo_extra_row_continue:
-
-    ; ✅ Recalcular puntero para fila 13
+    jz dmo_fin
+    
+    ; Verificar límites
     mov ax, inicio_tile_y
     add ax, 13
     cmp ax, 100
-    jb dmo_extra_row_valid
-    jmp dmo_fin_opt             ; Fuera de límites
+    jae dmo_fin
     
-dmo_extra_row_valid:
-    shl ax, 1
-    mov bx, ax
-    mov ax, [mul100_table + bx]
+    ; Calcular offset de fila 13
+    mov ax, inicio_tile_y
+    add ax, 13
+    mov cx, 100
+    mul cx
     add ax, inicio_tile_x
-    lea di, [mapa_datos + bx]
-    mov di, ax                  ; ✅ Usar AX calculado
-    add di, OFFSET mapa_datos
-
-    mov bp, 13
-    mov bx, di
-    xor si, si
-
-dmo_extra_row_loop:
-    cmp si, 21
-    jae dmo_extra_row_column
-
-    mov al, [bx]
-    inc bx
-
-    cmp al, 15
-    jbe dmo_extra_row_tile_ok
-    xor al, al
-dmo_extra_row_tile_ok:
-
-    push bx
-
-    mov dx, si
+    mov si, ax
+    
+    ; Dibujar columnas 0-20 de fila 13
+    xor cx, cx
+    mov bp, 13                  ; Fila 13 para cálculo de Y
+    
+dmo_extra_row_cols:
+    cmp cx, 21
+    jae dmo_extra_row_col22
+    
+    mov al, [mapa_datos + si]
+    inc si
+    
+    push cx
+    push bp
     call obtener_sprite_rapido
-
-    mov ax, dx
-
+    pop bp
+    pop cx
+    
     push si
     push di
-
-    shl dx, 4
-    add dx, viewport_x
-    sub dx, scroll_offset_x_aligned
-    mov cx, dx
-
-    mov bx, bp
-    shl bx, 4
-    add bx, viewport_y
-    sub bx, scroll_offset_y
-    mov dx, bx
-
+    
+    mov ax, cx
+    shl ax, 4
+    add ax, viewport_x
+    sub ax, scroll_offset_x_aligned
+    push ax
+    
+    mov ax, bp
+    shl ax, 4
+    add ax, viewport_y
+    sub ax, scroll_offset_y
+    mov dx, ax
+    
+    pop cx
     pop di
     pop si
-
+    
     call dibujar_sprite_planar_16x16_opt
-
-    pop bx
-
-    mov si, ax
-
-    inc si
-    jmp dmo_extra_row_loop
-
-dmo_extra_row_column:
+    
+    inc cx
+    jmp dmo_extra_row_cols
+    
+dmo_extra_row_col22:
+    ; Columna 22 de fila 13
     mov ax, temp_col
     test ax, ax
-    jz dmo_fin_opt
-
-    mov al, [bx]
-    inc bx
-
-    cmp al, 15
-    jbe dmo_extra_col_tile_ok
-    xor al, al
-dmo_extra_col_tile_ok:
-
-    push bx
-
-    mov dx, si
+    jz dmo_fin
+    
+    mov ax, inicio_tile_x
+    add ax, 21
+    cmp ax, 100
+    jae dmo_fin
+    
+    mov al, [mapa_datos + si]
+    
+    push cx
+    push bp
     call obtener_sprite_rapido
-
-    mov ax, dx
-
+    pop bp
+    pop cx
+    
     push si
     push di
-
-    shl dx, 4
-    add dx, viewport_x
-    sub dx, scroll_offset_x_aligned
-    mov cx, dx
-
-    mov bx, bp
-    shl bx, 4
-    add bx, viewport_y
-    sub bx, scroll_offset_y
-    mov dx, bx
-
+    
+    mov ax, 21
+    shl ax, 4
+    add ax, viewport_x
+    sub ax, scroll_offset_x_aligned
+    push ax
+    
+    mov ax, bp
+    shl ax, 4
+    add ax, viewport_y
+    sub ax, scroll_offset_y
+    mov dx, ax
+    
+    pop cx
     pop di
     pop si
-
+    
     call dibujar_sprite_planar_16x16_opt
-
-    pop bx
-    mov si, ax
-
-dmo_fin_opt:
+    
+dmo_fin:
     call limpiar_dirty_flags
     
     pop bp
