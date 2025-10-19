@@ -1206,7 +1206,10 @@ dmo_no_row_extra:
     
 dmo_loop_filas:
     cmp bp, 13
-    jae dmo_check_fila_extra
+    jb dmo_procesar_fila
+    jmp dmo_check_fila_extra
+
+dmo_procesar_fila:
     
     ; ===== BUCLE COLUMNAS 0-20 =====
     push si                     ; Guardar offset de inicio de fila
@@ -1332,13 +1335,19 @@ dmo_end_fila:
 dmo_check_fila_extra:
     mov ax, temp_fila
     test ax, ax
-    jz dmo_fin
+    jnz dmo_tiene_fila_extra
+    jmp dmo_fin
+
+dmo_tiene_fila_extra:
     
     ; Verificar límites
     mov ax, inicio_tile_y
     add ax, 13
     cmp ax, 100
-    jae dmo_fin
+    jb dmo_dentro_limite_fila
+    jmp dmo_fin
+
+dmo_dentro_limite_fila:
     
     ; Calcular offset de fila 13
     mov ax, inicio_tile_y
