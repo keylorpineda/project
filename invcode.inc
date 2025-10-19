@@ -219,92 +219,96 @@ drm_loop:
     xor ah, ah
     cmp si, ax
     jae drm_fin                 ; Si ya procesamos todos, salir
-    
+
     ; Verificar si ya fue recogido
     mov ax, recursos_recogidos
     test ax, bx                 ; ← Verificar si el bit está set
-    jnz NEAR PTR drm_next       ; Si ya fue recogido, saltar
-    
+    jz  NEAR PTR drm_procesar   ; Si no fue recogido, procesar
+
+drm_skip:
+    shl bx, 1                   ; Siguiente bit
+    inc si                      ; Siguiente recurso
+    jmp drm_loop
+
+drm_procesar:
+
     ; Obtener posición del recurso (X, Y, Tipo)
     mov ax, si
     mov dx, 3
     mul dx                      ; AX = SI × 3
     mov di, ax
-    
+
     ; Leer X (en tiles)
     mov al, [recursos_mapa + di]
     xor ah, ah
     shl ax, 4                   ; X × 16 = píxeles
     mov cx, ax
-    
+
     ; Leer Y (en tiles)
     mov al, [recursos_mapa + di + 1]
     xor ah, ah
     shl ax, 4                   ; Y × 16 = píxeles
     mov dx, ax
-    
+
     ; Verificar si está visible en viewport
     mov ax, cx
     sub ax, camara_px
     cmp ax, -16
-    jl  NEAR PTR drm_next
+    jl  NEAR PTR drm_skip
     cmp ax, 320
-    jg  NEAR PTR drm_next
-    
+    jg  NEAR PTR drm_skip
+
     mov ax, dx
     sub ax, camara_py
     cmp ax, -16
-    jl  NEAR PTR drm_next
+    jl  NEAR PTR drm_skip
     cmp ax, 192
-    jg  NEAR PTR drm_next
-    
+    jg  NEAR PTR drm_skip
+
     ; Calcular posición en pantalla
     mov ax, cx
     sub ax, camara_px
     add ax, viewport_x
     mov cx, ax
-    
+
     mov ax, dx
     sub ax, camara_py
     add ax, viewport_y
     mov dx, ax
-    
+
     ; Obtener sprite según tipo
     mov al, [recursos_mapa + di + 2]  ; Tipo (1, 2 o 3)
-    
+
     push si                     ; Guardar índice
     push bx                     ; Guardar máscara
-    
+
     cmp al, 1
     jne drm_tipo2
     mov di, OFFSET sprite_cristal
     mov si, OFFSET sprite_cristal_mask
     jmp drm_dibujar
-    
+
 drm_tipo2:
     cmp al, 2
     jne drm_tipo3
     mov di, OFFSET sprite_gema
     mov si, OFFSET sprite_gema_mask
     jmp drm_dibujar
-    
+
 drm_tipo3:
     mov di, OFFSET sprite_moneda
     mov si, OFFSET sprite_moneda_mask
-    
+
 drm_dibujar:
     ; CX, DX ya tienen las coordenadas
     ; DI = datos del sprite
     ; SI = máscara del sprite
     call dibujar_sprite_planar_16x16_opt
-    
+
     pop bx                      ; Restaurar máscara
     pop si                      ; Restaurar índice
-    
-drm_next:
-    shl bx, 1                   ; Siguiente bit
-    inc si                      ; Siguiente recurso
-    jmp drm_loop
+
+    jmp NEAR PTR drm_skip
     
 drm_fin:
     pop di
