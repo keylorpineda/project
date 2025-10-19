@@ -223,7 +223,7 @@ drm_loop:
     ; Verificar si ya fue recogido
     mov ax, recursos_recogidos
     test ax, bx                 ; ← Verificar si el bit está set
-    jnz drm_next                ; Si ya fue recogido, saltar
+    jnz NEAR PTR drm_next       ; Si ya fue recogido, saltar
     
     ; Obtener posición del recurso (X, Y, Tipo)
     mov ax, si
@@ -247,16 +247,16 @@ drm_loop:
     mov ax, cx
     sub ax, camara_px
     cmp ax, -16
-    jl drm_next
+    jl  NEAR PTR drm_next
     cmp ax, 320
-    jg drm_next
+    jg  NEAR PTR drm_next
     
     mov ax, dx
     sub ax, camara_py
     cmp ax, -16
-    jl drm_next
+    jl  NEAR PTR drm_next
     cmp ax, 192
-    jg drm_next
+    jg  NEAR PTR drm_next
     
     ; Calcular posición en pantalla
     mov ax, cx
@@ -802,7 +802,7 @@ drl_fila:
     mov bx, ax
 
     ; Obtener color expandido a 8 bits
-    mov al, byte ptr si
+    mov ax, si
     and al, 0Fh
     
     ; ✅ CRÍTICO: Expandir color a todos los bits
