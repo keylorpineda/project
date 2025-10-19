@@ -495,6 +495,19 @@ precalcular_mascaras_tiles PROC
     mov si, OFFSET sprite_bridge
     mov di, OFFSET sprite_bridge_mask
     call calcular_mascara_16x16
+
+    ; Recursos                        ; ← AGREGAR ESTO
+    mov si, OFFSET sprite_cristal
+    mov di, OFFSET sprite_cristal_mask
+    call calcular_mascara_16x16
+    
+    mov si, OFFSET sprite_gema
+    mov di, OFFSET sprite_gema_mask
+    call calcular_mascara_16x16
+    
+    mov si, OFFSET sprite_moneda
+    mov di, OFFSET sprite_moneda_mask
+    call calcular_mascara_16x16
     
     pop ax
     pop cx
@@ -1996,3 +2009,37 @@ ccs_y_ok:
     pop ax
     ret
 centrar_camara_suave ENDP
+
+pantalla_victoria PROC
+    push ax
+    push dx
+    
+    ; Limpiar pantalla
+    mov ax, VIDEO_SEG
+    mov es, ax
+    xor di, di
+    mov cx, 28000
+    xor ax, ax
+    rep stosw
+    
+    ; Dibujar mensaje de victoria centrado
+    mov cx, 240
+    mov dx, 150
+    
+    ; Dibujar rectángulo de fondo
+    mov ax, 160
+    mov bx, 50
+    mov al, COLOR_BARRA_LLENA
+    call dibujar_rectangulo_lleno
+    
+    ; TODO: Dibujar texto "¡FELICIDADES!"
+    ; (Por ahora solo el fondo)
+    
+    ; Esperar tecla
+    mov ah, 0
+    int 16h
+    
+    pop dx
+    pop ax
+    ret
+pantalla_victoria ENDP

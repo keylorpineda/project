@@ -126,6 +126,87 @@ temp_col  dw 0
 
 scroll_offset_x dw 0
 scroll_offset_y dw 0
+; ============================================
+; SISTEMA DE INVENTARIO Y RECURSOS
+; ============================================
+
+; Estado del inventario
+inventario_abierto db 0          ; 0 = cerrado, 1 = abierto
+
+; Estructura de items (3 tipos de recursos × 5 instancias cada uno)
+; Tipo 1: Cristales (azul)
+; Tipo 2: Gemas (rojo)
+; Tipo 3: Monedas (amarillo)
+
+MAX_ITEMS EQU 8
+MAX_TIPOS_RECURSO EQU 3
+META_POR_TIPO EQU 2              ; Necesitamos 2 de cada tipo para ganar
+
+; Contador de recursos recolectados por tipo
+recursos_tipo1 db 0              ; Cristales recolectados
+recursos_tipo2 db 0              ; Gemas recolectadas
+recursos_tipo3 db 0              ; Monedas recolectadas
+
+; Mapa de bits de recursos ya recolectados (15 bits, uno por cada instancia)
+; Bit set = recurso ya recogido
+recursos_recogidos dw 0
+
+NUM_RECURSOS EQU 15
+
+sprite_cristal_temp db 256 dup(0)
+sprite_gema_temp    db 256 dup(0)
+sprite_moneda_temp  db 256 dup(0)
+
+sprite_cristal      db 128 dup(0)
+sprite_gema         db 128 dup(0)
+sprite_moneda       db 128 dup(0)
+
+archivo_cristal db 'SPRITES\CRYSTAL.TXT',0
+archivo_gema    db 'SPRITES\GEM.TXT',0
+archivo_moneda  db 'SPRITES\COIN.TXT',0
+
+COLOR_FONDO      EQU 0    ; Negro
+COLOR_MARCO      EQU 7    ; Blanco
+COLOR_TEXTO      EQU 14   ; Amarillo
+COLOR_BARRA_VACIA EQU 8   ; Gris oscuro
+COLOR_BARRA_LLENA EQU 10  ; Verde claro
+COLOR_ITEM_SLOT  EQU 1    ; Azul oscuro
+
+msg_inventario  db 'INVENTARIO',0
+msg_recursos    db 'RECURSOS',0
+msg_cristales   db 'Cristales:',0
+msg_gemas       db 'Gemas:',0
+msg_monedas     db 'Monedas:',0
+msg_objetivo    db 'Objetivo: 2/tipo',0
+msg_progreso    db 'Progreso:',0
+msg_completado  db 'COMPLETADO!',0
+msg_slash       db '/',0
+
+; Posiciones del panel de inventario (centrado en 640x350)
+INV_X           EQU 160          ; X inicial del panel
+INV_Y           EQU 50           ; Y inicial del panel
+INV_WIDTH       EQU 320          ; Ancho del panel
+INV_HEIGHT      EQU 250          ; Alto del panel
+
+; Zonas del panel
+ZONA_PLAYER_X   EQU 170          ; Zona del jugador (izquierda)
+ZONA_PLAYER_Y   EQU 80
+ZONA_PLAYER_W   EQU 64
+
+ZONA_ITEMS_X    EQU 250          ; Zona de items (centro)
+ZONA_ITEMS_Y    EQU 80
+ITEM_SIZE       EQU 32           ; Tamaño de cada slot de item
+ITEM_SPACING    EQU 8            ; Espaciado entre items
+
+ZONA_STATS_X    EQU 390          ; Zona de estadísticas (derecha)
+ZONA_STATS_Y    EQU 80
+ZONA_STATS_W    EQU 80
+
+; Animación de recolección
+anim_recoger_activa db 0
+anim_recoger_frame  db 0
+anim_recoger_x      dw 0
+anim_recoger_y      dw 0
 
 INCLUDE OPTDATA.INC
 
@@ -300,9 +381,22 @@ mov pagina_dibujo, 1
 
 ; ===== BUCLE PRINCIPAL =====
 bucle_juego:
+    call verificar_colision_recursos
+    
+    ; Actualizar animación de recolección
+    call actualizar_animacion_recoger
+    
     call procesar_movimiento_continuo
     call actualizar_animacion
-    call centrar_camara_suave  
+    call centrar_camara_suave
+    
+    ; Verificar victoria
+    call verificar_victoria
+    jnc bg_continuar
+    
+    ; ¡VICTORIA! Mostrar pantalla de victoria y salir
+    call pantalla_victoria
+    jmp fin_juego  
     
     ; Verificar si algo cambió
     mov ax, jugador_px
@@ -452,6 +546,14 @@ pmc_verificar_derecha_letra:
     cmp al, 'D'
     jne pmc_no_movimiento_local
     jmp pmc_derecha
+
+pmc_verificar_inventario:          ; ← AGREGAR ESTO
+    cmp al, 'E'
+    jne pmc_no_movimiento_local
+    
+    ; Toggle inventario
+    xor inventario_abierto, 1
+    jmp pmc_fin
 
 pmc_no_movimiento_local:
     jmp pmc_no_movimiento
@@ -697,6 +799,22 @@ call convertir_sprite_a_planar_opt
     mov si, OFFSET sprite_bridge_temp
     mov di, OFFSET sprite_bridge
     mov bp, OFFSET sprite_bridge_mask
+    call convertir_sprite_a_planar_opt
+
+    ; ===== RECURSOS =====           ; ← AGREGAR ESTO
+    mov si, OFFSET sprite_cristal_temp
+    mov di, OFFSET sprite_cristal
+    mov bp, OFFSET sprite_cristal_mask
+    call convertir_sprite_a_planar_opt
+    
+    mov si, OFFSET sprite_gema_temp
+    mov di, OFFSET sprite_gema
+    mov bp, OFFSET sprite_gema_mask
+    call convertir_sprite_a_planar_opt
+    
+    mov si, OFFSET sprite_moneda_temp
+    mov di, OFFSET sprite_moneda
+    mov bp, OFFSET sprite_moneda_mask
     call convertir_sprite_a_planar_opt
     
     ; ===== JUGADOR 32x32 CON MÁSCARAS =====
@@ -1123,6 +1241,7 @@ dmo_next_fila:
     jmp dmo_fila
     
 dmo_fin:
+call dibujar_recursos_en_mapa
     pop bp
     pop di
     pop si
@@ -1234,7 +1353,7 @@ dibujar_jugador_en_offset PROC
     mov ax, jugador_px
     sub ax, camara_px
     add ax, viewport_x
-    sub ax, 16               ; Centrar sprite (32/2)
+    sub ax, 16
     mov cx, ax
     
     mov ax, jugador_py
@@ -1243,9 +1362,14 @@ dibujar_jugador_en_offset PROC
     sub ax, 16
     mov dx, ax
     
-    call obtener_sprite_jugador    
-
+    call obtener_sprite_jugador
     call dibujar_sprite_planar_32x32_opt
+    
+    ; Dibujar animación de recolección
+    call dibujar_animacion_recoger
+    
+    ; Dibujar panel de inventario (si está abierto)
+    call dibujar_inventario
     
     pop di
     pop si
@@ -1682,5 +1806,6 @@ dvt_mapa_ok:
     ret
 debug_verificar_todo ENDP
 INCLUDE OPTCODE.INC
+INCLUDE INVCODE.INC
 
 END inicio

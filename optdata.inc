@@ -53,6 +53,10 @@ sprite_dirt_mask        db 32 dup(0)
 sprite_lava_mask        db 32 dup(0)
 sprite_bridge_mask      db 32 dup(0)
 
+sprite_cristal_mask     db 32 dup(0)
+sprite_gema_mask        db 32 dup(0)
+sprite_moneda_mask      db 32 dup(0)
+
 ; ============================================
 ; OPTIMIZACION #3: DIRTY RECTANGLES
 ; ============================================
