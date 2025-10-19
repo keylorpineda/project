@@ -171,6 +171,9 @@ last_scroll_offset_x dw 0
 last_scroll_offset_y dw 0
 
 msg_titulo  db 'JUEGO EGA - Universidad Nacional',13,10,'$'
+msg_debug db 'Tile X: $'
+msg_debug2 db ' Y: $'
+msg_debug3 db ' Cam: $'
 msg_cargando db 'Cargando archivos...',13,10,'$'
 msg_mapa    db 'Mapa: $'
 msg_sprites db 'Sprites terreno: $'
@@ -351,15 +354,13 @@ int 10h
 mov pagina_visible, 0
 mov pagina_dibujo, 1
 
-; ===== BUCLE PRINCIPAL =====
+; ===== BUCLE PRINCIPAL CORREGIDO =====
 bucle_juego:
     call procesar_movimiento_continuo
     call actualizar_animacion
-    call centrar_camara
+    call centrar_camara              ; ✅ Ahora actualiza inicio_tile_x/y internamente
     
-    ; Verificar si algo cambió
-    ; Si la cámara solicitó un redibujado forzado (por ejemplo, al mover el
-    ; viewport para lograr scroll suave) debemos evitar saltarnos el render.
+    ; Verificar cambios
     mov al, force_full_redraw
     cmp al, 0
     jne bg_hay_cambio
@@ -376,11 +377,14 @@ bucle_juego:
     cmp al, frame_old
     jne bg_hay_cambio
 
-    ; Si no hay cambios, solo esperar
+    ; Sin cambios - esperar
     call esperar_retrace
     jmp bucle_juego
     
 bg_hay_cambio:
+    ; ✅ VALIDAR ESTADO ANTES DE RENDERIZAR
+    call validar_estado_render
+    
     ; Actualizar estado
     mov ax, jugador_px
     mov jugador_px_old, ax
@@ -391,33 +395,31 @@ bg_hay_cambio:
     mov al, jugador_frame
     mov frame_old, al
     
-    ; ===== CALCULAR inicio_tile_x e inicio_tile_y =====
-    ; (El código original ya lo hace en centrar_camara,
-    ;  pero necesitamos asegurarnos que esté actualizado)
-    mov ax, camara_px
-    shr ax, 4
-    mov inicio_tile_x, ax
+    ; ✅ ELIMINAR estos cálculos - centrar_camara ya los hace
+    ; mov ax, camara_px
+    ; shr ax, 4
+    ; mov inicio_tile_x, ax
     
-    mov ax, camara_py
-    shr ax, 4
-    mov inicio_tile_y, ax
+    ; mov ax, camara_py
+    ; shr ax, 4
+    ; mov inicio_tile_y, ax
     
-    ; Esperar vertical retrace
+    ; Esperar retrace
     call esperar_retrace
     
-    ; Renderizar en la página que NO está visible
+    ; Renderizar en página no visible
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
     
-    ; Renderizar en página 1
+    ; Página 1
     mov temp_offset, 8000h
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
     jmp bg_cambiar_pagina
     
 bg_render_p0:
-    ; Renderizar en página 0
+    ; Página 0
     mov temp_offset, 0
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
@@ -428,7 +430,7 @@ bg_cambiar_pagina:
     mov al, pagina_dibujo
     int 10h
     
-    ; Intercambiar páginas
+    ; Intercambiar
     xor pagina_dibujo, 1
     xor pagina_visible, 1
     
@@ -666,64 +668,91 @@ aa_fin:
     ret
 actualizar_animacion ENDP
 
+; ============================================
+; CENTRAR_CAMARA - VERSIÓN CORREGIDA
+; ============================================
+
 centrar_camara PROC
     push ax
     push bx
     push dx
 
-    ; Calcular posición objetivo de la cámara
+    ; ===== CALCULAR POSICIÓN OBJETIVO DE CÁMARA =====
     mov ax, jugador_px
     sub ax, 160
     jge cc_x_pos
     xor ax, ax
 cc_x_pos:
-    cmp ax, 1280        ; ✅ CAMBIO: 100×16-320 = 1280 (antes 480)
+    cmp ax, 1280        ; 100×16-320 = 1280
     jle cc_x_ok
     mov ax, 1280
 cc_x_ok:
 
-    ; Actualizar desplazamiento de scroll horizontal (remainder de 16)
+    ; ===== DETECTAR CAMBIO EN SCROLL HORIZONTAL =====
     mov dx, ax
-    and dx, 0Fh
+    and dx, 0Fh         ; DX = nuevo scroll_offset_x
     mov bx, scroll_offset_x
     cmp dx, bx
     je cc_store_cam_x
-    mov force_full_redraw, 2        ; Forzar redraw en ambas páginas
+    
+    ; ✅ CAMBIO DETECTADO - FORZAR REDRAW
+    mov force_full_redraw, 2
 
 cc_store_cam_x:
     mov scroll_offset_x, dx
     mov camara_px, ax
 
+    ; ===== CALCULAR ALIGNED OFFSET Y PIXEL PAN =====
     mov bx, dx
-    and bx, 0FFF8h
+    and bx, 0FFF8h      ; Alinear a múltiplo de 8
     mov scroll_offset_x_aligned, bx
 
     mov al, dl
-    and al, 7
+    and al, 7           ; Pixel pan (0-7)
     mov scroll_pixel_pan_x, al
     call actualizar_pixel_pan
 
+    ; ===== CALCULAR POSICIÓN VERTICAL =====
     mov ax, jugador_py
     sub ax, 96
     jge cc_y_pos
     xor ax, ax
 cc_y_pos:
-    cmp ax, 1408        ; ✅ CAMBIO: 100×16-192 = 1408 (antes 608)
+    cmp ax, 1408        ; 100×16-192 = 1408
     jle cc_y_ok
     mov ax, 1408
 cc_y_ok:
 
-    ; Actualizar desplazamiento de scroll vertical (remainder de 16)
+    ; ===== DETECTAR CAMBIO EN SCROLL VERTICAL =====
     mov dx, ax
     and dx, 0Fh
     mov bx, scroll_offset_y
     cmp dx, bx
     je cc_store_cam_y
-    mov force_full_redraw, 2        ; Forzar redraw en ambas páginas
+    
+    ; ✅ CAMBIO DETECTADO
+    mov force_full_redraw, 2
 
 cc_store_cam_y:
     mov scroll_offset_y, dx
     mov camara_py, ax
+
+    ; ✅ CRÍTICO: ACTUALIZAR inicio_tile_x e inicio_tile_y
+    mov ax, camara_px
+    shr ax, 4
+    cmp ax, 100                 ; ✅ Validar límite
+    jb cc_tile_x_ok
+    mov ax, 84                  ; 100 - 16 tiles visible
+cc_tile_x_ok:
+    mov inicio_tile_x, ax
+
+    mov ax, camara_py
+    shr ax, 4
+    cmp ax, 100
+    jb cc_tile_y_ok
+    mov ax, 88                  ; 100 - 12 tiles visible
+cc_tile_y_ok:
+    mov inicio_tile_y, ax
 
 cc_fin:
     pop dx
@@ -1147,6 +1176,10 @@ dibujar_todo_en_offset PROC
     ret
 dibujar_todo_en_offset ENDP
 
+; ============================================
+; DIBUJAR_MAPA_EN_OFFSET - VERSIÓN CORREGIDA
+; ============================================
+
 dibujar_mapa_en_offset PROC
     push ax
     push bx
@@ -1159,51 +1192,78 @@ dibujar_mapa_en_offset PROC
     ; ===== MARCAR TILES AFECTADOS =====
     call marcar_tiles_afectados
     
-    ; ===== Calcular puntero base a primera fila del mapa =====
-    mov ax, inicio_tile_y
-    shl ax, 1
-    mov si, ax
-    mov bx, OFFSET mul100_table
-    add bx, si
-    mov bx, [bx]
-    add bx, inicio_tile_x
-    lea di, [mapa_datos + bx]       ; DI = puntero a primera fila en mapa
+    ; ===== VALIDAR inicio_tile_x/y =====
+    mov ax, inicio_tile_x
+    cmp ax, 100
+    jb dmo_tile_x_ok
+    mov ax, 0                   ; ✅ Clamp a 0 si es inválido
+    mov inicio_tile_x, ax
+dmo_tile_x_ok:
 
-    ; ===== Determinar si se requieren filas/columnas extra por scroll =====
+    mov ax, inicio_tile_y
+    cmp ax, 100
+    jb dmo_tile_y_ok
+    mov ax, 0
+    mov inicio_tile_y, ax
+dmo_tile_y_ok:
+
+    ; ===== CALCULAR PUNTERO BASE AL MAPA =====
+    mov ax, inicio_tile_y
+    cmp ax, 200                 ; ✅ Verificar límite de tabla
+    jb dmo_lookup_ok
     xor ax, ax
-    mov temp_col, ax                ; 0 = sin columna extra
-    mov temp_fila, ax               ; 0 = sin fila extra
+dmo_lookup_ok:
+    shl ax, 1                   ; AX = inicio_tile_y × 2
+    mov bx, ax
+    mov ax, [mul100_table + bx] ; AX = inicio_tile_y × 100
+    add ax, inicio_tile_x
+    
+    ; ✅ VALIDAR offset en mapa_datos
+    cmp ax, 9900                ; 100×100 - 100 = margen seguro
+    jb dmo_offset_ok
+    xor ax, ax
+dmo_offset_ok:
+    
+    lea di, [mapa_datos + bx]   ; ✅ Usar AX, no BX
+    mov di, ax                  ; ✅ CORRECCIÓN CRÍTICA
+    add di, OFFSET mapa_datos
+
+    ; ===== DETERMINAR FILAS/COLUMNAS EXTRA =====
+    xor ax, ax
+    mov temp_col, ax
+    mov temp_fila, ax
 
     mov ax, scroll_offset_x
-    cmp ax, 0
-    je dmo_no_extra_col
+    test ax, ax
+    jz dmo_no_extra_col
+    
     mov ax, inicio_tile_x
     add ax, 21
     cmp ax, 100
     jae dmo_no_extra_col
-    mov temp_col, 1                 ; Se dibuja columna 22 (índice 21)
+    mov temp_col, 1
 dmo_no_extra_col:
 
     mov ax, scroll_offset_y
-    cmp ax, 0
-    je dmo_no_extra_row
+    test ax, ax
+    jz dmo_no_extra_row
+    
     mov ax, inicio_tile_y
     add ax, 13
     cmp ax, 100
     jae dmo_no_extra_row
-    mov temp_fila, 1                ; Se dibuja fila 14 (índice 13)
+    mov temp_fila, 1
 dmo_no_extra_row:
 
-    xor bp, bp                       ; BP = fila (0-12)
+    xor bp, bp                  ; BP = fila actual (0-12)
 
+; ===== BUCLE PRINCIPAL DE FILAS =====
 dmo_fila_opt:
     cmp bp, 13
-    jb dmo_fila_loop_body
-    jmp dmo_extra_row_check
-
-dmo_fila_loop_body:
-    mov bx, di                       ; BX = puntero actual en fila
-    xor si, si                       ; SI = columna (0-20)
+    jae dmo_extra_row_check
+    
+    mov bx, di                  ; BX = puntero a fila actual
+    xor si, si                  ; SI = columna actual (0-20)
 
 dmo_col_opt:
     cmp si, 21
@@ -1211,66 +1271,78 @@ dmo_col_opt:
     
     ; ===== VERIFICAR SI TILE ESTÁ SUCIO =====
     call tile_esta_sucio
-    jz dmo_skip_tile                 ; ZF=1 → tile limpio, saltar
+    jz dmo_skip_tile
     
-    ; ===== LEER TILE Y OBTENER SPRITE =====
+    ; ===== LEER TILE Y VALIDAR =====
     mov al, [bx]
     inc bx
+    
+    ; ✅ PROTECCIÓN: Si tile > 15, usar grass
+    cmp al, 15
+    jbe dmo_tile_valid
+    xor al, al                  ; Default a grass
+dmo_tile_valid:
 
-    push bx                          ; Guardar puntero en mapa
+    push bx                     ; Guardar puntero en mapa
 
-    mov dx, si                       ; Guardar índice de columna antes de obtener el sprite
-    call obtener_sprite_rapido       ; DI=data, SI=mask (3 ciclos)
-    mov ax, dx                       ; AX = columna actual (para restaurar luego)
+    mov dx, si                  ; Guardar columna
+    call obtener_sprite_rapido  ; DI=data, SI=mask
+    
+    mov ax, dx                  ; Restaurar columna
+
+    push si                     ; Guardar máscara
+    push di                     ; Guardar datos
 
     ; ===== CALCULAR POSICIÓN EN PANTALLA =====
-    push si                          ; Guardar máscara
-    push di                          ; Guardar datos
-
-    ; CX = columna × 16 + viewport_x
-    shl dx, 4                        ; DX todavía contiene la columna
+    shl dx, 4                   ; columna × 16
     add dx, viewport_x
     sub dx, scroll_offset_x_aligned
-    mov cx, dx
+    mov cx, dx                  ; CX = X pantalla
 
-    ; DX = fila × 16 + viewport_y
     mov bx, bp
-    shl bx, 4
+    shl bx, 4                   ; fila × 16
     add bx, viewport_y
     sub bx, scroll_offset_y
-    mov dx, bx
+    mov dx, bx                  ; DX = Y pantalla
 
-    pop di                           ; Restaurar datos
-    pop si                           ; Restaurar máscara
+    pop di                      ; Restaurar datos
+    pop si                      ; Restaurar máscara
 
     ; ===== DIBUJAR SPRITE =====
     call dibujar_sprite_planar_16x16_opt
 
-    pop bx                           ; Restaurar puntero en mapa
-    mov si, ax                       ; Recuperar índice de columna para el bucle
+    pop bx                      ; Restaurar puntero en mapa
+    mov si, ax                  ; Restaurar columna
     jmp dmo_next_col_opt
 
 dmo_skip_tile:
-    inc bx                           ; Avanzar puntero en mapa
+    inc bx                      ; Saltar tile limpio
 
 dmo_next_col_opt:
     inc si
     jmp dmo_col_opt
 
+; ===== COLUMNA EXTRA (scroll horizontal) =====
 dmo_extra_col_opt:
     mov ax, temp_col
-    cmp ax, 0
-    je dmo_next_fila_opt
+    test ax, ax
+    jz dmo_next_fila_opt
 
     mov al, [bx]
     inc bx
 
+    ; ✅ Validar tile
+    cmp al, 15
+    jbe dmo_extra_valid
+    xor al, al
+dmo_extra_valid:
+
     push bx
 
-    mov dx, si                       ; SI contiene 21 en esta ruta
+    mov dx, si
     call obtener_sprite_rapido
 
-    mov ax, dx                       ; AX = columna actual
+    mov ax, dx
 
     push si
     push di
@@ -1292,32 +1364,34 @@ dmo_extra_col_opt:
     call dibujar_sprite_planar_16x16_opt
 
     pop bx
-    mov si, ax                       ; Restaurar índice de columna
+    mov si, ax
 
 dmo_next_fila_opt:
-    add di, 100                      ; Siguiente fila en mapa (Y+1)
+    add di, 100                 ; Siguiente fila en mapa
     inc bp
     jmp dmo_fila_opt
 
+; ===== FILA EXTRA (scroll vertical) =====
 dmo_extra_row_check:
     mov ax, temp_fila
-    cmp ax, 0
-    jne dmo_extra_row_needed
-    jmp dmo_fin_opt
+    test ax, ax
+    jz dmo_fin_opt
 
-dmo_extra_row_needed:
-
-    ; ===== Dibujar fila adicional (scroll vertical) =====
-    ; Recalcular puntero base a la fila nueva =====
+    ; ✅ Recalcular puntero para fila 13
     mov ax, inicio_tile_y
     add ax, 13
+    cmp ax, 100
+    jb dmo_extra_row_valid
+    jmp dmo_fin_opt             ; Fuera de límites
+    
+dmo_extra_row_valid:
     shl ax, 1
-    mov si, ax
-    mov bx, OFFSET mul100_table
-    add bx, si
-    mov bx, [bx]
-    add bx, inicio_tile_x
+    mov bx, ax
+    mov ax, [mul100_table + bx]
+    add ax, inicio_tile_x
     lea di, [mapa_datos + bx]
+    mov di, ax                  ; ✅ Usar AX calculado
+    add di, OFFSET mapa_datos
 
     mov bp, 13
     mov bx, di
@@ -1330,12 +1404,17 @@ dmo_extra_row_loop:
     mov al, [bx]
     inc bx
 
+    cmp al, 15
+    jbe dmo_extra_row_tile_ok
+    xor al, al
+dmo_extra_row_tile_ok:
+
     push bx
 
     mov dx, si
     call obtener_sprite_rapido
 
-    mov ax, dx                       ; AX = columna actual
+    mov ax, dx
 
     push si
     push di
@@ -1358,25 +1437,30 @@ dmo_extra_row_loop:
 
     pop bx
 
-    mov si, ax                       ; Restaurar índice de columna
+    mov si, ax
 
     inc si
     jmp dmo_extra_row_loop
 
 dmo_extra_row_column:
     mov ax, temp_col
-    cmp ax, 0
-    je dmo_fin_opt
+    test ax, ax
+    jz dmo_fin_opt
 
     mov al, [bx]
     inc bx
 
+    cmp al, 15
+    jbe dmo_extra_col_tile_ok
+    xor al, al
+dmo_extra_col_tile_ok:
+
     push bx
 
-    mov dx, si                       ; SI = 21 para la columna extra
+    mov dx, si
     call obtener_sprite_rapido
 
-    mov ax, dx                       ; AX = columna actual
+    mov ax, dx
 
     push si
     push di
@@ -1401,7 +1485,6 @@ dmo_extra_row_column:
     mov si, ax
 
 dmo_fin_opt:
-    ; ===== LIMPIAR FLAGS PARA PRÓXIMO FRAME =====
     call limpiar_dirty_flags
     
     pop bp
@@ -1881,6 +1964,112 @@ dvt_mapa_ok:
     pop ax
     ret
 debug_verificar_todo ENDP
+
+debug_viewport PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    
+    ; Verificar que inicio_tile_x/y estén en rango
+    mov ax, inicio_tile_x
+    cmp ax, 100
+    jb dvp_x_ok
+    
+    ; ERROR: inicio_tile_x fuera de rango
+    mov ax, 3
+    int 10h
+    mov dx, OFFSET msg_error
+    mov ah, 9
+    int 21h
+    mov ah, 0
+    int 16h
+    jmp fin_juego
+    
+dvp_x_ok:
+    mov ax, inicio_tile_y
+    cmp ax, 100
+    jb dvp_y_ok
+    
+    ; ERROR: inicio_tile_y fuera de rango
+    mov ax, 3
+    int 10h
+    mov dx, OFFSET msg_error
+    mov ah, 9
+    int 21h
+    mov ah, 0
+    int 16h
+    jmp fin_juego
+    
+dvp_y_ok:
+    ; Verificar que mul100_table esté inicializada
+    mov bx, 2
+    mov ax, [mul100_table + bx]
+    cmp ax, 100
+    je dvp_table_ok
+    
+    ; ERROR: Tabla no inicializada
+    mov ax, 3
+    int 10h
+    mov dx, OFFSET msg_error
+    mov ah, 9
+    int 21h
+    mov ah, 0
+    int 16h
+    jmp fin_juego
+    
+dvp_table_ok:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+debug_viewport ENDP
+
+; ============================================
+; VALIDAR ESTADO ANTES DE RENDERIZAR
+; ============================================
+
+validar_estado_render PROC
+    push ax
+    push bx
+    
+    ; 1. Verificar temp_offset
+    mov ax, temp_offset
+    cmp ax, 0
+    je vsr_offset_ok
+    cmp ax, 8000h
+    je vsr_offset_ok
+    
+    ; Offset inválido - forzar a 0
+    mov temp_offset, 0
+    
+vsr_offset_ok:
+    ; 2. Verificar viewport_x/y
+    mov ax, viewport_x
+    cmp ax, 320
+    jb vsr_vp_x_ok
+    mov viewport_x, 160
+    
+vsr_vp_x_ok:
+    mov ax, viewport_y
+    cmp ax, 200
+    jb vsr_vp_y_ok
+    mov viewport_y, 79
+    
+vsr_vp_y_ok:
+    ; 3. Verificar scroll_offset_x_aligned
+    mov ax, scroll_offset_x_aligned
+    cmp ax, 16
+    jb vsr_scroll_ok
+    mov scroll_offset_x_aligned, 0
+    
+vsr_scroll_ok:
+    pop bx
+    pop ax
+    ret
+validar_estado_render ENDP
+
 INCLUDE OPTSYS.INC
 INCLUDE OPTCODE.INC
 
