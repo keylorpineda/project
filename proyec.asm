@@ -1,6 +1,5 @@
 ; JUEGO EGA - Universidad Nacional - Proyecto II Ciclo 2025
 ; VERSIÓN CORREGIDA Y FUNCIONAL
-.386
 .MODEL SMALL
 .STACK 2048
 
