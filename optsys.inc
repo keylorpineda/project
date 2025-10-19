@@ -40,6 +40,10 @@ iso_clear:
     mov last_scroll_offset_x, ax
     mov last_scroll_offset_y, ax
 
+    xor ax, ax
+    mov scroll_offset_x_aligned, ax
+    mov scroll_pixel_pan_x, al
+
     pop di
     pop cx
     pop bx

@@ -126,6 +126,8 @@ temp_col  dw 0
 
 scroll_offset_x dw 0
 scroll_offset_y dw 0
+scroll_offset_x_aligned dw 0
+scroll_pixel_pan_x    db 0
 
 ; === Variables para OPTCODE.INC ===
 video_offsets   dw 350 dup(?)
@@ -692,6 +694,15 @@ cc_store_cam_x:
     mov scroll_offset_x, dx
     mov camara_px, ax
 
+    mov bx, dx
+    and bx, 0FFF8h
+    mov scroll_offset_x_aligned, bx
+
+    mov al, dl
+    and al, 7
+    mov scroll_pixel_pan_x, al
+    call actualizar_pixel_pan
+
     mov ax, jugador_py
     sub ax, 96
     jge cc_y_pos
@@ -720,6 +731,29 @@ cc_fin:
     pop ax
     ret
 centrar_camara ENDP
+
+actualizar_pixel_pan PROC
+    push ax
+    push bx
+    push dx
+
+    mov bl, scroll_pixel_pan_x
+
+    mov dx, 3DAh
+    in al, dx
+
+    mov dx, 3C0h
+    mov al, 13h
+    out dx, al
+
+    mov al, bl
+    out dx, al
+
+    pop dx
+    pop bx
+    pop ax
+    ret
+actualizar_pixel_pan ENDP
 
 verificar_tile_transitable PROC
     call verificar_tile_transitable_opt
@@ -1196,7 +1230,7 @@ dmo_col_opt:
     ; CX = columna × 16 + viewport_x
     shl dx, 4                        ; DX todavía contiene la columna
     add dx, viewport_x
-    sub dx, scroll_offset_x
+    sub dx, scroll_offset_x_aligned
     mov cx, dx
 
     ; DX = fila × 16 + viewport_y
@@ -1243,7 +1277,7 @@ dmo_extra_col_opt:
 
     shl dx, 4
     add dx, viewport_x
-    sub dx, scroll_offset_x
+    sub dx, scroll_offset_x_aligned
     mov cx, dx
 
     mov bx, bp
@@ -1308,7 +1342,7 @@ dmo_extra_row_loop:
 
     shl dx, 4
     add dx, viewport_x
-    sub dx, scroll_offset_x
+    sub dx, scroll_offset_x_aligned
     mov cx, dx
 
     mov bx, bp
@@ -1349,7 +1383,7 @@ dmo_extra_row_column:
 
     shl dx, 4
     add dx, viewport_x
-    sub dx, scroll_offset_x
+    sub dx, scroll_offset_x_aligned
     mov cx, dx
 
     mov bx, bp
@@ -1398,6 +1432,10 @@ dibujar_jugador_en_offset PROC
     add ax, viewport_x
     sub ax, 16               ; Centrar sprite (32/2)
     mov cx, ax
+
+    mov al, scroll_pixel_pan_x
+    cbw
+    add cx, ax
 
     mov ax, jugador_py
     sub ax, camara_py
