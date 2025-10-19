@@ -1396,38 +1396,49 @@ dibujar_mapa_en_offset PROC
 
 dmo_fila:
     cmp bp, 13              ; 13 filas visibles (192/16 + 1)
-    jae dmo_fin
-    
+    jb dmo_procesar_fila
+    jmp dmo_fin
+
+dmo_procesar_fila:
     xor si, si              ; SI = columna actual (0-20)
 
 dmo_col:
     cmp si, 21              ; 21 columnas visibles (320/16 + 1)
-    jae dmo_next_fila
-    
+    jb dmo_procesar_col
+    jmp dmo_next_fila
+
+dmo_procesar_col:
     ; ===== Calcular tile_y =====
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 100
-    jae dmo_next_col        ; Fuera del mapa
-    
+    jb dmo_tile_y_ok        ; Dentro del mapa
+    jmp dmo_next_col        ; Fuera del mapa
+
+dmo_tile_y_ok:
     ; ===== Calcular índice en mapa (Y × 100 + X) =====
     mov bx, ax
     shl bx, 1
     mov ax, [mul100_table + bx]
-    
+
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 100
-    jae dmo_next_col        ; Fuera del mapa
-    
+    jb dmo_tile_x_ok        ; Dentro del mapa
+    jmp dmo_next_col        ; Fuera del mapa
+
+dmo_tile_x_ok:
     add ax, bx
-    
+
     ; ===== Leer tipo de tile =====
     mov bx, ax
     mov al, [mapa_datos + bx]
-    
+
     cmp al, 15
-    ja dmo_next_col
+    jbe dmo_tile_tipo_ok
+    jmp dmo_next_col
+
+dmo_tile_tipo_ok:
     
     ; ===== Guardar registros de BUCLE =====
     push si                 ; [Stack]: col
