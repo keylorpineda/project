@@ -12,64 +12,69 @@ verificar_colision_recursos PROC
     push cx
     push dx
     push si
-    
+    push di
+
     ; Obtener tile del jugador
     mov cx, jugador_px
-    shr cx, 4                   ; Convertir a tile X
-    
+    shr cx, 1
+    shr cx, 1
+    shr cx, 1
+    shr cx, 1
+
     mov dx, jugador_py
-    shr dx, 4                   ; Convertir a tile Y
-    
-    ; Recorrer todos los recursos
+    shr dx, 1
+    shr dx, 1
+    shr dx, 1
+    shr dx, 1
+
     xor si, si                  ; Índice de recurso
     mov bx, 1                   ; Máscara de bit
 
 vcr_loop:
     mov al, num_recursos_cargados
-    mov ah, 0
+    cbw
     cmp si, ax
     jae vcr_fin
-    
-    ; Verificar si ya fue recogido
+
     push bx
     mov ax, recursos_recogidos
     and ax, bx
     pop bx
     jnz vcr_next                ; Ya recogido, saltar
-    
-    ; Obtener posición del recurso
+
     push cx
     push dx
-    
+
     mov ax, si
-    mov cl, 3                   ; Multiplicar por 3 (cada entrada son 3 bytes)
-    mul cl
+    mov bx, 3
+    mul bx                      ; AX = si * 3
     mov di, ax
-    
-    movzx ax, byte ptr [recursos_mapa + di]     ; X del recurso
+
+    mov al, [recursos_mapa + di]
+    cbw
     mov cx, ax
-    
-    movzx ax, byte ptr [recursos_mapa + di + 1] ; Y del recurso
+
+    mov al, [recursos_mapa + di + 1]
+    cbw
     mov dx, ax
-    
+
     pop ax                      ; AX = jugador Y
     pop di                      ; DI = jugador X
-    
-    ; Verificar si está en el mismo tile
+
     cmp di, cx
     jne vcr_next
     cmp ax, dx
     jne vcr_next
-    
-    ; ¡COLISIÓN! Recoger recurso
+
     call recoger_recurso
-    
+
 vcr_next:
-    shl bx, 1                   ; Siguiente bit
+    shl bx, 1
     inc si
     jmp vcr_loop
-    
+
 vcr_fin:
+    pop di
     pop si
     pop dx
     pop cx
@@ -86,34 +91,38 @@ recoger_recurso PROC
     push ax
     push bx
     push di
-    
+
     ; Marcar como recogido
     or recursos_recogidos, bx
-    
+
     ; Obtener tipo de recurso
     mov ax, si
-    mov cl, 3
-    mul cl
+    mov bx, 3
+    mul bx
     mov di, ax
-    
-    movzx ax, byte ptr [recursos_mapa + di + 2] ; Tipo (1, 2 o 3)
-    
+
+    mov al, [recursos_mapa + di + 2]            ; Tipo (1, 2 o 3)
+    mov bl, al
+
     ; Incrementar contador según tipo
-    cmp al, 1
+    cmp bl, 1
     jne rr_tipo2
     inc recursos_tipo1
-    jmp rr_fin
-    
+    jmp rr_actualizar
+
 rr_tipo2:
-    cmp al, 2
+    cmp bl, 2
     jne rr_tipo3
     inc recursos_tipo2
-    jmp rr_fin
-    
+    jmp rr_actualizar
+
 rr_tipo3:
     inc recursos_tipo3
-    
-rr_fin:
+
+rr_actualizar:
+    mov al, bl
+    call actualizar_inventario_slots
+
     ; Activar animación de recolección
     mov anim_recoger_activa, 1
     mov anim_recoger_frame, 0
@@ -128,6 +137,52 @@ rr_fin:
     pop ax
     ret
 recoger_recurso ENDP
+
+actualizar_inventario_slots PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov dl, al                  ; Tipo de recurso
+    mov cx, MAX_ITEMS
+    mov si, OFFSET inventario_slots
+    mov di, OFFSET inventario_cantidades
+
+ais_loop:
+    test cx, cx
+    jz ais_fin
+
+    mov al, [si]
+    cmp al, dl
+    je ais_incrementar
+    test al, al
+    jz ais_asignar
+
+    inc si
+    inc di
+    dec cx
+    jmp ais_loop
+
+ais_incrementar:
+    inc byte ptr [di]
+    jmp ais_fin
+
+ais_asignar:
+    mov [si], dl
+    mov byte ptr [di], 1
+
+ais_fin:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+actualizar_inventario_slots ENDP
 
 ; ============================================
 ; DIBUJAR RECURSOS EN EL MAPA
@@ -161,17 +216,25 @@ drm_loop:
     push si
     
     mov ax, si
-    mov cl, 3
-    mul cl
+    mov bx, 3
+    mul bx
     mov di, ax
-    
-    movzx ax, byte ptr [recursos_mapa + di]     ; X (en tiles)
-    shl ax, 4                                     ; Convertir a píxeles
+
+    mov al, [recursos_mapa + di]                 ; X (en tiles)
+    xor ah, ah
     mov cx, ax
-    
-    movzx ax, byte ptr [recursos_mapa + di + 1]  ; Y (en tiles)
-    shl ax, 4
+    shl cx, 1
+    shl cx, 1
+    shl cx, 1
+    shl cx, 1
+
+    mov al, [recursos_mapa + di + 1]             ; Y (en tiles)
+    xor ah, ah
     mov dx, ax
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
     
     ; Verificar si está visible en viewport
     mov ax, cx
@@ -200,8 +263,8 @@ drm_loop:
     mov dx, ax
     
     ; Obtener sprite según tipo
-    movzx ax, byte ptr [recursos_mapa + di + 2] ; Tipo
-    
+    mov al, [recursos_mapa + di + 2]            ; Tipo
+
     cmp al, 1
     jne drm_tipo2
     mov di, OFFSET sprite_cristal
@@ -274,7 +337,16 @@ dibujar_inventario PROC
     mov bx, INV_HEIGHT
     mov si, COLOR_MARCO
     call dibujar_rectangulo_vacio
-    
+
+    ; Título del inventario
+    mov cx, INV_X
+    add cx, 12
+    mov dx, INV_Y
+    add dx, 12
+    mov si, OFFSET msg_inventario
+    mov al, COLOR_TEXTO
+    call dibujar_texto_simple
+
     ; Dibujar sprite del jugador (izquierda)
     call dibujar_jugador_inventario
     
@@ -328,31 +400,33 @@ dibujar_slots_items PROC
     push cx
     push dx
     push si
-    
-    xor si, si                  ; Contador de slot
-    
+    push di
+    push bp
+
+    xor si, si
+
 dsi_loop:
     cmp si, MAX_ITEMS
     jae dsi_fin
-    
-    ; Calcular posición del slot
+
     mov ax, si
-    and ax, 3                   ; Columna (0-3)
-    mov bx, ITEM_SIZE
-    add bx, ITEM_SPACING
+    xor dx, dx
+    mov bx, 4
+    div bx                      ; AX = fila, DX = columna
+    mov bp, ax
+    mov ax, dx
+
+    mov bx, ITEM_TOTAL
     mul bx
     add ax, ZONA_ITEMS_X
-    mov cx, ax                  ; CX = X del slot
-    
-    mov ax, si
-    shr ax, 2                   ; Fila (0-1)
-    mov bx, ITEM_SIZE
-    add bx, ITEM_SPACING
+    mov cx, ax
+
+    mov ax, bp
+    mov bx, ITEM_TOTAL
     mul bx
     add ax, ZONA_ITEMS_Y
-    mov dx, ax                  ; DX = Y del slot
-    
-    ; Dibujar marco del slot
+    mov dx, ax
+
     push cx
     push dx
     mov ax, ITEM_SIZE
@@ -363,14 +437,72 @@ dsi_loop:
     pop si
     pop dx
     pop cx
-    
-    ; TODO: Dibujar item si el slot tiene algo
-    ; (Por ahora solo mostramos slots vacíos)
-    
+
+    mov bx, OFFSET inventario_slots
+    add bx, si
+    mov al, [bx]
+    test al, al
+    jz dsi_next
+
+    mov dl, al
+    push cx
+    push dx
+
+    mov ax, cx
+    add ax, ITEM_ICON_OFFSET
+    mov cx, ax
+    mov ax, dx
+    add ax, ITEM_ICON_OFFSET
+    mov dx, ax
+
+    cmp dl, 1
+    jne dsi_tipo2
+    mov di, OFFSET sprite_cristal
+    push si
+    mov si, OFFSET sprite_cristal_mask
+    jmp dsi_dibujar
+dsi_tipo2:
+    cmp dl, 2
+    jne dsi_tipo3
+    mov di, OFFSET sprite_gema
+    push si
+    mov si, OFFSET sprite_gema_mask
+    jmp dsi_dibujar
+dsi_tipo3:
+    mov di, OFFSET sprite_moneda
+    push si
+    mov si, OFFSET sprite_moneda_mask
+
+dsi_dibujar:
+    call dibujar_sprite_planar_16x16_opt
+    pop si
+
+    pop dx
+    pop cx
+
+    mov bx, OFFSET inventario_cantidades
+    add bx, si
+    mov al, [bx]
+    xor ah, ah
+    push ax
+
+    mov ax, cx
+    add ax, ITEM_COUNT_OFFSET_X
+    mov cx, ax
+    mov ax, dx
+    add ax, ITEM_COUNT_OFFSET_Y
+    mov dx, ax
+
+    pop ax
+    call dibujar_numero
+
+dsi_next:
     inc si
     jmp dsi_loop
-    
+
 dsi_fin:
+    pop bp
+    pop di
     pop si
     pop dx
     pop cx
@@ -387,105 +519,142 @@ dibujar_estadisticas PROC
     push bx
     push cx
     push dx
-    
-    ; Base Y para los textos
+    push si
+
     mov dx, ZONA_STATS_Y
-    
-    ; Dibujar "RECURSOS"
+
     mov cx, ZONA_STATS_X
-    push dx
     mov si, OFFSET msg_recursos
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
-    pop dx
-    
-    add dx, 16
-    
-    ; Cristales: "Cristales: X/2"
+
+    add dx, 12
     mov cx, ZONA_STATS_X
-    push dx
+    mov si, OFFSET msg_objetivo
+    mov al, COLOR_TEXTO
+    call dibujar_texto_simple
+
+    add dx, 16
+    mov cx, ZONA_STATS_X
+    mov si, OFFSET msg_progreso
+    mov al, COLOR_TEXTO
+    call dibujar_texto_simple
+
+    add dx, 16
+
+    ; Cristales
+    mov cx, ZONA_STATS_X
     mov si, OFFSET msg_cristales
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
-    pop dx
-    
-    ; Dibujar contador
-    add cx, 80
-    movzx ax, recursos_tipo1
-    call dibujar_numero
-    
-    add dx, 12
-    
-    ; Barra de progreso de cristales
+
     mov cx, ZONA_STATS_X
-    push dx
-    movzx ax, recursos_tipo1
+    add cx, 96
+    mov al, recursos_tipo1
+    xor ah, ah
+    call dibujar_numero
+
+    mov cx, ZONA_STATS_X
+    add cx, 120
+    mov si, OFFSET msg_slash
+    mov al, COLOR_TEXTO
+    call dibujar_texto_simple
+
+    mov cx, ZONA_STATS_X
+    add cx, 128
+    mov ax, META_POR_TIPO
+    call dibujar_numero
+
+    add dx, 12
+    mov cx, ZONA_STATS_X
+    mov al, recursos_tipo1
+    xor ah, ah
     mov bx, META_POR_TIPO
     call dibujar_barra_progreso
-    pop dx
-    
+
     add dx, 20
-    
-    ; Gemas: "Gemas: X/2"
+
+    ; Gemas
     mov cx, ZONA_STATS_X
-    push dx
     mov si, OFFSET msg_gemas
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
-    pop dx
-    
-    add cx, 80
-    movzx ax, recursos_tipo2
-    call dibujar_numero
-    
-    add dx, 12
-    
-    ; Barra de progreso de gemas
+
     mov cx, ZONA_STATS_X
-    push dx
-    movzx ax, recursos_tipo2
+    add cx, 96
+    mov al, recursos_tipo2
+    xor ah, ah
+    call dibujar_numero
+
+    mov cx, ZONA_STATS_X
+    add cx, 120
+    mov si, OFFSET msg_slash
+    mov al, COLOR_TEXTO
+    call dibujar_texto_simple
+
+    mov cx, ZONA_STATS_X
+    add cx, 128
+    mov ax, META_POR_TIPO
+    call dibujar_numero
+
+    add dx, 12
+    mov cx, ZONA_STATS_X
+    mov al, recursos_tipo2
+    xor ah, ah
     mov bx, META_POR_TIPO
     call dibujar_barra_progreso
-    pop dx
-    
+
     add dx, 20
-    
-    ; Monedas: "Monedas: X/2"
+
+    ; Monedas
     mov cx, ZONA_STATS_X
-    push dx
     mov si, OFFSET msg_monedas
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
-    pop dx
-    
-    add cx, 80
-    movzx ax, recursos_tipo3
-    call dibujar_numero
-    
-    add dx, 12
-    
-    ; Barra de progreso de monedas
+
     mov cx, ZONA_STATS_X
-    movzx ax, recursos_tipo3
+    add cx, 96
+    mov al, recursos_tipo3
+    xor ah, ah
+    call dibujar_numero
+
+    mov cx, ZONA_STATS_X
+    add cx, 120
+    mov si, OFFSET msg_slash
+    mov al, COLOR_TEXTO
+    call dibujar_texto_simple
+
+    mov cx, ZONA_STATS_X
+    add cx, 128
+    mov ax, META_POR_TIPO
+    call dibujar_numero
+
+    add dx, 12
+    mov cx, ZONA_STATS_X
+    mov al, recursos_tipo3
+    xor ah, ah
     mov bx, META_POR_TIPO
     call dibujar_barra_progreso
-    
-    ; Verificar victoria
-    cmp recursos_tipo1, META_POR_TIPO
+
+    add dx, 20
+
+    mov al, recursos_tipo1
+    cmp al, META_POR_TIPO
     jb de_no_victoria
-    cmp recursos_tipo2, META_POR_TIPO
+    mov al, recursos_tipo2
+    cmp al, META_POR_TIPO
     jb de_no_victoria
-    cmp recursos_tipo3, META_POR_TIPO
+    mov al, recursos_tipo3
+    cmp al, META_POR_TIPO
     jb de_no_victoria
-    
-    ; ¡VICTORIA! Mostrar mensaje
-    add dx, 30
+
     mov cx, ZONA_STATS_X
     mov si, OFFSET msg_completado
-    mov al, 10                  ; Verde claro
+    mov al, 10
     call dibujar_texto_simple
-    
+
 de_no_victoria:
+    pop si
     pop dx
     pop cx
     pop bx
@@ -521,18 +690,26 @@ dibujar_barra_progreso PROC
     pop cx
     
     ; Calcular ancho de la barra llena
+    cmp di, 0
+    je dbp_fin
+
     mov ax, si                  ; Valor actual
     mov bx, 60                  ; Ancho total
     mul bx
+    xor dx, dx
     div di                      ; Dividir por valor máximo
+
+    cmp ax, 60
+    jbe dbp_width_ok
+    mov ax, 60
+
+dbp_width_ok:
     
     ; Si es 0, no dibujar nada
     test ax, ax
     jz dbp_fin
     
     ; Dibujar barra llena
-    mov bx, ax                  ; BX = ancho calculado
-    mov ax, bx                  ; AX también
     mov bx, 8                   ; Alto
     push si
     mov si, COLOR_BARRA_LLENA
@@ -581,7 +758,9 @@ drl_fila:
     shl bx, 1
     mov ax, [video_offsets + bx]
     mov bx, cx
-    shr bx, 3                   ; Dividir X por 8
+    shr bx, 1
+    shr bx, 1
+    shr bx, 1
     add ax, bx
     add ax, temp_offset
     mov bx, ax                  ; BX = offset de video
@@ -602,7 +781,9 @@ drl_fila:
     
     ; Dibujar píxeles
     mov cx, bp                  ; Ancho en píxeles
-    shr cx, 3                   ; Convertir a bytes
+    shr cx, 1
+    shr cx, 1
+    shr cx, 1
     
 drl_pixel:
     mov es:[bx], al
@@ -696,8 +877,12 @@ dibujar_rectangulo_vacio ENDP
 ; ============================================
 ; DIBUJAR TEXTO SIMPLE (solo mayúsculas y números)
 ; Entrada: CX = X, DX = Y, SI = puntero a string terminado en 0, AL = color
-; Nota: Usa fuente 8x8 de la BIOS (simplificado)
 ; ============================================
+FONT_LETTER_OFFSET EQU 10
+FONT_COLON_INDEX   EQU 36
+FONT_SLASH_INDEX   EQU 37
+FONT_EXCLAM_INDEX  EQU 38
+
 dibujar_texto_simple PROC
     push ax
     push bx
@@ -705,20 +890,27 @@ dibujar_texto_simple PROC
     push dx
     push si
     push di
-    
-    mov bl, al                  ; BL = color
-    
+
+    mov texto_color_actual, al
+
 dts_loop:
-    lodsb                       ; Cargar carácter
-    test al, al                 ; ¿Fin de string?
+    lodsb
+    test al, al
     jz dts_fin
-    
-    ; Dibujar carácter (simplificado - solo un píxel por ahora)
-    ; TODO: Implementar fuente bitmap completa
-    
-    add cx, 8                   ; Siguiente posición X
+
+    cmp al, ' '
+    je dts_space
+
+    push cx
+    push dx
+    call dibujar_caracter_8x8
+    pop dx
+    pop cx
+
+dts_space:
+    add cx, 8
     jmp dts_loop
-    
+
 dts_fin:
     pop di
     pop si
@@ -729,58 +921,186 @@ dts_fin:
     ret
 dibujar_texto_simple ENDP
 
+dibujar_caracter_8x8 PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+
+    mov font_base_x_temp, cx
+    mov font_base_y_temp, dx
+
+    call obtener_ptr_glifo
+    jc dce_exit
+
+    xor di, di
+
+dce_row_loop:
+    cmp di, 8
+    jae dce_exit
+
+    mov al, [si]
+    mov font_row_mask, al
+    mov bx, font_base_x_temp
+    mov bp, 8
+
+dce_bit_loop:
+    mov al, font_row_mask
+    test al, 80h
+    jz dce_skip_pixel
+
+    mov ah, 0Ch
+    mov al, texto_color_actual
+    mov bh, 0
+    mov cx, bx
+    mov dx, font_base_y_temp
+    add dx, di
+    int 10h
+
+dce_skip_pixel:
+    mov al, font_row_mask
+    shl al, 1
+    mov font_row_mask, al
+    inc bx
+    dec bp
+    jnz dce_bit_loop
+
+    inc si
+    inc di
+    jmp dce_row_loop
+
+dce_exit:
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_caracter_8x8 ENDP
+
+obtener_ptr_glifo PROC
+    push bx
+    push dx
+
+    mov si, OFFSET font_8x8
+
+    cmp al, '0'
+    jb og_check_letter
+    cmp al, '9'
+    ja og_check_letter
+    sub al, '0'
+    xor ah, ah
+    mov bx, ax
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    add si, bx
+    clc
+    jmp og_exit
+
+og_check_letter:
+    cmp al, 'A'
+    jb og_check_colon
+    cmp al, 'Z'
+    ja og_check_colon
+    sub al, 'A'
+    add al, FONT_LETTER_OFFSET
+    xor ah, ah
+    mov bx, ax
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    add si, bx
+    clc
+    jmp og_exit
+
+og_check_colon:
+    cmp al, ':'
+    je og_from_colon
+    cmp al, '/'
+    je og_from_slash
+    cmp al, '!'
+    je og_from_excl
+    stc
+    jmp og_exit
+
+og_from_colon:
+    mov bx, FONT_COLON_INDEX
+    jmp og_from_index
+
+og_from_slash:
+    mov bx, FONT_SLASH_INDEX
+    jmp og_from_index
+
+og_from_excl:
+    mov bx, FONT_EXCLAM_INDEX
+
+og_from_index:
+    xor ah, ah
+    mov ax, bx
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    add si, ax
+    clc
+
+og_exit:
+    pop dx
+    pop bx
+    ret
+obtener_ptr_glifo ENDP
+
 ; ============================================
 ; DIBUJAR NÚMERO (0-99)
 ; Entrada: CX = X, DX = Y, AX = número
 ; ============================================
 dibujar_numero PROC
-    push ax
     push bx
     push cx
     push dx
-    
-    ; Convertir número a ASCII
-    mov bl, 10
-    div bl                      ; AH = unidades, AL = decenas
-    
-    ; Si las decenas son 0, solo dibujar unidades
-    test al, al
-    jz dn_unidades
-    
-    ; Dibujar decenas
-    add al, '0'
-    push ax
-    push cx
-    push dx
-    mov si, sp
-    add si, 6                   ; Apuntar al carácter
+    push si
+    push di
+    push bp
+
+    mov bp, ax                  ; Guardar valor original
+    mov bx, 10
+    lea di, numero_buffer + 5
+    mov byte ptr [di], 0
+
+    mov ax, bp
+    cmp ax, 0
+    jne dn_loop_start
+    dec di
+    mov byte ptr [di], '0'
+    jmp dn_ready
+
+dn_loop_start:
+dn_loop:
+    xor dx, dx
+    div bx
+    dec di
+    add dl, '0'
+    mov [di], dl
+    test ax, ax
+    jnz dn_loop
+
+dn_ready:
+    mov si, di
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
-    pop dx
-    pop cx
-    pop ax
-    
-    add cx, 8                   ; Siguiente posición
-    
-dn_unidades:
-    ; Dibujar unidades
-    mov al, ah
-    add al, '0'
-    push ax
-    push cx
-    push dx
-    mov si, sp
-    add si, 6
-    mov al, COLOR_TEXTO
-    call dibujar_texto_simple
-    pop dx
-    pop cx
-    pop ax
-    
+
+    mov ax, bp
+    pop bp
+    pop di
+    pop si
     pop dx
     pop cx
     pop bx
-    pop ax
     ret
 dibujar_numero ENDP
 

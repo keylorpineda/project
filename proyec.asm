@@ -138,6 +138,8 @@ NUM_RECURSOS EQU 15
 recursos_mapa       db NUM_RECURSOS * 3 dup(0)   ; [x, y, tipo]
 recursos_cantidad   db NUM_RECURSOS dup(0)       ; Cantidad por recurso
 num_recursos_cargados db 0                      ; Total cargado desde mapa
+inventario_slots       db MAX_ITEMS dup(0)
+inventario_cantidades  db MAX_ITEMS dup(0)
 
 ; Variables auxiliares para carga de recursos desde el mapa
 carga_recursos_estado      db 0
@@ -166,11 +168,11 @@ COLOR_ITEM_SLOT  EQU 1    ; Azul oscuro
 
 msg_inventario  db 'INVENTARIO',0
 msg_recursos    db 'RECURSOS',0
-msg_cristales   db 'Cristales:',0
-msg_gemas       db 'Gemas:',0
-msg_monedas     db 'Monedas:',0
-msg_objetivo    db 'Objetivo: 2/tipo',0
-msg_progreso    db 'Progreso:',0
+msg_cristales   db 'CRISTALES:',0
+msg_gemas       db 'GEMAS:',0
+msg_monedas     db 'MONEDAS:',0
+msg_objetivo    db 'OBJETIVO: 2/TIPO',0
+msg_progreso    db 'PROGRESO:',0
 msg_completado  db 'COMPLETADO!',0
 msg_slash       db '/',0
 
@@ -189,6 +191,10 @@ ZONA_ITEMS_X    EQU 250          ; Zona de items (centro)
 ZONA_ITEMS_Y    EQU 80
 ITEM_SIZE       EQU 32           ; Tamaño de cada slot de item
 ITEM_SPACING    EQU 8            ; Espaciado entre items
+ITEM_TOTAL      EQU 40           ; ITEM_SIZE + ITEM_SPACING
+ITEM_ICON_OFFSET EQU 8           ; Centrar sprite 16x16 en slot 32x32
+ITEM_COUNT_OFFSET_X EQU 20       ; Desplazamiento horizontal para cantidad
+ITEM_COUNT_OFFSET_Y EQU 20       ; Desplazamiento vertical para cantidad
 
 ZONA_STATS_X    EQU 390          ; Zona de estadísticas (derecha)
 ZONA_STATS_Y    EQU 80
@@ -199,6 +205,92 @@ anim_recoger_activa db 0
 anim_recoger_frame  db 0
 anim_recoger_x      dw 0
 anim_recoger_y      dw 0
+
+texto_color_actual  db 0
+font_base_x_temp    dw 0
+font_base_y_temp    dw 0
+font_row_mask       db 0
+numero_buffer       db 6 dup(0)
+
+font_8x8 LABEL BYTE
+    ; '0'
+    db 00111100b,01000010b,01000110b,01001010b,01010010b,01100010b,01000010b,00111100b
+    ; '1'
+    db 00011000b,00101000b,01001000b,00001000b,00001000b,00001000b,00001000b,01111110b
+    ; '2'
+    db 00111100b,01000010b,00000010b,00000100b,00001000b,00010000b,00100000b,01111110b
+    ; '3'
+    db 00111100b,01000010b,00000010b,00011100b,00000010b,00000010b,01000010b,00111100b
+    ; '4'
+    db 00000100b,00001100b,00010100b,00100100b,01000100b,01111110b,00000100b,00000100b
+    ; '5'
+    db 01111110b,01000000b,01000000b,01111100b,00000010b,00000010b,01000010b,00111100b
+    ; '6'
+    db 00111100b,01000010b,01000000b,01111100b,01000010b,01000010b,01000010b,00111100b
+    ; '7'
+    db 01111110b,00000010b,00000100b,00001000b,00010000b,00100000b,00100000b,00100000b
+    ; '8'
+    db 00111100b,01000010b,01000010b,00111100b,01000010b,01000010b,01000010b,00111100b
+    ; '9'
+    db 00111100b,01000010b,01000010b,01000010b,00111110b,00000010b,01000010b,00111100b
+    ; 'A'
+    db 00011000b,00100100b,01000010b,01000010b,01111110b,01000010b,01000010b,00000000b
+    ; 'B'
+    db 01111100b,01000010b,01000010b,01111100b,01000010b,01000010b,01111100b,00000000b
+    ; 'C'
+    db 00111100b,01000010b,01000000b,01000000b,01000000b,01000010b,00111100b,00000000b
+    ; 'D'
+    db 01111000b,01000100b,01000010b,01000010b,01000010b,01000100b,01111000b,00000000b
+    ; 'E'
+    db 01111110b,01000000b,01000000b,01111100b,01000000b,01000000b,01111110b,00000000b
+    ; 'F'
+    db 01111110b,01000000b,01000000b,01111100b,01000000b,01000000b,01000000b,00000000b
+    ; 'G'
+    db 00111100b,01000010b,01000000b,01011110b,01000010b,01000010b,00111100b,00000000b
+    ; 'H'
+    db 01000010b,01000010b,01000010b,01111110b,01000010b,01000010b,01000010b,00000000b
+    ; 'I'
+    db 00111100b,00011000b,00011000b,00011000b,00011000b,00011000b,00111100b,00000000b
+    ; 'J'
+    db 00011110b,00000100b,00000100b,00000100b,00000100b,01000100b,00111000b,00000000b
+    ; 'K'
+    db 01000010b,01000100b,01001000b,01110000b,01001000b,01000100b,01000010b,00000000b
+    ; 'L'
+    db 01000000b,01000000b,01000000b,01000000b,01000000b,01000000b,01111110b,00000000b
+    ; 'M'
+    db 01000010b,01100110b,01011010b,01000010b,01000010b,01000010b,01000010b,00000000b
+    ; 'N'
+    db 01000010b,01100010b,01010010b,01001010b,01000110b,01000010b,01000010b,00000000b
+    ; 'O'
+    db 00111100b,01000010b,01000010b,01000010b,01000010b,01000010b,00111100b,00000000b
+    ; 'P'
+    db 01111100b,01000010b,01000010b,01111100b,01000000b,01000000b,01000000b,00000000b
+    ; 'Q'
+    db 00111100b,01000010b,01000010b,01000010b,01001010b,01000110b,00111110b,00000000b
+    ; 'R'
+    db 01111100b,01000010b,01000010b,01111100b,01001000b,01000100b,01000010b,00000000b
+    ; 'S'
+    db 00111110b,01000000b,01000000b,00111100b,00000010b,00000010b,01111100b,00000000b
+    ; 'T'
+    db 01111110b,00011000b,00011000b,00011000b,00011000b,00011000b,00011000b,00000000b
+    ; 'U'
+    db 01000010b,01000010b,01000010b,01000010b,01000010b,01000010b,00111100b,00000000b
+    ; 'V'
+    db 01000010b,01000010b,01000010b,01000010b,00100100b,00100100b,00011000b,00000000b
+    ; 'W'
+    db 01000010b,01000010b,01000010b,01000010b,01011010b,01100110b,01000010b,00000000b
+    ; 'X'
+    db 01000010b,00100100b,00011000b,00011000b,00011000b,00100100b,01000010b,00000000b
+    ; 'Y'
+    db 01000010b,00100100b,00011000b,00011000b,00011000b,00011000b,00011000b,00000000b
+    ; 'Z'
+    db 01111110b,00000010b,00000100b,00001000b,00010000b,00100000b,01111110b,00000000b
+    ; ':'
+    db 00000000b,00011000b,00011000b,00000000b,00000000b,00011000b,00011000b,00000000b
+    ; '/'
+    db 00000010b,00000100b,00001000b,00010000b,00100000b,01000000b,10000000b,00000000b
+    ; '!'
+    db 00011000b,00011000b,00011000b,00011000b,00011000b,00000000b,00011000b,00000000b
 
 INCLUDE OPTDATA.INC
 
@@ -1532,6 +1624,16 @@ cargar_recursos_desde_mapa PROC
 
     mov di, OFFSET recursos_cantidad
     mov cx, NUM_RECURSOS
+    mov al, 0
+    rep stosb
+
+    mov di, OFFSET inventario_slots
+    mov cx, MAX_ITEMS
+    mov al, 0
+    rep stosb
+
+    mov di, OFFSET inventario_cantidades
+    mov cx, MAX_ITEMS
     mov al, 0
     rep stosb
 
