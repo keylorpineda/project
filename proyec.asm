@@ -1382,32 +1382,33 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    ; Calcular tile inicial de la cámara
+    ; ✅ CRÍTICO: Calcular tile inicial SIN ajuste de scroll
+    ; La cámara ya está en píxeles, simplemente dividir por 16
     mov ax, camara_px
-    shr ax, 4
+    shr ax, 4               ; Dividir por 16 para obtener tile X
     mov inicio_tile_x, ax
     
     mov ax, camara_py
-    shr ax, 4
+    shr ax, 4               ; Dividir por 16 para obtener tile Y
     mov inicio_tile_y, ax
     
     xor bp, bp              ; BP = fila actual (0-12)
 
 dmo_fila:
-    cmp bp, 13
+    cmp bp, 13              ; 13 filas visibles (192/16 + 1)
     jae dmo_fin
     
     xor si, si              ; SI = columna actual (0-20)
 
 dmo_col:
-    cmp si, 21
+    cmp si, 21              ; 21 columnas visibles (320/16 + 1)
     jae dmo_next_fila
     
     ; ===== Calcular tile_y =====
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 100
-    jae dmo_next_col
+    jae dmo_next_col        ; Fuera del mapa
     
     ; ===== Calcular índice en mapa (Y × 100 + X) =====
     mov bx, ax
@@ -1417,7 +1418,7 @@ dmo_col:
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 100
-    jae dmo_next_col
+    jae dmo_next_col        ; Fuera del mapa
     
     add ax, bx
     
@@ -1428,43 +1429,56 @@ dmo_col:
     cmp al, 15
     ja dmo_next_col
     
-    ; ===== Guardar registros de BUCLE (col, fila) =====
+    ; ===== Guardar registros de BUCLE =====
     push si                 ; [Stack]: col
     push bp                 ; [Stack]: fila, col
     
-    ; ===== Obtener sprite (pone DI=data, SI=mask) =====
+    ; ===== Obtener sprite =====
     call obtener_sprite_tile
     
     push si                 ; [Stack]: mask_ptr, fila, col
     push di                 ; [Stack]: data_ptr, mask_ptr, fila, col
     
-    ; --- Crear Stack Frame ---
-    push bp                 ; Guardar BP (fila)
-    mov bp, sp              ; BP es ahora el puntero de pila
-
-    ; Calcular DX (Y) usando BP
-    mov ax, [bp+6]          ; AX = fila
-    shl ax, 4               
-    add ax, viewport_y
-    mov dx, ax              ; DX = Y
+    ; --- Calcular posición EN PANTALLA ---
+    push bp                 ; Guardar BP
+    mov bp, sp
     
-    ; Calcular CX (X) usando BP
-    mov ax, [bp+8]          ; AX = col
-    shl ax, 4               
-    add ax, viewport_x
-    mov cx, ax              ; CX = X
+    ; ✅ CRÍTICO: Calcular Y en pantalla
+    mov ax, [bp+6]          ; AX = fila (0-12)
+    shl ax, 4               ; × 16 = píxeles
+    add ax, viewport_y      ; + offset del viewport
     
-    ; --- Destruir Stack Frame ---
-    pop bp                  ; Restaurar BP (fila)
+    ; ✅ AGREGAR: Restar el desplazamiento sub-tile de la cámara
+    push bx
+    mov bx, camara_py
+    and bx, 15              ; Obtener resto (0-15)
+    sub ax, bx              ; Restar desplazamiento
+    pop bx
+    
+    mov dx, ax              ; DX = Y final
+    
+    ; ✅ CRÍTICO: Calcular X en pantalla
+    mov ax, [bp+8]          ; AX = col (0-20)
+    shl ax, 4               ; × 16 = píxeles
+    add ax, viewport_x      ; + offset del viewport
+    
+    ; ✅ AGREGAR: Restar el desplazamiento sub-tile de la cámara
+    push bx
+    mov bx, camara_px
+    and bx, 15              ; Obtener resto (0-15)
+    sub ax, bx              ; Restar desplazamiento
+    pop bx
+    
+    mov cx, ax              ; CX = X final
+    
+    pop bp                  ; Restaurar BP
     
     pop di                  ; Restaurar DI (data_ptr)
     pop si                  ; Restaurar SI (mask_ptr)
 
-    ; Llamar a dibujar con DI, SI, CX, DX correctos
-    call ajustar_coords_scroll
+    ; ✅ NO llamar a ajustar_coords_scroll aquí, ya lo hicimos manualmente
     call dibujar_sprite_planar_16x16_opt
     
-    ; ===== Restaurar registros de BUCLE =====
     pop bp                  
     pop si                  
     
@@ -1477,7 +1491,8 @@ dmo_next_fila:
     jmp dmo_fila
     
 dmo_fin:
-call dibujar_recursos_en_mapa
+    call dibujar_recursos_en_mapa
+    
     pop bp
     pop di
     pop si
@@ -1585,28 +1600,28 @@ dibujar_jugador_en_offset PROC
     push si
     push di
     
-    ; ✅ NO dibujar jugador ni HUD si inventario abierto
+    ; ✅ NO dibujar jugador si inventario abierto
     cmp inventario_abierto, 1
     je djo_salir
     
-    ; Calcular posición relativa al viewport
+    ; ✅ CRÍTICO: Calcular posición relativa a la cámara
     mov ax, jugador_px
-    sub ax, camara_px
-    add ax, viewport_x
-    sub ax, 16
+    sub ax, camara_px       ; Posición relativa a cámara
+    add ax, viewport_x      ; + offset del viewport
+    sub ax, 16              ; Centrar sprite 32x32
     mov cx, ax
     
     mov ax, jugador_py
-    sub ax, camara_py
-    add ax, viewport_y
-    sub ax, 16
+    sub ax, camara_py       ; Posición relativa a cámara
+    add ax, viewport_y      ; + offset del viewport
+    sub ax, 16              ; Centrar sprite 32x32
     mov dx, ax
 
     call obtener_sprite_jugador
-    call ajustar_coords_scroll
+    ; ✅ NO llamar ajustar_coords_scroll, ya están correctas
     call dibujar_sprite_planar_32x32_opt
     
-    ; Dibujar HUD de recolección (solo si inventario cerrado)
+    ; Dibujar HUD de recolección
     call dibujar_hud_recoleccion
 
 djo_salir:

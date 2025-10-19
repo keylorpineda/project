@@ -1967,27 +1967,39 @@ aplicar_scroll_hardware PROC
 aplicar_scroll_hardware ENDP
 
 ; ============================================
-; CENTRAR CÁMARA CON SCROLL SUAVE
+; CENTRAR CÁMARA CON SCROLL SUAVE - CORREGIDO
 ; ============================================
 centrar_camara_suave PROC
     push ax
     push bx
 
-    ; ✅ Mantener la cámara fija: reutilizar centrado discreto
-    call centrar_camara
-
-    ; ✅ Alinear la cámara a la cuadrícula de 16×16 para evitar sub-píxel
-    mov ax, camara_px
-    shr ax, 4
-    shl ax, 4
+    ; Calcular posición ideal de la cámara (centrar jugador en viewport)
+    mov ax, jugador_px
+    sub ax, 160             ; Centro horizontal (320/2)
+    jge ccs_x_pos
+    xor ax, ax              ; No ir más allá del borde izquierdo
+ccs_x_pos:
+    cmp ax, 1280            ; Límite derecho (1600 - 320)
+    jle ccs_x_ok
+    mov ax, 1280
+ccs_x_ok:
     mov camara_px, ax
 
-    mov ax, camara_py
-    shr ax, 4
-    shl ax, 4
+    mov ax, jugador_py
+    sub ax, 96              ; Centro vertical (192/2)
+    jge ccs_y_pos
+    xor ax, ax
+ccs_y_pos:
+    cmp ax, 1408            ; Límite inferior (1600 - 192)
+    jle ccs_y_ok
+    mov ax, 1408
+ccs_y_ok:
     mov camara_py, ax
 
-    ; ✅ Deshabilitar cualquier desplazamiento sub-píxel
+    ; ✅ CRÍTICO: NO alinear a cuadrícula, dejar que siga al jugador píxel por píxel
+    ; Esto permite scroll suave real
+    
+    ; Resetear offsets de sub-píxel (no los necesitamos en EGA)
     xor ax, ax
     mov scroll_offset_x, ax
     mov scroll_offset_y, ax
