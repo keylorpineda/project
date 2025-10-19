@@ -615,37 +615,47 @@ pmc_normalizar:
     mov inventario_toggle_bloqueado, 0
     jmp pmc_fin
 
-pmc_verificar:
-    cmp al, 48h
-    je pmc_arriba
-    cmp al, 'W'
-    je pmc_arriba
+ pmc_verificar:
+     cmp al, 48h
+     jne pmc_verificar_w
+     jmp pmc_arriba
 
-    cmp al, 50h
-    je pmc_abajo
-    cmp al, 'S'
-    je pmc_abajo
+ pmc_verificar_w:
+     cmp al, 'W'
+     jne pmc_verificar_down_scan
+     jmp pmc_arriba
 
-    cmp al, 4Bh
-    jne pmc_verificar_a
-    jmp pmc_izquierda
+ pmc_verificar_down_scan:
+     cmp al, 50h
+     jne pmc_verificar_s
+     jmp pmc_abajo
 
-pmc_verificar_a:
-    cmp al, 'A'
-    jne pmc_verificar_derecha_scan
-    jmp pmc_izquierda
+ pmc_verificar_s:
+     cmp al, 'S'
+     jne pmc_verificar_left_scan
+     jmp pmc_abajo
 
-pmc_verificar_derecha_scan:
-    cmp al, 4Dh
-    jne pmc_verificar_derecha_letra
-    jmp pmc_derecha
-; ----- CÓDIGO CORREGIDO -----
-pmc_verificar_derecha_letra:
-    cmp al, 'D'
-    jne pmc_verificar_inventario  ; <-- CORRECCIÓN: Salta a la siguiente comprobación
-    jmp pmc_derecha
+ pmc_verificar_left_scan:
+     cmp al, 4Bh
+     jne pmc_verificar_left_letra
+     jmp pmc_izquierda
 
-pmc_verificar_inventario:          ; ← AGREGAR ESTO
+ pmc_verificar_left_letra:
+     cmp al, 'A'
+     jne pmc_verificar_derecha_scan
+     jmp pmc_izquierda
+
+ pmc_verificar_derecha_scan:
+     cmp al, 4Dh
+     jne pmc_verificar_derecha_letra
+     jmp pmc_derecha
+
+ pmc_verificar_derecha_letra:
+     cmp al, 'D'
+     jne pmc_verificar_inventario
+     jmp pmc_derecha
+
+ pmc_verificar_inventario:
     cmp al, 'E'
     je pmc_toggle_inventario
     mov inventario_toggle_bloqueado, 0
@@ -817,7 +827,7 @@ reproducir_sonido_paso PROC
     mov al, 0B6h
     out 43h, al
 
-    mov ax, 1193            ; Aproximadamente 1 kHz
+    mov ax, 0F89h           ; ≈300 Hz, tono grave similar a pasos
     out 42h, al             ; Enviar byte bajo
     mov al, ah
     out 42h, al             ; Enviar byte alto
@@ -827,12 +837,16 @@ reproducir_sonido_paso PROC
     or al, 3
     out 61h, al
 
-    mov cx, 1200
-rsp_delay:
+    mov cx, 600             ; Pulso corto
+ rsp_delay:
     loop rsp_delay
 
     mov al, bl
     out 61h, al
+
+    mov cx, 150             ; Breve silencio para simular paso
+ rsp_silencio:
+    loop rsp_silencio
 
     pop dx
     pop cx
