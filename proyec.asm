@@ -693,16 +693,52 @@ pmc_toggle_inventario:
 pmc_toggle_procesar:
     mov inventario_toggle_bloqueado, 1
     
-    ; ✅ Si estamos CERRANDO el inventario, limpiar HUD
+    ; ✅ Si estamos CERRANDO, limpiar AMBAS páginas
     cmp inventario_abierto, 1
     jne pmc_toggle_abrir
     
-    ; Cerrar: limpiar estado
-    mov hud_recoger_activo, 0
-    mov hud_recoger_contador, 0
+    ; CERRAR inventario
+    mov inventario_abierto, 0
     
+    ; ✅ LIMPIAR Y REDIBUJAR AMBAS PÁGINAS
+    push ax
+    push es
+    
+    mov ax, VIDEO_SEG
+    mov es, ax
+    
+    ; Limpiar página 0
+    mov temp_offset, 0
+    xor di, di
+    mov cx, 14000
+    xor ax, ax
+    rep stosw
+    
+    ; Limpiar página 1
+    mov temp_offset, 8000h
+    mov di, 8000h
+    mov cx, 14000
+    xor ax, ax
+    rep stosw
+    
+    pop es
+    pop ax
+    
+    ; Redibujar ambas páginas
+    mov temp_offset, 0
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
+    
+    mov temp_offset, 8000h
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
+    
+    mov moviendo, 0
+    jmp pmc_fin
+
 pmc_toggle_abrir:
-    xor inventario_abierto, 1
+    ; ABRIR inventario
+    mov inventario_abierto, 1
     mov moviendo, 0
     mov requiere_redibujar, 2
     jmp pmc_fin
@@ -1320,13 +1356,16 @@ dibujar_todo_en_offset PROC
 
     mov temp_offset, ax
     
-    ; ✅ SIEMPRE dibujar el mapa y jugador PRIMERO
+    cmp inventario_abierto, 0
+    jne dto_modo_inventario
+    
+    ; ✅ MODO JUEGO: Dibujar mapa + jugador
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
-    
-    ; ✅ LUEGO dibujar inventario ENCIMA (si está abierto)
-    cmp inventario_abierto, 0
-    je dto_fin
+    jmp dto_fin
+
+dto_modo_inventario:
+    ; ✅ MODO INVENTARIO: Solo inventario (él limpia todo)
     call dibujar_inventario
 
 dto_fin:
@@ -1545,9 +1584,9 @@ dibujar_jugador_en_offset PROC
     push si
     push di
     
-    ; ✅ SOLO DIBUJAR SI EL INVENTARIO ESTÁ CERRADO
+    ; ✅ NO dibujar jugador ni HUD si inventario abierto
     cmp inventario_abierto, 1
-    je djo_skip_jugador
+    je djo_salir
     
     ; Calcular posición relativa al viewport
     mov ax, jugador_px
@@ -1565,20 +1604,10 @@ dibujar_jugador_en_offset PROC
     call obtener_sprite_jugador
     call dibujar_sprite_planar_32x32_opt
     
-    ; Dibujar HUD de recolección
+    ; Dibujar HUD de recolección (solo si inventario cerrado)
     call dibujar_hud_recoleccion
 
-djo_skip_jugador:
-    
-    mov ax, jugador_py
-    sub ax, camara_py
-    add ax, viewport_y
-    sub ax, 16
-    mov dx, ax
-    
-    call obtener_sprite_jugador
-    call dibujar_sprite_planar_32x32_opt
-    
+djo_salir:
     pop di
     pop si
     pop dx

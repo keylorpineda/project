@@ -591,9 +591,6 @@ dsim_fin:
     ret
 dibujar_slots_items_mejorado ENDP
 
-; ============================================
-; DIBUJAR ESTADÍSTICAS MEJORADO - SIN SOLAPAMIENTO
-; ============================================
 dibujar_estadisticas_mejorado PROC
     push ax
     push bx
@@ -601,9 +598,9 @@ dibujar_estadisticas_mejorado PROC
     push dx
     push si
 
-    ; ✅ POSICIÓN CORREGIDA: MÁS A LA DERECHA Y ARRIBA
-    mov dx, INV_Y + 30          ; Y = 80 (arriba del todo)
-    mov cx, INV_X + INV_WIDTH - 120  ; X = 360 (columna derecha)
+    ; ✅ POSICIÓN FIJA: COLUMNA DERECHA
+    mov cx, 450                 ; X fijo (columna derecha)
+    mov dx, 80                  ; Y inicial
 
     ; Título "RECURSOS"
     mov si, OFFSET msg_recursos
