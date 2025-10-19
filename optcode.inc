@@ -619,6 +619,31 @@ cm32_loop:
     ret
 calcular_mascara_32x32 ENDP
 
+; ============================================
+; AJUSTAR COORDENADAS PARA SCROLL SUAVE
+; ============================================
+ajustar_coords_scroll PROC
+    ; Entrada: CX = X, DX = Y
+    ; Salida: CX, DX ajustados
+    push ax
+    
+    mov ax, scroll_offset_x
+    sub cx, ax              ; Desplazar X
+    
+    mov ax, scroll_offset_y
+    sub dx, ax              ; Desplazar Y
+    
+    pop ax
+    ret
+ajustar_coords_scroll ENDP
+
+; ============================================
+; REEMPLAZAR COMPLETO en OPTCODE.INC
+; Buscar: dibujar_sprite_planar_16x16_opt PROC
+; Borrar todo hasta: dibujar_sprite_planar_16x16_opt ENDP
+; Pegar esto:
+; ============================================
+
 dibujar_sprite_planar_16x16_opt PROC
     push ax
     push bx
@@ -632,73 +657,139 @@ dibujar_sprite_planar_16x16_opt PROC
     mov ax, 0A000h
     mov es, ax
     
-    ; Calcular offset de video
+    ; ✅ OPTIMIZACIÓN 1: Usar tabla de video_offsets
     mov ax, dx
-    mov bx, 80
-    mul bx
-    mov bp, ax              ; BP = offset base de fila
+    shl ax, 1
+    mov bp, [video_offsets + ax]
     mov ax, cx
     shr ax, 3
     add bp, ax
     add bp, temp_offset
     
-    mov bx, di              ; BX = datos planar
-    ; SI ya tiene la máscara pre-calculada
+    mov bx, di              ; BX = datos
+    ; SI = máscara
     
-    mov cx, 16              ; 16 filas
-
-dsp16o_fila:
-    push cx
+    ; ===== PLANO 0 =====
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    xor al, al
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    
     push bp
     push bx
     push si
     
-    ; --- PLANO 0 ---
+    ; ✅ OPTIMIZACIÓN 2: Desenrollar loop - 4 filas por iteración
+    mov cx, 4
+    
+dsp16_p0:
+    mov di, bp
+    
+    ; Fila 1
+    mov ah, [si]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+1]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+1]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    ; Fila 2
+    add di, 80
+    mov ah, [si+2]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+2]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+3]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+3]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    ; Fila 3
+    add di, 80
+    mov ah, [si+4]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+4]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+5]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+5]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    ; Fila 4
+    add di, 80
+    mov ah, [si+6]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+6]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+7]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+7]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add bp, 320
+    add si, 8
+    add bx, 8
+    loop dsp16_p0
+    
+    pop si
+    pop bx
+    pop bp
+    
+    ; ===== PLANO 1 =====
     mov dx, 3CEh
     mov al, 4
-    out dx, al
-    inc dx
-    mov al, 0
-    out dx, al
-    mov dx, 3C4h
-    mov al, 2
     out dx, al
     inc dx
     mov al, 1
     out dx, al
     
-    mov di, bp
-    
-    ; Byte 0
-    mov ah, [si]            ; Máscara pre-calculada
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    inc di
-    
-    ; Byte 1
-    mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+1]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    
-    ; --- PLANO 1 ---
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 1
-    out dx, al
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -706,36 +797,106 @@ dsp16o_fila:
     mov al, 2
     out dx, al
     
+    push bp
+    push bx
+    push si
+    mov cx, 4
+    
+dsp16_p1:
     mov di, bp
     
     mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+32]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+32]
+    and dl, ah
+    or al, dl
     mov es:[di], al
-    inc di
     
     mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+33]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+33]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add di, 80
+    mov ah, [si+2]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+34]
+    and dl, ah
+    or al, dl
     mov es:[di], al
-
-    ; --- PLANO 2 ---
+    
+    mov ah, [si+3]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+35]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add di, 80
+    mov ah, [si+4]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+36]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+5]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+37]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add di, 80
+    mov ah, [si+6]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+38]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+7]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+39]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add bp, 320
+    add si, 8
+    add bx, 8
+    loop dsp16_p1
+    
+    pop si
+    pop bx
+    pop bp
+    
+    ; ===== PLANO 2 =====
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
     mov al, 2
     out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -743,36 +904,106 @@ dsp16o_fila:
     mov al, 4
     out dx, al
     
+    push bp
+    push bx
+    push si
+    mov cx, 4
+    
+dsp16_p2:
     mov di, bp
     
     mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+64]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+64]
+    and dl, ah
+    or al, dl
     mov es:[di], al
-    inc di
     
     mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+65]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+65]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add di, 80
+    mov ah, [si+2]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+66]
+    and dl, ah
+    or al, dl
     mov es:[di], al
-
-    ; --- PLANO 3 ---
+    
+    mov ah, [si+3]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+67]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add di, 80
+    mov ah, [si+4]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+68]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+5]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+69]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add di, 80
+    mov ah, [si+6]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+70]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+7]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+71]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add bp, 320
+    add si, 8
+    add bx, 8
+    loop dsp16_p2
+    
+    pop si
+    pop bx
+    pop bp
+    
+    ; ===== PLANO 3 =====
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
     mov al, 3
     out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -780,51 +1011,99 @@ dsp16o_fila:
     mov al, 8
     out dx, al
     
+    mov cx, 4
+    
+dsp16_p3:
     mov di, bp
     
     mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+96]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+96]
+    and dl, ah
+    or al, dl
     mov es:[di], al
-    inc di
     
     mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+97]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+97]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add di, 80
+    mov ah, [si+2]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+98]
+    and dl, ah
+    or al, dl
     mov es:[di], al
     
-    ; Siguiente fila
-    pop si
-    add si, 2               ; Siguiente fila de máscara
-    pop bx
-    add bx, 2               ; Siguiente fila de datos
-    pop bp
-    add bp, 80              ; Siguiente línea de video
+    mov ah, [si+3]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+99]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
     
-    pop cx
-    dec cx
-    jz dsp16o_fin
-    jmp dsp16o_fila
-
-dsp16o_fin:
+    add di, 80
+    mov ah, [si+4]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+100]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
     
-    ; Restaurar registros EGA
+    mov ah, [si+5]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+101]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add di, 80
+    mov ah, [si+6]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+102]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    
+    mov ah, [si+7]
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+103]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
+    
+    add bp, 320
+    add si, 8
+    add bx, 8
+    loop dsp16_p3
+    
+    ; Restaurar
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 0Fh
     out dx, al
+    
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -856,34 +1135,25 @@ dibujar_sprite_planar_32x32_opt PROC
     mov ax, 0A000h
     mov es, ax
     
-    ; Calcular offset base
     mov ax, dx
-    mov bx, 80
-    mul bx
+    mov bp, 80
+    mul bp
     mov bp, ax
     mov ax, cx
     shr ax, 3
     add bp, ax
     add bp, temp_offset
     
-    mov bx, di              ; BX = datos planar
-    ; SI ya tiene máscara pre-calculada
-    
-    mov cx, 32              ; 32 filas
-
-dsp32o_fila:
-    push cx
-    push bp
-    push bx
-    push si
+    mov bx, di
     
     ; ===== PLANO 0 =====
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
-    mov al, 0
+    xor al, al
     out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -891,54 +1161,62 @@ dsp32o_fila:
     mov al, 1
     out dx, al
     
+    push bp
+    push bx
+    push si
+    mov cx, 32
+    
+dsp32_p0:
     mov di, bp
     
     ; Byte 0
     mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx]
+    and dl, ah
+    or al, dl
     mov es:[di], al
-    inc di
     
     ; Byte 1
     mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+1]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    inc di
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+1]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
     
     ; Byte 2
     mov ah, [si+2]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+2]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    inc di
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+2]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
     
     ; Byte 3
     mov ah, [si+3]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+3]
-    and al, ah
-    or al, ch
-    mov es:[di], al
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+3]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    add bp, 80
+    add si, 4
+    add bx, 4
+    loop dsp32_p0
+    
+    pop si
+    pop bx
+    pop bp
     
     ; ===== PLANO 1 =====
     mov dx, 3CEh
@@ -947,6 +1225,7 @@ dsp32o_fila:
     inc dx
     mov al, 1
     out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -954,50 +1233,58 @@ dsp32o_fila:
     mov al, 2
     out dx, al
     
+    push bp
+    push bx
+    push si
+    mov cx, 32
+    
+dsp32_p1:
     mov di, bp
     
     mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+128]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+128]
+    and dl, ah
+    or al, dl
     mov es:[di], al
-    inc di
     
     mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+129]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    inc di
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+129]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
     
     mov ah, [si+2]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+130]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    inc di
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+130]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
     
     mov ah, [si+3]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+131]
-    and al, ah
-    or al, ch
-    mov es:[di], al
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+131]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    add bp, 80
+    add si, 4
+    add bx, 4
+    loop dsp32_p1
+    
+    pop si
+    pop bx
+    pop bp
     
     ; ===== PLANO 2 =====
     mov dx, 3CEh
@@ -1006,6 +1293,7 @@ dsp32o_fila:
     inc dx
     mov al, 2
     out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1013,50 +1301,58 @@ dsp32o_fila:
     mov al, 4
     out dx, al
     
+    push bp
+    push bx
+    push si
+    mov cx, 32
+    
+dsp32_p2:
     mov di, bp
     
     mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+256]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+256]
+    and dl, ah
+    or al, dl
     mov es:[di], al
-    inc di
     
     mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+257]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    inc di
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+257]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
     
     mov ah, [si+2]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+258]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    inc di
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+258]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
     
     mov ah, [si+3]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+259]
-    and al, ah
-    or al, ch
-    mov es:[di], al
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+259]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
+    
+    add bp, 80
+    add si, 4
+    add bx, 4
+    loop dsp32_p2
+    
+    pop si
+    pop bx
+    pop bp
     
     ; ===== PLANO 3 =====
     mov dx, 3CEh
@@ -1065,6 +1361,7 @@ dsp32o_fila:
     inc dx
     mov al, 3
     out dx, al
+    
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1072,65 +1369,51 @@ dsp32o_fila:
     mov al, 8
     out dx, al
     
+    mov cx, 32
+    
+dsp32_p3:
     mov di, bp
     
     mov ah, [si]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+384]
-    and al, ah
-    or al, ch
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx+384]
+    and dl, ah
+    or al, dl
     mov es:[di], al
-    inc di
     
     mov ah, [si+1]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+385]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    inc di
+    mov al, ah
+    not al
+    and al, es:[di+1]
+    mov dl, [bx+385]
+    and dl, ah
+    or al, dl
+    mov es:[di+1], al
     
     mov ah, [si+2]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+386]
-    and al, ah
-    or al, ch
-    mov es:[di], al
-    inc di
+    mov al, ah
+    not al
+    and al, es:[di+2]
+    mov dl, [bx+386]
+    and dl, ah
+    or al, dl
+    mov es:[di+2], al
     
     mov ah, [si+3]
-    mov cl, ah
-    not cl
-    mov ch, es:[di]
-    and ch, cl
-    mov al, [bx+387]
-    and al, ah
-    or al, ch
-    mov es:[di], al
+    mov al, ah
+    not al
+    and al, es:[di+3]
+    mov dl, [bx+387]
+    and dl, ah
+    or al, dl
+    mov es:[di+3], al
     
-    ; Siguiente fila
-    pop si
-    add si, 4
-    pop bx
-    add bx, 4
-    pop bp
     add bp, 80
-    
-    pop cx
-    dec cx
-    jz dsp32o_fin
-    jmp dsp32o_fila
-
-dsp32o_fin:
+    add si, 4
+    add bx, 4
+    loop dsp32_p3
     
     ; Restaurar
     mov dx, 3C4h
@@ -1139,6 +1422,7 @@ dsp32o_fin:
     inc dx
     mov al, 0Fh
     out dx, al
+    
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -1156,3 +1440,65 @@ dsp32o_fin:
     pop ax
     ret
 dibujar_sprite_planar_32x32_opt ENDP
+
+; ============================================
+; SCROLL SUAVE - AJUSTE DE PÍXELES
+; ============================================
+aplicar_scroll_hardware PROC
+    push ax
+    push dx
+    
+    ; Calcular offset de scroll en píxeles
+    mov ax, camara_px
+    and ax, 15              ; Solo los últimos 4 bits (0-15 píxeles)
+    mov scroll_offset_x, ax
+    
+    mov ax, camara_py
+    and ax, 15
+    mov scroll_offset_y, ax
+    
+    ; ✅ NOTA: EGA no tiene scroll por píxel en hardware
+    ; Se implementa ajustando las coordenadas de dibujo
+    
+    pop dx
+    pop ax
+    ret
+aplicar_scroll_hardware ENDP
+
+; ============================================
+; CENTRAR CÁMARA CON SCROLL SUAVE
+; ============================================
+centrar_camara_suave PROC
+    push ax
+    push bx
+    
+    ; NO alinear a múltiplos de 16 para scroll suave
+    mov ax, jugador_px
+    sub ax, 160
+    jge ccs_x_pos
+    xor ax, ax
+ccs_x_pos:
+    cmp ax, 1280
+    jle ccs_x_ok
+    mov ax, 1280
+ccs_x_ok:
+    mov camara_px, ax
+    
+    mov ax, jugador_py
+    sub ax, 96
+    jge ccs_y_pos
+    xor ax, ax
+ccs_y_pos:
+    cmp ax, 1408
+    jle ccs_y_ok
+    mov ax, 1408
+ccs_y_ok:
+    mov camara_py, ax
+    
+    ; Calcular offsets de sub-píxel
+    call aplicar_scroll_hardware
+    
+    pop bx
+    pop ax
+    ret
+centrar_camara_suave ENDP
