@@ -446,7 +446,10 @@ dibujar_slots_items_mejorado PROC
 
 dsim_loop:
     cmp si, MAX_ITEMS
-    jae dsim_fin
+    jb dsim_procesar
+    jmp dsim_fin
+
+dsim_procesar:
 
     ; Calcular posición del slot (2 filas × 4 columnas)
     mov ax, si
