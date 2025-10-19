@@ -339,6 +339,9 @@ drm_fin:
     ret
 dibujar_recursos_en_mapa ENDP
 
+; ============================================
+; DIBUJAR INVENTARIO - VERSIÓN CORREGIDA
+; ============================================
 dibujar_inventario PROC
     push ax
     push bx
@@ -346,19 +349,16 @@ dibujar_inventario PROC
     push dx
     push si
     push di
+    push es
     
     cmp inventario_abierto, 0
-    jne di_continuar
-    jmp di_salir_directo
-
-di_continuar:
+    je di_salir_directo
     
-    ; ✅ LIMPIAR TODA LA PANTALLA CON NEGRO (AMBOS PLANOS)
-    push es
+    ; ✅ LIMPIAR TODA LA PANTALLA EN MODO PLANAR
     mov ax, VIDEO_SEG
     mov es, ax
     
-    ; Configurar para escribir en todos los planos
+    ; Configurar Map Mask para todos los planos
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -366,66 +366,41 @@ di_continuar:
     mov al, 0Fh
     out dx, al
     
-    ; Limpiar página actual
+    ; Limpiar página actual completa
     mov di, temp_offset
-    mov cx, 14000
+    mov cx, 14000               ; 28000 bytes / 2 words
     xor ax, ax
     rep stosw
     
-    pop es
-    
-    ; ✅ DIBUJAR FONDO DEL PANEL (NEGRO - YA ESTÁ LIMPIO)
-    ; Solo dibujar el marco
-    mov cx, INV_X
-    mov dx, INV_Y
-    mov ax, INV_WIDTH
-    mov bx, INV_HEIGHT
-    mov si, COLOR_MARCO
-    call dibujar_rectangulo_vacio
-    
-    ; ✅ PASO 1: LIMPIAR TODA LA PANTALLA CON NEGRO
-    mov cx, 0
-    mov dx, 0
-    mov ax, 640
-    mov bx, 350
-    mov si, 0                   ; Negro sólido
-    call dibujar_rectangulo_lleno
-    
-    ; ✅ PASO 2: DIBUJAR FONDO DEL PANEL
-    mov cx, INV_X
-    mov dx, INV_Y
-    mov ax, INV_WIDTH
-    mov bx, INV_HEIGHT
-    mov si, 1                   ; Azul oscuro
-    call dibujar_rectangulo_lleno
-
-    ; ✅ PASO 3: DIBUJAR MARCO
-    mov cx, INV_X
-    mov dx, INV_Y
-    mov ax, INV_WIDTH
-    mov bx, INV_HEIGHT
-    mov si, COLOR_MARCO
+    ; ✅ DIBUJAR MARCO DEL PANEL (sin fondo, ya es negro)
+    mov cx, 80                  ; X del panel
+    mov dx, 30                  ; Y del panel
+    mov ax, 480                 ; Ancho
+    mov bx, 280                 ; Alto
+    mov si, COLOR_MARCO         ; Blanco
     call dibujar_rectangulo_vacio
 
-    ; ✅ PASO 4: TÍTULO
-    mov cx, INV_X
-    add cx, 120
-    mov dx, INV_Y
-    add dx, 15
+    ; ✅ TÍTULO "INVENTARIO"
+    mov cx, 280
+    mov dx, 45
     mov si, OFFSET msg_inventario
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    ; ✅ PASO 5: JUGADOR (IZQUIERDA)
+    ; ✅ JUGADOR (IZQUIERDA)
     call dibujar_jugador_inventario
     
-    ; ✅ PASO 6: SLOTS DE ITEMS (CENTRO) - CON SPRITES
+    ; ✅ SLOTS DE ITEMS (CENTRO)
     call dibujar_slots_items_mejorado
     
-    ; ✅ PASO 7: ESTADÍSTICAS (DERECHA) - MEJORADO
+    ; ✅ ESTADÍSTICAS (DERECHA)
     call dibujar_estadisticas_mejorado
     
+    ; ✅ HUD DE RECOLECCIÓN (si está activo)
+    call dibujar_hud_recoleccion
+    
 di_salir_directo:
+    pop es
     pop di
     pop si
     pop dx
@@ -441,11 +416,12 @@ dibujar_jugador_inventario PROC
     push si
     push di
     
+    ; Obtener sprite actual del jugador
     call obtener_sprite_jugador
     
-    ; ✅ POSICIÓN CORREGIDA: IZQUIERDA DEL PANEL
-    mov cx, INV_X + 30          ; X = 190 (columna izquierda)
-    mov dx, INV_Y + 100         ; Y = 150 (centrado verticalmente)
+    ; ✅ POSICIÓN FIJA: COLUMNA IZQUIERDA
+    mov cx, 120                 ; X fijo
+    mov dx, 110                 ; Y fijo
     
     call dibujar_sprite_planar_32x32_opt
     
