@@ -35,13 +35,13 @@ archivo_sand   db 'SPRITES\SAND_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
 archivo_wall   db 'SPRITES\WALL_1.TXT',0
-arquivo_dirt   db 'SPRITES\DIRT_1.TXT',0
-arquivo_lava   db 'SPRITES\LAVA_1.TXT',0
-arquivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
+archivo_dirt   db 'SPRITES\DIRT_1.TXT',0
+archivo_lava   db 'SPRITES\LAVA_1.TXT',0
+archivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
 archivo_rock   db 'SPRITES\ROCK_1.TXT',0
 
 archivo_player_up_a    db 'SPRITES\PLAYER\UP1.TXT',0
-arquivo_player_up_b    db 'SPRITES\PLAYER\UP2.TXT',0
+archivo_player_up_b    db 'SPRITES\PLAYER\UP2.TXT',0
 archivo_player_down_a  db 'SPRITES\PLAYER\DOWN1.TXT',0
 archivo_player_down_b  db 'SPRITES\PLAYER\DOWN2.TXT',0
 archivo_player_izq_a   db 'SPRITES\PLAYER\LEFT1.TXT',0
@@ -823,7 +823,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_grass1
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_grass1
+    jmp cst_error
+cst_ok_grass1:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_grass1
     mov bp, OFFSET sprite_grass1_mask
@@ -832,7 +834,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_path
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_path
+    jmp cst_error
+cst_ok_path:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_path
     mov bp, OFFSET sprite_path_mask
@@ -841,7 +845,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_water
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_water
+    jmp cst_error
+cst_ok_water:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_water
     mov bp, OFFSET sprite_water_mask
@@ -850,7 +856,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_tree
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_tree
+    jmp cst_error
+cst_ok_tree:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_tree
     mov bp, OFFSET sprite_tree_mask
@@ -859,7 +867,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_sand
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_sand
+    jmp cst_error
+cst_ok_sand:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_sand
     mov bp, OFFSET sprite_sand_mask
@@ -868,7 +878,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_rock
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_rock
+    jmp cst_error
+cst_ok_rock:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_rock
     mov bp, OFFSET sprite_rock_mask
@@ -877,7 +889,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_snow
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_snow
+    jmp cst_error
+cst_ok_snow:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_snow
     mov bp, OFFSET sprite_snow_mask
@@ -886,7 +900,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_ice
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_ice
+    jmp cst_error
+cst_ok_ice:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_ice
     mov bp, OFFSET sprite_ice_mask
@@ -895,34 +911,42 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_wall
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_wall
+    jmp cst_error
+cst_ok_wall:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_wall
     mov bp, OFFSET sprite_wall_mask
     call convertir_sprite_a_planar_opt
 
-    mov dx, OFFSET arquivo_dirt
+    mov dx, OFFSET archivo_dirt
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_dirt
+    jmp cst_error
+cst_ok_dirt:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_dirt
     mov bp, OFFSET sprite_dirt_mask
     call convertir_sprite_a_planar_opt
 
-    mov dx, OFFSET arquivo_lava
+    mov dx, OFFSET archivo_lava
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_lava
+    jmp cst_error
+cst_ok_lava:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_lava
     mov bp, OFFSET sprite_lava_mask
     call convertir_sprite_a_planar_opt
 
-    mov dx, OFFSET arquivo_bridge
+    mov dx, OFFSET archivo_bridge
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_bridge
+    jmp cst_error
+cst_ok_bridge:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_bridge
     mov bp, OFFSET sprite_bridge_mask
@@ -931,7 +955,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_cristal
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_cristal
+    jmp cst_error
+cst_ok_cristal:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_cristal
     mov bp, OFFSET sprite_cristal_mask
@@ -940,7 +966,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_gema
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_gema
+    jmp cst_error
+cst_ok_gema:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_gema
     mov bp, OFFSET sprite_gema_mask
@@ -949,7 +977,9 @@ cargar_sprites_terreno PROC
     mov dx, OFFSET archivo_moneda
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
-    jc cst_error
+    jnc cst_ok_moneda
+    jmp cst_error
+cst_ok_moneda:
     mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_moneda
     mov bp, OFFSET sprite_moneda_mask
@@ -980,16 +1010,20 @@ cargar_animaciones_jugador PROC
     mov dx, OFFSET archivo_player_up_a
     mov di, OFFSET sprite_buffer_32
     call cargar_sprite_32x32
-    jc caj_error
+    jnc caj_ok_up_a
+    jmp caj_error
+caj_ok_up_a:
     mov si, OFFSET sprite_buffer_32
     mov di, OFFSET jugador_up_a
     mov bp, OFFSET jugador_up_a_mask
     call convertir_sprite_32x32_a_planar_opt
 
-    mov dx, OFFSET arquivo_player_up_b
+    mov dx, OFFSET archivo_player_up_b
     mov di, OFFSET sprite_buffer_32
     call cargar_sprite_32x32
-    jc caj_error
+    jnc caj_ok_up_b
+    jmp caj_error
+caj_ok_up_b:
     mov si, OFFSET sprite_buffer_32
     mov di, OFFSET jugador_up_b
     mov bp, OFFSET jugador_up_b_mask
@@ -998,7 +1032,9 @@ cargar_animaciones_jugador PROC
     mov dx, OFFSET archivo_player_down_a
     mov di, OFFSET sprite_buffer_32
     call cargar_sprite_32x32
-    jc caj_error
+    jnc caj_ok_down_a
+    jmp caj_error
+caj_ok_down_a:
     mov si, OFFSET sprite_buffer_32
     mov di, OFFSET jugador_down_a
     mov bp, OFFSET jugador_down_a_mask
@@ -1007,7 +1043,9 @@ cargar_animaciones_jugador PROC
     mov dx, OFFSET archivo_player_down_b
     mov di, OFFSET sprite_buffer_32
     call cargar_sprite_32x32
-    jc caj_error
+    jnc caj_ok_down_b
+    jmp caj_error
+caj_ok_down_b:
     mov si, OFFSET sprite_buffer_32
     mov di, OFFSET jugador_down_b
     mov bp, OFFSET jugador_down_b_mask
@@ -1016,16 +1054,20 @@ cargar_animaciones_jugador PROC
     mov dx, OFFSET archivo_player_izq_a
     mov di, OFFSET sprite_buffer_32
     call cargar_sprite_32x32
-    jc caj_error
+    jnc caj_ok_izq_a
+    jmp caj_error
+caj_ok_izq_a:
     mov si, OFFSET sprite_buffer_32
     mov di, OFFSET jugador_izq_a
     mov bp, OFFSET jugador_izq_a_mask
     call convertir_sprite_32x32_a_planar_opt
 
-    mov dx, OFFSET arquivo_player_izq_b
+    mov dx, OFFSET archivo_player_izq_b
     mov di, OFFSET sprite_buffer_32
     call cargar_sprite_32x32
-    jc caj_error
+    jnc caj_ok_izq_b
+    jmp caj_error
+caj_ok_izq_b:
     mov si, OFFSET sprite_buffer_32
     mov di, OFFSET jugador_izq_b
     mov bp, OFFSET jugador_izq_b_mask
@@ -1034,7 +1076,9 @@ cargar_animaciones_jugador PROC
     mov dx, OFFSET archivo_player_der_a
     mov di, OFFSET sprite_buffer_32
     call cargar_sprite_32x32
-    jc caj_error
+    jnc caj_ok_der_a
+    jmp caj_error
+caj_ok_der_a:
     mov si, OFFSET sprite_buffer_32
     mov di, OFFSET jugador_der_a
     mov bp, OFFSET jugador_der_a_mask
@@ -1043,7 +1087,9 @@ cargar_animaciones_jugador PROC
     mov dx, OFFSET archivo_player_der_b
     mov di, OFFSET sprite_buffer_32
     call cargar_sprite_32x32
-    jc caj_error
+    jnc caj_ok_der_b
+    jmp caj_error
+caj_ok_der_b:
     mov si, OFFSET sprite_buffer_32
     mov di, OFFSET jugador_der_b
     mov bp, OFFSET jugador_der_b_mask
