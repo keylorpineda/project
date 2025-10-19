@@ -535,14 +535,11 @@ bg_redraw_reset:
 
 bg_redraw_done:
 
-    ; Esperar vertical retrace
-    call esperar_retrace
-    
     ; Renderizar en la página que NO está visible
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
-    
+
     ; Renderizar en página 1
     mov temp_offset, 8000h
     call dibujar_todo_en_offset
@@ -552,8 +549,11 @@ bg_render_p0:
     ; Renderizar en página 0
     mov temp_offset, 0
     call dibujar_todo_en_offset
-    
+
 bg_cambiar_pagina:
+    ; Esperar retrace justo antes de mostrar la página para evitar parpadeos
+    call esperar_retrace
+
     ; Cambiar página visible
     mov ah, 5
     mov al, pagina_dibujo
