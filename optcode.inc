@@ -658,9 +658,8 @@ dibujar_sprite_planar_16x16_opt PROC
     mov es, ax
     
     ; ✅ OPTIMIZACIÓN 1: Usar tabla de video_offsets
-    mov ax, dx
-    shl ax, 1
-    mov bx, ax
+    mov bx, dx
+    shl bx, 1
     mov bp, [video_offsets + bx]
     mov ax, cx
     shr ax, 3
@@ -1160,9 +1159,9 @@ dibujar_sprite_planar_32x32_opt PROC
     mov es, ax
     
     ; ✅ OPTIMIZACIÓN: Usar tabla video_offsets
-    mov ax, dx
-    shl ax, 1
-    mov bp, [video_offsets + ax]
+    mov bx, dx
+    shl bx, 1
+    mov bp, [video_offsets + bx]
     mov ax, cx
     shr ax, 3
     add bp, ax
@@ -1351,8 +1350,10 @@ dsp32_p0_loop:
     add si, 16              ; 4 bytes * 4 filas
     add bx, 16
     dec cx
-    jnz dsp32_p0_loop
-    
+    jz dsp32_p0_done
+    jmp dsp32_p0_loop
+
+dsp32_p0_done:
     pop si
     pop bx
     pop bp
@@ -1535,8 +1536,10 @@ dsp32_p1_loop:
     add si, 16
     add bx, 16
     dec cx
-    jnz dsp32_p1_loop
-    
+    jz dsp32_p1_done
+    jmp dsp32_p1_loop
+
+dsp32_p1_done:
     pop si
     pop bx
     pop bp
@@ -1719,8 +1722,10 @@ dsp32_p2_loop:
     add si, 16
     add bx, 16
     dec cx
-    jnz dsp32_p2_loop
-    
+    jz dsp32_p2_done
+    jmp dsp32_p2_loop
+
+dsp32_p2_done:
     pop si
     pop bx
     pop bp
@@ -1900,8 +1905,10 @@ dsp32_p3_loop:
     add si, 16
     add bx, 16
     dec cx
-    jnz dsp32_p3_loop
-    
+    jz dsp32_p3_done
+    jmp dsp32_p3_loop
+
+dsp32_p3_done:
     ; Restaurar
     mov dx, 3C4h
     mov al, 2
