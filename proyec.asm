@@ -584,9 +584,15 @@ pmc_tiene_tecla:
     
     ; CRÍTICO: Verificar ESC primero
     cmp ah, 01h
-    je pmc_salir
+    jne pmc_verificar_escape_ascii
+    jmp pmc_salir
+
+pmc_verificar_escape_ascii:
     cmp al, 27
-    je pmc_salir
+    jne pmc_continuar_procesamiento
+    jmp pmc_salir
+
+pmc_continuar_procesamiento:
     
     mov bl, al
     mov bh, ah
@@ -663,7 +669,10 @@ pmc_normalizar:
 
 pmc_toggle_inventario:
     cmp inventario_toggle_bloqueado, 0
-    jne pmc_fin
+    je pmc_toggle_procesar
+    jmp pmc_fin
+
+pmc_toggle_procesar:
     mov inventario_toggle_bloqueado, 1
     xor inventario_abierto, 1
     mov moviendo, 0
