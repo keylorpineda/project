@@ -3,9 +3,6 @@
 ; Universidad Nacional - Proyecto II Ciclo 2025
 ; ============================================
 
-; ============================================
-; VERIFICAR COLISIÓN CON RECURSOS
-; ============================================
 verificar_colision_recursos PROC
     push ax
     push bx
@@ -15,6 +12,7 @@ verificar_colision_recursos PROC
     push di
     push bp
 
+    ; Calcular hitbox del jugador (32×32 píxeles)
     mov ax, jugador_px
     mov player_left_temp, ax
     add ax, 31
@@ -30,35 +28,34 @@ verificar_colision_recursos PROC
 
 vcr_loop:
     mov al, num_recursos_cargados
-    cbw
+    xor ah, ah
     cmp si, ax
-    jae vcr_fin
+    jae vcr_fin                 ; Si procesamos todos, salir
 
+    ; Verificar si ya fue recogido
     mov ax, recursos_recogidos
-    and ax, bx
+    test ax, bx
     jnz vcr_next                ; Ya recogido, saltar
 
+    ; Obtener posición del recurso
     mov ax, si
-    shl ax, 1
-    add ax, si
+    mov dx, 3
+    mul dx                      ; AX = SI × 3
     mov di, ax
 
+    ; Leer X (en tiles) → convertir a píxeles
     mov al, [recursos_mapa + di]
     xor ah, ah
+    shl ax, 4                   ; X × 16
     mov cx, ax
-    shl cx, 1
-    shl cx, 1
-    shl cx, 1
-    shl cx, 1
 
+    ; Leer Y (en tiles) → convertir a píxeles
     mov al, [recursos_mapa + di + 1]
     xor ah, ah
+    shl ax, 4                   ; Y × 16
     mov dx, ax
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
 
+    ; Calcular límites del recurso (16×16 píxeles)
     mov ax, cx
     add ax, 15
     mov bp, ax                  ; Derecha del recurso
@@ -67,27 +64,29 @@ vcr_loop:
     add ax, 15
     mov di, ax                  ; Parte inferior del recurso
 
+    ; Verificar colisión AABB (Axis-Aligned Bounding Box)
     mov ax, player_right_temp
-    cmp ax, cx
+    cmp ax, cx                  ; ¿Jugador.derecha < Recurso.izquierda?
     jl vcr_next
 
     mov ax, player_left_temp
-    cmp ax, bp
+    cmp ax, bp                  ; ¿Jugador.izquierda > Recurso.derecha?
     jg vcr_next
 
     mov ax, player_bottom_temp
-    cmp ax, dx
+    cmp ax, dx                  ; ¿Jugador.abajo < Recurso.arriba?
     jl vcr_next
 
     mov ax, player_top_temp
-    cmp ax, di
+    cmp ax, di                  ; ¿Jugador.arriba > Recurso.abajo?
     jg vcr_next
 
-    call recoger_recurso
+    ; ¡COLISIÓN DETECTADA!
+    call recoger_recurso        ; SI y BX ya están configurados
 
 vcr_next:
-    shl bx, 1
-    inc si
+    shl bx, 1                   ; Siguiente bit
+    inc si                      ; Siguiente recurso
     jmp vcr_loop
 
 vcr_fin:
@@ -101,25 +100,21 @@ vcr_fin:
     ret
 verificar_colision_recursos ENDP
 
-; ============================================
-; RECOGER RECURSO
-; Entrada: SI = índice del recurso, BX = máscara de bit
-; ============================================
 recoger_recurso PROC
     push ax
     push bx
     push di
 
-    ; Marcar como recogido
+    ; Marcar como recogido (BX = máscara de bit)
     or recursos_recogidos, bx
 
     ; Obtener tipo de recurso
     mov ax, si
-    mov bx, 3
-    mul bx
+    mov dx, 3
+    mul dx
     mov di, ax
 
-    mov al, [recursos_mapa + di + 2]            ; Tipo (1, 2 o 3)
+    mov al, [recursos_mapa + di + 2]    ; Tipo (1, 2 o 3)
     mov bl, al
 
     ; Incrementar contador según tipo
@@ -138,17 +133,23 @@ rr_tipo3:
     inc recursos_tipo3
 
 rr_actualizar:
+    ; Actualizar slots del inventario
     mov al, bl
     call actualizar_inventario_slots
 
     ; Activar animación de recolección
     mov anim_recoger_activa, 1
     mov anim_recoger_frame, 0
+    
     mov ax, jugador_px
     mov anim_recoger_x, ax
+    
     mov ax, jugador_py
     sub ax, 32                  ; Aparecer arriba del jugador
     mov anim_recoger_y, ax
+    
+    ; Reproducir sonido de recolección
+    call reproducir_sonido_recoger
     
     pop di
     pop bx
@@ -202,9 +203,6 @@ ais_fin:
     ret
 actualizar_inventario_slots ENDP
 
-; ============================================
-; DIBUJAR RECURSOS EN EL MAPA
-; ============================================
 dibujar_recursos_en_mapa PROC
     push ax
     push bx
@@ -218,74 +216,47 @@ dibujar_recursos_en_mapa PROC
     
 drm_loop:
     mov al, num_recursos_cargados
-    mov ah, 0
+    xor ah, ah
     cmp si, ax
-    jb drm_loop_continue
-    jmp drm_fin
-
-drm_loop_continue:
+    jae drm_fin                 ; Si ya procesamos todos, salir
     
     ; Verificar si ya fue recogido
-    push bx
     mov ax, recursos_recogidos
-    and ax, bx
-    pop bx
-    jz drm_procesar
-    jmp drm_next
-
-drm_procesar:
+    test ax, bx                 ; ← Verificar si el bit está set
+    jnz drm_next                ; Si ya fue recogido, saltar
     
-    ; Obtener posición del recurso
-    push bx
-    push si
-    
+    ; Obtener posición del recurso (X, Y, Tipo)
     mov ax, si
-    mov bx, 3
-    mul bx
+    mov dx, 3
+    mul dx                      ; AX = SI × 3
     mov di, ax
-
-    mov al, [recursos_mapa + di]                 ; X (en tiles)
+    
+    ; Leer X (en tiles)
+    mov al, [recursos_mapa + di]
     xor ah, ah
+    shl ax, 4                   ; X × 16 = píxeles
     mov cx, ax
-    shl cx, 1
-    shl cx, 1
-    shl cx, 1
-    shl cx, 1
-
-    mov al, [recursos_mapa + di + 1]             ; Y (en tiles)
+    
+    ; Leer Y (en tiles)
+    mov al, [recursos_mapa + di + 1]
     xor ah, ah
+    shl ax, 4                   ; Y × 16 = píxeles
     mov dx, ax
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
     
     ; Verificar si está visible en viewport
     mov ax, cx
     sub ax, camara_px
     cmp ax, -16
-    jge drm_visible_x_min_ok
-    jmp drm_next_pop
-
-drm_visible_x_min_ok:
+    jl drm_next
     cmp ax, 320
-    jle drm_visible_x_max_ok
-    jmp drm_next_pop
-
-drm_visible_x_max_ok:
+    jg drm_next
     
     mov ax, dx
     sub ax, camara_py
     cmp ax, -16
-    jge drm_visible_y_min_ok
-    jmp drm_next_pop
-
-drm_visible_y_min_ok:
+    jl drm_next
     cmp ax, 192
-    jle drm_visible_y_max_ok
-    jmp drm_next_pop
-
-drm_visible_y_max_ok:
+    jg drm_next
     
     ; Calcular posición en pantalla
     mov ax, cx
@@ -299,12 +270,14 @@ drm_visible_y_max_ok:
     mov dx, ax
     
     ; Obtener sprite según tipo
-    mov al, [recursos_mapa + di + 2]            ; Tipo
-
+    mov al, [recursos_mapa + di + 2]  ; Tipo (1, 2 o 3)
+    
+    push si                     ; Guardar índice
+    push bx                     ; Guardar máscara
+    
     cmp al, 1
     jne drm_tipo2
     mov di, OFFSET sprite_cristal
-    push si
     mov si, OFFSET sprite_cristal_mask
     jmp drm_dibujar
     
@@ -312,26 +285,25 @@ drm_tipo2:
     cmp al, 2
     jne drm_tipo3
     mov di, OFFSET sprite_gema
-    push si
     mov si, OFFSET sprite_gema_mask
     jmp drm_dibujar
     
 drm_tipo3:
     mov di, OFFSET sprite_moneda
-    push si
     mov si, OFFSET sprite_moneda_mask
     
 drm_dibujar:
+    ; CX, DX ya tienen las coordenadas
+    ; DI = datos del sprite
+    ; SI = máscara del sprite
     call dibujar_sprite_planar_16x16_opt
-    pop si
     
-drm_next_pop:
-    pop si
-    pop bx
+    pop bx                      ; Restaurar máscara
+    pop si                      ; Restaurar índice
     
 drm_next:
-    shl bx, 1
-    inc si
+    shl bx, 1                   ; Siguiente bit
+    inc si                      ; Siguiente recurso
     jmp drm_loop
     
 drm_fin:
@@ -344,9 +316,6 @@ drm_fin:
     ret
 dibujar_recursos_en_mapa ENDP
 
-; ============================================
-; DIBUJAR PANEL DE INVENTARIO
-; ============================================
 dibujar_inventario PROC
     push ax
     push bx
@@ -356,7 +325,7 @@ dibujar_inventario PROC
     push di
     
     cmp inventario_abierto, 0
-    je di_fin
+    je di_limpiar_y_salir  ; ← Solo este salto condicional
     
     ; Dibujar fondo semitransparente (simplificado: rectángulo oscuro)
     mov cx, INV_X
@@ -391,6 +360,17 @@ dibujar_inventario PROC
     
     ; Dibujar estadísticas (derecha)
     call dibujar_estadisticas
+    
+    jmp di_fin  ; ← Saltar al final después de dibujar todo
+
+di_limpiar_y_salir:
+    ; Limpiar toda el área del inventario con negro sólido
+    mov cx, INV_X
+    mov dx, INV_Y
+    mov ax, INV_WIDTH
+    mov bx, INV_HEIGHT
+    mov si, 0               ; ← Color negro (0)
+    call dibujar_rectangulo_lleno
     
 di_fin:
     pop di
@@ -765,10 +745,6 @@ dbp_fin:
     ret
 dibujar_barra_progreso ENDP
 
-; ============================================
-; DIBUJAR RECTÁNGULO LLENO
-; Entrada: CX = X, DX = Y, AX = ancho, BX = alto, SI = color (0-15)
-; ============================================
 dibujar_rectangulo_lleno PROC
     push ax
     push bx
@@ -779,11 +755,34 @@ dibujar_rectangulo_lleno PROC
     push es
     push bp
     
-    mov bp, ax                  ; BP = ancho
-    mov di, bx                  ; DI = alto
+    mov bp, ax              ; BP = ancho
+    mov di, bx              ; DI = alto
 
     mov ax, VIDEO_SEG
     mov es, ax
+
+    ; ✅ CRÍTICO: Configurar para escribir en TODOS los planos
+    mov dx, 3C4h            ; Sequence Controller
+    mov al, 2               ; Map Mask Register
+    out dx, al
+    inc dx
+    mov al, 0Fh             ; ← Habilitar planos 0,1,2,3
+    out dx, al
+
+    ; ✅ CRÍTICO: Modo de escritura directo
+    mov dx, 3CEh            ; Graphics Controller
+    mov al, 5               ; Mode Register
+    out dx, al
+    inc dx
+    mov al, 0               ; ← Write Mode 0
+    out dx, al
+
+    mov dx, 3CEh
+    mov al, 3               ; Data Rotate/Function Select
+    out dx, al
+    inc dx
+    mov al, 0               ; ← Sin rotación, función REPLACE
+    out dx, al
 
 drl_fila:
     test di, di
@@ -792,51 +791,69 @@ drl_fila:
     push cx
     push dx
 
-    ; Calcular offset de video
+    ; Calcular offset de video (Y × 80 + X/8)
     mov bx, dx
     shl bx, 1
     mov ax, [video_offsets + bx]
     mov bx, cx
-    shr bx, 1
-    shr bx, 1
-    shr bx, 1
+    shr bx, 3               ; ← X / 8
     add ax, bx
-    add ax, temp_offset
-    mov bx, ax                  ; BX = offset de video
+    add ax, temp_offset     ; ← Ajustar por página
+    mov bx, ax
 
-    ; Dibujar línea horizontal
-    mov ax, si
-    and ax, 0FFh
+    ; Obtener color expandido a 8 bits
+    mov al, byte ptr si
+    and al, 0Fh
+    
+    ; ✅ CRÍTICO: Expandir color a todos los bits
+    mov ah, al
+    shl ah, 4
+    or al, ah               ; AL ahora tiene el color replicado
 
-    ; Configurar para escribir en todos los planos
+    ; Dibujar línea horizontal (ancho en bytes)
+    mov cx, bp
+    shr cx, 3               ; ← Ancho / 8 = número de bytes
+    test cx, cx
+    jz drl_pixel_final
+    
+drl_byte_loop:
+    mov es:[bx], al         ; ← Escribir color en todos los planos
+    inc bx
+    loop drl_byte_loop
+
+drl_pixel_final:
+    ; Manejar píxeles residuales (si ancho no es múltiplo de 8)
+    mov cx, bp
+    and cx, 7               ; ← Ancho % 8
+    test cx, cx
+    jz drl_siguiente_fila
+    
+    ; Crear máscara para píxeles residuales
+    mov ah, 80h             ; Máscara inicial: 10000000
+drl_pixel_loop:
+    test ah, ah
+    jz drl_siguiente_fila
+    ; Aquí podrías escribir píxeles individuales si es necesario
+    shr ah, 1
+    loop drl_pixel_loop
+
+drl_siguiente_fila:
+    pop dx
+    pop cx
+
+    inc dx                  ; Siguiente fila (Y++)
+    dec di
+    jmp drl_fila
+
+drl_fin:
+    ; ✅ Restaurar configuración EGA
     mov dx, 3C4h
-    push ax
     mov al, 2
     out dx, al
     inc dx
     mov al, 0Fh
     out dx, al
-    pop ax
-    
-    ; Dibujar píxeles
-    mov cx, bp                  ; Ancho en píxeles
-    shr cx, 1
-    shr cx, 1
-    shr cx, 1
-    
-drl_pixel:
-    mov es:[bx], al
-    inc bx
-    loop drl_pixel
 
-    pop dx
-    pop cx
-
-    inc dx                      ; Siguiente fila
-    dec di
-    jmp drl_fila
-
-drl_fin:
     pop bp
     pop es
     pop di
@@ -848,9 +865,6 @@ drl_fin:
     ret
 dibujar_rectangulo_lleno ENDP
 
-; ============================================
-; DIBUJAR RECTÁNGULO VACÍO (solo marco)
-; Entrada: CX = X, DX = Y, AX = ancho, BX = alto, SI = color (0-15)
 dibujar_rectangulo_vacio PROC
     push ax
     push bx
@@ -860,9 +874,21 @@ dibujar_rectangulo_vacio PROC
     push di
     push bp
 
-    mov di, ax                  ; Guardar ancho
-    mov bp, bx                  ; Guardar alto
+    mov di, ax              ; Guardar ancho
+    mov bp, bx              ; Guardar alto
 
+    push cx
+    push dx
+    push si
+    mov si, 0               ; Negro
+    mov ax, di
+    mov bx, bp
+    call dibujar_rectangulo_lleno
+    pop si
+    pop dx
+    pop cx
+
+    ; Ahora dibujar el marco encima
     ; Línea superior
     push cx
     push dx
@@ -886,7 +912,7 @@ dibujar_rectangulo_vacio PROC
     ; Línea izquierda
     push cx
     push dx
-    mov ax, 8
+    mov ax, 1
     mov bx, bp
     call dibujar_rectangulo_lleno
     pop dx
@@ -896,8 +922,8 @@ dibujar_rectangulo_vacio PROC
     push cx
     push dx
     add cx, di
-    sub cx, 8
-    mov ax, 8
+    dec cx
+    mov ax, 1               ; ← CAMBIO: 1 píxel de ancho
     mov bx, bp
     call dibujar_rectangulo_lleno
     pop dx
@@ -1242,3 +1268,40 @@ vv_fin:
     pop ax
     ret
 verificar_victoria ENDP
+
+reproducir_sonido_recoger PROC
+    push ax
+    push bx
+    push cx
+    push dx
+
+    ; Tono agudo (≈1000 Hz) - sonido de "ding"
+    mov al, 0B6h
+    out 43h, al
+
+    mov ax, 04A9h               ; Divisor para ~1000 Hz
+    out 42h, al
+    mov al, ah
+    out 42h, al
+
+    ; Activar speaker
+    in al, 61h
+    mov bl, al
+    or al, 3
+    out 61h, al
+
+    ; Duración corta
+    mov cx, 800
+rsr_delay:
+    loop rsr_delay
+
+    ; Desactivar speaker
+    mov al, bl
+    out 61h, al
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+reproducir_sonido_recoger ENDP

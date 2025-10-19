@@ -650,12 +650,6 @@ ajustar_coords_scroll PROC
     ret
 ajustar_coords_scroll ENDP
 
-; ============================================
-; REEMPLAZAR COMPLETO en OPTCODE.INC
-; Buscar: dibujar_sprite_planar_16x16_opt PROC
-; Borrar todo hasta: dibujar_sprite_planar_16x16_opt ENDP
-; Pegar esto:
-; ============================================
 
 dibujar_sprite_planar_16x16_opt PROC
     push ax
