@@ -1699,7 +1699,10 @@ crm_open_ok:
 
 crm_loop:
     call cargar_recursos_obtener_char
-    jc crm_fin_lectura
+    jnc crm_continuar_lectura
+    jmp crm_fin_lectura
+
+crm_continuar_lectura:
 
     cmp carga_recursos_comentario, 0
     je crm_no_comentario

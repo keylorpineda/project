@@ -425,7 +425,10 @@ dibujar_slots_items PROC
 
 dsi_loop:
     cmp si, MAX_ITEMS
-    jae dsi_fin
+    jb dsi_continuar
+    jmp dsi_fin
+
+dsi_continuar:
 
     mov ax, si
     xor dx, dx
