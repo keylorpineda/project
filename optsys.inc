@@ -37,6 +37,12 @@ iso_clear:
     mov last_player_tile_y, ax
     mov last_player_px, ax
     mov last_player_py, ax
+    mov last_scroll_offset_x, ax
+    mov last_scroll_offset_y, ax
+
+    xor ax, ax
+    mov scroll_offset_x_aligned, ax
+    mov scroll_pixel_pan_x, al
 
     pop di
     pop cx
@@ -160,11 +166,19 @@ marcar_tiles_afectados PROC
     mov bx, inicio_tile_x
     cmp bx, last_cam_tile_x
     jne mta_camara_movio
-    
+
     mov bx, inicio_tile_y
     cmp bx, last_cam_tile_y
     jne mta_camara_movio
-    
+
+    mov bx, scroll_offset_x
+    cmp bx, last_scroll_offset_x
+    jne mta_camara_movio
+
+    mov bx, scroll_offset_y
+    cmp bx, last_scroll_offset_y
+    jne mta_camara_movio
+
     jmp mta_check_player
 
 mta_camara_movio:
@@ -175,6 +189,11 @@ mta_camara_movio:
     mov last_cam_tile_x, ax
     mov ax, inicio_tile_y
     mov last_cam_tile_y, ax
+
+    mov ax, scroll_offset_x
+    mov last_scroll_offset_x, ax
+    mov ax, scroll_offset_y
+    mov last_scroll_offset_y, ax
 
     mov ax, jugador_px
     mov last_player_px, ax
@@ -190,6 +209,8 @@ mta_camara_movio:
     add ax, 8
     shr ax, 4
     mov last_player_tile_y, ax
+
+    call marcar_viewport_completo
 
     jmp mta_fin
 
@@ -297,6 +318,30 @@ mta_fin:
     pop ax
     ret
 marcar_tiles_afectados ENDP
+
+; ============================================
+; MARCAR TODO EL VIEWPORT COMO SUCIO
+; ============================================
+
+marcar_viewport_completo PROC
+    push ax
+    push cx
+    push di
+
+    mov al, frame_counter_opt
+    mov di, OFFSET dirty_map
+    mov cx, 273
+
+mvc_loop:
+    mov [di], al
+    inc di
+    loop mvc_loop
+
+    pop di
+    pop cx
+    pop ax
+    ret
+marcar_viewport_completo ENDP
 
 ; ============================================
 ; MARCAR UN TILE - VERSIÓN SIMPLIFICADA
