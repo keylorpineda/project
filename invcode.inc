@@ -348,7 +348,10 @@ dibujar_inventario PROC
     push di
     
     cmp inventario_abierto, 0
-    je di_salir_directo
+    jne di_continuar
+    jmp di_salir_directo
+
+di_continuar:
     
     ; ✅ LIMPIAR TODA LA PANTALLA CON NEGRO (AMBOS PLANOS)
     push es
