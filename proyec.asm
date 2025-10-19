@@ -450,13 +450,11 @@ anim_ok:
 
 ; **CRÍTICO**: Renderizar PÁGINA 0 primero
     mov temp_offset, 0
-    call dibujar_mapa_en_offset
-    call dibujar_jugador_en_offset
+    call dibujar_todo_en_offset
 
 ; **CRÍTICO**: Renderizar PÁGINA 1
     mov temp_offset, 8000h
-    call dibujar_mapa_en_offset
-    call dibujar_jugador_en_offset
+    call dibujar_todo_en_offset
 
 ; Guardar estado inicial
     mov ax, jugador_px
@@ -547,15 +545,13 @@ bg_redraw_done:
     
     ; Renderizar en página 1
     mov temp_offset, 8000h
-    call dibujar_mapa_en_offset
-    call dibujar_jugador_en_offset
+    call dibujar_todo_en_offset
     jmp bg_cambiar_pagina
     
 bg_render_p0:
     ; Renderizar en página 0
     mov temp_offset, 0
-    call dibujar_mapa_en_offset
-    call dibujar_jugador_en_offset
+    call dibujar_todo_en_offset
     
 bg_cambiar_pagina:
     ; Cambiar página visible
@@ -1311,11 +1307,20 @@ renderizar_en_pagina_1 ENDP
 
 dibujar_todo_en_offset PROC
     push ax
-    
+
     mov temp_offset, ax
+    cmp inventario_abierto, 0
+    jne dto_modo_inventario
+
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
-    
+    jmp dto_fin
+
+dto_modo_inventario:
+    call dibujar_inventario
+
+dto_fin:
+
     pop ax
     ret
 dibujar_todo_en_offset ENDP
