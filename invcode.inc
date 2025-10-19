@@ -1,5 +1,5 @@
 ; ============================================
-; INVCODE.INC - Sistema de Inventario
+; INVCODE.INC - Sistema de Inventario COMPLETO Y CORREGIDO
 ; Universidad Nacional - Proyecto II Ciclo 2025
 ; ============================================
 
@@ -82,7 +82,11 @@ vcr_loop:
     jg vcr_next
 
     ; ¡COLISIÓN DETECTADA!
+    push bx                     ; Guardar máscara antes de llamar
+    push si                     ; Guardar índice
     call recoger_recurso        ; SI y BX ya están configurados
+    pop si                      ; Restaurar
+    pop bx                      ; Restaurar
 
 vcr_next:
     shl bx, 1                   ; Siguiente bit
@@ -137,19 +141,31 @@ rr_actualizar:
     mov al, bl
     call actualizar_inventario_slots
 
-    ; Activar animación de recolección
-    mov anim_recoger_activa, 1
-    mov anim_recoger_frame, 0
+    ; ✅ NUEVO: Activar HUD de recolección
+    mov hud_recoger_activo, 1
+    mov hud_recoger_contador, 60        ; Mostrar por ~1 segundo (60 frames)
+    mov hud_recoger_tipo, bl
     
-    mov ax, jugador_px
-    mov anim_recoger_x, ax
+    ; Determinar sprite para el HUD
+    cmp bl, 1
+    jne rr_hud_tipo2
+    mov ax, OFFSET sprite_cristal
+    jmp rr_hud_guardar
     
-    mov ax, jugador_py
-    sub ax, 32                  ; Aparecer arriba del jugador
-    mov anim_recoger_y, ax
+rr_hud_tipo2:
+    cmp bl, 2
+    jne rr_hud_tipo3
+    mov ax, OFFSET sprite_gema
+    jmp rr_hud_guardar
     
-    ; Reproducir sonido de recolección
-    call reproducir_sonido_recoger
+rr_hud_tipo3:
+    mov ax, OFFSET sprite_moneda
+    
+rr_hud_guardar:
+    mov hud_recoger_sprite_offset, ax
+    
+    ; Reproducir sonido de recolección MEJORADO
+    call reproducir_sonido_recoger_largo
     
     pop di
     pop bx
@@ -323,6 +339,9 @@ drm_fin:
     ret
 dibujar_recursos_en_mapa ENDP
 
+; ============================================
+; DIBUJAR INVENTARIO - VERSIÓN CORREGIDA
+; ============================================
 dibujar_inventario PROC
     push ax
     push bx
@@ -332,17 +351,25 @@ dibujar_inventario PROC
     push di
     
     cmp inventario_abierto, 0
-    je di_limpiar_y_salir  ; ← Solo este salto condicional
+    je di_salir_directo         ; ✅ Si está cerrado, no hacer NADA
     
-    ; Dibujar fondo semitransparente (simplificado: rectángulo oscuro)
+    ; ✅ PASO 1: LIMPIAR TODA LA PANTALLA CON NEGRO
+    mov cx, 0
+    mov dx, 0
+    mov ax, 640
+    mov bx, 350
+    mov si, 0                   ; Negro sólido
+    call dibujar_rectangulo_lleno
+    
+    ; ✅ PASO 2: DIBUJAR FONDO DEL PANEL
     mov cx, INV_X
     mov dx, INV_Y
     mov ax, INV_WIDTH
     mov bx, INV_HEIGHT
-    mov si, COLOR_FONDO
+    mov si, 1                   ; Azul oscuro
     call dibujar_rectangulo_lleno
 
-    ; Dibujar marco
+    ; ✅ PASO 3: DIBUJAR MARCO
     mov cx, INV_X
     mov dx, INV_Y
     mov ax, INV_WIDTH
@@ -350,36 +377,25 @@ dibujar_inventario PROC
     mov si, COLOR_MARCO
     call dibujar_rectangulo_vacio
 
-    ; Título del inventario
+    ; ✅ PASO 4: TÍTULO
     mov cx, INV_X
-    add cx, 12
+    add cx, 120
     mov dx, INV_Y
-    add dx, 12
+    add dx, 15
     mov si, OFFSET msg_inventario
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    ; Dibujar sprite del jugador (izquierda)
+    ; ✅ PASO 5: JUGADOR (IZQUIERDA)
     call dibujar_jugador_inventario
     
-    ; Dibujar slots de items (centro)
-    call dibujar_slots_items
+    ; ✅ PASO 6: SLOTS DE ITEMS (CENTRO) - CON SPRITES
+    call dibujar_slots_items_mejorado
     
-    ; Dibujar estadísticas (derecha)
-    call dibujar_estadisticas
+    ; ✅ PASO 7: ESTADÍSTICAS (DERECHA) - MEJORADO
+    call dibujar_estadisticas_mejorado
     
-    jmp di_fin  ; ← Saltar al final después de dibujar todo
-
-di_limpiar_y_salir:
-    ; Limpiar toda el área del inventario con negro sólido
-    mov cx, INV_X
-    mov dx, INV_Y
-    mov ax, INV_WIDTH
-    mov bx, INV_HEIGHT
-    mov si, 0               ; ← Color negro (0)
-    call dibujar_rectangulo_lleno
-    
-di_fin:
+di_salir_directo:
     pop di
     pop si
     pop dx
@@ -415,9 +431,9 @@ dibujar_jugador_inventario PROC
 dibujar_jugador_inventario ENDP
 
 ; ============================================
-; DIBUJAR SLOTS DE ITEMS (8 espacios: 2 filas × 4 columnas)
+; DIBUJAR SLOTS MEJORADO - CON SPRITES VISIBLES
 ; ============================================
-dibujar_slots_items PROC
+dibujar_slots_items_mejorado PROC
     push ax
     push bx
     push cx
@@ -426,107 +442,133 @@ dibujar_slots_items PROC
     push di
     push bp
 
-    xor si, si
+    xor si, si                  ; Índice de slot (0-7)
 
-dsi_loop:
+dsim_loop:
     cmp si, MAX_ITEMS
-    jb dsi_continuar
-    jmp dsi_fin
+    jae dsim_fin
 
-dsi_continuar:
-
+    ; Calcular posición del slot (2 filas × 4 columnas)
     mov ax, si
     xor dx, dx
     mov bx, 4
-    div bx                      ; AX = fila, DX = columna
-    mov bp, ax
+    div bx                      ; AX = fila (0-1), DX = columna (0-3)
+    
+    mov bp, ax                  ; BP = fila
+    
+    ; CX = X del slot
     mov ax, dx
-
-    mov bx, ITEM_TOTAL
+    mov bx, 50                  ; Espaciado horizontal
     mul bx
-    add ax, ZONA_ITEMS_X
+    add ax, 240                 ; X inicial de la zona de items
     mov cx, ax
-
+    
+    ; DX = Y del slot
     mov ax, bp
-    mov bx, ITEM_TOTAL
+    mov bx, 50                  ; Espaciado vertical
     mul bx
-    add ax, ZONA_ITEMS_Y
+    add ax, 80                  ; Y inicial
     mov dx, ax
-
+    
+    ; Dibujar fondo del slot (negro)
     push cx
     push dx
-    mov ax, ITEM_SIZE
-    mov bx, ITEM_SIZE
     push si
+    mov ax, 48                  ; Ancho del slot
+    mov bx, 48                  ; Alto del slot
+    mov si, 0                   ; Negro
+    call dibujar_rectangulo_lleno
+    pop si
+    pop dx
+    pop cx
+    
+    ; Dibujar marco del slot
+    push cx
+    push dx
+    push si
+    mov ax, 48
+    mov bx, 48
     mov si, COLOR_ITEM_SLOT
     call dibujar_rectangulo_vacio
     pop si
     pop dx
     pop cx
-
+    
+    ; Verificar si hay item en este slot
     mov bx, OFFSET inventario_slots
     add bx, si
     mov al, [bx]
     test al, al
-    jz dsi_next
-
-    mov dl, al
+    jz dsim_next                ; Si está vacío, siguiente slot
+    
+    ; ✅ HAY ITEM: Dibujar sprite centrado (16x16 en slot de 48x48)
+    mov dl, al                  ; Guardar tipo
+    
+    ; Calcular posición centrada del sprite
     push cx
     push dx
-
+    
     mov ax, cx
-    add ax, ITEM_ICON_OFFSET
+    add ax, 16                  ; Centrar: (48-16)/2 = 16
     mov cx, ax
+    
     mov ax, dx
-    add ax, ITEM_ICON_OFFSET
+    add ax, 16
     mov dx, ax
-
+    
+    ; Seleccionar sprite según tipo
     cmp dl, 1
-    jne dsi_tipo2
+    jne dsim_tipo2
     mov di, OFFSET sprite_cristal
     push si
     mov si, OFFSET sprite_cristal_mask
-    jmp dsi_dibujar
-dsi_tipo2:
+    jmp dsim_dibujar_sprite
+    
+dsim_tipo2:
     cmp dl, 2
-    jne dsi_tipo3
+    jne dsim_tipo3
     mov di, OFFSET sprite_gema
     push si
     mov si, OFFSET sprite_gema_mask
-    jmp dsi_dibujar
-dsi_tipo3:
+    jmp dsim_dibujar_sprite
+    
+dsim_tipo3:
     mov di, OFFSET sprite_moneda
     push si
     mov si, OFFSET sprite_moneda_mask
-
-dsi_dibujar:
+    
+dsim_dibujar_sprite:
     call dibujar_sprite_planar_16x16_opt
-    pop si
-
-    pop dx
+    pop si                      ; Restaurar SI (índice del slot)
+    
+    pop dx                      ; Restaurar DX, CX originales
     pop cx
-
+    
+    ; Dibujar cantidad (abajo a la derecha del slot)
+    push si                     ; Guardar SI actual
     mov bx, OFFSET inventario_cantidades
-    add bx, si
+    mov ax, si                  ; AX = índice del slot
+    add bx, ax
     mov al, [bx]
     xor ah, ah
+    pop si                      ; Restaurar SI
+    
     push ax
-
     mov ax, cx
-    add ax, ITEM_COUNT_OFFSET_X
+    add ax, 30                  ; Posición X de la cantidad
     mov cx, ax
     mov ax, dx
-    add ax, ITEM_COUNT_OFFSET_Y
+    add ax, 30                  ; Posición Y de la cantidad
     mov dx, ax
-
     pop ax
+    
     call dibujar_numero
 
-dsi_next:
+dsim_next:
     inc si
-    jmp dsi_loop
+    jmp dsim_loop
 
-dsi_fin:
+dsim_fin:
     pop bp
     pop di
     pop si
@@ -535,158 +577,148 @@ dsi_fin:
     pop bx
     pop ax
     ret
-dibujar_slots_items ENDP
+dibujar_slots_items_mejorado ENDP
 
 ; ============================================
-; DIBUJAR ESTADÍSTICAS (contadores y barras de progreso)
+; DIBUJAR ESTADÍSTICAS MEJORADO - SIN SOLAPAMIENTO
 ; ============================================
-dibujar_estadisticas PROC
+dibujar_estadisticas_mejorado PROC
     push ax
     push bx
     push cx
     push dx
     push si
 
-    mov dx, ZONA_STATS_Y
+    mov dx, 90                  ; Y inicial (más arriba)
 
-    mov cx, ZONA_STATS_X
+    ; Título "RECURSOS"
+    mov cx, 470
     mov si, OFFSET msg_recursos
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    add dx, 12
-    mov cx, ZONA_STATS_X
+    add dx, 20
+    mov cx, 470
     mov si, OFFSET msg_objetivo
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    add dx, 16
-    mov cx, ZONA_STATS_X
-    mov si, OFFSET msg_progreso
-    mov al, COLOR_TEXTO
-    call dibujar_texto_simple
+    add dx, 25
 
-    add dx, 16
-
-    ; Cristales
-    mov cx, ZONA_STATS_X
+    ; ===== CRISTALES =====
+    mov cx, 470
     mov si, OFFSET msg_cristales
-    mov al, COLOR_TEXTO
+    mov al, 12                  ; Azul brillante
     call dibujar_texto_simple
 
-    mov cx, ZONA_STATS_X
-    add cx, STAT_VAL_OFFSET
+    add dx, 15
+    mov cx, 470
     mov al, recursos_tipo1
     xor ah, ah
     call dibujar_numero
 
-    mov cx, ZONA_STATS_X
-    add cx, STAT_SLASH_OFFSET
+    mov cx, 490
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    mov cx, ZONA_STATS_X
-    add cx, STAT_META_OFFSET
+    mov cx, 505
     mov ax, META_POR_TIPO
     call dibujar_numero
 
     add dx, 12
-    mov cx, ZONA_STATS_X
+    mov cx, 470
     mov al, recursos_tipo1
     xor ah, ah
     mov bx, META_POR_TIPO
     call dibujar_barra_progreso
 
-    add dx, 20
+    add dx, 25
 
-    ; Gemas
-    mov cx, ZONA_STATS_X
+    ; ===== GEMAS =====
+    mov cx, 470
     mov si, OFFSET msg_gemas
-    mov al, COLOR_TEXTO
+    mov al, 12                  ; Rojo brillante
     call dibujar_texto_simple
 
-    mov cx, ZONA_STATS_X
-    add cx, STAT_VAL_OFFSET
+    add dx, 15
+    mov cx, 470
     mov al, recursos_tipo2
     xor ah, ah
     call dibujar_numero
 
-    mov cx, ZONA_STATS_X
-    add cx, STAT_SLASH_OFFSET
+    mov cx, 490
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    mov cx, ZONA_STATS_X
-    add cx, STAT_META_OFFSET
+    mov cx, 505
     mov ax, META_POR_TIPO
     call dibujar_numero
 
     add dx, 12
-    mov cx, ZONA_STATS_X
+    mov cx, 470
     mov al, recursos_tipo2
     xor ah, ah
     mov bx, META_POR_TIPO
     call dibujar_barra_progreso
 
-    add dx, 20
+    add dx, 25
 
-    ; Monedas
-    mov cx, ZONA_STATS_X
+    ; ===== MONEDAS =====
+    mov cx, 470
     mov si, OFFSET msg_monedas
-    mov al, COLOR_TEXTO
+    mov al, 14                  ; Amarillo
     call dibujar_texto_simple
 
-    mov cx, ZONA_STATS_X
-    add cx, STAT_VAL_OFFSET
+    add dx, 15
+    mov cx, 470
     mov al, recursos_tipo3
     xor ah, ah
     call dibujar_numero
 
-    mov cx, ZONA_STATS_X
-    add cx, STAT_SLASH_OFFSET
+    mov cx, 490
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    mov cx, ZONA_STATS_X
-    add cx, STAT_META_OFFSET
+    mov cx, 505
     mov ax, META_POR_TIPO
     call dibujar_numero
 
     add dx, 12
-    mov cx, ZONA_STATS_X
+    mov cx, 470
     mov al, recursos_tipo3
     xor ah, ah
     mov bx, META_POR_TIPO
     call dibujar_barra_progreso
 
-    add dx, 20
+    add dx, 30
 
+    ; Verificar victoria
     mov al, recursos_tipo1
     cmp al, META_POR_TIPO
-    jb de_no_victoria
+    jb dem_no_victoria
     mov al, recursos_tipo2
     cmp al, META_POR_TIPO
-    jb de_no_victoria
+    jb dem_no_victoria
     mov al, recursos_tipo3
     cmp al, META_POR_TIPO
-    jb de_no_victoria
+    jb dem_no_victoria
 
-    mov cx, ZONA_STATS_X
+    mov cx, 450
     mov si, OFFSET msg_completado
-    mov al, 10
+    mov al, 10                  ; Verde brillante
     call dibujar_texto_simple
 
-de_no_victoria:
+dem_no_victoria:
     pop si
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-dibujar_estadisticas ENDP
+dibujar_estadisticas_mejorado ENDP
 
 ; ============================================
 ; DIBUJAR BARRA DE PROGRESO
@@ -768,27 +800,27 @@ dibujar_rectangulo_lleno PROC
     mov ax, VIDEO_SEG
     mov es, ax
 
-    ; ✅ CRÍTICO: Configurar para escribir en TODOS los planos
-    mov dx, 3C4h            ; Sequence Controller
-    mov al, 2               ; Map Mask Register
+    ; ✅ CONFIGURAR PARA ESCRIBIR EN TODOS LOS PLANOS
+    mov dx, 3C4h
+    mov al, 2
     out dx, al
     inc dx
-    mov al, 0Fh             ; ← Habilitar planos 0,1,2,3
+    mov al, 0Fh
     out dx, al
 
-    ; ✅ CRÍTICO: Modo de escritura directo
-    mov dx, 3CEh            ; Graphics Controller
-    mov al, 5               ; Mode Register
+    ; ✅ MODO DE ESCRITURA DIRECTO
+    mov dx, 3CEh
+    mov al, 5
     out dx, al
     inc dx
-    mov al, 0               ; ← Write Mode 0
+    mov al, 0
     out dx, al
 
     mov dx, 3CEh
-    mov al, 3               ; Data Rotate/Function Select
+    mov al, 3
     out dx, al
     inc dx
-    mov al, 0               ; ← Sin rotación, función REPLACE
+    mov al, 0
     out dx, al
 
 drl_fila:
@@ -798,49 +830,46 @@ drl_fila:
     push cx
     push dx
 
-    ; Calcular offset de video (Y × 80 + X/8)
+    ; Calcular offset de video
     mov bx, dx
     shl bx, 1
     mov ax, [video_offsets + bx]
     mov bx, cx
-    shr bx, 3               ; ← X / 8
+    shr bx, 3
     add ax, bx
-    add ax, temp_offset     ; ← Ajustar por página
+    add ax, temp_offset
     mov bx, ax
 
-    ; Obtener color expandido a 8 bits
+    ; Obtener color
     mov ax, si
     and al, 0Fh
     
-    ; ✅ CRÍTICO: Expandir color a todos los bits
+    ; ✅ EXPANDIR COLOR A 8 BITS
     mov ah, al
     shl ah, 4
-    or al, ah               ; AL ahora tiene el color replicado
+    or al, ah
 
-    ; Dibujar línea horizontal (ancho en bytes)
+    ; Dibujar línea horizontal
     mov cx, bp
-    shr cx, 3               ; ← Ancho / 8 = número de bytes
+    shr cx, 3
     test cx, cx
     jz drl_pixel_final
     
 drl_byte_loop:
-    mov es:[bx], al         ; ← Escribir color en todos los planos
+    mov es:[bx], al
     inc bx
     loop drl_byte_loop
 
 drl_pixel_final:
-    ; Manejar píxeles residuales (si ancho no es múltiplo de 8)
     mov cx, bp
-    and cx, 7               ; ← Ancho % 8
+    and cx, 7
     test cx, cx
     jz drl_siguiente_fila
     
-    ; Crear máscara para píxeles residuales
-    mov ah, 80h             ; Máscara inicial: 10000000
+    mov ah, 80h
 drl_pixel_loop:
     test ah, ah
     jz drl_siguiente_fila
-    ; Aquí podrías escribir píxeles individuales si es necesario
     shr ah, 1
     loop drl_pixel_loop
 
@@ -848,12 +877,12 @@ drl_siguiente_fila:
     pop dx
     pop cx
 
-    inc dx                  ; Siguiente fila (Y++)
+    inc dx
     dec di
     jmp drl_fila
 
 drl_fin:
-    ; ✅ Restaurar configuración EGA
+    ; ✅ RESTAURAR CONFIGURACIÓN
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -930,7 +959,7 @@ dibujar_rectangulo_vacio PROC
     push dx
     add cx, di
     dec cx
-    mov ax, 1               ; ← CAMBIO: 1 píxel de ancho
+    mov ax, 1
     mov bx, bp
     call dibujar_rectangulo_lleno
     pop dx
@@ -1177,70 +1206,198 @@ dn_ready:
 dibujar_numero ENDP
 
 ; ============================================
-; ACTUALIZAR ANIMACIÓN DE RECOLECCIÓN
+; HUD DE RECOLECCIÓN - MOSTRAR EN PANTALLA
+; ============================================
+dibujar_hud_recoleccion PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    
+    cmp hud_recoger_activo, 0
+    je dhr_fin
+    
+    ; Posición fija en la parte superior central
+    mov cx, 240                 ; X centrado
+    mov dx, 30                  ; Y superior
+    
+    ; Dibujar fondo negro semitransparente
+    push cx
+    push dx
+    mov ax, 160
+    mov bx, 40
+    mov si, 0
+    call dibujar_rectangulo_lleno
+    pop dx
+    pop cx
+    
+    ; Dibujar marco
+    push cx
+    push dx
+    mov ax, 160
+    mov bx, 40
+    mov si, 14                  ; Amarillo
+    call dibujar_rectangulo_vacio
+    pop dx
+    pop cx
+    
+    ; Dibujar sprite del recurso
+    mov ax, cx
+    add ax, 10
+    mov cx, ax
+    mov ax, dx
+    add ax, 12
+    mov dx, ax
+    
+    mov di, hud_recoger_sprite_offset
+    
+    ; Seleccionar máscara según tipo
+    mov al, hud_recoger_tipo
+    cmp al, 1
+    jne dhr_tipo2
+    mov si, OFFSET sprite_cristal_mask
+    jmp dhr_dibujar_sprite
+    
+dhr_tipo2:
+    cmp al, 2
+    jne dhr_tipo3
+    mov si, OFFSET sprite_gema_mask
+    jmp dhr_dibujar_sprite
+    
+dhr_tipo3:
+    mov si, OFFSET sprite_moneda_mask
+    
+dhr_dibujar_sprite:
+    call dibujar_sprite_planar_16x16_opt
+    
+    ; Dibujar texto "RECOLECTADO!"
+    mov cx, 280
+    mov dx, 43
+    mov si, OFFSET msg_recurso_recolectado
+    mov al, 14                  ; Amarillo
+    call dibujar_texto_simple
+    
+dhr_fin:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_hud_recoleccion ENDP
+
+; ============================================
+; ACTUALIZAR HUD DE RECOLECCIÓN
+; ============================================
+actualizar_hud_recoleccion PROC
+    push ax
+    
+    cmp hud_recoger_activo, 0
+    je ahr_fin
+    
+    dec hud_recoger_contador
+    cmp hud_recoger_contador, 0
+    jne ahr_fin
+    
+    ; Desactivar HUD
+    mov hud_recoger_activo, 0
+    
+ahr_fin:
+    pop ax
+    ret
+actualizar_hud_recoleccion ENDP
+
+; ============================================
+; SONIDO DE RECOLECCIÓN MEJORADO - MÁS LARGO Y AGRADABLE
+; ============================================
+reproducir_sonido_recoger_largo PROC
+    push ax
+    push bx
+    push cx
+    push dx
+
+    ; ✅ TONO 1: Nota ascendente (440 Hz - La)
+    mov al, 0B6h
+    out 43h, al
+
+    mov ax, 0A8Fh               ; Divisor para ~440 Hz
+    out 42h, al
+    mov al, ah
+    out 42h, al
+
+    ; Activar speaker
+    in al, 61h
+    mov bl, al
+    or al, 3
+    out 61h, al
+
+    ; Duración media
+    mov cx, 2000
+rsrl_delay1:
+    loop rsrl_delay1
+
+    ; ✅ TONO 2: Nota más alta (554 Hz - Do#)
+    mov al, 0B6h
+    out 43h, al
+
+    mov ax, 0877h               ; Divisor para ~554 Hz
+    out 42h, al
+    mov al, ah
+    out 42h, al
+
+    mov cx, 2000
+rsrl_delay2:
+    loop rsrl_delay2
+
+    ; ✅ TONO 3: Nota final aún más alta (659 Hz - Mi)
+    mov al, 0B6h
+    out 43h, al
+
+    mov ax, 0715h               ; Divisor para ~659 Hz
+    out 42h, al
+    mov al, ah
+    out 42h, al
+
+    mov cx, 3000                ; Duración más larga para el final
+rsrl_delay3:
+    loop rsrl_delay3
+
+    ; Desactivar speaker
+    mov al, bl
+    out 61h, al
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+reproducir_sonido_recoger_largo ENDP
+
+; ============================================
+; ACTUALIZAR ANIMACIÓN DE RECOLECCIÓN (MANTENER POR COMPATIBILIDAD)
 ; ============================================
 actualizar_animacion_recoger PROC
     push ax
     
-    cmp anim_recoger_activa, 0
-    je aar_fin
+    ; Actualizar HUD en su lugar
+    call actualizar_hud_recoleccion
     
-    ; Incrementar frame
-    inc anim_recoger_frame
-    
-    ; Mover hacia arriba
-    sub anim_recoger_y, 2
-    
-    ; Terminar animación después de 15 frames
-    cmp anim_recoger_frame, 15
-    jb aar_fin
-    
-    mov anim_recoger_activa, 0
-    
-aar_fin:
     pop ax
     ret
 actualizar_animacion_recoger ENDP
 
 ; ============================================
-; DIBUJAR ANIMACIÓN DE RECOLECCIÓN
+; DIBUJAR ANIMACIÓN DE RECOLECCIÓN (REDIRIGIR A HUD)
 ; ============================================
 dibujar_animacion_recoger PROC
     push ax
-    push cx
-    push dx
     
-    cmp anim_recoger_activa, 0
-    je dar_fin
+    ; Redirigir al nuevo HUD
+    call dibujar_hud_recoleccion
     
-    ; Calcular posición en pantalla
-    mov ax, anim_recoger_x
-    sub ax, camara_px
-    add ax, viewport_x
-    mov cx, ax
-    
-    mov ax, anim_recoger_y
-    sub ax, camara_py
-    add ax, viewport_y
-    mov dx, ax
-    
-    ; Verificar si está visible
-    cmp cx, -16
-    jl dar_fin
-    cmp cx, 336
-    jg dar_fin
-    cmp dx, -16
-    jl dar_fin
-    cmp dx, 208
-    jg dar_fin
-    
-    ; Dibujar símbolo "+" o similar
-    ; TODO: Implementar sprite de "+1" o animación más elaborada
-    ; Por ahora, solo un marcador simple
-    
-dar_fin:
-    pop dx
-    pop cx
     pop ax
     ret
 dibujar_animacion_recoger ENDP
@@ -1275,40 +1432,3 @@ vv_fin:
     pop ax
     ret
 verificar_victoria ENDP
-
-reproducir_sonido_recoger PROC
-    push ax
-    push bx
-    push cx
-    push dx
-
-    ; Tono agudo (≈1000 Hz) - sonido de "ding"
-    mov al, 0B6h
-    out 43h, al
-
-    mov ax, 04A9h               ; Divisor para ~1000 Hz
-    out 42h, al
-    mov al, ah
-    out 42h, al
-
-    ; Activar speaker
-    in al, 61h
-    mov bl, al
-    or al, 3
-    out 61h, al
-
-    ; Duración corta
-    mov cx, 800
-rsr_delay:
-    loop rsr_delay
-
-    ; Desactivar speaker
-    mov al, bl
-    out 61h, al
-
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-reproducir_sonido_recoger ENDP

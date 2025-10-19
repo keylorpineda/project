@@ -179,6 +179,7 @@ msg_gemas       db 'GEMAS:',0
 msg_monedas     db 'MONEDAS:',0
 msg_objetivo    db 'OBJETIVO: 2/TIPO',0
 msg_progreso    db 'PROGRESO:',0
+msg_recurso_recolectado db 'RECOLECTADO!',0
 msg_completado  db 'COMPLETADO!',0
 msg_slash       db '/',0
 
@@ -301,6 +302,11 @@ font_8x8 LABEL BYTE
     db 00000010b,00000100b,00001000b,00010000b,00100000b,01000000b,10000000b,00000000b
     ; '!'
     db 00011000b,00011000b,00011000b,00011000b,00011000b,00000000b,00011000b,00000000b
+
+    hud_recoger_activo db 0
+hud_recoger_contador db 0
+hud_recoger_tipo db 0
+hud_recoger_sprite_offset dw 0
 
 INCLUDE OPTDATA.INC
 
