@@ -1972,33 +1972,15 @@ aplicar_scroll_hardware ENDP
 centrar_camara_suave PROC
     push ax
     push bx
-    
-    ; NO alinear a múltiplos de 16 para scroll suave
-    mov ax, jugador_px
-    sub ax, 160
-    jge ccs_x_pos
+
+    ; ✅ Mantener la cámara fija: reutilizar centrado discreto
+    call centrar_camara
+
+    ; ✅ Deshabilitar cualquier desplazamiento sub-píxel
     xor ax, ax
-ccs_x_pos:
-    cmp ax, 1280
-    jle ccs_x_ok
-    mov ax, 1280
-ccs_x_ok:
-    mov camara_px, ax
-    
-    mov ax, jugador_py
-    sub ax, 96
-    jge ccs_y_pos
-    xor ax, ax
-ccs_y_pos:
-    cmp ax, 1408
-    jle ccs_y_ok
-    mov ax, 1408
-ccs_y_ok:
-    mov camara_py, ax
-    
-    ; Calcular offsets de sub-píxel
-    call aplicar_scroll_hardware
-    
+    mov scroll_offset_x, ax
+    mov scroll_offset_y, ax
+
     pop bx
     pop ax
     ret
