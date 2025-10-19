@@ -1260,7 +1260,10 @@ dmo_no_extra_row:
 ; ===== BUCLE PRINCIPAL DE FILAS =====
 dmo_fila_opt:
     cmp bp, 13
-    jae dmo_extra_row_check
+    jb dmo_procesar_fila
+    jmp dmo_extra_row_check
+
+dmo_procesar_fila:
     
     mov bx, di                  ; BX = puntero a fila actual
     xor si, si                  ; SI = columna actual (0-20)
@@ -1375,7 +1378,10 @@ dmo_next_fila_opt:
 dmo_extra_row_check:
     mov ax, temp_fila
     test ax, ax
-    jz dmo_fin_opt
+    jnz dmo_extra_row_continue
+    jmp dmo_fin_opt
+
+dmo_extra_row_continue:
 
     ; ✅ Recalcular puntero para fila 13
     mov ax, inicio_tile_y
