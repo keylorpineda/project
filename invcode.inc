@@ -13,19 +13,17 @@ verificar_colision_recursos PROC
     push dx
     push si
     push di
+    push bp
 
-    ; Obtener tile del jugador
-    mov cx, jugador_px
-    shr cx, 1
-    shr cx, 1
-    shr cx, 1
-    shr cx, 1
+    mov ax, jugador_px
+    mov player_left_temp, ax
+    add ax, 31
+    mov player_right_temp, ax
 
-    mov dx, jugador_py
-    shr dx, 1
-    shr dx, 1
-    shr dx, 1
-    shr dx, 1
+    mov ax, jugador_py
+    mov player_top_temp, ax
+    add ax, 31
+    mov player_bottom_temp, ax
 
     xor si, si                  ; Índice de recurso
     mov bx, 1                   ; Máscara de bit
@@ -36,35 +34,54 @@ vcr_loop:
     cmp si, ax
     jae vcr_fin
 
-    push bx
     mov ax, recursos_recogidos
     and ax, bx
-    pop bx
     jnz vcr_next                ; Ya recogido, saltar
 
-    push cx
-    push dx
-
     mov ax, si
-    mov bx, 3
-    mul bx                      ; AX = si * 3
+    shl ax, 1
+    add ax, si
     mov di, ax
 
     mov al, [recursos_mapa + di]
-    cbw
+    xor ah, ah
     mov cx, ax
+    shl cx, 1
+    shl cx, 1
+    shl cx, 1
+    shl cx, 1
 
     mov al, [recursos_mapa + di + 1]
-    cbw
+    xor ah, ah
     mov dx, ax
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
 
-    pop ax                      ; AX = jugador Y
-    pop di                      ; DI = jugador X
+    mov ax, cx
+    add ax, 15
+    mov bp, ax                  ; Derecha del recurso
 
-    cmp di, cx
-    jne vcr_next
+    mov ax, dx
+    add ax, 15
+    mov di, ax                  ; Parte inferior del recurso
+
+    mov ax, player_right_temp
+    cmp ax, cx
+    jl vcr_next
+
+    mov ax, player_left_temp
+    cmp ax, bp
+    jg vcr_next
+
+    mov ax, player_bottom_temp
     cmp ax, dx
-    jne vcr_next
+    jl vcr_next
+
+    mov ax, player_top_temp
+    cmp ax, di
+    jg vcr_next
 
     call recoger_recurso
 
@@ -74,6 +91,7 @@ vcr_next:
     jmp vcr_loop
 
 vcr_fin:
+    pop bp
     pop di
     pop si
     pop dx
@@ -570,19 +588,19 @@ dibujar_estadisticas PROC
     call dibujar_texto_simple
 
     mov cx, ZONA_STATS_X
-    add cx, 96
+    add cx, STAT_VAL_OFFSET
     mov al, recursos_tipo1
     xor ah, ah
     call dibujar_numero
 
     mov cx, ZONA_STATS_X
-    add cx, 120
+    add cx, STAT_SLASH_OFFSET
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
     mov cx, ZONA_STATS_X
-    add cx, 128
+    add cx, STAT_META_OFFSET
     mov ax, META_POR_TIPO
     call dibujar_numero
 
@@ -602,19 +620,19 @@ dibujar_estadisticas PROC
     call dibujar_texto_simple
 
     mov cx, ZONA_STATS_X
-    add cx, 96
+    add cx, STAT_VAL_OFFSET
     mov al, recursos_tipo2
     xor ah, ah
     call dibujar_numero
 
     mov cx, ZONA_STATS_X
-    add cx, 120
+    add cx, STAT_SLASH_OFFSET
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
     mov cx, ZONA_STATS_X
-    add cx, 128
+    add cx, STAT_META_OFFSET
     mov ax, META_POR_TIPO
     call dibujar_numero
 
@@ -634,19 +652,19 @@ dibujar_estadisticas PROC
     call dibujar_texto_simple
 
     mov cx, ZONA_STATS_X
-    add cx, 96
+    add cx, STAT_VAL_OFFSET
     mov al, recursos_tipo3
     xor ah, ah
     call dibujar_numero
 
     mov cx, ZONA_STATS_X
-    add cx, 120
+    add cx, STAT_SLASH_OFFSET
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
     mov cx, ZONA_STATS_X
-    add cx, 128
+    add cx, STAT_META_OFFSET
     mov ax, META_POR_TIPO
     call dibujar_numero
 
@@ -701,7 +719,7 @@ dibujar_barra_progreso PROC
     ; Dibujar fondo de la barra (vacía)
     push cx
     push dx
-    mov ax, 60                  ; Ancho de la barra
+    mov ax, 80                  ; Ancho de la barra
     mov bx, 8                   ; Alto de la barra
     push si
     mov si, COLOR_BARRA_VACIA
@@ -715,14 +733,14 @@ dibujar_barra_progreso PROC
     je dbp_fin
 
     mov ax, si                  ; Valor actual
-    mov bx, 60                  ; Ancho total
+    mov bx, 80                  ; Ancho total
     mul bx
     xor dx, dx
     div di                      ; Dividir por valor máximo
 
-    cmp ax, 60
+    cmp ax, 80
     jbe dbp_width_ok
-    mov ax, 60
+    mov ax, 80
 
 dbp_width_ok:
     

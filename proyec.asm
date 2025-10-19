@@ -113,6 +113,7 @@ scroll_offset_y dw 0
 
 ; Estado del inventario
 inventario_abierto db 0          ; 0 = cerrado, 1 = abierto
+inventario_toggle_bloqueado db 0 ; Evita rebotes al abrir/cerrar
 
 ; Estructura de items (3 tipos de recursos × 5 instancias cada uno)
 ; Tipo 1: Cristales (azul)
@@ -139,6 +140,11 @@ recursos_cantidad   db NUM_RECURSOS dup(0)       ; Cantidad por recurso
 num_recursos_cargados db 0                      ; Total cargado desde mapa
 inventario_slots       db MAX_ITEMS dup(0)
 inventario_cantidades  db MAX_ITEMS dup(0)
+
+player_left_temp   dw 0
+player_right_temp  dw 0
+player_top_temp    dw 0
+player_bottom_temp dw 0
 
 ; Variables auxiliares para carga de recursos desde el mapa
 carga_recursos_estado      db 0
@@ -195,9 +201,13 @@ ITEM_ICON_OFFSET EQU 8           ; Centrar sprite 16x16 en slot 32x32
 ITEM_COUNT_OFFSET_X EQU 20       ; Desplazamiento horizontal para cantidad
 ITEM_COUNT_OFFSET_Y EQU 20       ; Desplazamiento vertical para cantidad
 
-ZONA_STATS_X    EQU 390          ; Zona de estadísticas (derecha)
+ZONA_STATS_X    EQU 352          ; Zona de estadísticas (derecha)
 ZONA_STATS_Y    EQU 80
 ZONA_STATS_W    EQU 80
+
+STAT_VAL_OFFSET     EQU 64
+STAT_SLASH_OFFSET   EQU 80
+STAT_META_OFFSET    EQU 88
 
 ; Animación de recolección
 anim_recoger_activa db 0
@@ -596,6 +606,15 @@ pmc_normalizar:
     ja pmc_verificar
     and al, 5Fh
 
+    ; Si el inventario está abierto solo permitir la tecla 'E'
+    cmp inventario_abierto, 0
+    je pmc_verificar
+    cmp al, 'E'
+    je pmc_verificar_inventario
+    mov moviendo, 0
+    mov inventario_toggle_bloqueado, 0
+    jmp pmc_fin
+
 pmc_verificar:
     cmp al, 48h
     je pmc_arriba
@@ -628,10 +647,16 @@ pmc_verificar_derecha_letra:
 
 pmc_verificar_inventario:          ; ← AGREGAR ESTO
     cmp al, 'E'
-    jne pmc_no_movimiento_local
-    
-    ; Toggle inventario
+    je pmc_toggle_inventario
+    mov inventario_toggle_bloqueado, 0
+    jmp pmc_no_movimiento_local
+
+pmc_toggle_inventario:
+    cmp inventario_toggle_bloqueado, 0
+    jne pmc_fin
+    mov inventario_toggle_bloqueado, 1
     xor inventario_abierto, 1
+    mov moviendo, 0
     jmp pmc_fin
 
 pmc_no_movimiento_local:
@@ -653,6 +678,7 @@ pmc_salir:
     int 21h
 
 pmc_arriba:
+    mov inventario_toggle_bloqueado, 0
     mov jugador_dir, DIR_ARRIBA
     mov ax, jugador_py
     sub ax, VELOCIDAD
@@ -676,6 +702,7 @@ pmc_arriba_transitable:
     jmp pmc_fin
 
 pmc_abajo:
+    mov inventario_toggle_bloqueado, 0
     mov jugador_dir, DIR_ABAJO
     mov ax, jugador_py
     add ax, VELOCIDAD
@@ -698,6 +725,7 @@ pmc_abajo_transitable:
     jmp pmc_fin
 
 pmc_izquierda:
+    mov inventario_toggle_bloqueado, 0
     mov jugador_dir, DIR_IZQUIERDA
     mov ax, jugador_px
     sub ax, VELOCIDAD
@@ -721,6 +749,7 @@ pmc_izquierda_transitable:
     jmp pmc_fin
 
 pmc_derecha:
+    mov inventario_toggle_bloqueado, 0
     mov jugador_dir, DIR_DERECHA
     mov ax, jugador_px
     add ax, VELOCIDAD
@@ -749,6 +778,7 @@ pmc_no_movimiento:
 
 pmc_no_tecla:
     mov moviendo, 0
+    mov inventario_toggle_bloqueado, 0
 
 pmc_fin:
     pop dx
@@ -768,14 +798,48 @@ actualizar_animacion PROC
     mov al, pasos_dados
     cmp al, 4
     jb aa_fin
-    
+
     mov pasos_dados, 0
     xor jugador_frame, 1
-    
+    call reproducir_sonido_paso
+
 aa_fin:
     pop ax
     ret
 actualizar_animacion ENDP
+
+reproducir_sonido_paso PROC
+    push ax
+    push bx
+    push cx
+    push dx
+
+    mov al, 0B6h
+    out 43h, al
+
+    mov ax, 1193            ; Aproximadamente 1 kHz
+    out 42h, al             ; Enviar byte bajo
+    mov al, ah
+    out 42h, al             ; Enviar byte alto
+
+    in al, 61h
+    mov bl, al
+    or al, 3
+    out 61h, al
+
+    mov cx, 1200
+rsp_delay:
+    loop rsp_delay
+
+    mov al, bl
+    out 61h, al
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+reproducir_sonido_paso ENDP
 
 centrar_camara PROC
     push ax
