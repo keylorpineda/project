@@ -112,6 +112,7 @@ recoger_recurso PROC
 
     ; Marcar como recogido
     or recursos_recogidos, bx
+    mov requiere_redibujar, 2    ; Forzar actualización de ambas páginas
 
     ; Obtener tipo de recurso
     mov ax, si
@@ -149,7 +150,10 @@ rr_actualizar:
     mov ax, jugador_py
     sub ax, 32                  ; Aparecer arriba del jugador
     mov anim_recoger_y, ax
-    
+
+    ; Sonido de recolección
+    call reproducir_sonido_recoleccion
+
     pop di
     pop bx
     pop ax
@@ -263,25 +267,25 @@ drm_procesar:
     ; Verificar si está visible en viewport
     mov ax, cx
     sub ax, camara_px
-    cmp ax, -16
+    cmp ax, -15
     jge drm_visible_x_min_ok
     jmp drm_next_pop
 
 drm_visible_x_min_ok:
-    cmp ax, 320
+    cmp ax, 319
     jle drm_visible_x_max_ok
     jmp drm_next_pop
 
 drm_visible_x_max_ok:
-    
+
     mov ax, dx
     sub ax, camara_py
-    cmp ax, -16
+    cmp ax, -15
     jge drm_visible_y_min_ok
     jmp drm_next_pop
 
 drm_visible_y_min_ok:
-    cmp ax, 192
+    cmp ax, 191
     jle drm_visible_y_max_ok
     jmp drm_next_pop
 
