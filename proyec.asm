@@ -95,8 +95,6 @@ camara_py   dw 304
 
 pagina_visible db 0
 pagina_dibujo  db 1
-even
-pagina_offsets dw 0, 8000h
 
 viewport_x  dw 160
 viewport_y  dw 79
@@ -181,7 +179,6 @@ msg_gemas       db 'GEMAS:',0
 msg_monedas     db 'MONEDAS:',0
 msg_objetivo    db 'OBJETIVO: 2/TIPO',0
 msg_progreso    db 'PROGRESO:',0
-msg_recurso_recolectado db 'RECOLECTADO!',0
 msg_completado  db 'COMPLETADO!',0
 msg_slash       db '/',0
 
@@ -304,11 +301,6 @@ font_8x8 LABEL BYTE
     db 00000010b,00000100b,00001000b,00010000b,00100000b,01000000b,10000000b,00000000b
     ; '!'
     db 00011000b,00011000b,00011000b,00011000b,00011000b,00000000b,00011000b,00000000b
-
-    hud_recoger_activo db 0
-hud_recoger_contador db 0
-hud_recoger_tipo db 0
-hud_recoger_sprite_offset dw 0
 
 INCLUDE OPTDATA.INC
 
@@ -452,11 +444,13 @@ anim_ok:
 
 ; **CRÍTICO**: Renderizar PÁGINA 0 primero
     mov temp_offset, 0
-    call dibujar_todo_en_offset
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
 
 ; **CRÍTICO**: Renderizar PÁGINA 1
     mov temp_offset, 8000h
-    call dibujar_todo_en_offset
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
 
 ; Guardar estado inicial
     mov ax, jugador_px
@@ -466,12 +460,13 @@ anim_ok:
     mov al, jugador_frame
     mov frame_old, al
 
-    ; **CRÍTICO**: Mostrar página 0 y configurar variables
-    mov al, 0
-    call mostrar_pagina
+; **CRÍTICO**: Mostrar página 0 y configurar variables
+mov ah, 5
+mov al, 0
+int 10h
 
-    mov pagina_visible, 0
-    mov pagina_dibujo, 1
+mov pagina_visible, 0
+mov pagina_dibujo, 1
 
 ; ===== BUCLE PRINCIPAL =====
 bucle_juego:
@@ -536,28 +531,31 @@ bg_redraw_reset:
 
 bg_redraw_done:
 
+    ; Esperar vertical retrace
+    call esperar_retrace
+    
     ; Renderizar en la página que NO está visible
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
-
+    
     ; Renderizar en página 1
     mov temp_offset, 8000h
-    call dibujar_todo_en_offset
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
     jmp bg_cambiar_pagina
     
 bg_render_p0:
     ; Renderizar en página 0
     mov temp_offset, 0
-    call dibujar_todo_en_offset
-
+    call dibujar_mapa_en_offset
+    call dibujar_jugador_en_offset
+    
 bg_cambiar_pagina:
-    ; Esperar retrace justo antes de mostrar la página para evitar parpadeos
-    call esperar_retrace
-
-    ; Cambiar página visible utilizando el inicio de pantalla correcto
+    ; Cambiar página visible
+    mov ah, 5
     mov al, pagina_dibujo
-    call mostrar_pagina
+    int 10h
     
     ; Intercambiar páginas
     xor pagina_dibujo, 1
@@ -692,55 +690,9 @@ pmc_toggle_inventario:
 
 pmc_toggle_procesar:
     mov inventario_toggle_bloqueado, 1
-    
-    ; ✅ Si estamos CERRANDO, limpiar AMBAS páginas
-    cmp inventario_abierto, 1
-    jne pmc_toggle_abrir
-    
-    ; CERRAR inventario
-    mov inventario_abierto, 0
-    
-    ; ✅ LIMPIAR Y REDIBUJAR AMBAS PÁGINAS
-    push ax
-    push es
-    
-    mov ax, VIDEO_SEG
-    mov es, ax
-    
-    ; Limpiar página 0
-    mov temp_offset, 0
-    xor di, di
-    mov cx, 14000
-    xor ax, ax
-    rep stosw
-    
-    ; Limpiar página 1
-    mov temp_offset, 8000h
-    mov di, 8000h
-    mov cx, 14000
-    xor ax, ax
-    rep stosw
-    
-    pop es
-    pop ax
-    
-    ; Redibujar ambas páginas
-    mov temp_offset, 0
-    call dibujar_mapa_en_offset
-    call dibujar_jugador_en_offset
-    
-    mov temp_offset, 8000h
-    call dibujar_mapa_en_offset
-    call dibujar_jugador_en_offset
-    
+    xor inventario_abierto, 1
     mov moviendo, 0
-    jmp pmc_fin
-
-pmc_toggle_abrir:
-    ; ABRIR inventario
-    mov inventario_abierto, 1
-    mov moviendo, 0
-    mov requiere_redibujar, 2
+    mov requiere_redibujar, 2     ; Forzar dos redibujos para limpiar ambas páginas
     jmp pmc_fin
 
 pmc_no_movimiento_local:
@@ -1353,22 +1305,11 @@ renderizar_en_pagina_1 ENDP
 
 dibujar_todo_en_offset PROC
     push ax
-
+    
     mov temp_offset, ax
-    
-    cmp inventario_abierto, 0
-    jne dto_modo_inventario
-    
-    ; ✅ MODO JUEGO: Dibujar mapa + jugador
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
-    jmp dto_fin
-
-dto_modo_inventario:
-    ; ✅ MODO INVENTARIO: Solo inventario (él limpia todo)
-    call dibujar_inventario
-
-dto_fin:
+    
     pop ax
     ret
 dibujar_todo_en_offset ENDP
@@ -1382,114 +1323,88 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    ; ✅ CRÍTICO: Calcular tile inicial SIN ajuste de scroll
-    ; La cámara ya está en píxeles, simplemente dividir por 16
+    ; Calcular tile inicial de la cámara
     mov ax, camara_px
-    shr ax, 4               ; Dividir por 16 para obtener tile X
+    shr ax, 4
     mov inicio_tile_x, ax
     
     mov ax, camara_py
-    shr ax, 4               ; Dividir por 16 para obtener tile Y
+    shr ax, 4
     mov inicio_tile_y, ax
     
     xor bp, bp              ; BP = fila actual (0-12)
 
 dmo_fila:
-    cmp bp, 13              ; 13 filas visibles (192/16 + 1)
-    jb dmo_procesar_fila
-    jmp dmo_fin
-
-dmo_procesar_fila:
+    cmp bp, 13
+    jae dmo_fin
+    
     xor si, si              ; SI = columna actual (0-20)
 
 dmo_col:
-    cmp si, 21              ; 21 columnas visibles (320/16 + 1)
-    jb dmo_procesar_col
-    jmp dmo_next_fila
-
-dmo_procesar_col:
+    cmp si, 21
+    jae dmo_next_fila
+    
     ; ===== Calcular tile_y =====
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 100
-    jb dmo_tile_y_ok        ; Dentro del mapa
-    jmp dmo_next_col        ; Fuera del mapa
-
-dmo_tile_y_ok:
+    jae dmo_next_col
+    
     ; ===== Calcular índice en mapa (Y × 100 + X) =====
     mov bx, ax
     shl bx, 1
     mov ax, [mul100_table + bx]
-
+    
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 100
-    jb dmo_tile_x_ok        ; Dentro del mapa
-    jmp dmo_next_col        ; Fuera del mapa
-
-dmo_tile_x_ok:
+    jae dmo_next_col
+    
     add ax, bx
-
+    
     ; ===== Leer tipo de tile =====
     mov bx, ax
     mov al, [mapa_datos + bx]
-
-    cmp al, 15
-    jbe dmo_tile_tipo_ok
-    jmp dmo_next_col
-
-dmo_tile_tipo_ok:
     
-    ; ===== Guardar registros de BUCLE =====
+    cmp al, 15
+    ja dmo_next_col
+    
+    ; ===== Guardar registros de BUCLE (col, fila) =====
     push si                 ; [Stack]: col
     push bp                 ; [Stack]: fila, col
     
-    ; ===== Obtener sprite =====
+    ; ===== Obtener sprite (pone DI=data, SI=mask) =====
     call obtener_sprite_tile
     
     push si                 ; [Stack]: mask_ptr, fila, col
     push di                 ; [Stack]: data_ptr, mask_ptr, fila, col
     
-    ; --- Calcular posición EN PANTALLA ---
-    push bp                 ; Guardar BP
-    mov bp, sp
+    ; --- Crear Stack Frame ---
+    push bp                 ; Guardar BP (fila)
+    mov bp, sp              ; BP es ahora el puntero de pila
+
+    ; Calcular DX (Y) usando BP
+    mov ax, [bp+6]          ; AX = fila
+    shl ax, 4               
+    add ax, viewport_y
+    mov dx, ax              ; DX = Y
     
-    ; ✅ CRÍTICO: Calcular Y en pantalla
-    mov ax, [bp+6]          ; AX = fila (0-12)
-    shl ax, 4               ; × 16 = píxeles
-    add ax, viewport_y      ; + offset del viewport
+    ; Calcular CX (X) usando BP
+    mov ax, [bp+8]          ; AX = col
+    shl ax, 4               
+    add ax, viewport_x
+    mov cx, ax              ; CX = X
     
-    ; ✅ AGREGAR: Restar el desplazamiento sub-tile de la cámara
-    push bx
-    mov bx, camara_py
-    and bx, 15              ; Obtener resto (0-15)
-    sub ax, bx              ; Restar desplazamiento
-    pop bx
-    
-    mov dx, ax              ; DX = Y final
-    
-    ; ✅ CRÍTICO: Calcular X en pantalla
-    mov ax, [bp+8]          ; AX = col (0-20)
-    shl ax, 4               ; × 16 = píxeles
-    add ax, viewport_x      ; + offset del viewport
-    
-    ; ✅ AGREGAR: Restar el desplazamiento sub-tile de la cámara
-    push bx
-    mov bx, camara_px
-    and bx, 15              ; Obtener resto (0-15)
-    sub ax, bx              ; Restar desplazamiento
-    pop bx
-    
-    mov cx, ax              ; CX = X final
-    
-    pop bp                  ; Restaurar BP
+    ; --- Destruir Stack Frame ---
+    pop bp                  ; Restaurar BP (fila)
     
     pop di                  ; Restaurar DI (data_ptr)
     pop si                  ; Restaurar SI (mask_ptr)
 
-    ; ✅ NO llamar a ajustar_coords_scroll aquí, ya lo hicimos manualmente
+    ; Llamar a dibujar con DI, SI, CX, DX correctos
     call dibujar_sprite_planar_16x16_opt
     
+    ; ===== Restaurar registros de BUCLE =====
     pop bp                  
     pop si                  
     
@@ -1502,8 +1417,7 @@ dmo_next_fila:
     jmp dmo_fila
     
 dmo_fin:
-    call dibujar_recursos_en_mapa
-    
+call dibujar_recursos_en_mapa
     pop bp
     pop di
     pop si
@@ -1611,31 +1525,28 @@ dibujar_jugador_en_offset PROC
     push si
     push di
     
-    ; ✅ NO dibujar jugador si inventario abierto
-    cmp inventario_abierto, 1
-    je djo_salir
-    
-    ; ✅ CRÍTICO: Calcular posición relativa a la cámara
+    ; Calcular posición relativa al viewport
     mov ax, jugador_px
-    sub ax, camara_px       ; Posición relativa a cámara
-    add ax, viewport_x      ; + offset del viewport
-    sub ax, 16              ; Centrar sprite 32x32
+    sub ax, camara_px
+    add ax, viewport_x
+    sub ax, 16
     mov cx, ax
     
     mov ax, jugador_py
-    sub ax, camara_py       ; Posición relativa a cámara
-    add ax, viewport_y      ; + offset del viewport
-    sub ax, 16              ; Centrar sprite 32x32
+    sub ax, camara_py
+    add ax, viewport_y
+    sub ax, 16
     mov dx, ax
-
+    
     call obtener_sprite_jugador
-    ; ✅ NO llamar ajustar_coords_scroll, ya están correctas
     call dibujar_sprite_planar_32x32_opt
     
-    ; Dibujar HUD de recolección
-    call dibujar_hud_recoleccion
-
-djo_salir:
+    ; Dibujar animación de recolección
+    call dibujar_animacion_recoger
+    
+    ; Dibujar panel de inventario (si está abierto)
+    call dibujar_inventario
+    
     pop di
     pop si
     pop dx
@@ -1643,39 +1554,6 @@ djo_salir:
     pop ax
     ret
 dibujar_jugador_en_offset ENDP
-
-mostrar_pagina PROC
-    push ax
-    push bx
-    push cx
-    push dx
-
-    mov bl, al
-    xor bh, bh
-    shl bx, 1
-    mov ax, [pagina_offsets + bx]
-    mov cx, ax
-    shr cx, 1
-
-    mov dx, 3D4h
-    mov al, 0Ch
-    out dx, al
-    inc dx
-    mov al, ch
-    out dx, al
-    dec dx
-    mov al, 0Dh
-    out dx, al
-    inc dx
-    mov al, cl
-    out dx, al
-
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-mostrar_pagina ENDP
 
 esperar_retrace PROC
     push ax

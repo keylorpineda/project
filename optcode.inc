@@ -650,6 +650,12 @@ ajustar_coords_scroll PROC
     ret
 ajustar_coords_scroll ENDP
 
+; ============================================
+; REEMPLAZAR COMPLETO en OPTCODE.INC
+; Buscar: dibujar_sprite_planar_16x16_opt PROC
+; Borrar todo hasta: dibujar_sprite_planar_16x16_opt ENDP
+; Pegar esto:
+; ============================================
 
 dibujar_sprite_planar_16x16_opt PROC
     push ax
@@ -1967,43 +1973,38 @@ aplicar_scroll_hardware PROC
 aplicar_scroll_hardware ENDP
 
 ; ============================================
-; CENTRAR CÁMARA CON SCROLL SUAVE - CORREGIDO
+; CENTRAR CÁMARA CON SCROLL SUAVE
 ; ============================================
 centrar_camara_suave PROC
     push ax
     push bx
-
-    ; Calcular posición ideal de la cámara (centrar jugador en viewport)
+    
+    ; NO alinear a múltiplos de 16 para scroll suave
     mov ax, jugador_px
-    sub ax, 160             ; Centro horizontal (320/2)
+    sub ax, 160
     jge ccs_x_pos
-    xor ax, ax              ; No ir más allá del borde izquierdo
+    xor ax, ax
 ccs_x_pos:
-    cmp ax, 1280            ; Límite derecho (1600 - 320)
+    cmp ax, 1280
     jle ccs_x_ok
     mov ax, 1280
 ccs_x_ok:
     mov camara_px, ax
-
+    
     mov ax, jugador_py
-    sub ax, 96              ; Centro vertical (192/2)
+    sub ax, 96
     jge ccs_y_pos
     xor ax, ax
 ccs_y_pos:
-    cmp ax, 1408            ; Límite inferior (1600 - 192)
+    cmp ax, 1408
     jle ccs_y_ok
     mov ax, 1408
 ccs_y_ok:
     mov camara_py, ax
-
-    ; ✅ CRÍTICO: NO alinear a cuadrícula, dejar que siga al jugador píxel por píxel
-    ; Esto permite scroll suave real
     
-    ; Resetear offsets de sub-píxel (no los necesitamos en EGA)
-    xor ax, ax
-    mov scroll_offset_x, ax
-    mov scroll_offset_y, ax
-
+    ; Calcular offsets de sub-píxel
+    call aplicar_scroll_hardware
+    
     pop bx
     pop ax
     ret
