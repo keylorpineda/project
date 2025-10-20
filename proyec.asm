@@ -881,6 +881,54 @@ reproducir_sonido_paso PROC
     ret
 reproducir_sonido_paso ENDP
 
+reproducir_sonido_recoleccion PROC
+    push ax
+    push bx
+    push cx
+    push dx
+
+    mov al, 0B6h
+    out 43h, al
+
+    ; Primer tono agudo
+    mov ax, 089Bh             ; ≈ 542 Hz
+    out 42h, al
+    mov al, ah
+    out 42h, al
+
+    in al, 61h
+    mov bl, al
+    or al, 3
+    out 61h, al
+
+    mov cx, 450
+rsc_delay1:
+    loop rsc_delay1
+
+    ; Segundo tono más agudo
+    mov ax, 06D6h             ; ≈ 682 Hz
+    out 42h, al
+    mov al, ah
+    out 42h, al
+
+    mov cx, 350
+rsc_delay2:
+    loop rsc_delay2
+
+    mov al, bl
+    out 61h, al
+
+    mov cx, 200
+rsc_silencio:
+    loop rsc_silencio
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+reproducir_sonido_recoleccion ENDP
+
 centrar_camara PROC
     push ax
     push bx
