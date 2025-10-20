@@ -182,34 +182,32 @@ msg_progreso    db 'PROGRESO:',0
 msg_completado  db 'COMPLETADO!',0
 msg_slash       db '/',0
 
-; Posiciones del panel de inventario (centrado en 640x350)
-INV_X           EQU 160          ; X inicial del panel
-INV_Y           EQU 50           ; Y inicial del panel
-INV_WIDTH       EQU 320          ; Ancho del panel
-INV_HEIGHT      EQU 250          ; Alto del panel
+INV_X           EQU 80           ; ✅ CAMBIO: Más a la izquierda (era 160)
+INV_Y           EQU 40           ; ✅ CAMBIO: Más arriba (era 50)
+INV_WIDTH       EQU 480          ; ✅ CAMBIO: Más ancho (era 320)
+INV_HEIGHT      EQU 270          ; ✅ CAMBIO: Más alto (era 250)
 
 ; Zonas del panel
-ZONA_PLAYER_X   EQU 170          ; Zona del jugador (izquierda)
-ZONA_PLAYER_Y   EQU 80
+ZONA_PLAYER_X   EQU 100          ; ✅ CAMBIO: Jugador a la izquierda (era 170)
+ZONA_PLAYER_Y   EQU 80           ; ✅ CAMBIO: (era 80, mantener)
 ZONA_PLAYER_W   EQU 64
 
-ZONA_ITEMS_X    EQU 250          ; Zona de items (centro)
-ZONA_ITEMS_Y    EQU 80
-ITEM_SIZE       EQU 32           ; Tamaño de cada slot de item
-ITEM_SPACING    EQU 8            ; Espaciado entre items
-ITEM_TOTAL      EQU 40           ; ITEM_SIZE + ITEM_SPACING
-ITEM_ICON_OFFSET EQU 8           ; Centrar sprite 16x16 en slot 32x32
-ITEM_COUNT_OFFSET_X EQU 20       ; Desplazamiento horizontal para cantidad
-ITEM_COUNT_OFFSET_Y EQU 20       ; Desplazamiento vertical para cantidad
+ZONA_ITEMS_X    EQU 180          ; ✅ CAMBIO: Items al centro (era 250)
+ZONA_ITEMS_Y    EQU 70           ; ✅ CAMBIO: Más arriba (era 80)
+ITEM_SIZE       EQU 32
+ITEM_SPACING    EQU 4            ; ✅ CAMBIO: Menos espaciado (era 8)
+ITEM_TOTAL      EQU 36           ; ✅ CAMBIO: 32+4 (era 40)
+ITEM_ICON_OFFSET EQU 8
+ITEM_COUNT_OFFSET_X EQU 20
+ITEM_COUNT_OFFSET_Y EQU 20
 
-ZONA_STATS_X    EQU 352          ; Zona de estadísticas (derecha)
-ZONA_STATS_Y    EQU 80
-ZONA_STATS_W    EQU 80
+ZONA_STATS_X    EQU 420          ; ✅ CAMBIO: Estadísticas a la derecha (era 352)
+ZONA_STATS_Y    EQU 70           ; ✅ CAMBIO: Más arriba (era 80)
+ZONA_STATS_W    EQU 120          ; ✅ CAMBIO: Más ancho (era 80)
 
-STAT_VAL_OFFSET     EQU 64
-STAT_SLASH_OFFSET   EQU 80
-STAT_META_OFFSET    EQU 88
-
+STAT_VAL_OFFSET     EQU 88       ; ✅ CAMBIO: Más espacio para el texto (era 64)
+STAT_SLASH_OFFSET   EQU 104      ; ✅ CAMBIO: (era 80)
+STAT_META_OFFSET    EQU 112      ; ✅ CAMBIO: (era 88)
 ; Animación de recolección
 anim_recoger_activa db 0
 anim_recoger_frame  db 0

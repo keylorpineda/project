@@ -453,9 +453,6 @@ dibujar_jugador_inventario PROC
     ret
 dibujar_jugador_inventario ENDP
 
-; ============================================
-; DIBUJAR SLOTS DE ITEMS (8 espacios: 2 filas × 4 columnas)
-; ============================================
 dibujar_slots_items PROC
     push ax
     push bx
@@ -465,7 +462,7 @@ dibujar_slots_items PROC
     push di
     push bp
 
-    xor si, si
+    xor si, si                  ; Índice de slot (0-7)
 
 dsi_loop:
     cmp si, MAX_ITEMS
@@ -474,24 +471,28 @@ dsi_loop:
 
 dsi_continuar:
 
+    ; Calcular fila y columna (2 filas × 4 columnas)
     mov ax, si
     xor dx, dx
     mov bx, 4
     div bx                      ; AX = fila, DX = columna
     mov bp, ax
-    mov ax, dx
 
+    ; ✅ CALCULAR X
+    mov ax, dx                  ; columna
     mov bx, ITEM_TOTAL
     mul bx
     add ax, ZONA_ITEMS_X
     mov cx, ax
 
-    mov ax, bp
+    ; ✅ CALCULAR Y
+    mov ax, bp                  ; fila
     mov bx, ITEM_TOTAL
     mul bx
     add ax, ZONA_ITEMS_Y
     mov dx, ax
 
+    ; ✅ DIBUJAR MARCO DEL SLOT
     push cx
     push dx
     mov ax, ITEM_SIZE
@@ -503,29 +504,40 @@ dsi_continuar:
     pop dx
     pop cx
 
+    ; Verificar si el slot tiene un item
     mov bx, OFFSET inventario_slots
     add bx, si
     mov al, [bx]
     test al, al
-    jz dsi_next
+    jz dsi_next                 ; Slot vacío, siguiente
 
+    ; ✅ DIBUJAR SPRITE DEL ITEM
     mov dl, al
     push cx
     push dx
 
+    ; Calcular posición centrada del sprite (16x16 en slot 32x32)
     mov ax, cx
     add ax, ITEM_ICON_OFFSET
     mov cx, ax
-    mov ax, dx
+
+    pop ax                      ; Recuperar tipo
+    push ax
+    mov ax, dx                  ; DX original (Y del slot)
     add ax, ITEM_ICON_OFFSET
     mov dx, ax
 
+    pop ax                      ; Tipo de recurso
+    mov dl, al
+
+    ; Seleccionar sprite según tipo
     cmp dl, 1
     jne dsi_tipo2
     mov di, OFFSET sprite_cristal
     push si
     mov si, OFFSET sprite_cristal_mask
     jmp dsi_dibujar
+
 dsi_tipo2:
     cmp dl, 2
     jne dsi_tipo3
@@ -533,6 +545,7 @@ dsi_tipo2:
     push si
     mov si, OFFSET sprite_gema_mask
     jmp dsi_dibujar
+
 dsi_tipo3:
     mov di, OFFSET sprite_moneda
     push si
@@ -540,20 +553,23 @@ dsi_tipo3:
 
 dsi_dibujar:
     call dibujar_sprite_planar_16x16_opt
-    pop si
+    pop si                      ; Restaurar índice de slot
 
     pop dx
     pop cx
 
+    ; ✅ DIBUJAR CANTIDAD
     mov bx, OFFSET inventario_cantidades
     add bx, si
     mov al, [bx]
     xor ah, ah
     push ax
 
+    ; Posición del número (esquina inferior derecha del slot)
     mov ax, cx
     add ax, ITEM_COUNT_OFFSET_X
     mov cx, ax
+
     mov ax, dx
     add ax, ITEM_COUNT_OFFSET_Y
     mov dx, ax
@@ -577,8 +593,9 @@ dsi_fin:
 dibujar_slots_items ENDP
 
 ; ============================================
-; DIBUJAR ESTADÍSTICAS (contadores y barras de progreso)
+; REEMPLAZAR COMPLETAMENTE EN INVCODE.INC
 ; ============================================
+
 dibujar_estadisticas PROC
     push ax
     push bx
@@ -586,60 +603,72 @@ dibujar_estadisticas PROC
     push dx
     push si
 
-    mov dx, ZONA_STATS_Y
+    ; ✅ Empezar desde Y del panel + offset
+    mov dx, INV_Y
+    add dx, 50              ; Offset desde el top del panel
 
+    ; ----- TÍTULO: "RECURSOS" -----
     mov cx, ZONA_STATS_X
     mov si, OFFSET msg_recursos
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    add dx, 12
+    add dx, 16              ; Espaciado entre líneas
+
+    ; ----- SUBTÍTULO: "OBJETIVO: 2/TIPO" -----
     mov cx, ZONA_STATS_X
     mov si, OFFSET msg_objetivo
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    add dx, 16
-    mov cx, ZONA_STATS_X
-    mov si, OFFSET msg_progreso
-    mov al, COLOR_TEXTO
-    call dibujar_texto_simple
+    add dx, 20              ; Espaciado antes de primera barra
 
-    add dx, 16
-
-    ; Cristales
+    ; ===== CRISTALES =====
     mov cx, ZONA_STATS_X
     mov si, OFFSET msg_cristales
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
+    ; Valor actual
     mov cx, ZONA_STATS_X
     add cx, STAT_VAL_OFFSET
+    push dx
     mov al, recursos_tipo1
     xor ah, ah
     call dibujar_numero
+    pop dx
 
+    ; "/"
     mov cx, ZONA_STATS_X
     add cx, STAT_SLASH_OFFSET
+    push dx
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
+    pop dx
 
+    ; Meta
     mov cx, ZONA_STATS_X
     add cx, STAT_META_OFFSET
+    push dx
     mov ax, META_POR_TIPO
     call dibujar_numero
+    pop dx
 
-    add dx, 12
+    add dx, 10              ; Espacio antes de la barra
+
+    ; Barra de progreso
+    push dx
     mov cx, ZONA_STATS_X
     mov al, recursos_tipo1
     xor ah, ah
     mov bx, META_POR_TIPO
     call dibujar_barra_progreso
+    pop dx
 
-    add dx, 20
+    add dx, 18              ; Espacio después de la barra
 
-    ; Gemas
+    ; ===== GEMAS =====
     mov cx, ZONA_STATS_X
     mov si, OFFSET msg_gemas
     mov al, COLOR_TEXTO
@@ -647,31 +676,40 @@ dibujar_estadisticas PROC
 
     mov cx, ZONA_STATS_X
     add cx, STAT_VAL_OFFSET
+    push dx
     mov al, recursos_tipo2
     xor ah, ah
     call dibujar_numero
+    pop dx
 
     mov cx, ZONA_STATS_X
     add cx, STAT_SLASH_OFFSET
+    push dx
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
+    pop dx
 
     mov cx, ZONA_STATS_X
     add cx, STAT_META_OFFSET
+    push dx
     mov ax, META_POR_TIPO
     call dibujar_numero
+    pop dx
 
-    add dx, 12
+    add dx, 10
+
+    push dx
     mov cx, ZONA_STATS_X
     mov al, recursos_tipo2
     xor ah, ah
     mov bx, META_POR_TIPO
     call dibujar_barra_progreso
+    pop dx
 
-    add dx, 20
+    add dx, 18
 
-    ; Monedas
+    ; ===== MONEDAS =====
     mov cx, ZONA_STATS_X
     mov si, OFFSET msg_monedas
     mov al, COLOR_TEXTO
@@ -679,30 +717,40 @@ dibujar_estadisticas PROC
 
     mov cx, ZONA_STATS_X
     add cx, STAT_VAL_OFFSET
+    push dx
     mov al, recursos_tipo3
     xor ah, ah
     call dibujar_numero
+    pop dx
 
     mov cx, ZONA_STATS_X
     add cx, STAT_SLASH_OFFSET
+    push dx
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
+    pop dx
 
     mov cx, ZONA_STATS_X
     add cx, STAT_META_OFFSET
+    push dx
     mov ax, META_POR_TIPO
     call dibujar_numero
+    pop dx
 
-    add dx, 12
+    add dx, 10
+
+    push dx
     mov cx, ZONA_STATS_X
     mov al, recursos_tipo3
     xor ah, ah
     mov bx, META_POR_TIPO
     call dibujar_barra_progreso
+    pop dx
 
-    add dx, 20
+    add dx, 18
 
+    ; ===== MENSAJE DE VICTORIA =====
     mov al, recursos_tipo1
     cmp al, META_POR_TIPO
     jb de_no_victoria
@@ -726,7 +774,6 @@ de_no_victoria:
     pop ax
     ret
 dibujar_estadisticas ENDP
-
 ; ============================================
 ; DIBUJAR BARRA DE PROGRESO
 ; Entrada: CX = X, DX = Y, AX = valor actual, BX = valor máximo
