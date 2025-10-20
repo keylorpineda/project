@@ -256,17 +256,16 @@ drm_procesar:
     shl cx, 1
     shl cx, 1
 
-    mov al, [recursos_mapa + di + 1]             ; Y (en tiles)
-    xor ah, ah
-    mov dx, ax
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
-    
-    ; Verificar si está visible en viewport
+    ; Calcular cámara alineada a tile para eje X
+    mov bx, inicio_tile_x
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+
+    ; Verificar si está visible en viewport (X)
     mov ax, cx
-    sub ax, camara_px
+    sub ax, bx
     cmp ax, -15
     jge drm_visible_x_min_ok
     jmp drm_next_pop
@@ -278,8 +277,25 @@ drm_visible_x_min_ok:
 
 drm_visible_x_max_ok:
 
+    mov al, [recursos_mapa + di + 1]             ; Y (en tiles)
+    xor ah, ah
+    mov dx, ax
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+
+    ; Calcular cámara alineada a tile para eje Y
+    mov ax, inicio_tile_y
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    mov bx, ax
+
+    ; Verificar si está visible en viewport (Y)
     mov ax, dx
-    sub ax, camara_py
+    sub ax, bx
     cmp ax, -15
     jge drm_visible_y_min_ok
     jmp drm_next_pop
@@ -290,17 +306,23 @@ drm_visible_y_min_ok:
     jmp drm_next_pop
 
 drm_visible_y_max_ok:
-    
-    ; Calcular posición en pantalla
-    mov ax, cx
-    sub ax, camara_px
-    add ax, viewport_x
-    mov cx, ax
-    
-    mov ax, dx
-    sub ax, camara_py
-    add ax, viewport_y
-    mov dx, ax
+
+    ; Calcular posición en pantalla usando cámara alineada a tile
+    mov ax, inicio_tile_x
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    sub cx, ax
+    add cx, viewport_x
+
+    mov ax, inicio_tile_y
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    sub dx, ax
+    add dx, viewport_y
     
     ; Obtener sprite según tipo
     mov al, [recursos_mapa + di + 2]            ; Tipo
