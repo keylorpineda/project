@@ -656,21 +656,45 @@ pmc_verificar_teclas:
     mov tecla_e_presionada, 0
     
     cmp al, 48h
-    je pmc_ir_arriba
+    jne pmc_check_w
+    jmp pmc_ir_arriba
+
+pmc_check_w:
     cmp al, 'W'
-    je pmc_ir_arriba
+    jne pmc_check_down
+    jmp pmc_ir_arriba
+
+pmc_check_down:
     cmp al, 50h
-    je pmc_ir_abajo
+    jne pmc_check_s
+    jmp pmc_ir_abajo
+
+pmc_check_s:
     cmp al, 'S'
-    je pmc_ir_abajo
+    jne pmc_check_left
+    jmp pmc_ir_abajo
+
+pmc_check_left:
     cmp al, 4Bh
-    je pmc_ir_izquierda
+    jne pmc_check_a
+    jmp pmc_ir_izquierda
+
+pmc_check_a:
     cmp al, 'A'
-    je pmc_ir_izquierda
+    jne pmc_check_right
+    jmp pmc_ir_izquierda
+
+pmc_check_right:
     cmp al, 4Dh
-    je pmc_ir_derecha
+    jne pmc_check_d
+    jmp pmc_ir_derecha
+
+pmc_check_d:
     cmp al, 'D'
-    je pmc_ir_derecha
+    jne pmc_default
+    jmp pmc_ir_derecha
+
+pmc_default:
     jmp pmc_no_movimiento
 
 pmc_salir:
