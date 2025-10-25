@@ -1,11 +1,4 @@
-Mapa 50x50 (MAPA.TXT) - uso de sprites por código de tile
-=========================================================
-
-Cada número o letra hexadecimal del mapa representa un sprite de 16x16 cargado
-por el motor. Los únicos sprites requeridos para esta versión del mundo son los
-siguientes:
-
-Código  Sprite                      Uso en el mapa
+Codigo  Sprite                      Uso en el mapa
 ------  --------------------------  -------------------------------------------
 0       SPRITES/GRASS_1.TXT         Pradera base y zonas de transición.
 3       SPRITES/PATH_2.TXT          Caminos y pisos interiores de estructuras.
@@ -16,20 +9,5 @@ Código  Sprite                      Uso en el mapa
 9       SPRITES/ICE_1.TXT           Lagunas congeladas dentro de la tundra.
 A (10)  SPRITES/WALL_1.TXT          Muros de casas, iglúes y bastión nether.
 D (13)  SPRITES/DIRT_1.TXT          Suelo del bioma nether.
-E (14)  SPRITES/LAVA_1.TXT          Ríos y fosos de lava en el nether.
+E (14)  SPRITES/LAVA_1.TXT          Rios y fosos de lava en el nether.
 F (15)  SPRITES/BRIDGE_1.TXT        Puentes seguros sobre la lava.
-
-Elementos compuestos destacados
--------------------------------
-- Casa de madera (pradera): bloque 2x2 de muros (A) sobre césped, con piso de
-  camino (3) al frente.
-- Iglú (tundra): bloque 2x2 de muros (A) sobre nieve, conectado por sendero (3).
-- Bastión nether: estructura 4x4 de muros (A) sobre suelo nether (D), rodeada de
-  foso de lava (E) y accesos elevados con puentes (F).
-- Puentes dobles: los caminos principales verticales (columnas 10-11 y 35-36)
-  se convierten en puentes (F) al cruzar lava para mantener el ancho jugable de
-  32x32.
-
-Con este conjunto de sprites se eliminan las cargas innecesarias que antes
-ocupaban memoria (flores, rocas, arbustos, colinas, etc.) y se documenta la
-superposición necesaria para cada estructura.
