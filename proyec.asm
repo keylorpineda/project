@@ -602,9 +602,15 @@ pmc_tiene_tecla:
     
     ; Verificar ESC
     cmp ah, 01h
-    je pmc_salir
+    jne pmc_check_ascii
+    jmp pmc_salir
+
+pmc_check_ascii:
     cmp al, 27
-    je pmc_salir
+    jne pmc_continuar
+    jmp pmc_salir
+
+pmc_continuar:
     
     ; Normalizar tecla
     mov bl, al
