@@ -101,29 +101,22 @@ vcr_fin:
     ret
 verificar_colision_recursos ENDP
 
-; ============================================
-; RECOGER RECURSO
-; Entrada: SI = índice del recurso, BX = máscara de bit
-; ============================================
 recoger_recurso PROC
     push ax
     push bx
     push di
 
-    ; Marcar como recogido
     or recursos_recogidos, bx
-    mov requiere_redibujar, 2    ; Forzar actualización de ambas páginas
+    mov requiere_redibujar, 2    ; ✅ SIEMPRE forzar redibujado
 
-    ; Obtener tipo de recurso
     mov ax, si
     mov bx, 3
     mul bx
     mov di, ax
 
-    mov al, [recursos_mapa + di + 2]            ; Tipo (1, 2 o 3)
+    mov al, [recursos_mapa + di + 2]
     mov bl, al
 
-    ; Incrementar contador según tipo
     cmp bl, 1
     jne rr_tipo2
     inc recursos_tipo1
@@ -142,16 +135,14 @@ rr_actualizar:
     mov al, bl
     call actualizar_inventario_slots
 
-    ; Activar animación de recolección
     mov anim_recoger_activa, 1
     mov anim_recoger_frame, 0
     mov ax, jugador_px
     mov anim_recoger_x, ax
     mov ax, jugador_py
-    sub ax, 32                  ; Aparecer arriba del jugador
+    sub ax, 32
     mov anim_recoger_y, ax
 
-    ; Sonido de recolección
     call reproducir_sonido_recoleccion
 
     pop di

@@ -115,7 +115,7 @@ scroll_offset_y dw 0
 inventario_abierto db 0          ; 0 = cerrado, 1 = abierto
 inventario_toggle_bloqueado db 0 ; Evita rebotes al abrir/cerrar
 requiere_redibujar db 0          ; Fuerza un render cuando cambia el estado
-
+tecla_e_presionada db 0
 ; Estructura de items (3 tipos de recursos × 5 instancias cada uno)
 ; Tipo 1: Cristales (azul)
 ; Tipo 2: Gemas (rojo)
@@ -590,35 +590,30 @@ procesar_movimiento_continuo PROC
     mov ah, 1
     int 16h
     jnz pmc_tiene_tecla
-    jmp pmc_no_tecla
+    
+    ; ✅ No hay teclas: resetear estado de E
+    mov tecla_e_presionada, 0
+    mov moviendo, 0
+    jmp pmc_fin
 
 pmc_tiene_tecla:
     mov ah, 0
     int 16h
     
-    ; CRÍTICO: Verificar ESC primero
+    ; Verificar ESC
     cmp ah, 01h
-    jne pmc_verificar_escape_ascii
-    jmp pmc_salir
-
-pmc_verificar_escape_ascii:
+    je pmc_salir
     cmp al, 27
-    jne pmc_continuar_procesamiento
-    jmp pmc_salir
-
-pmc_continuar_procesamiento:
+    je pmc_salir
     
+    ; Normalizar tecla
     mov bl, al
-    mov bh, ah
-
     test bl, bl
     jz pmc_usar_scan
     mov al, bl
     jmp pmc_normalizar
-
 pmc_usar_scan:
     mov al, bh
-
 pmc_normalizar:
     cmp al, 'a'
     jb pmc_verificar
@@ -626,193 +621,131 @@ pmc_normalizar:
     ja pmc_verificar
     and al, 5Fh
 
-    ; Si el inventario está abierto solo permitir la tecla 'E'
-    cmp inventario_abierto, 0
-    je pmc_verificar
+pmc_verificar:
+    ; ✅ Procesar E primero
     cmp al, 'E'
-    je pmc_verificar_inventario
-    mov moviendo, 0
-    mov inventario_toggle_bloqueado, 0
-    jmp pmc_fin
-
- pmc_verificar:
-     cmp al, 48h
-     jne pmc_verificar_w
-     jmp pmc_arriba
-
- pmc_verificar_w:
-     cmp al, 'W'
-     jne pmc_verificar_down_scan
-     jmp pmc_arriba
-
- pmc_verificar_down_scan:
-     cmp al, 50h
-     jne pmc_verificar_s
-     jmp pmc_abajo
-
- pmc_verificar_s:
-     cmp al, 'S'
-     jne pmc_verificar_left_scan
-     jmp pmc_abajo
-
- pmc_verificar_left_scan:
-     cmp al, 4Bh
-     jne pmc_verificar_left_letra
-     jmp pmc_izquierda
-
- pmc_verificar_left_letra:
-     cmp al, 'A'
-     jne pmc_verificar_derecha_scan
-     jmp pmc_izquierda
-
- pmc_verificar_derecha_scan:
-     cmp al, 4Dh
-     jne pmc_verificar_derecha_letra
-     jmp pmc_derecha
-
- pmc_verificar_derecha_letra:
-     cmp al, 'D'
-     jne pmc_verificar_inventario
-     jmp pmc_derecha
-
- pmc_verificar_inventario:
-    cmp al, 'E'
-    je pmc_toggle_inventario
-    mov inventario_toggle_bloqueado, 0
-    jmp pmc_no_movimiento_local
-
-pmc_toggle_inventario:
-    cmp inventario_toggle_bloqueado, 0
-    je pmc_toggle_procesar
-    jmp pmc_fin
-
-pmc_toggle_procesar:
-    mov inventario_toggle_bloqueado, 1
+    jne pmc_verificar_movimiento
+    
+    ; Si ya estaba presionada, ignorar
+    cmp tecla_e_presionada, 1
+    je pmc_fin
+    
+    ; Marcar como presionada y toggle
+    mov tecla_e_presionada, 1
     xor inventario_abierto, 1
     mov moviendo, 0
-    mov requiere_redibujar, 2     ; Forzar dos redibujos para limpiar ambas páginas
+    
+    ; Forzar redibujado completo
+    mov ax, jugador_px
+    inc ax
+    mov jugador_px_old, ax
     jmp pmc_fin
 
-pmc_no_movimiento_local:
+pmc_verificar_movimiento:
+    ; Si inventario abierto, no permitir movimiento
+    cmp inventario_abierto, 1
+    je pmc_no_movimiento
+    
+    ; Resetear E si no es E
+    mov tecla_e_presionada, 0
+    
+    cmp al, 48h
+    je pmc_arriba
+    cmp al, 'W'
+    je pmc_arriba
+    cmp al, 50h
+    je pmc_abajo
+    cmp al, 'S'
+    je pmc_abajo
+    cmp al, 4Bh
+    je pmc_izquierda
+    cmp al, 'A'
+    je pmc_izquierda
+    cmp al, 4Dh
+    je pmc_derecha
+    cmp al, 'D'
+    je pmc_derecha
     jmp pmc_no_movimiento
 
 pmc_salir:
-    ; ✅ Salida limpia sin afectar el stack
     pop dx
     pop cx
     pop bx
     pop ax
-    
-    ; Restaurar modo texto
     mov ax, 3
     int 10h
-    
-    ; Salir a DOS
     mov ax, 4C00h
     int 21h
 
 pmc_arriba:
-    mov inventario_toggle_bloqueado, 0
     mov jugador_dir, DIR_ARRIBA
     mov ax, jugador_py
     sub ax, VELOCIDAD
     cmp ax, 16
-    jae pmc_arriba_dentro_limite
-    jmp pmc_no_movimiento
-
-pmc_arriba_dentro_limite:
+    jb pmc_no_movimiento
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     sub dx, 8
     shr dx, 4
     call verificar_tile_transitable
-    jc pmc_arriba_transitable
-    jmp pmc_no_movimiento
-
-pmc_arriba_transitable:
+    jnc pmc_no_movimiento
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
 
 pmc_abajo:
-    mov inventario_toggle_bloqueado, 0
     mov jugador_dir, DIR_ABAJO
     mov ax, jugador_py
     add ax, VELOCIDAD
-    cmp ax, 1584        ; ✅ CAMBIO: 100×16-16 = 1584 (antes 784)
-    jbe pmc_abajo_dentro_limite
-    jmp pmc_no_movimiento
-
-pmc_abajo_dentro_limite:
+    cmp ax, 1584
+    ja pmc_no_movimiento
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jc pmc_abajo_transitable
-    jmp pmc_no_movimiento
-
-pmc_abajo_transitable:
+    jnc pmc_no_movimiento
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
 
 pmc_izquierda:
-    mov inventario_toggle_bloqueado, 0
     mov jugador_dir, DIR_IZQUIERDA
     mov ax, jugador_px
     sub ax, VELOCIDAD
     cmp ax, 16
-    jae pmc_izquierda_dentro_limite
-    jmp pmc_no_movimiento
-
-pmc_izquierda_dentro_limite:
+    jb pmc_no_movimiento
     mov cx, ax
     sub cx, 8
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jc pmc_izquierda_transitable
-    jmp pmc_no_movimiento
-
-pmc_izquierda_transitable:
+    jnc pmc_no_movimiento
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
 
 pmc_derecha:
-    mov inventario_toggle_bloqueado, 0
     mov jugador_dir, DIR_DERECHA
     mov ax, jugador_px
     add ax, VELOCIDAD
-    cmp ax, 1584        ; ✅ CAMBIO: 100×16-16 = 1584 (antes 784)
-    jbe pmc_derecha_dentro_limite
-    jmp pmc_no_movimiento
-
-pmc_derecha_dentro_limite:
+    cmp ax, 1584
+    ja pmc_no_movimiento
     mov cx, ax
     add cx, 8
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jc pmc_derecha_transitable
-    jmp pmc_no_movimiento
-
-pmc_derecha_transitable:
+    jnc pmc_no_movimiento
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
 
 pmc_no_movimiento:
     mov moviendo, 0
-    jmp pmc_fin
-
-pmc_no_tecla:
-    mov moviendo, 0
-    mov inventario_toggle_bloqueado, 0
 
 pmc_fin:
     pop dx
