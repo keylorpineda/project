@@ -628,7 +628,10 @@ pmc_verificar:
     
     ; Si ya estaba presionada, ignorar
     cmp tecla_e_presionada, 1
-    je pmc_fin
+    jne pmc_toggle_e
+    jmp pmc_fin
+
+pmc_toggle_e:
     
     ; Marcar como presionada y toggle
     mov tecla_e_presionada, 1
@@ -644,27 +647,30 @@ pmc_verificar:
 pmc_verificar_movimiento:
     ; Si inventario abierto, no permitir movimiento
     cmp inventario_abierto, 1
-    je pmc_no_movimiento
+    jne pmc_verificar_teclas
+    jmp pmc_no_movimiento
+
+pmc_verificar_teclas:
     
     ; Resetear E si no es E
     mov tecla_e_presionada, 0
     
     cmp al, 48h
-    je pmc_arriba
+    je pmc_ir_arriba
     cmp al, 'W'
-    je pmc_arriba
+    je pmc_ir_arriba
     cmp al, 50h
-    je pmc_abajo
+    je pmc_ir_abajo
     cmp al, 'S'
-    je pmc_abajo
+    je pmc_ir_abajo
     cmp al, 4Bh
-    je pmc_izquierda
+    je pmc_ir_izquierda
     cmp al, 'A'
-    je pmc_izquierda
+    je pmc_ir_izquierda
     cmp al, 4Dh
-    je pmc_derecha
+    je pmc_ir_derecha
     cmp al, 'D'
-    je pmc_derecha
+    je pmc_ir_derecha
     jmp pmc_no_movimiento
 
 pmc_salir:
@@ -682,67 +688,103 @@ pmc_arriba:
     mov ax, jugador_py
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
+    jae pmc_arriba_continuar
+    jmp pmc_no_movimiento
+
+pmc_arriba_continuar:
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     sub dx, 8
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jnc pmc_arriba_bloqueado
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
+
+pmc_arriba_bloqueado:
+    jmp pmc_no_movimiento
 
 pmc_abajo:
     mov jugador_dir, DIR_ABAJO
     mov ax, jugador_py
     add ax, VELOCIDAD
     cmp ax, 1584
-    ja pmc_no_movimiento
+    jbe pmc_abajo_continuar
+    jmp pmc_no_movimiento
+
+pmc_abajo_continuar:
     mov cx, jugador_px
     shr cx, 4
     mov dx, ax
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jnc pmc_abajo_bloqueado
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
+
+pmc_abajo_bloqueado:
+    jmp pmc_no_movimiento
 
 pmc_izquierda:
     mov jugador_dir, DIR_IZQUIERDA
     mov ax, jugador_px
     sub ax, VELOCIDAD
     cmp ax, 16
-    jb pmc_no_movimiento
+    jae pmc_izquierda_continuar
+    jmp pmc_no_movimiento
+
+pmc_izquierda_continuar:
     mov cx, ax
     sub cx, 8
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jnc pmc_izquierda_bloqueado
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
+
+pmc_izquierda_bloqueado:
+    jmp pmc_no_movimiento
 
 pmc_derecha:
     mov jugador_dir, DIR_DERECHA
     mov ax, jugador_px
     add ax, VELOCIDAD
     cmp ax, 1584
-    ja pmc_no_movimiento
+    jbe pmc_derecha_continuar
+    jmp pmc_no_movimiento
+
+pmc_derecha_continuar:
     mov cx, ax
     add cx, 8
     shr cx, 4
     mov dx, jugador_py
     shr dx, 4
     call verificar_tile_transitable
-    jnc pmc_no_movimiento
+    jnc pmc_derecha_bloqueado
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
+
+pmc_derecha_bloqueado:
+    jmp pmc_no_movimiento
+
+pmc_ir_arriba:
+    jmp pmc_arriba
+
+pmc_ir_abajo:
+    jmp pmc_abajo
+
+pmc_ir_izquierda:
+    jmp pmc_izquierda
+
+pmc_ir_derecha:
+    jmp pmc_derecha
 
 pmc_no_movimiento:
     mov moviendo, 0
