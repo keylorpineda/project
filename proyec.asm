@@ -111,16 +111,10 @@ scroll_offset_y dw 0
 ; SISTEMA DE INVENTARIO Y RECURSOS
 ; ============================================
 
-; Estado del inventario
-inventario_abierto db 0          ; 0 = cerrado, 1 = abierto
-inventario_toggle_bloqueado db 0 ; Evita rebotes al abrir/cerrar
-requiere_redibujar db 0          ; Fuerza un render cuando cambia el estado
+inventario_abierto db 0          
+inventario_toggle_bloqueado db 0 
+requiere_redibujar db 0          
 tecla_e_presionada db 0
-; Estructura de items (3 tipos de recursos × 5 instancias cada uno)
-; Tipo 1: Cristales (azul)
-; Tipo 2: Gemas (rojo)
-; Tipo 3: Monedas (amarillo)
-
 MAX_ITEMS EQU 8
 MAX_TIPOS_RECURSO EQU 3
 META_POR_TIPO EQU 2              ; Necesitamos 2 de cada tipo para ganar
@@ -130,8 +124,6 @@ recursos_tipo1 db 0              ; Cristales recolectados
 recursos_tipo2 db 0              ; Gemas recolectadas
 recursos_tipo3 db 0              ; Monedas recolectadas
 
-; Mapa de bits de recursos ya recolectados (15 bits, uno por cada instancia)
-; Bit set = recurso ya recogido
 recursos_recogidos dw 0
 
 NUM_RECURSOS EQU 15
@@ -301,6 +293,11 @@ font_base_y_temp    dw 0
 font_row_mask       db 0
 numero_buffer       db 6 dup(0)
 
+FONT_LETTER_OFFSET EQU 10
+FONT_COLON_INDEX   EQU 36
+FONT_SLASH_INDEX   EQU 37
+FONT_EXCLAM_INDEX  EQU 38
+
 font_8x8 LABEL BYTE
     ; '0'
     db 00111100b,01000010b,01000110b,01001010b,01010010b,01100010b,01000010b,00111100b
@@ -464,21 +461,23 @@ anim_ok:
     int 21h
     call debug_verificar_todo
 
-    mov dx, OFFSET msg_menu
-    mov ah, 9
-    int 21h
-    call cargar_sprites_menu
-    jnc csmenu_ok
-    jmp error_carga
-csmenu_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
+    ; mov dx, OFFSET msg_menu
+    ; mov ah, 9
+    ; int 21h
+    ; call cargar_sprites_menu
+    ; jnc csmenu_ok
+    ; jmp error_carga
+; csmenu_ok:
+    ; mov dx, OFFSET msg_ok
+    ; mov ah, 9
+    ; int 21h
 
-    call mostrar_menu_principal
-    cmp al, 2
-    jne continuar_juego
-    jmp fin_juego
+    ; call mostrar_menu_principal
+    ; cmp al, 2
+    ; jne continuar_juego
+    ; jmp fin_juego
+
+    jmp continuar_juego 
 continuar_juego:
 
 ; ===== ENTRAR A MODO GRÁFICO =====
@@ -734,10 +733,6 @@ pmc_toggle_e:
     xor inventario_abierto, 1
     mov moviendo, 0
     
-    ; =============================================================
-    ; ESTA ES LA CORRECCIÓN:
-    ; Forzar redibujado en AMBAS páginas para limpiar el "fantasma"
-    ; =============================================================
     mov requiere_redibujar, 2
     
     jmp pmc_fin
@@ -915,9 +910,6 @@ pmc_fin:
     ret
 procesar_movimiento_continuo ENDP
 
-; ============================================
-; PROCEDIMIENTO NUEVO PARA LIMPIAR PANTALLA
-; ============================================
 limpiar_pagina_actual PROC
     push ax
     push cx
