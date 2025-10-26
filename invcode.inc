@@ -982,8 +982,9 @@ dcb_pixel:
     mov si, ax
     and si, 7
     
+    mov ax, si
     mov cl, 3
-    sub cl, si
+    sub cl, al
     mov al, 1
     shl al, cl
     
@@ -1002,8 +1003,9 @@ dcb_pixel:
     shr si, 1
     shr si, 1
     shr si, 1
-    
-    mov es:[di + si], al
+    add si, di
+
+    mov es:[si], al
     
     pop si
     pop dx
