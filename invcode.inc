@@ -926,6 +926,16 @@ dce_exit:
     ret
 dibujar_caracter_8x8 ENDP
 
+; ==============================================================
+; Variables para dibujar_caracter_buffer_8x8
+; DEBEN estar declaradas ANTES del procedimiento
+; ==============================================================
+dcb_color db 0
+dcb_glyph_ptr dw 0
+
+; ==============================================================
+; Procedimiento: dibujar_caracter_buffer_8x8
+; ==============================================================
 dibujar_caracter_buffer_8x8 PROC
     push ax
     push bx
@@ -941,7 +951,6 @@ dibujar_caracter_buffer_8x8 PROC
     jmp dcb_exit
 
 dcb_continue:
-
     mov ax, VIDEO_SEG
     mov es, ax
     
@@ -959,6 +968,7 @@ dcb_continue:
     and al, 0Fh
     mov byte ptr [dcb_color], al
 
+    ; Plano 0
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -978,7 +988,6 @@ dcb_continue:
 
 dcb_p0:
     mov ah, [si]
-    
     mov al, ah
     not al
     and al, es:[di]
@@ -990,13 +999,13 @@ dcb_p0:
     or al, ah
 dcb_p0_skip:
     mov es:[di], al
-    
     add di, 80
     inc si
     loop dcb_p0
 
     mov si, word ptr [dcb_glyph_ptr]
     
+    ; Plano 1
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -1016,7 +1025,6 @@ dcb_p0_skip:
 
 dcb_p1:
     mov ah, [si]
-    
     mov al, ah
     not al
     and al, es:[di]
@@ -1028,13 +1036,13 @@ dcb_p1:
     or al, ah
 dcb_p1_skip:
     mov es:[di], al
-    
     add di, 80
     inc si
     loop dcb_p1
 
     mov si, word ptr [dcb_glyph_ptr]
     
+    ; Plano 2
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -1054,7 +1062,6 @@ dcb_p1_skip:
 
 dcb_p2:
     mov ah, [si]
-    
     mov al, ah
     not al
     and al, es:[di]
@@ -1066,13 +1073,13 @@ dcb_p2:
     or al, ah
 dcb_p2_skip:
     mov es:[di], al
-    
     add di, 80
     inc si
     loop dcb_p2
 
     mov si, word ptr [dcb_glyph_ptr]
     
+    ; Plano 3
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -1092,7 +1099,6 @@ dcb_p2_skip:
 
 dcb_p3:
     mov ah, [si]
-    
     mov al, ah
     not al
     and al, es:[di]
@@ -1104,11 +1110,11 @@ dcb_p3:
     or al, ah
 dcb_p3_skip:
     mov es:[di], al
-    
     add di, 80
     inc si
     loop dcb_p3
 
+    ; Restaurar registros del controlador de video
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -1133,9 +1139,6 @@ dcb_exit:
     pop bx
     pop ax
     ret
-
-dcb_color db 0
-dcb_glyph_ptr dw 0
 
 dibujar_caracter_buffer_8x8 ENDP
 
