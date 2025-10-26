@@ -619,7 +619,9 @@ Menu_ReadDimLoop:
     mov dx, OFFSET buffer_temp
     int 21h
     cmp ax, 0
-    je Menu_DimEnd
+    jne Menu_ReadDimContinue
+    jmp Menu_DimEnd
+Menu_ReadDimContinue:
 
     mov al, [buffer_temp]
     cmp al, 10
@@ -674,7 +676,9 @@ Menu_DimFinish:
     cmp byte ptr menu_loader_stage, 0
     jne Menu_DimEnd
     cmp word ptr menu_loader_width, 0
-    je Menu_ReadDimLoop
+    jne Menu_DimFinishLoop
+    jmp Menu_ReadDimLoop
+Menu_DimFinishLoop:
     mov byte ptr menu_loader_stage, 1
 
 Menu_DimEnd:
