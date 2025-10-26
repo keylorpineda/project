@@ -941,86 +941,182 @@ dibujar_caracter_buffer_8x8 PROC
 
     mov ax, VIDEO_SEG
     mov es, ax
-
-    mov bp, 0
-
-dcb_fila:
-    cmp bp, 8
-    jae dcb_exit
-
-    mov bh, [si]
     
-    mov ax, dx
-    add ax, bp
-    shl ax, 1
-    mov di, ax
-    mov di, [video_offsets + di]
-    
+    mov bx, dx
+    shl bx, 1
+    mov bp, [video_offsets + bx]
     mov ax, cx
-    shr ax, 1
-    shr ax, 1
-    shr ax, 1
-    add di, ax
-    add di, temp_offset
+    shr ax, 3
+    add bp, ax
+    add bp, temp_offset
 
-    mov bl, 0
+    mov al, texto_color_actual
+    and al, 0Fh
+    mov byte ptr [dcb_color], al
 
-dcb_pixel:
-    cmp bl, 8
-    jae dcb_next_fila
-    
-    test bh, 80h
-    jz dcb_no_pixel
-    
-    push bx
-    push cx
-    push dx
-    push si
-    
-    mov ax, cx
-    add ax, bx
-    mov si, ax
-    and si, 7
-    
-    mov ax, si
-    mov cl, 3
-    sub cl, al
-    mov al, 1
-    shl al, cl
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    xor al, al
+    out dx, al
     
     mov dx, 3C4h
-    mov ah, al
     mov al, 2
     out dx, al
     inc dx
-    mov al, ah
+    mov al, 1
     out dx, al
     
-    mov al, texto_color_actual
+    mov cx, 8
+    mov di, bp
+
+dcb_p0:
+    mov ah, [si]
     
-    mov si, cx
-    add si, bx
-    shr si, 1
-    shr si, 1
-    shr si, 1
-    add si, di
-
-    mov es:[si], al
+    mov al, ah
+    not al
+    and al, es:[di]
     
-    pop si
-    pop dx
-    pop cx
-    pop bx
-
-dcb_no_pixel:
-    shl bh, 1
-    inc bl
-    jmp dcb_pixel
-
-dcb_next_fila:
+    mov dl, [dcb_color]
+    test dl, 1
+    jz dcb_p0_skip
+    and ah, 0FFh
+    or al, ah
+dcb_p0_skip:
+    mov es:[di], al
+    
+    add di, 80
     inc si
-    inc bp
-    jmp dcb_fila
+    loop dcb_p0
+
+    mov si, [sp+6]
+    
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    
+    mov cx, 8
+    mov di, bp
+
+dcb_p1:
+    mov ah, [si]
+    
+    mov al, ah
+    not al
+    and al, es:[di]
+    
+    mov dl, [dcb_color]
+    test dl, 2
+    jz dcb_p1_skip
+    and ah, 0FFh
+    or al, ah
+dcb_p1_skip:
+    mov es:[di], al
+    
+    add di, 80
+    inc si
+    loop dcb_p1
+
+    mov si, [sp+6]
+    
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+    
+    mov cx, 8
+    mov di, bp
+
+dcb_p2:
+    mov ah, [si]
+    
+    mov al, ah
+    not al
+    and al, es:[di]
+    
+    mov dl, [dcb_color]
+    test dl, 4
+    jz dcb_p2_skip
+    and ah, 0FFh
+    or al, ah
+dcb_p2_skip:
+    mov es:[di], al
+    
+    add di, 80
+    inc si
+    loop dcb_p2
+
+    mov si, [sp+6]
+    
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 3
+    out dx, al
+    
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 8
+    out dx, al
+    
+    mov cx, 8
+    mov di, bp
+
+dcb_p3:
+    mov ah, [si]
+    
+    mov al, ah
+    not al
+    and al, es:[di]
+    
+    mov dl, [dcb_color]
+    test dl, 8
+    jz dcb_p3_skip
+    and ah, 0FFh
+    or al, ah
+dcb_p3_skip:
+    mov es:[di], al
+    
+    add di, 80
+    inc si
+    loop dcb_p3
+
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    xor al, al
+    out dx, al
 
 dcb_exit:
     pop es
@@ -1032,6 +1128,9 @@ dcb_exit:
     pop bx
     pop ax
     ret
+
+dcb_color db 0
+
 dibujar_caracter_buffer_8x8 ENDP
 
 obtener_ptr_glifo PROC
