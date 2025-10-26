@@ -953,7 +953,7 @@ dcb_continue:
     add bp, ax
     add bp, temp_offset
 
-    mov [dcb_glyph_ptr], si
+    mov word ptr [dcb_glyph_ptr], si
 
     mov al, texto_color_actual
     and al, 0Fh
@@ -983,7 +983,7 @@ dcb_p0:
     not al
     and al, es:[di]
     
-    mov dl, [dcb_color]
+    mov dl, byte ptr [dcb_color]
     test dl, 1
     jz dcb_p0_skip
     and ah, 0FFh
@@ -995,7 +995,7 @@ dcb_p0_skip:
     inc si
     loop dcb_p0
 
-    mov si, [dcb_glyph_ptr]
+    mov si, word ptr [dcb_glyph_ptr]
     
     mov dx, 3CEh
     mov al, 4
@@ -1021,7 +1021,7 @@ dcb_p1:
     not al
     and al, es:[di]
     
-    mov dl, [dcb_color]
+    mov dl, byte ptr [dcb_color]
     test dl, 2
     jz dcb_p1_skip
     and ah, 0FFh
@@ -1033,7 +1033,7 @@ dcb_p1_skip:
     inc si
     loop dcb_p1
 
-    mov si, [dcb_glyph_ptr]
+    mov si, word ptr [dcb_glyph_ptr]
     
     mov dx, 3CEh
     mov al, 4
@@ -1059,7 +1059,7 @@ dcb_p2:
     not al
     and al, es:[di]
     
-    mov dl, [dcb_color]
+    mov dl, byte ptr [dcb_color]
     test dl, 4
     jz dcb_p2_skip
     and ah, 0FFh
@@ -1071,7 +1071,7 @@ dcb_p2_skip:
     inc si
     loop dcb_p2
 
-    mov si, [dcb_glyph_ptr]
+    mov si, word ptr [dcb_glyph_ptr]
     
     mov dx, 3CEh
     mov al, 4
@@ -1097,7 +1097,7 @@ dcb_p3:
     not al
     and al, es:[di]
     
-    mov dl, [dcb_color]
+    mov dl, byte ptr [dcb_color]
     test dl, 8
     jz dcb_p3_skip
     and ah, 0FFh
