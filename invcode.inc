@@ -800,7 +800,7 @@ dibujar_texto_simple PROC
     push si
     push di
 
-    mov texto_color_actual, al
+    mov byte ptr [texto_color_actual], al
 
 dts_loop:
     lodsb
@@ -839,8 +839,8 @@ dibujar_caracter_8x8 PROC
     push di
     push bp
 
-    mov font_base_x_temp, cx
-    mov font_base_y_temp, dx
+    mov word ptr [font_base_x_temp], cx
+    mov word ptr [font_base_y_temp], dx
 
     call obtener_ptr_glifo
     jc dce_exit
@@ -852,27 +852,27 @@ dce_row_loop:
     jae dce_exit
 
     mov al, [si]
-    mov font_row_mask, al
-    mov bx, font_base_x_temp
+    mov byte ptr [font_row_mask], al
+    mov bx, word ptr [font_base_x_temp]
     mov bp, 8
 
 dce_bit_loop:
-    mov al, font_row_mask
+    mov al, [font_row_mask]
     test al, 80h
     jz dce_skip_pixel
 
     mov ah, 0Ch
-    mov al, texto_color_actual
+    mov al, [texto_color_actual]
     mov bh, 0
     mov cx, bx
-    mov dx, font_base_y_temp
+    mov dx, word ptr [font_base_y_temp]
     add dx, di
     int 10h
 
 dce_skip_pixel:
-    mov al, font_row_mask
+    mov al, [font_row_mask]
     shl al, 1
-    mov font_row_mask, al
+    mov byte ptr [font_row_mask], al
     inc bx
     dec bp
     jnz dce_bit_loop
