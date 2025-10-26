@@ -407,6 +407,152 @@ Menu_DrawDone:
     ret
 Menu_DrawSpriteRaw ENDP
 
+Menu_DrawDebugInfo PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+
+    mov cx, 440
+    mov dx, 40
+    mov si, OFFSET menu_debug_title
+    mov al, 12
+    call dibujar_texto_simple
+
+    mov cx, 440
+    mov dx, 60
+    mov si, OFFSET menu_debug_selection
+    mov al, 11
+    call dibujar_texto_simple
+    mov al, [currentSelection]
+    cmp al, 0FFh
+    je Menu_DebugSelectionNone
+    xor ah, ah
+    mov cx, 560
+    mov dx, 60
+    call dibujar_numero
+    jmp Menu_DebugSelectionDone
+Menu_DebugSelectionNone:
+    mov cx, 560
+    mov dx, 60
+    mov si, OFFSET menu_debug_none
+    mov al, 10
+    call dibujar_texto_simple
+Menu_DebugSelectionDone:
+
+    mov cx, 440
+    mov dx, 80
+    mov si, OFFSET menu_debug_result
+    mov al, 11
+    call dibujar_texto_simple
+    mov al, [menuResult]
+    cmp al, 0FFh
+    je Menu_DebugResultPending
+    xor ah, ah
+    mov cx, 560
+    mov dx, 80
+    call dibujar_numero
+    jmp Menu_DebugResultDone
+Menu_DebugResultPending:
+    mov cx, 560
+    mov dx, 80
+    mov si, OFFSET menu_debug_pending
+    mov al, 10
+    call dibujar_texto_simple
+Menu_DebugResultDone:
+
+    mov cx, 440
+    mov dx, 100
+    mov si, OFFSET menu_debug_mouse_x
+    mov al, 11
+    call dibujar_texto_simple
+    mov ax, [mouseX]
+    mov cx, 560
+    mov dx, 100
+    call dibujar_numero
+
+    mov cx, 440
+    mov dx, 120
+    mov si, OFFSET menu_debug_mouse_y
+    mov al, 11
+    call dibujar_texto_simple
+    mov ax, [mouseY]
+    mov cx, 560
+    mov dx, 120
+    call dibujar_numero
+
+    mov cx, 440
+    mov dx, 140
+    mov si, OFFSET menu_debug_present
+    mov al, 11
+    call dibujar_texto_simple
+    mov al, [mousePresent]
+    mov cx, 560
+    mov dx, 140
+    cmp al, 0
+    jne Menu_DebugMousePresentYes
+    mov si, OFFSET menu_debug_no
+    mov al, 10
+    call dibujar_texto_simple
+    jmp Menu_DebugMousePresentDone
+Menu_DebugMousePresentYes:
+    mov si, OFFSET menu_debug_si
+    mov al, 10
+    call dibujar_texto_simple
+Menu_DebugMousePresentDone:
+
+    mov cx, 440
+    mov dx, 160
+    mov si, OFFSET menu_debug_btn
+    mov al, 11
+    call dibujar_texto_simple
+    mov al, [mouseBtn]
+    xor ah, ah
+    mov cx, 560
+    mov dx, 160
+    call dibujar_numero
+
+    mov cx, 440
+    mov dx, 180
+    mov si, OFFSET menu_debug_lastbtn
+    mov al, 11
+    call dibujar_texto_simple
+    mov al, [lastMouseBtn]
+    xor ah, ah
+    mov cx, 560
+    mov dx, 180
+    call dibujar_numero
+
+    mov cx, 440
+    mov dx, 200
+    mov si, OFFSET menu_debug_hover
+    mov al, 11
+    call dibujar_texto_simple
+    mov al, [mouseOverButton]
+    cmp al, 0FFh
+    je Menu_DebugHoverNone
+    xor ah, ah
+    mov cx, 560
+    mov dx, 200
+    call dibujar_numero
+    jmp Menu_DebugHoverDone
+Menu_DebugHoverNone:
+    mov cx, 560
+    mov dx, 200
+    mov si, OFFSET menu_debug_none
+    mov al, 10
+    call dibujar_texto_simple
+Menu_DebugHoverDone:
+
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+Menu_DrawDebugInfo ENDP
+
 Menu_Draw PROC
     push ax
     push bx
@@ -481,6 +627,8 @@ Menu_DrawExitNormal:
     mov si, OFFSET menu_btn_salir_n_width
 Menu_DrawExit:
     call Menu_DrawSpriteRaw
+
+    call Menu_DrawDebugInfo
 
     pop di
     pop si
