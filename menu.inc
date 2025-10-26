@@ -139,7 +139,9 @@ Menu_ProcessMouse PROC
     push bx
 
     cmp [mousePresent], 0
-    je Menu_MouseEnd
+    jne Menu_MouseContinue
+    jmp Menu_MouseEnd
+Menu_MouseContinue:
 
     mov [mouseOverButton], 0FFh
 
@@ -662,7 +664,9 @@ Menu_DimSpace:
     cmp byte ptr menu_loader_stage, 0
     jne Menu_ReadDimLoop
     cmp word ptr menu_loader_width, 0
-    je Menu_ReadDimLoop
+    jne Menu_DimFinishContinue
+    jmp Menu_ReadDimLoop
+Menu_DimFinishContinue:
     mov byte ptr menu_loader_stage, 1
     jmp Menu_ReadDimLoop
 
@@ -696,7 +700,9 @@ cargar_sprite_menu PROC
     mov dx, menu_loader_path
     mov ax, 3D00h
     int 21h
-    jc csm_error
+    jnc csm_open_ok
+    jmp csm_error
+csm_open_ok:
     mov menu_loader_file_handle, ax
 
     call menu_leer_dimensiones
@@ -706,9 +712,13 @@ cargar_sprite_menu PROC
     mul bx
     mov menu_loader_expected, ax
     cmp dx, 0
-    jne csm_error_close
+    je csm_size_check
+    jmp csm_error_close
+csm_size_check:
     cmp ax, cx
-    ja csm_error_close
+    jbe csm_size_ok
+    jmp csm_error_close
+csm_size_ok:
 
     mov word ptr menu_loader_pixels_read, 0
 
