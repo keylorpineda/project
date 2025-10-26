@@ -428,55 +428,56 @@ dsi_loop:
     jmp dsi_fin
 
 dsi_continuar:
-
+    ; Calcular posición del slot
     mov ax, si
     xor dx, dx
     mov bx, 4
     div bx
-    mov bp, ax
+    mov bp, ax          ; BP = fila
 
-    mov ax, dx
+    ; Calcular X
+    mov ax, dx          ; DX tiene la columna (0-3)
     mov bx, ITEM_TOTAL
     mul bx
     add ax, ZONA_ITEMS_X
-    mov cx, ax
+    mov cx, ax          ; CX = posición X
 
+    ; Calcular Y
     mov ax, bp
     mov bx, ITEM_TOTAL
     mul bx
     add ax, ZONA_ITEMS_Y
-    mov dx, ax
+    mov dx, ax          ; DX = posición Y
 
+    ; Dibujar borde del slot
     push cx
     push dx
+    push si
     mov ax, ITEM_SIZE
     mov bx, ITEM_SIZE
-    push si
     mov si, COLOR_ITEM_SLOT
     call dibujar_rectangulo_vacio
     pop si
     pop dx
     pop cx
 
+    ; Verificar si el slot tiene un item
     mov bx, OFFSET inventario_slots
     add bx, si
-    mov al, [bx]
+    mov al, [bx]        ; AL = tipo de recurso
     test al, al
-    jz dsi_next
+    jz dsi_next         ; Si es 0, slot vacío
 
-    mov dl, al
-    push cx
-    push dx
+    ; *** CAMBIO CRÍTICO: Guardar el tipo en BP antes de modificar registros ***
+    mov bh, al          ; Guardar tipo en BH temporalmente
+    
+    ; Ajustar posición para el icono
+    add cx, ITEM_ICON_OFFSET
+    add dx, ITEM_ICON_OFFSET
 
-    mov ax, cx
-    add ax, ITEM_ICON_OFFSET
-    mov cx, ax
-
-    mov ax, dx
-    add ax, ITEM_ICON_OFFSET
-    mov dx, ax
-
-    cmp dl, 1
+    ; Seleccionar y dibujar sprite según el tipo
+    mov al, bh          ; Recuperar tipo
+    cmp al, 1
     jne dsi_tipo2
     mov di, OFFSET sprite_cristal
     push si
@@ -484,7 +485,7 @@ dsi_continuar:
     jmp dsi_dibujar
 
 dsi_tipo2:
-    cmp dl, 2
+    cmp al, 2
     jne dsi_tipo3
     mov di, OFFSET sprite_gema
     push si
@@ -498,26 +499,24 @@ dsi_tipo3:
 
 dsi_dibujar:
     call dibujar_sprite_planar_16x16_opt
-    pop si
+    pop si              ; Recuperar SI original
 
-    pop dx
-    pop cx
+    ; Restaurar posición original del slot
+    sub cx, ITEM_ICON_OFFSET
+    sub dx, ITEM_ICON_OFFSET
 
+    ; Dibujar cantidad
     mov bx, OFFSET inventario_cantidades
     add bx, si
-    mov al, [bx]
+    mov al, [bx]        ; AL = cantidad
     xor ah, ah
-    push ax
+    push ax             ; Guardar cantidad
 
-    mov ax, cx
-    add ax, ITEM_COUNT_OFFSET_X
-    mov cx, ax
+    ; Ajustar posición para el número
+    add cx, ITEM_COUNT_OFFSET_X
+    add dx, ITEM_COUNT_OFFSET_Y
 
-    mov ax, dx
-    add ax, ITEM_COUNT_OFFSET_Y
-    mov dx, ax
-
-    pop ax
+    pop ax              ; Recuperar cantidad
     call dibujar_numero
 
 dsi_next:
