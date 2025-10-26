@@ -94,9 +94,6 @@ vtt_no_transitable:
     ret
 verificar_tile_transitable_opt ENDP
 
-; ============================================
-; CONVERSIÓN A PLANAR - TILES 16x16 ✅ CORREGIDO
-; ============================================
 convertir_sprite_a_planar_opt PROC
     push ax
     push bx
@@ -650,13 +647,6 @@ ajustar_coords_scroll PROC
     ret
 ajustar_coords_scroll ENDP
 
-; ============================================
-; REEMPLAZAR COMPLETO en OPTCODE.INC
-; Buscar: dibujar_sprite_planar_16x16_opt PROC
-; Borrar todo hasta: dibujar_sprite_planar_16x16_opt ENDP
-; Pegar esto:
-; ============================================
-
 dibujar_sprite_planar_16x16_opt PROC
     push ax
     push bx
@@ -670,7 +660,6 @@ dibujar_sprite_planar_16x16_opt PROC
     mov ax, 0A000h
     mov es, ax
     
-    ; ✅ OPTIMIZACIÓN 1: Usar tabla de video_offsets
     mov bx, dx
     shl bx, 1
     mov bp, [video_offsets + bx]
@@ -679,8 +668,7 @@ dibujar_sprite_planar_16x16_opt PROC
     add bp, ax
     add bp, temp_offset
     
-    mov bx, di              ; BX = datos
-    ; SI = máscara
+    mov bx, di
     
     ; ===== PLANO 0 =====
     mov dx, 3CEh
@@ -701,13 +689,11 @@ dibujar_sprite_planar_16x16_opt PROC
     push bx
     push si
     
-    ; ✅ OPTIMIZACIÓN 2: Desenrollar loop - 4 filas por iteración
     mov cx, 4
     
 dsp16_p0:
     mov di, bp
     
-    ; Fila 1
     mov ah, [si]
     mov al, ah
     not al
@@ -726,7 +712,6 @@ dsp16_p0:
     or al, dl
     mov es:[di+1], al
     
-    ; Fila 2
     add di, 80
     mov ah, [si+2]
     mov al, ah
@@ -746,7 +731,6 @@ dsp16_p0:
     or al, dl
     mov es:[di+1], al
     
-    ; Fila 3
     add di, 80
     mov ah, [si+4]
     mov al, ah
@@ -766,7 +750,6 @@ dsp16_p0:
     or al, dl
     mov es:[di+1], al
     
-    ; Fila 4
     add di, 80
     mov ah, [si+6]
     mov al, ah
@@ -817,6 +800,7 @@ dsp16_p0_done:
     push bp
     push bx
     push si
+    
     mov cx, 4
     
 dsp16_p1:
@@ -928,6 +912,7 @@ dsp16_p1_done:
     push bp
     push bx
     push si
+    
     mov cx, 4
     
 dsp16_p2:
@@ -1035,6 +1020,12 @@ dsp16_p2_done:
     inc dx
     mov al, 8
     out dx, al
+
+    ; =================== INICIO DE LA CORRECCIÓN ===================
+    push bp
+    push bx
+    push si
+    ; ===============================================================
     
     mov cx, 4
     
@@ -1124,6 +1115,12 @@ dsp16_p3:
     jmp dsp16_p3
 
 dsp16_p3_done:
+
+    ; =================== INICIO DE LA CORRECCIÓN ===================
+    pop si
+    pop bx
+    pop bp
+    ; ===============================================================
     
     ; Restaurar
     mov dx, 3C4h
@@ -1150,13 +1147,6 @@ dsp16_p3_done:
     pop ax
     ret
 dibujar_sprite_planar_16x16_opt ENDP
-
-; ============================================
-; REEMPLAZAR COMPLETO en OPTCODE.INC
-; Buscar: dibujar_sprite_planar_32x32_opt PROC
-; Borrar todo hasta: dibujar_sprite_planar_32x32_opt ENDP
-; Pegar esto:
-; ============================================
 
 dibujar_sprite_planar_32x32_opt PROC
     push ax

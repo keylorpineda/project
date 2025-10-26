@@ -142,6 +142,16 @@ num_recursos_cargados db 0                      ; Total cargado desde mapa
 inventario_slots       db MAX_ITEMS dup(0)
 inventario_cantidades  db MAX_ITEMS dup(0)
 
+playerCoins     dw 0   ; Contador para monedas (C)
+    playerGems      dw 0   ; Contador para gemas (G)
+    playerCrystals  dw 0   ; Contador para cristales (X)
+    ; (Añade más para los otros items si es necesario)
+
+    ; --- Buffer para dibujar números ---
+    ; Necesitamos un espacio para convertir el número (ej. 123) a texto ("123")
+    ; 3 dígitos + 1 terminador nulo (0)
+    numberString    db '   ', 0
+
 player_left_temp   dw 0
 player_right_temp  dw 0
 player_top_temp    dw 0
@@ -194,12 +204,12 @@ ZONA_PLAYER_W   EQU 64
 
 ZONA_ITEMS_X    EQU 180          ; ✅ CAMBIO: Items al centro (era 250)
 ZONA_ITEMS_Y    EQU 70           ; ✅ CAMBIO: Más arriba (era 80)
-ITEM_SIZE       EQU 32
-ITEM_SPACING    EQU 4            ; ✅ CAMBIO: Menos espaciado (era 8)
-ITEM_TOTAL      EQU 36           ; ✅ CAMBIO: 32+4 (era 40)
-ITEM_ICON_OFFSET EQU 8
-ITEM_COUNT_OFFSET_X EQU 20
-ITEM_COUNT_OFFSET_Y EQU 20
+ITEM_SIZE       EQU 40           ; ✅ CAMBIO: Era 32
+ITEM_SPACING    EQU 8            ; ✅ CAMBIO: Era 4
+ITEM_TOTAL      EQU 48           ; ✅ CAMBIO: 40+8 (Era 36)
+ITEM_ICON_OFFSET EQU 12          ; ✅ CAMBIO: (40-16)/2 (Era 8)
+ITEM_COUNT_OFFSET_X EQU 28       ; ✅ CAMBIO: (Era 20)
+ITEM_COUNT_OFFSET_Y EQU 28
 
 ZONA_STATS_X    EQU 420          ; ✅ CAMBIO: Estadísticas a la derecha (era 352)
 ZONA_STATS_Y    EQU 70           ; ✅ CAMBIO: Más arriba (era 80)
@@ -539,15 +549,19 @@ bg_redraw_done:
     
     ; Renderizar en página 1
     mov temp_offset, 8000h
+    call limpiar_pagina_actual
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
+    call dibujar_inventario
     jmp bg_cambiar_pagina
     
 bg_render_p0:
     ; Renderizar en página 0
     mov temp_offset, 0
+    call limpiar_pagina_actual
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
+    call dibujar_inventario
     
 bg_cambiar_pagina:
     ; Cambiar página visible
@@ -591,7 +605,6 @@ procesar_movimiento_continuo PROC
     int 16h
     jnz pmc_tiene_tecla
     
-    ; ✅ No hay teclas: resetear estado de E
     mov tecla_e_presionada, 0
     mov moviendo, 0
     jmp pmc_fin
@@ -600,7 +613,6 @@ pmc_tiene_tecla:
     mov ah, 0
     int 16h
     
-    ; Verificar ESC
     cmp ah, 01h
     jne pmc_check_ascii
     jmp pmc_salir
@@ -612,7 +624,6 @@ pmc_check_ascii:
 
 pmc_continuar:
     
-    ; Normalizar tecla
     mov bl, al
     test bl, bl
     jz pmc_usar_scan
@@ -628,38 +639,33 @@ pmc_normalizar:
     and al, 5Fh
 
 pmc_verificar:
-    ; ✅ Procesar E primero
     cmp al, 'E'
     jne pmc_verificar_movimiento
     
-    ; Si ya estaba presionada, ignorar
     cmp tecla_e_presionada, 1
     jne pmc_toggle_e
     jmp pmc_fin
 
 pmc_toggle_e:
     
-    ; Marcar como presionada y toggle
     mov tecla_e_presionada, 1
     xor inventario_abierto, 1
     mov moviendo, 0
     
-    ; Forzar redibujado completo
-    mov ax, jugador_px
-    inc ax
-    mov jugador_px_old, ax
+    ; =============================================================
+    ; ESTA ES LA CORRECCIÓN:
+    ; Forzar redibujado en AMBAS páginas para limpiar el "fantasma"
+    ; =============================================================
+    mov requiere_redibujar, 2
+    
     jmp pmc_fin
 
 pmc_verificar_movimiento:
-    ; Si inventario abierto, no permitir movimiento
     cmp inventario_abierto, 1
     jne pmc_verificar_teclas
     jmp pmc_no_movimiento
 
 pmc_verificar_teclas:
-    
-    ; Resetear E si no es E
-    mov tecla_e_presionada, 0
     
     cmp al, 48h
     jne pmc_check_w
@@ -826,6 +832,47 @@ pmc_fin:
     pop ax
     ret
 procesar_movimiento_continuo ENDP
+
+; ============================================
+; PROCEDIMIENTO NUEVO PARA LIMPIAR PANTALLA
+; ============================================
+limpiar_pagina_actual PROC
+    push ax
+    push cx
+    push dx
+    push di
+    push es
+
+    ; Habilitar TODOS los planos de video
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+
+    mov ax, VIDEO_SEG
+    mov es, ax
+    
+    ; DI = 0 (Página 0) o 8000h (Página 1)
+    mov di, temp_offset 
+    
+    ; 14000 palabras = 28000 bytes (toda la pagina)
+    mov cx, 14000       
+    
+    ; Color 0 (negro)
+    xor ax, ax          
+    
+    ; Llena la memoria de video
+    rep stosw           
+
+    pop es
+    pop di
+    pop dx
+    pop cx
+    pop ax
+    ret
+limpiar_pagina_actual ENDP
 
 actualizar_animacion PROC
     push ax
@@ -1596,7 +1643,7 @@ dibujar_jugador_en_offset PROC
     call dibujar_animacion_recoger
     
     ; Dibujar panel de inventario (si está abierto)
-    call dibujar_inventario
+    ; call dibujar_inventario  <--- ESTA LÍNEA SE ELIMINA
     
     pop di
     pop si

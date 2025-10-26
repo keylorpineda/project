@@ -373,9 +373,9 @@ dibujar_inventario PROC
     push di
     
     cmp inventario_abierto, 0
-    je di_fin
+    je di_fin                   ; <-- Si está cerrado, no hacer NADA
     
-    ; Dibujar fondo semitransparente (simplificado: rectángulo oscuro)
+    ; --- DIBUJAR INVENTARIO (SI ESTÁ ABIERTO) ---
     mov cx, INV_X
     mov dx, INV_Y
     mov ax, INV_WIDTH
@@ -383,7 +383,6 @@ dibujar_inventario PROC
     mov si, COLOR_FONDO
     call dibujar_rectangulo_lleno
 
-    ; Dibujar marco
     mov cx, INV_X
     mov dx, INV_Y
     mov ax, INV_WIDTH
@@ -391,7 +390,6 @@ dibujar_inventario PROC
     mov si, COLOR_MARCO
     call dibujar_rectangulo_vacio
 
-    ; Título del inventario
     mov cx, INV_X
     add cx, 12
     mov dx, INV_Y
@@ -400,14 +398,11 @@ dibujar_inventario PROC
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
 
-    ; Dibujar sprite del jugador (izquierda)
     call dibujar_jugador_inventario
     
-    ; Dibujar slots de items (centro)
     call dibujar_slots_items
     
-    ; Dibujar estadísticas (derecha) - comentado para probar solo inventario
-    ; call dibujar_estadisticas
+    call dibujar_estadisticas  ; <-- Asegúrate que esté DESCOMENTADO
     
 di_fin:
     pop di
@@ -419,9 +414,6 @@ di_fin:
     ret
 dibujar_inventario ENDP
 
-; ============================================
-; DIBUJAR JUGADOR EN INVENTARIO
-; ============================================
 dibujar_jugador_inventario PROC
     push cx
     push dx
@@ -453,7 +445,7 @@ dibujar_slots_items PROC
     push di
     push bp
 
-    xor si, si                  ; Índice de slot (0-7)
+    xor si, si
 
 dsi_loop:
     cmp si, MAX_ITEMS
@@ -462,28 +454,24 @@ dsi_loop:
 
 dsi_continuar:
 
-    ; Calcular fila y columna (2 filas × 4 columnas)
     mov ax, si
     xor dx, dx
     mov bx, 4
-    div bx                      ; AX = fila, DX = columna
+    div bx
     mov bp, ax
 
-    ; ✅ CALCULAR X
-    mov ax, dx                  ; columna
+    mov ax, dx
     mov bx, ITEM_TOTAL
     mul bx
     add ax, ZONA_ITEMS_X
     mov cx, ax
 
-    ; ✅ CALCULAR Y
-    mov ax, bp                  ; fila
+    mov ax, bp
     mov bx, ITEM_TOTAL
     mul bx
     add ax, ZONA_ITEMS_Y
     mov dx, ax
 
-    ; ✅ DIBUJAR MARCO DEL SLOT
     push cx
     push dx
     mov ax, ITEM_SIZE
@@ -495,33 +483,24 @@ dsi_continuar:
     pop dx
     pop cx
 
-    ; Verificar si el slot tiene un item
     mov bx, OFFSET inventario_slots
     add bx, si
     mov al, [bx]
     test al, al
-    jz dsi_next                 ; Slot vacío, siguiente
+    jz dsi_next
 
-    ; ✅ DIBUJAR SPRITE DEL ITEM
     mov dl, al
     push cx
     push dx
 
-    ; Calcular posición centrada del sprite (16x16 en slot 32x32)
     mov ax, cx
     add ax, ITEM_ICON_OFFSET
     mov cx, ax
 
-    pop ax                      ; Recuperar tipo
-    push ax
-    mov ax, dx                  ; DX original (Y del slot)
+    mov ax, dx
     add ax, ITEM_ICON_OFFSET
     mov dx, ax
 
-    pop ax                      ; Tipo de recurso
-    mov dl, al
-
-    ; Seleccionar sprite según tipo
     cmp dl, 1
     jne dsi_tipo2
     mov di, OFFSET sprite_cristal
@@ -544,19 +523,17 @@ dsi_tipo3:
 
 dsi_dibujar:
     call dibujar_sprite_planar_16x16_opt
-    pop si                      ; Restaurar índice de slot
+    pop si
 
     pop dx
     pop cx
 
-    ; ✅ DIBUJAR CANTIDAD
     mov bx, OFFSET inventario_cantidades
     add bx, si
     mov al, [bx]
     xor ah, ah
     push ax
 
-    ; Posición del número (esquina inferior derecha del slot)
     mov ax, cx
     add ax, ITEM_COUNT_OFFSET_X
     mov cx, ax
@@ -583,18 +560,79 @@ dsi_fin:
     ret
 dibujar_slots_items ENDP
 
-; ============================================
-; REEMPLAZAR COMPLETAMENTE EN INVCODE.INC
-; ============================================
-
 dibujar_estadisticas PROC
-    ; Contenido comentado temporalmente para pruebas del inventario sin estadísticas ni barras de progreso.
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+
+    ; --- Calcular Base Y (Debajo de los slots) ---
+    mov bp, ZONA_ITEMS_Y
+    add bp, (ITEM_TOTAL * 2)
+    add bp, 10
+
+    ; --- Dibujar Cristales ---
+    mov cx, ZONA_ITEMS_X
+    sub cx, 24                ; X-Texto = 180 - 24 = 156
+    mov dx, bp
+    mov si, OFFSET msg_cristales
+    mov al, COLOR_TEXTO
+    call dibujar_texto_simple ; Dibuja "CRISTALES:"
+
+    mov cx, ZONA_ITEMS_X
+    add cx, STAT_VAL_OFFSET   ; X-Número = 180 + 88 = 268
+    mov dx, bp
+    mov al, recursos_tipo1
+    xor ah, ah
+    call dibujar_numero     ; Dibuja el número
+
+    ; --- Dibujar Gemas ---
+    mov cx, ZONA_ITEMS_X
+    sub cx, 24                ; X-Texto = 156 (RECALCULADO)
+    mov dx, bp
+    add dx, 12
+    mov si, OFFSET msg_gemas
+    mov al, COLOR_TEXTO
+    call dibujar_texto_simple ; Dibuja "GEMAS:"
+
+    mov cx, ZONA_ITEMS_X
+    add cx, STAT_VAL_OFFSET   ; X-Número = 268
+    mov dx, bp
+    add dx, 12
+    mov al, recursos_tipo2
+    xor ah, ah
+    call dibujar_numero     ; Dibuja el número
+
+    ; --- Dibujar Monedas ---
+    mov cx, ZONA_ITEMS_X
+    sub cx, 24                ; X-Texto = 156 (RECALCULADO)
+    mov dx, bp
+    add dx, 24
+    mov si, OFFSET msg_monedas
+    mov al, COLOR_TEXTO
+    call dibujar_texto_simple ; Dibuja "MONEDAS:"
+
+    mov cx, ZONA_ITEMS_X
+    add cx, STAT_VAL_OFFSET   ; X-Número = 268
+    mov dx, bp
+    add dx, 24
+    mov al, recursos_tipo3
+    xor ah, ah
+    call dibujar_numero     ; Dibuja el número
+    
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
     ret
 dibujar_estadisticas ENDP
-; ============================================
-; DIBUJAR BARRA DE PROGRESO
-; Entrada: CX = X, DX = Y, AX = valor actual, BX = valor máximo
-; ============================================
+
 dibujar_barra_progreso PROC
     push ax
     push bx
@@ -984,10 +1022,6 @@ og_exit:
     ret
 obtener_ptr_glifo ENDP
 
-; ============================================
-; DIBUJAR NÚMERO (0-99)
-; Entrada: CX = X, DX = Y, AX = número
-; ============================================
 dibujar_numero PROC
     push bx
     push cx
@@ -1019,6 +1053,17 @@ dn_loop:
     jnz dn_loop
 
 dn_ready:
+    
+    ; ====================== INICIO DE LA CORRECCIÓN ======================
+    ; Copiar SP a un registro base legal (BX)
+    mov bx, sp
+    
+    ; Cargar las coordenadas usando el indexado legal [BX+offset]
+    ; [BX+0] = bp, [BX+2] = di, [BX+4] = si, [BX+6] = dx, [BX+8] = cx
+    mov cx, [bx+8]  ; Restaurar CX (coordenada X)
+    mov dx, [bx+6]  ; Restaurar DX (coordenada Y)
+    ; ===================================================================
+    
     mov si, di
     mov al, COLOR_TEXTO
     call dibujar_texto_simple
