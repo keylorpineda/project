@@ -292,6 +292,20 @@ menu_options_line1 db 'SONIDO: ALTAVOCES PC ACTIVOS',0
 menu_options_line2 db 'CONTROLES: WASD O FLECHAS',0
 menu_options_line3 db 'CLICK O ENTER PARA VOLVER',0
 
+menu_debug_title     db 'DEBUG MENU',0
+menu_debug_selection db 'SELECCION:',0
+menu_debug_result    db 'RESULTADO:',0
+menu_debug_mouse_x   db 'MOUSE X:',0
+menu_debug_mouse_y   db 'MOUSE Y:',0
+menu_debug_present   db 'MOUSE PRESENTE:',0
+menu_debug_btn       db 'BTN ACTUAL:',0
+menu_debug_lastbtn   db 'BTN ANTERIOR:',0
+menu_debug_hover     db 'SOBRE BTN:',0
+menu_debug_pending   db 'PENDIENTE',0
+menu_debug_none      db 'NINGUNO',0
+menu_debug_si        db 'SI',0
+menu_debug_no        db 'NO',0
+
 texto_color_actual  db 0
 font_base_x_temp    dw 0
 font_base_y_temp    dw 0
