@@ -270,6 +270,38 @@ menu_btn_salir_s_data     db MENU_BTN_PIXELS dup(0)
 menu_btn_salir_s_width    dw 0
 menu_btn_salir_s_height   dw 0
 
+menu_btn_jugar_n_planar_left   db 128 dup(0)
+menu_btn_jugar_n_mask_left     db 32 dup(0)
+menu_btn_jugar_n_planar_right  db 128 dup(0)
+menu_btn_jugar_n_mask_right    db 32 dup(0)
+
+menu_btn_jugar_s_planar_left   db 128 dup(0)
+menu_btn_jugar_s_mask_left     db 32 dup(0)
+menu_btn_jugar_s_planar_right  db 128 dup(0)
+menu_btn_jugar_s_mask_right    db 32 dup(0)
+
+menu_btn_opciones_n_planar_left   db 128 dup(0)
+menu_btn_opciones_n_mask_left     db 32 dup(0)
+menu_btn_opciones_n_planar_right  db 128 dup(0)
+menu_btn_opciones_n_mask_right    db 32 dup(0)
+
+menu_btn_opciones_s_planar_left   db 128 dup(0)
+menu_btn_opciones_s_mask_left     db 32 dup(0)
+menu_btn_opciones_s_planar_right  db 128 dup(0)
+menu_btn_opciones_s_mask_right    db 32 dup(0)
+
+menu_btn_salir_n_planar_left   db 128 dup(0)
+menu_btn_salir_n_mask_left     db 32 dup(0)
+menu_btn_salir_n_planar_right  db 128 dup(0)
+menu_btn_salir_n_mask_right    db 32 dup(0)
+
+menu_btn_salir_s_planar_left   db 128 dup(0)
+menu_btn_salir_s_mask_left     db 32 dup(0)
+menu_btn_salir_s_planar_right  db 128 dup(0)
+menu_btn_salir_s_mask_right    db 32 dup(0)
+
+menu_sprite_half_buffer        db 256 dup(0)
+
 menu_loader_dest          dw 0
 menu_loader_max_size      dw 0
 menu_loader_expected      dw 0
@@ -279,10 +311,6 @@ menu_loader_pixels_read   dw 0
 menu_loader_file_handle   dw 0
 menu_loader_stage         db 0
 menu_loader_path          dw 0
-
-menu_tmp_width            dw 0
-menu_tmp_width_counter    dw 0
-menu_tmp_height_counter   dw 0
 
 menu_title         db 'JUEGO EGA - MENU PRINCIPAL',0
 menu_subtitle      db 'USA W/S O EL MOUSE PARA NAVEGAR',0
