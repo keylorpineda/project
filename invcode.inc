@@ -937,7 +937,10 @@ dibujar_caracter_buffer_8x8 PROC
     push es
 
     call obtener_ptr_glifo
-    jc dcb_exit
+    jnc dcb_continue
+    jmp dcb_exit
+
+dcb_continue:
 
     mov ax, VIDEO_SEG
     mov es, ax
@@ -949,6 +952,8 @@ dibujar_caracter_buffer_8x8 PROC
     shr ax, 3
     add bp, ax
     add bp, temp_offset
+
+    mov [dcb_glyph_ptr], si
 
     mov al, texto_color_actual
     and al, 0Fh
@@ -990,7 +995,7 @@ dcb_p0_skip:
     inc si
     loop dcb_p0
 
-    mov si, [sp+6]
+    mov si, [dcb_glyph_ptr]
     
     mov dx, 3CEh
     mov al, 4
@@ -1028,7 +1033,7 @@ dcb_p1_skip:
     inc si
     loop dcb_p1
 
-    mov si, [sp+6]
+    mov si, [dcb_glyph_ptr]
     
     mov dx, 3CEh
     mov al, 4
@@ -1066,7 +1071,7 @@ dcb_p2_skip:
     inc si
     loop dcb_p2
 
-    mov si, [sp+6]
+    mov si, [dcb_glyph_ptr]
     
     mov dx, 3CEh
     mov al, 4
@@ -1130,6 +1135,7 @@ dcb_exit:
     ret
 
 dcb_color db 0
+dcb_glyph_ptr dw 0
 
 dibujar_caracter_buffer_8x8 ENDP
 
