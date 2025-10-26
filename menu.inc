@@ -613,7 +613,7 @@ menu_leer_dimensiones PROC
     mov byte ptr menu_loader_stage, 0
 
 Menu_ReadDimLoop:
-    mov bx, menu_loader_file_handle
+    mov bx, [menu_loader_file_handle]
     mov ah, 3Fh
     mov cx, 1
     mov dx, OFFSET buffer_temp
@@ -693,10 +693,10 @@ cargar_sprite_menu PROC
     push si
     push di
 
-    mov di, menu_loader_dest
-    mov cx, menu_loader_max_size
+    mov di, [menu_loader_dest]
+    mov cx, [menu_loader_max_size]
 
-    mov dx, menu_loader_path
+    mov dx, [menu_loader_path]
     mov ax, 3D00h
     int 21h
     jnc csm_open_ok
@@ -706,8 +706,8 @@ csm_open_ok:
 
     call menu_leer_dimensiones
 
-    mov ax, menu_loader_width
-    mov bx, menu_loader_height
+    mov ax, [menu_loader_width]
+    mov bx, [menu_loader_height]
     mul bx
     mov menu_loader_expected, ax
     cmp dx, 0
@@ -722,10 +722,10 @@ csm_size_ok:
     mov word ptr menu_loader_pixels_read, 0
 
 csm_read_chunk:
-    mov ax, menu_loader_pixels_read
-    cmp ax, menu_loader_expected
+    mov ax, [menu_loader_pixels_read]
+    cmp ax, [menu_loader_expected]
     jae csm_done_read
-    mov bx, menu_loader_file_handle
+    mov bx, [menu_loader_file_handle]
     mov ah, 3Fh
     mov cx, 200
     mov dx, OFFSET buffer_temp
@@ -765,24 +765,24 @@ csm_store:
     mov [di], al
     inc di
     inc word ptr menu_loader_pixels_read
-    mov ax, menu_loader_pixels_read
-    cmp ax, menu_loader_expected
+    mov ax, [menu_loader_pixels_read]
+    cmp ax, [menu_loader_expected]
     jb csm_process
     jmp csm_done_read
 
 csm_done_read:
-    mov bx, menu_loader_file_handle
+    mov bx, [menu_loader_file_handle]
     mov ah, 3Eh
     int 21h
     mov menu_loader_file_handle, 0
-    mov ax, menu_loader_pixels_read
-    cmp ax, menu_loader_expected
+    mov ax, [menu_loader_pixels_read]
+    cmp ax, [menu_loader_expected]
     jne csm_error
     clc
     jmp csm_exit
 
 csm_error_close:
-    mov bx, menu_loader_file_handle
+    mov bx, [menu_loader_file_handle]
     cmp bx, 0
     je csm_error
     mov ah, 3Eh
@@ -819,9 +819,9 @@ cargar_sprites_menu PROC
     jnc csm_ok_btn_jugar_n
     jmp csm_fail
   csm_ok_btn_jugar_n:
-    mov ax, menu_loader_width
+    mov ax, [menu_loader_width]
     mov menu_btn_jugar_n_width, ax
-    mov ax, menu_loader_height
+    mov ax, [menu_loader_height]
     mov menu_btn_jugar_n_height, ax
     cmp menu_btn_jugar_n_width, MENU_BTN_WIDTH
     je csm_ok_btn_jugar_n_width
@@ -840,9 +840,9 @@ cargar_sprites_menu PROC
     jnc csm_ok_btn_jugar_s
     jmp csm_fail
   csm_ok_btn_jugar_s:
-    mov ax, menu_loader_width
+    mov ax, [menu_loader_width]
     mov menu_btn_jugar_s_width, ax
-    mov ax, menu_loader_height
+    mov ax, [menu_loader_height]
     mov menu_btn_jugar_s_height, ax
 
     mov ax, OFFSET menu_btn_opciones_n_data
@@ -853,9 +853,9 @@ cargar_sprites_menu PROC
     jnc csm_ok_btn_opciones_n
     jmp csm_fail
   csm_ok_btn_opciones_n:
-    mov ax, menu_loader_width
+    mov ax, [menu_loader_width]
     mov menu_btn_opciones_n_width, ax
-    mov ax, menu_loader_height
+    mov ax, [menu_loader_height]
     mov menu_btn_opciones_n_height, ax
 
     mov ax, OFFSET menu_btn_opciones_s_data
@@ -866,9 +866,9 @@ cargar_sprites_menu PROC
     jnc csm_ok_btn_opciones_s
     jmp csm_fail
   csm_ok_btn_opciones_s:
-    mov ax, menu_loader_width
+    mov ax, [menu_loader_width]
     mov menu_btn_opciones_s_width, ax
-    mov ax, menu_loader_height
+    mov ax, [menu_loader_height]
     mov menu_btn_opciones_s_height, ax
 
     mov ax, OFFSET menu_btn_salir_n_data
@@ -879,9 +879,9 @@ cargar_sprites_menu PROC
     jnc csm_ok_btn_salir_n
     jmp csm_fail
   csm_ok_btn_salir_n:
-    mov ax, menu_loader_width
+    mov ax, [menu_loader_width]
     mov menu_btn_salir_n_width, ax
-    mov ax, menu_loader_height
+    mov ax, [menu_loader_height]
     mov menu_btn_salir_n_height, ax
 
     mov ax, OFFSET menu_btn_salir_s_data
@@ -892,9 +892,9 @@ cargar_sprites_menu PROC
     jnc csm_ok_btn_salir_s
     jmp csm_fail
   csm_ok_btn_salir_s:
-    mov ax, menu_loader_width
+    mov ax, [menu_loader_width]
     mov menu_btn_salir_s_width, ax
-    mov ax, menu_loader_height
+    mov ax, [menu_loader_height]
     mov menu_btn_salir_s_height, ax
 
     clc
