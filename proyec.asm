@@ -862,14 +862,20 @@ pmc_arriba_continuar:
     shr dx, 4
 
     call verificar_tile_transitable
-    jnc pmc_arriba_slide
+    jc pmc_arriba_continuar_ver_der
+    jmp pmc_arriba_slide
+
+pmc_arriba_continuar_ver_der:
 
     mov cx, jugador_px
     add cx, 7
     shr cx, 4
     
     call verificar_tile_transitable
-    jnc pmc_arriba_slide
+    jc pmc_arriba_avanzar
+    jmp pmc_arriba_slide
+
+pmc_arriba_avanzar:
 
     mov jugador_py, ax
     mov moviendo, 1
@@ -886,9 +892,15 @@ pmc_arriba_slide:
     sub ax, bx
     
     cmp ax, 0
-    jle pmc_no_movimiento
+    jg pmc_arriba_slide_pos
+    jmp pmc_no_movimiento
+
+pmc_arriba_slide_pos:
     cmp ax, VELOCIDAD
-    jae pmc_no_movimiento
+    jb pmc_arriba_slide_aplicar
+    jmp pmc_no_movimiento
+
+pmc_arriba_slide_aplicar:
     
     mov bx, jugador_py
     sub bx, ax
@@ -914,14 +926,20 @@ pmc_abajo_continuar:
     shr dx, 4
 
     call verificar_tile_transitable
-    jnc pmc_abajo_slide
+    jc pmc_abajo_continuar_ver_der
+    jmp pmc_abajo_slide
+
+pmc_abajo_continuar_ver_der:
 
     mov cx, jugador_px
     add cx, 7
     shr cx, 4
     
     call verificar_tile_transitable
-    jnc pmc_abajo_slide
+    jc pmc_abajo_avanzar
+    jmp pmc_abajo_slide
+
+pmc_abajo_avanzar:
 
     mov jugador_py, ax
     mov moviendo, 1
@@ -937,9 +955,15 @@ pmc_abajo_slide:
     sub bx, ax
     
     cmp bx, 0
-    jle pmc_no_movimiento
+    jg pmc_abajo_slide_pos
+    jmp pmc_no_movimiento
+
+pmc_abajo_slide_pos:
     cmp bx, VELOCIDAD
-    jae pmc_no_movimiento
+    jb pmc_abajo_slide_aplicar
+    jmp pmc_no_movimiento
+
+pmc_abajo_slide_aplicar:
     
     mov ax, jugador_py
     add ax, bx
@@ -965,14 +989,20 @@ pmc_izquierda_continuar:
     shr dx, 4
 
     call verificar_tile_transitable
-    jnc pmc_izquierda_slide
+    jc pmc_izquierda_continuar_ver_sup
+    jmp pmc_izquierda_slide
+
+pmc_izquierda_continuar_ver_sup:
 
     mov dx, jugador_py
     add dx, 11
     shr dx, 4
     
     call verificar_tile_transitable
-    jnc pmc_izquierda_slide
+    jc pmc_izquierda_avanzar
+    jmp pmc_izquierda_slide
+
+pmc_izquierda_avanzar:
 
     mov jugador_px, ax
     mov moviendo, 1
@@ -989,9 +1019,15 @@ pmc_izquierda_slide:
     sub ax, bx
     
     cmp ax, 0
-    jle pmc_no_movimiento
+    jg pmc_izquierda_slide_pos
+    jmp pmc_no_movimiento
+
+pmc_izquierda_slide_pos:
     cmp ax, VELOCIDAD
-    jae pmc_no_movimiento
+    jb pmc_izquierda_slide_aplicar
+    jmp pmc_no_movimiento
+
+pmc_izquierda_slide_aplicar:
     
     mov bx, jugador_px
     sub bx, ax
@@ -1017,14 +1053,20 @@ pmc_derecha_continuar:
     shr dx, 4
 
     call verificar_tile_transitable
-    jnc pmc_derecha_slide
+    jc pmc_derecha_continuar_ver_sup
+    jmp pmc_derecha_slide
+
+pmc_derecha_continuar_ver_sup:
 
     mov dx, jugador_py
     add dx, 11
     shr dx, 4
     
     call verificar_tile_transitable
-    jnc pmc_derecha_slide
+    jc pmc_derecha_avanzar
+    jmp pmc_derecha_slide
+
+pmc_derecha_avanzar:
 
     mov jugador_px, ax
     mov moviendo, 1
@@ -1040,9 +1082,15 @@ pmc_derecha_slide:
     sub bx, ax
     
     cmp bx, 0
-    jle pmc_no_movimiento
+    jg pmc_derecha_slide_pos
+    jmp pmc_no_movimiento
+
+pmc_derecha_slide_pos:
     cmp bx, VELOCIDAD
-    jae pmc_no_movimiento
+    jb pmc_derecha_slide_aplicar
+    jmp pmc_no_movimiento
+
+pmc_derecha_slide_aplicar:
     
     mov ax, jugador_px
     add ax, bx
