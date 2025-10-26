@@ -828,11 +828,10 @@ dibujar_texto_buffer PROC
     push di
     push es
 
+    mov texto_color_actual, al
+
     mov ax, VIDEO_SEG
     mov es, ax
-    xor di, di
-
-    mov texto_color_actual, al
 
 dtb_loop:
     lodsb
@@ -943,68 +942,83 @@ dibujar_caracter_buffer_8x8 PROC
     mov ax, VIDEO_SEG
     mov es, ax
 
-    xor bp, bp
+    mov bp, 0
 
-dcb_row_loop:
+dcb_fila:
     cmp bp, 8
     jae dcb_exit
 
-    mov al, [si]
-    mov ah, al
-
-    mov bx, dx
-    add bx, bp
-    shl bx, 1
-    mov di, [video_offsets + bx]
+    mov bh, [si]
     
-    mov bx, cx
-    shr bx, 1
-    shr bx, 1
-    shr bx, 1
-    add di, bx
+    mov ax, dx
+    add ax, bp
+    shl ax, 1
+    mov di, ax
+    mov di, [video_offsets + di]
+    
+    mov ax, cx
+    shr ax, 1
+    shr ax, 1
+    shr ax, 1
+    add di, ax
     add di, temp_offset
 
-    mov bx, cx
-    and bx, 7
-    mov cl, 8
+    mov bl, 0
 
-dcb_bit_loop:
-    test ah, 80h
-    jz dcb_skip_pixel
-
+dcb_pixel:
+    cmp bl, 8
+    jae dcb_next_fila
+    
+    test bh, 80h
+    jz dcb_no_pixel
+    
+    push bx
     push cx
-    mov cx, bx
-    and cx, 3
+    push dx
+    push si
+    
+    mov ax, cx
+    add ax, bx
+    mov si, ax
+    and si, 7
+    
+    mov cl, 3
+    sub cl, si
     mov al, 1
     shl al, cl
     
     mov dx, 3C4h
-    push ax
+    mov ah, al
     mov al, 2
     out dx, al
     inc dx
-    pop ax
+    mov al, ah
     out dx, al
     
     mov al, texto_color_actual
-    mov es:[di], al
     
+    mov si, cx
+    add si, bx
+    shr si, 1
+    shr si, 1
+    shr si, 1
+    
+    mov es:[di + si], al
+    
+    pop si
+    pop dx
     pop cx
+    pop bx
 
-dcb_skip_pixel:
-    shl ah, 1
-    inc bx
-    test bx, 7
-    jnz dcb_no_inc_byte
-    inc di
+dcb_no_pixel:
+    shl bh, 1
+    inc bl
+    jmp dcb_pixel
 
-dcb_no_inc_byte:
-    dec cl
-    jnz dcb_bit_loop
-
+dcb_next_fila:
     inc si
     inc bp
-    jmp dcb_row_loop
+    jmp dcb_fila
 
 dcb_exit:
     pop es
