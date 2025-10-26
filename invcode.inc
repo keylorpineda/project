@@ -830,7 +830,7 @@ dibujar_texto_buffer PROC
 
     mov ax, VIDEO_SEG
     mov es, ax
-    mov di, al
+    xor di, di
 
     mov texto_color_actual, al
 
@@ -1091,19 +1091,20 @@ og_exit:
 obtener_ptr_glifo ENDP
 
 dibujar_numero PROC
+    push bp
+    mov bp, sp
+    sub sp, 2
     push bx
     push cx
     push dx
     push si
     push di
-    push bp
 
-    mov bp, ax
+    mov [bp-2], ax
     mov bx, 10
     lea di, numero_buffer + 5
     mov byte ptr [di], 0
 
-    mov ax, bp
     cmp ax, 0
     jne dn_loop_start
     dec di
@@ -1121,20 +1122,21 @@ dn_loop:
     jnz dn_loop
 
 dn_ready:
-    mov cx, [sp+8]
-    mov dx, [sp+6]
-    
+    mov cx, [bp-6]
+    mov dx, [bp-8]
+
     mov si, di
     mov al, COLOR_TEXTO
     call dibujar_texto_buffer
 
-    mov ax, bp
-    pop bp
+    mov ax, [bp-2]
     pop di
     pop si
     pop dx
     pop cx
     pop bx
+    add sp, 2
+    pop bp
     ret
 dibujar_numero ENDP
 
