@@ -220,7 +220,7 @@ anim_recoger_y      dw 0
 ; ============================================
 MENU_BTN_WIDTH   EQU 32
 MENU_BTN_HEIGHT  EQU 16
-MENU_BTN_PIXELS  EQU MENU_BTN_WIDTH * MENU_BTN_HEIGHT
+MENU_BTN_PIXELS  EQU 512
 
 currentSelection    db 0
 menuResult          db 0FFh
@@ -246,24 +246,29 @@ btnExitY1           dw 230
 btnExitX2           dw 304 + MENU_BTN_WIDTH - 1
 btnExitY2           dw 230 + MENU_BTN_HEIGHT - 1
 
-menu_btn_jugar_n_width   dw 0
-menu_btn_jugar_n_height  dw 0
-menu_btn_jugar_n_data    db MENU_BTN_PIXELS dup(0)
-menu_btn_jugar_s_width   dw 0
-menu_btn_jugar_s_height  dw 0
-menu_btn_jugar_s_data    db MENU_BTN_PIXELS dup(0)
+menu_btn_jugar_n_data     db MENU_BTN_PIXELS dup(0)
+menu_btn_jugar_n_width    dw 0
+menu_btn_jugar_n_height   dw 0
+
+menu_btn_jugar_s_data     db MENU_BTN_PIXELS dup(0)
+menu_btn_jugar_s_width    dw 0
+menu_btn_jugar_s_height   dw 0
+
+menu_btn_opciones_n_data  db MENU_BTN_PIXELS dup(0)
 menu_btn_opciones_n_width dw 0
 menu_btn_opciones_n_height dw 0
-menu_btn_opciones_n_data  db MENU_BTN_PIXELS dup(0)
+
+menu_btn_opciones_s_data  db MENU_BTN_PIXELS dup(0)
 menu_btn_opciones_s_width dw 0
 menu_btn_opciones_s_height dw 0
-menu_btn_opciones_s_data  db MENU_BTN_PIXELS dup(0)
+
+menu_btn_salir_n_data     db MENU_BTN_PIXELS dup(0)
 menu_btn_salir_n_width    dw 0
 menu_btn_salir_n_height   dw 0
-menu_btn_salir_n_data     db MENU_BTN_PIXELS dup(0)
+
+menu_btn_salir_s_data     db MENU_BTN_PIXELS dup(0)
 menu_btn_salir_s_width    dw 0
 menu_btn_salir_s_height   dw 0
-menu_btn_salir_s_data     db MENU_BTN_PIXELS dup(0)
 
 menu_loader_dest          dw 0
 menu_loader_max_size      dw 0
