@@ -639,27 +639,22 @@ Menu_ReadDimContinue:
 
     sub al, '0'
     mov ah, 0
+    mov bx, ax
     cmp byte ptr menu_loader_stage, 0
-    jne Menu_AddHeight
-    mov dx, [menu_loader_width]
+    jne Menu_DimAddHeight
+    mov ax, [menu_loader_width]
     mov cx, 10
-    mov ax, dx
     mul cx
+    add ax, bx
     mov [menu_loader_width], ax
-    mov al, dl
-    mov ah, 0
-    add [menu_loader_width], ax
     jmp Menu_ReadDimLoop
 
-Menu_AddHeight:
-    mov dx, [menu_loader_height]
+Menu_DimAddHeight:
+    mov ax, [menu_loader_height]
     mov cx, 10
-    mov ax, dx
     mul cx
+    add ax, bx
     mov [menu_loader_height], ax
-    mov al, dl
-    mov ah, 0
-    add [menu_loader_height], ax
     jmp Menu_ReadDimLoop
 
 Menu_DimSpace:
