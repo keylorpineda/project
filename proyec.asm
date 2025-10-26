@@ -142,16 +142,6 @@ num_recursos_cargados db 0                      ; Total cargado desde mapa
 inventario_slots       db MAX_ITEMS dup(0)
 inventario_cantidades  db MAX_ITEMS dup(0)
 
-playerCoins     dw 0   ; Contador para monedas (C)
-    playerGems      dw 0   ; Contador para gemas (G)
-    playerCrystals  dw 0   ; Contador para cristales (X)
-    ; (Añade más para los otros items si es necesario)
-
-    ; --- Buffer para dibujar números ---
-    ; Necesitamos un espacio para convertir el número (ej. 123) a texto ("123")
-    ; 3 dígitos + 1 terminador nulo (0)
-    numberString    db '   ', 0
-
 player_left_temp   dw 0
 player_right_temp  dw 0
 player_top_temp    dw 0
@@ -191,6 +181,8 @@ msg_objetivo    db 'OBJETIVO: 2/TIPO',0
 msg_progreso    db 'PROGRESO:',0
 msg_completado  db 'COMPLETADO!',0
 msg_slash       db '/',0
+
+
 
 INV_X           EQU 80           ; ✅ CAMBIO: Más a la izquierda (era 160)
 INV_Y           EQU 40           ; ✅ CAMBIO: Más arriba (era 50)
