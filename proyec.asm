@@ -477,7 +477,9 @@ csmenu_ok:
 
     call mostrar_menu_principal
     cmp al, 2
-    je fin_juego
+    jne continuar_juego
+    jmp fin_juego
+continuar_juego:
 
 ; ===== ENTRAR A MODO GRÁFICO =====
     mov ax, 10h
