@@ -164,6 +164,13 @@ sprite_moneda       db 128 dup(0)
 archivo_cristal db 'SPRITES\CRYSTAL.TXT',0
 archivo_gema    db 'SPRITES\GEM.TXT',0
 archivo_moneda  db 'SPRITES\COIN.TXT',0
+archivo_btn_jugar_n   db 'SPRITES\MENU\BTN_JUGAR_N.TXT',0
+archivo_btn_jugar_s   db 'SPRITES\MENU\BTN_JUGAR_S.TXT',0
+archivo_btn_opciones_n db 'SPRITES\MENU\BTN_OPCIONES_N.TXT',0
+archivo_btn_opciones_s db 'SPRITES\MENU\BTN_OPCIONES_S.TXT',0
+archivo_btn_salir_n    db 'SPRITES\MENU\BTN_SALIR_N.TXT',0
+archivo_btn_salir_s    db 'SPRITES\MENU\BTN_SALIR_S.TXT',0
+archivo_fondo_menu     db 'SPRITES\MENU\FONDO_MENU.TXT',0
 
 COLOR_FONDO      EQU 0    ; Negro
 COLOR_MARCO      EQU 7    ; Blanco
@@ -215,6 +222,78 @@ anim_recoger_activa db 0
 anim_recoger_frame  db 0
 anim_recoger_x      dw 0
 anim_recoger_y      dw 0
+
+; ============================================
+; MENÚ PRINCIPAL
+; ============================================
+MENU_BTN_WIDTH   EQU 32
+MENU_BTN_HEIGHT  EQU 16
+MENU_BTN_PIXELS  EQU MENU_BTN_WIDTH * MENU_BTN_HEIGHT
+
+currentSelection    db 0
+menuResult          db 0FFh
+mousePresent        db 0
+mouseX              dw 320
+mouseY              dw 175
+mouseBtn            db 0
+lastMouseBtn        db 0
+mouseOverButton     db 0FFh
+
+btnPlayX1           dw 304
+btnPlayY1           dw 150
+btnPlayX2           dw 304 + MENU_BTN_WIDTH - 1
+btnPlayY2           dw 150 + MENU_BTN_HEIGHT - 1
+
+btnOptionsX1        dw 304
+btnOptionsY1        dw 190
+btnOptionsX2        dw 304 + MENU_BTN_WIDTH - 1
+btnOptionsY2        dw 190 + MENU_BTN_HEIGHT - 1
+
+btnExitX1           dw 304
+btnExitY1           dw 230
+btnExitX2           dw 304 + MENU_BTN_WIDTH - 1
+btnExitY2           dw 230 + MENU_BTN_HEIGHT - 1
+
+menu_btn_jugar_n_width   dw 0
+menu_btn_jugar_n_height  dw 0
+menu_btn_jugar_n_data    db MENU_BTN_PIXELS dup(0)
+menu_btn_jugar_s_width   dw 0
+menu_btn_jugar_s_height  dw 0
+menu_btn_jugar_s_data    db MENU_BTN_PIXELS dup(0)
+menu_btn_opciones_n_width dw 0
+menu_btn_opciones_n_height dw 0
+menu_btn_opciones_n_data  db MENU_BTN_PIXELS dup(0)
+menu_btn_opciones_s_width dw 0
+menu_btn_opciones_s_height dw 0
+menu_btn_opciones_s_data  db MENU_BTN_PIXELS dup(0)
+menu_btn_salir_n_width    dw 0
+menu_btn_salir_n_height   dw 0
+menu_btn_salir_n_data     db MENU_BTN_PIXELS dup(0)
+menu_btn_salir_s_width    dw 0
+menu_btn_salir_s_height   dw 0
+menu_btn_salir_s_data     db MENU_BTN_PIXELS dup(0)
+
+menu_loader_dest          dw 0
+menu_loader_max_size      dw 0
+menu_loader_expected      dw 0
+menu_loader_width         dw 0
+menu_loader_height        dw 0
+menu_loader_pixels_read   dw 0
+menu_loader_file_handle   dw 0
+menu_loader_stage         db 0
+menu_loader_path          dw 0
+
+menu_tmp_width            dw 0
+menu_tmp_width_counter    dw 0
+menu_tmp_height_counter   dw 0
+
+menu_title         db 'JUEGO EGA - MENU PRINCIPAL',0
+menu_subtitle      db 'USA W/S O EL MOUSE PARA NAVEGAR',0
+menu_subtitle2     db 'ENTER O CLICK IZQUIERDO PARA SELECCIONAR',0
+menu_options_title db 'OPCIONES',0
+menu_options_line1 db 'SONIDO: ALTAVOCES PC ACTIVOS',0
+menu_options_line2 db 'CONTROLES: WASD O FLECHAS',0
+menu_options_line3 db 'CLICK O ENTER PARA VOLVER',0
 
 texto_color_actual  db 0
 font_base_x_temp    dw 0
@@ -310,7 +389,8 @@ msg_mapa    db 'Mapa: $'
 msg_sprites db 'Sprites terreno: $'
 msg_anim    db 'Sprites jugador: $'
 msg_convert db 'Generando mascaras...$'
-msg_tablas  db 'Lookup tables: $' 
+msg_tablas  db 'Lookup tables: $'
+msg_menu    db 'Sprites menu: $'
 msg_ok      db 'OK',13,10,'$'
 msg_error   db 'ERROR',13,10,'$'
 msg_controles db 13,10,'WASD = Mover, ESC = Salir',13,10
@@ -384,12 +464,20 @@ anim_ok:
     int 21h
     call debug_verificar_todo
 
-
-    mov dx, OFFSET msg_controles
+    mov dx, OFFSET msg_menu
     mov ah, 9
     int 21h
-    mov ah, 0
-    int 16h
+    call cargar_sprites_menu
+    jnc csmenu_ok
+    jmp error_carga
+csmenu_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    call mostrar_menu_principal
+    cmp al, 2
+    je fin_juego
 
 ; ===== ENTRAR A MODO GRÁFICO =====
     mov ax, 10h
@@ -2339,5 +2427,6 @@ dvt_mapa_ok:
 debug_verificar_todo ENDP
 INCLUDE OPTCODE.INC
 INCLUDE INVCODE.INC
+INCLUDE MENU.INC
 
 END inicio
