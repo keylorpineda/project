@@ -756,7 +756,8 @@ csm_store:
     mov [di], al
     inc di
     inc word ptr menu_loader_pixels_read
-    cmp word ptr menu_loader_pixels_read, menu_loader_expected
+    mov ax, menu_loader_pixels_read
+    cmp ax, menu_loader_expected
     jb csm_process
     jmp csm_done_read
 
@@ -806,22 +807,30 @@ cargar_sprites_menu PROC
     mov ax, OFFSET archivo_btn_jugar_n
     mov menu_loader_path, ax
     call cargar_sprite_menu
-    jc csm_fail
+    jnc csm_ok_btn_jugar_n
+    jmp csm_fail
+  csm_ok_btn_jugar_n:
     mov ax, menu_loader_width
     mov menu_btn_jugar_n_width, ax
     mov ax, menu_loader_height
     mov menu_btn_jugar_n_height, ax
     cmp menu_btn_jugar_n_width, MENU_BTN_WIDTH
-    jne csm_fail
+    je csm_ok_btn_jugar_n_width
+    jmp csm_fail
+  csm_ok_btn_jugar_n_width:
     cmp menu_btn_jugar_n_height, MENU_BTN_HEIGHT
-    jne csm_fail
+    je csm_ok_btn_jugar_n_height
+    jmp csm_fail
+  csm_ok_btn_jugar_n_height:
 
     mov ax, OFFSET menu_btn_jugar_s_data
     mov menu_loader_dest, ax
     mov ax, OFFSET archivo_btn_jugar_s
     mov menu_loader_path, ax
     call cargar_sprite_menu
-    jc csm_fail
+    jnc csm_ok_btn_jugar_s
+    jmp csm_fail
+  csm_ok_btn_jugar_s:
     mov ax, menu_loader_width
     mov menu_btn_jugar_s_width, ax
     mov ax, menu_loader_height
@@ -832,7 +841,9 @@ cargar_sprites_menu PROC
     mov ax, OFFSET archivo_btn_opciones_n
     mov menu_loader_path, ax
     call cargar_sprite_menu
-    jc csm_fail
+    jnc csm_ok_btn_opciones_n
+    jmp csm_fail
+  csm_ok_btn_opciones_n:
     mov ax, menu_loader_width
     mov menu_btn_opciones_n_width, ax
     mov ax, menu_loader_height
@@ -843,7 +854,9 @@ cargar_sprites_menu PROC
     mov ax, OFFSET archivo_btn_opciones_s
     mov menu_loader_path, ax
     call cargar_sprite_menu
-    jc csm_fail
+    jnc csm_ok_btn_opciones_s
+    jmp csm_fail
+  csm_ok_btn_opciones_s:
     mov ax, menu_loader_width
     mov menu_btn_opciones_s_width, ax
     mov ax, menu_loader_height
@@ -854,7 +867,9 @@ cargar_sprites_menu PROC
     mov ax, OFFSET archivo_btn_salir_n
     mov menu_loader_path, ax
     call cargar_sprite_menu
-    jc csm_fail
+    jnc csm_ok_btn_salir_n
+    jmp csm_fail
+  csm_ok_btn_salir_n:
     mov ax, menu_loader_width
     mov menu_btn_salir_n_width, ax
     mov ax, menu_loader_height
@@ -865,7 +880,9 @@ cargar_sprites_menu PROC
     mov ax, OFFSET archivo_btn_salir_s
     mov menu_loader_path, ax
     call cargar_sprite_menu
-    jc csm_fail
+    jnc csm_ok_btn_salir_s
+    jmp csm_fail
+  csm_ok_btn_salir_s:
     mov ax, menu_loader_width
     mov menu_btn_salir_s_width, ax
     mov ax, menu_loader_height
