@@ -752,14 +752,15 @@ pmc_check_ascii:
     jmp pmc_salir
 
 pmc_continuar:
-    
     mov bl, al
     test bl, bl
     jz pmc_usar_scan
     mov al, bl
     jmp pmc_normalizar
+    
 pmc_usar_scan:
     mov al, bh
+    
 pmc_normalizar:
     cmp al, 'a'
     jb pmc_verificar
@@ -770,19 +771,15 @@ pmc_normalizar:
 pmc_verificar:
     cmp al, 'E'
     jne pmc_verificar_movimiento
-    
     cmp tecla_e_presionada, 1
     jne pmc_toggle_e
     jmp pmc_fin
 
 pmc_toggle_e:
-    
     mov tecla_e_presionada, 1
     xor inventario_abierto, 1
     mov moviendo, 0
-    
     mov requiere_redibujar, 2
-    
     jmp pmc_fin
 
 pmc_verificar_movimiento:
@@ -791,7 +788,6 @@ pmc_verificar_movimiento:
     jmp pmc_no_movimiento
 
 pmc_verificar_teclas:
-    
     cmp al, 48h
     jne pmc_check_w
     jmp pmc_ir_arriba
@@ -854,29 +850,21 @@ pmc_arriba:
 
 pmc_arriba_continuar:
     mov cx, jugador_px
-    sub cx, 8
+    sub cx, 4
     shr cx, 4
-    
     mov dx, ax
     add dx, 4
     shr dx, 4
-
     call verificar_tile_transitable
-    jc pmc_arriba_continuar_ver_der
-    jmp pmc_arriba_slide
-
-pmc_arriba_continuar_ver_der:
+    jnc pmc_arriba_slide
 
     mov cx, jugador_px
-    add cx, 7
+    add cx, 3
     shr cx, 4
-    
     call verificar_tile_transitable
-    jc pmc_arriba_avanzar
-    jmp pmc_arriba_slide
+    jnc pmc_arriba_slide
 
 pmc_arriba_avanzar:
-
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -885,12 +873,9 @@ pmc_arriba_slide:
     mov bx, dx
     inc bx
     shl bx, 4
-    
     mov ax, jugador_py
     add ax, 4
-    
     sub ax, bx
-    
     cmp ax, 0
     jg pmc_arriba_slide_pos
     jmp pmc_no_movimiento
@@ -901,7 +886,6 @@ pmc_arriba_slide_pos:
     jmp pmc_no_movimiento
 
 pmc_arriba_slide_aplicar:
-    
     mov bx, jugador_py
     sub bx, ax
     mov jugador_py, bx
@@ -918,29 +902,21 @@ pmc_abajo:
 
 pmc_abajo_continuar:
     mov cx, jugador_px
-    sub cx, 8
+    sub cx, 4
     shr cx, 4
-
     mov dx, ax
     add dx, 11
     shr dx, 4
-
     call verificar_tile_transitable
-    jc pmc_abajo_continuar_ver_der
-    jmp pmc_abajo_slide
-
-pmc_abajo_continuar_ver_der:
+    jnc pmc_abajo_slide
 
     mov cx, jugador_px
-    add cx, 7
+    add cx, 3
     shr cx, 4
-    
     call verificar_tile_transitable
-    jc pmc_abajo_avanzar
-    jmp pmc_abajo_slide
+    jnc pmc_abajo_slide
 
 pmc_abajo_avanzar:
-
     mov jugador_py, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -948,12 +924,9 @@ pmc_abajo_avanzar:
 pmc_abajo_slide:
     mov bx, dx
     shl bx, 4
-    
     mov ax, jugador_py
     add ax, 11
-    
     sub bx, ax
-    
     cmp bx, 0
     jg pmc_abajo_slide_pos
     jmp pmc_no_movimiento
@@ -964,7 +937,6 @@ pmc_abajo_slide_pos:
     jmp pmc_no_movimiento
 
 pmc_abajo_slide_aplicar:
-    
     mov ax, jugador_py
     add ax, bx
     mov jugador_py, ax
@@ -981,29 +953,21 @@ pmc_izquierda:
 
 pmc_izquierda_continuar:
     mov cx, ax
-    sub cx, 8
+    sub cx, 4
     shr cx, 4
-
     mov dx, jugador_py
     add dx, 4
     shr dx, 4
-
     call verificar_tile_transitable
-    jc pmc_izquierda_continuar_ver_sup
-    jmp pmc_izquierda_slide
-
-pmc_izquierda_continuar_ver_sup:
+    jnc pmc_izquierda_slide
 
     mov dx, jugador_py
     add dx, 11
     shr dx, 4
-    
     call verificar_tile_transitable
-    jc pmc_izquierda_avanzar
-    jmp pmc_izquierda_slide
+    jnc pmc_izquierda_slide
 
 pmc_izquierda_avanzar:
-
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -1012,12 +976,9 @@ pmc_izquierda_slide:
     mov bx, cx
     inc bx
     shl bx, 4
-    
     mov ax, jugador_px
-    sub ax, 8
-    
+    sub ax, 4
     sub ax, bx
-    
     cmp ax, 0
     jg pmc_izquierda_slide_pos
     jmp pmc_no_movimiento
@@ -1028,7 +989,6 @@ pmc_izquierda_slide_pos:
     jmp pmc_no_movimiento
 
 pmc_izquierda_slide_aplicar:
-    
     mov bx, jugador_px
     sub bx, ax
     mov jugador_px, bx
@@ -1045,29 +1005,21 @@ pmc_derecha:
 
 pmc_derecha_continuar:
     mov cx, ax
-    add cx, 7
+    add cx, 3
     shr cx, 4
-
     mov dx, jugador_py
     add dx, 4
     shr dx, 4
-
     call verificar_tile_transitable
-    jc pmc_derecha_continuar_ver_sup
-    jmp pmc_derecha_slide
-
-pmc_derecha_continuar_ver_sup:
+    jnc pmc_derecha_slide
 
     mov dx, jugador_py
     add dx, 11
     shr dx, 4
-    
     call verificar_tile_transitable
-    jc pmc_derecha_avanzar
-    jmp pmc_derecha_slide
+    jnc pmc_derecha_slide
 
 pmc_derecha_avanzar:
-
     mov jugador_px, ax
     mov moviendo, 1
     jmp pmc_fin
@@ -1075,12 +1027,9 @@ pmc_derecha_avanzar:
 pmc_derecha_slide:
     mov bx, cx
     shl bx, 4
-    
     mov ax, jugador_px
-    add ax, 7
-    
+    add ax, 3
     sub bx, ax
-    
     cmp bx, 0
     jg pmc_derecha_slide_pos
     jmp pmc_no_movimiento
@@ -1091,7 +1040,6 @@ pmc_derecha_slide_pos:
     jmp pmc_no_movimiento
 
 pmc_derecha_slide_aplicar:
-    
     mov ax, jugador_px
     add ax, bx
     mov jugador_px, ax
