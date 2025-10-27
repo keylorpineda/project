@@ -1,6 +1,8 @@
 HUD_HEART_X       EQU 230 ; Centrado ( (640 - (9 corazones * 20px)) / 2 )
 HUD_HEART_Y       EQU 282 ; Justo arriba del hotbar (que está en 302)
 HUD_HEART_SPACING EQU 20
+HUD_HEART_MARGIN  EQU 8     ; Margen desde el borde del viewport
+HUD_HEART_SPACING EQU 20    ; Espacio entre corazones
 
 HUD_HOTBAR_SLOTS  EQU 8
 HUD_HOTBAR_X      EQU 128
@@ -1398,43 +1400,61 @@ dibujar_hud_corazones PROC
     push di
     push bp
     
-    mov bp, HUD_HEART_Y
+    ; Obtener vida máxima
     mov bl, jugador_vida_max
     xor bh, bh
     
+    ; Inicializar contador
     xor si, si
 
 dhc_loop:
+    ; ¿Hemos dibujado todos los corazones?
     cmp si, bx
     jae dhc_fin
     
+    ; Calcular posición X (de izquierda a derecha)
     mov ax, si
     mov dx, HUD_HEART_SPACING
-    mul dx
-    add ax, HUD_HEART_X
-    
+    mul dx                          ; ax = si * 20
+    add ax, viewport_x              ; Partir desde el viewport
+    add ax, HUD_HEART_MARGIN        ; Agregar margen
     mov cx, ax
     
-    mov ax, si
+    ; Posición Y (arriba del viewport)
+    mov ax, viewport_y
+    add ax, HUD_HEART_MARGIN
+    mov dx, ax
     
-    cmp al, jugador_vida_actual
-    jb dhc_full
-    
-    mov di, OFFSET sprite_heart_empty
+    ; Guardar SI antes de usarlo para otra cosa
     push si
-    mov si, OFFSET sprite_heart_empty_mask
+    
+    ; Determinar si este corazón está lleno o vacío
+    mov al, byte ptr jugador_vida_actual
+    xor ah, ah
+    pop bp                          ; Recuperar índice en BP
+    push bp                         ; Volver a guardar
+    
+    cmp bp, ax
+    jae dhc_empty                   ; Si índice >= vida_actual, está vacío
+    
+    ; Corazón lleno (rojo)
+    mov di, OFFSET sprite_heart_full
+    mov si, OFFSET sprite_heart_full_mask
     jmp dhc_draw
 
-dhc_full:
-    mov di, OFFSET sprite_heart_full
-    push si
-    mov si, OFFSET sprite_heart_full_mask
+dhc_empty:
+    ; Corazón vacío (gris)
+    mov di, OFFSET sprite_heart_empty
+    mov si, OFFSET sprite_heart_empty_mask
 
 dhc_draw:
-    mov dx, bp
+    ; Dibujar el corazón
     call dibujar_sprite_planar_16x16_opt
+    
+    ; Recuperar el contador
     pop si
     
+    ; Siguiente corazón
     inc si
     jmp dhc_loop
     
