@@ -1111,13 +1111,12 @@ cargar_sprites_menu PROC
     push cx
     push dx
 
-    mov ax, MENU_BTN_PIXELS
-    mov menu_loader_max_size, ax
-
     mov ax, OFFSET menu_btn_jugar_n_data
     mov menu_loader_dest, ax
     mov ax, OFFSET archivo_btn_jugar_n
     mov menu_loader_path, ax
+    mov ax, MENU_BTN_PIXELS
+    mov menu_loader_max_size, ax
     call cargar_sprite_menu
     jnc csm_ok_btn_jugar_n
     jmp csm_fail
@@ -1146,6 +1145,8 @@ cargar_sprites_menu PROC
     mov menu_loader_dest, ax
     mov ax, OFFSET archivo_btn_jugar_s
     mov menu_loader_path, ax
+    mov ax, MENU_BTN_PIXELS
+    mov menu_loader_max_size, ax
     call cargar_sprite_menu
     jnc csm_ok_btn_jugar_s
     jmp csm_fail
@@ -1166,6 +1167,8 @@ cargar_sprites_menu PROC
     mov menu_loader_dest, ax
     mov ax, OFFSET archivo_btn_opciones_n
     mov menu_loader_path, ax
+    mov ax, MENU_BTN_PIXELS
+    mov menu_loader_max_size, ax
     call cargar_sprite_menu
     jnc csm_ok_btn_opciones_n
     jmp csm_fail
@@ -1186,6 +1189,8 @@ cargar_sprites_menu PROC
     mov menu_loader_dest, ax
     mov ax, OFFSET archivo_btn_opciones_s
     mov menu_loader_path, ax
+    mov ax, MENU_BTN_PIXELS
+    mov menu_loader_max_size, ax
     call cargar_sprite_menu
     jnc csm_ok_btn_opciones_s
     jmp csm_fail
@@ -1206,6 +1211,8 @@ cargar_sprites_menu PROC
     mov menu_loader_dest, ax
     mov ax, OFFSET archivo_btn_salir_n
     mov menu_loader_path, ax
+    mov ax, MENU_BTN_PIXELS
+    mov menu_loader_max_size, ax
     call cargar_sprite_menu
     jnc csm_ok_btn_salir_n
     jmp csm_fail
@@ -1226,6 +1233,8 @@ cargar_sprites_menu PROC
     mov menu_loader_dest, ax
     mov ax, OFFSET archivo_btn_salir_s
     mov menu_loader_path, ax
+    mov ax, MENU_BTN_PIXELS
+    mov menu_loader_max_size, ax
     call cargar_sprite_menu
     jnc csm_ok_btn_salir_s
     jmp csm_fail
@@ -1241,6 +1250,21 @@ cargar_sprites_menu PROC
     push OFFSET menu_btn_salir_s_planar_left
     push OFFSET menu_btn_salir_s_data
     call Menu_ConvertButtonSprite
+
+    mov ax, OFFSET menu_background_data
+    mov menu_loader_dest, ax
+    mov ax, OFFSET archivo_fondo_menu
+    mov menu_loader_path, ax
+    mov ax, MENU_BG_PIXELS
+    mov menu_loader_max_size, ax
+    call cargar_sprite_menu
+    jnc csm_ok_background
+    jmp csm_fail
+  csm_ok_background:
+    mov ax, [menu_loader_width]
+    mov menu_background_width, ax
+    mov ax, [menu_loader_height]
+    mov menu_background_height, ax
 
     clc
     jmp csm_done

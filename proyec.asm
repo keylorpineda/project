@@ -223,9 +223,12 @@ anim_recoger_y      dw 0
 ; ============================================
 ; MENÚ PRINCIPAL
 ; ============================================
-MENU_BTN_WIDTH   EQU 32
-MENU_BTN_HEIGHT  EQU 16
-MENU_BTN_PIXELS  EQU 512
+MENU_BTN_WIDTH    EQU 32
+MENU_BTN_HEIGHT   EQU 16
+MENU_BTN_PIXELS   EQU 512
+MENU_BG_WIDTH     EQU 32
+MENU_BG_HEIGHT    EQU 32
+MENU_BG_PIXELS    EQU 1024
 
 currentSelection    db 0
 lastSelection       db 0FFh  ; <-- AGREGA ESTA LÍNEA
@@ -276,6 +279,10 @@ menu_btn_salir_n_height   dw 0
 menu_btn_salir_s_data     db MENU_BTN_PIXELS dup(0)
 menu_btn_salir_s_width    dw 0
 menu_btn_salir_s_height   dw 0
+
+menu_background_data      db MENU_BG_PIXELS dup(0)
+menu_background_width     dw 0
+menu_background_height    dw 0
 
 menu_btn_jugar_n_planar_left   db 128 dup(0)
 menu_btn_jugar_n_mask_left     db 32 dup(0)
