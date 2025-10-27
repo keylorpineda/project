@@ -1523,7 +1523,6 @@ dibujar_hud_progreso PROC
     pop ax
     ret
 dibujar_hud_progreso ENDP
-
 dibujar_hud_hotbar PROC
     push ax
     push bx
@@ -1546,6 +1545,7 @@ dhh_continue:
     mul bx
     add ax, HUD_HOTBAR_X
     mov cx, ax
+    
     mov dx, HUD_HOTBAR_Y
 
     mov ax, ITEM_SIZE
@@ -1577,47 +1577,45 @@ dhh_no_select:
     
     mov al, [inventario_slots + bx]
     test al, al
-    jz dhh_next_item
-
+    jz dhh_next
+    
     mov bh, al
+    
     mov ax, si
     mov bx, ITEM_TOTAL
     mul bx
     add ax, HUD_HOTBAR_X
     add ax, ITEM_ICON_OFFSET
     mov cx, ax
+    
     mov dx, HUD_HOTBAR_Y
     add dx, ITEM_ICON_OFFSET
 
     mov al, bh
     cmp al, 1
-    jne dhh_tipo2_check
+    jne dhh_tipo2
     mov di, OFFSET sprite_cristal
     push si
     mov si, OFFSET sprite_cristal_mask
     jmp dhh_dibujar
 
-dhh_tipo2_check:
+dhh_tipo2:
     cmp al, 2
-    jne dhh_tipo3_check
+    jne dhh_tipo3
     mov di, OFFSET sprite_gema
     push si
     mov si, OFFSET sprite_gema_mask
     jmp dhh_dibujar
 
-dhh_tipo3_check:
-    cmp al, 3
-    jne dhh_dibujar_numero
+dhh_tipo3:
     mov di, OFFSET sprite_moneda
     push si
     mov si, OFFSET sprite_moneda_mask
-    jmp dhh_dibujar
 
 dhh_dibujar:
     call dibujar_sprite_planar_16x16_opt
     pop si
     
-dhh_dibujar_numero:
     mov bx, si
     mov al, [inventario_cantidades + bx]
     
@@ -1637,7 +1635,7 @@ dhh_dibujar_numero:
     
     call dibujar_numero
 
-dhh_next_item:
+dhh_next:
     inc si
     jmp dhh_loop_slots
 
