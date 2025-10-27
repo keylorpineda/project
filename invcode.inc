@@ -1416,14 +1416,14 @@ dhc_loop:
     mov ax, si
     mov dx, HUD_HEART_SPACING
     mul dx                          ; ax = si * 20
-    add ax, viewport_x              ; Partir desde el viewport
-    add ax, HUD_HEART_MARGIN        ; Agregar margen
+    add ax, HUD_HEART_X  
     mov cx, ax
     
     ; Posición Y (arriba del viewport)
     mov ax, viewport_y
     add ax, HUD_HEART_MARGIN
     mov dx, ax
+    add ax, HUD_HEART_X  
     
     ; Guardar SI antes de usarlo para otra cosa
     push si

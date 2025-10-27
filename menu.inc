@@ -1,7 +1,3 @@
-;-------------------------------------------------------------------------------
-; MENU.INC - Menú principal en modo EGA 640x350
-;-------------------------------------------------------------------------------
-
 Menu_InitVideo PROC
     mov ax, 0010h
     int 10h
@@ -80,6 +76,22 @@ Menu_ProcessKeyboard PROC
     mov ah, 0
     int 16h
 
+    ; --- INICIO: Corrección de Salto (Error 1) ---
+    cmp [menuState], 1
+    je Process_Key_State_Options  ; Invertido (de jne a je)
+    jmp Menu_KeyCheckMain         ; Salto largo
+    
+Process_Key_State_Options:
+    cmp ah, 1
+    je Menu_KeyExit
+    
+    mov [menuState], 0
+    mov [lastSelection], 0FFh
+    call Menu_PlaySelectSound
+    jmp Menu_KeyDone
+    ; --- FIN: Corrección de Salto ---
+
+Menu_KeyCheckMain:
     cmp ah, 48h
     je Menu_KeyUp
     cmp al, 'W'
@@ -143,6 +155,35 @@ Menu_ProcessMouse PROC
     jmp Menu_MouseEnd
 Menu_MouseContinue:
 
+    ; --- INICIO: Corrección de Salto (Error 2) ---
+    cmp [menuState], 1
+    je Process_Mouse_State_Options ; Invertido (de jne a je)
+    jmp Menu_MouseCheckMain        ; Salto largo
+    
+Process_Mouse_State_Options:
+    ; --- INICIO: Corrección de Salto (Error 3) ---
+    mov al, [mouseBtn]
+    and al, 1
+    cmp al, 1
+    je Mouse_Options_Click_Check_Last ; Invertido (de jne a je)
+    jmp Menu_MouseEnd                 ; Salto largo
+Mouse_Options_Click_Check_Last:
+    mov al, [lastMouseBtn]
+    and al, 1
+    cmp al, 0
+    je Mouse_Options_Clicked          ; Invertido (de jne a je)
+    jmp Menu_MouseEnd                 ; Salto largo
+Mouse_Options_Clicked:
+    ; --- FIN: Corrección de Salto (Error 3) ---
+
+    mov [menuState], 0
+    mov [lastSelection], 0FFh
+    call Menu_PlaySelectSound
+    jmp Menu_MouseEnd
+    ; --- FIN: Corrección de Salto (Error 2) ---
+
+Menu_MouseCheckMain:
+
     mov [mouseOverButton], 0FFh
 
     mov ax, [mouseX]
@@ -204,6 +245,14 @@ Menu_CheckMouseClick:
     je Menu_MouseEnd
     call Menu_PlaySelectSound
     mov al, [currentSelection]
+
+    cmp al, 1
+    jne Menu_SetResult
+    
+    mov [menuState], 1
+    mov [lastSelection], 0FFh
+    jmp Menu_MouseEnd
+Menu_SetResult:
     mov [menuResult], al
 
 Menu_MouseEnd:
@@ -421,13 +470,13 @@ Menu_DrawDebugInfo PROC
     mov dx, 40
     mov si, OFFSET menu_debug_title
     mov al, 12
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 
     mov cx, 440
     mov dx, 60
     mov si, OFFSET menu_debug_selection
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
     mov al, [currentSelection]
     cmp al, 0FFh
     je Menu_DebugSelectionNone
@@ -441,14 +490,14 @@ Menu_DebugSelectionNone:
     mov dx, 60
     mov si, OFFSET menu_debug_none
     mov al, 10
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 Menu_DebugSelectionDone:
 
     mov cx, 440
     mov dx, 80
     mov si, OFFSET menu_debug_result
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
     mov al, [menuResult]
     cmp al, 0FFh
     je Menu_DebugResultPending
@@ -462,14 +511,14 @@ Menu_DebugResultPending:
     mov dx, 80
     mov si, OFFSET menu_debug_pending
     mov al, 10
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 Menu_DebugResultDone:
 
     mov cx, 440
     mov dx, 100
     mov si, OFFSET menu_debug_mouse_x
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
     mov ax, [mouseX]
     mov cx, 560
     mov dx, 100
@@ -479,7 +528,7 @@ Menu_DebugResultDone:
     mov dx, 120
     mov si, OFFSET menu_debug_mouse_y
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
     mov ax, [mouseY]
     mov cx, 560
     mov dx, 120
@@ -489,7 +538,7 @@ Menu_DebugResultDone:
     mov dx, 140
     mov si, OFFSET menu_debug_present
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
     mov al, [mousePresent]
     mov cx, 560
     mov dx, 140
@@ -497,19 +546,19 @@ Menu_DebugResultDone:
     jne Menu_DebugMousePresentYes
     mov si, OFFSET menu_debug_no
     mov al, 10
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
     jmp Menu_DebugMousePresentDone
 Menu_DebugMousePresentYes:
     mov si, OFFSET menu_debug_si
     mov al, 10
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 Menu_DebugMousePresentDone:
 
     mov cx, 440
     mov dx, 160
     mov si, OFFSET menu_debug_btn
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
     mov al, [mouseBtn]
     xor ah, ah
     mov cx, 560
@@ -520,7 +569,7 @@ Menu_DebugMousePresentDone:
     mov dx, 180
     mov si, OFFSET menu_debug_lastbtn
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
     mov al, [lastMouseBtn]
     xor ah, ah
     mov cx, 560
@@ -531,7 +580,7 @@ Menu_DebugMousePresentDone:
     mov dx, 200
     mov si, OFFSET menu_debug_hover
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
     mov al, [mouseOverButton]
     cmp al, 0FFh
     je Menu_DebugHoverNone
@@ -545,7 +594,7 @@ Menu_DebugHoverNone:
     mov dx, 200
     mov si, OFFSET menu_debug_none
     mov al, 10
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 Menu_DebugHoverDone:
 
     pop si
@@ -564,9 +613,7 @@ Menu_Draw PROC
     push si
     push di
 
-    call ClearScreenEGA
-
-    mov temp_offset, 0
+    call limpiar_pagina_actual
 
     mov cx, 96
     mov dx, 96
@@ -586,19 +633,19 @@ Menu_Draw PROC
     mov dx, 110
     mov si, OFFSET menu_title
     mov al, 14
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 
     mov cx, 170
     mov dx, 130
     mov si, OFFSET menu_subtitle
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 
     mov cx, 120
     mov dx, 148
     mov si, OFFSET menu_subtitle2
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 
     mov cx, [btnPlayX1]
     mov dx, [btnPlayY1]
@@ -704,68 +751,52 @@ Menu_DrawExitDone:
     ret
 Menu_Draw ENDP
 
-Menu_ShowOptionsScreen PROC
+Menu_DrawOptionsScreen PROC
     push ax
     push bx
     push cx
     push dx
     push si
 
-    call ClearScreenEGA
+    call limpiar_pagina_actual
 
     mov cx, 220
     mov dx, 120
     mov si, OFFSET menu_options_title
     mov al, 14
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 
     mov cx, 120
     mov dx, 150
     mov si, OFFSET menu_options_line1
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 
     mov cx, 120
     mov dx, 170
     mov si, OFFSET menu_options_line2
     mov al, 11
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 
     mov cx, 120
     mov dx, 200
     mov si, OFFSET menu_options_line3
     mov al, 10
-    call dibujar_texto_simple
+    call dibujar_texto_buffer
 
-    call Menu_GetMouseState
-Menu_OptionsWait:
-    call Menu_GetMouseState
-    mov al, [mouseBtn]
-    and al, 1
-    cmp al, 1
-    jne Menu_OptionsCheckKey
-    mov al, [lastMouseBtn]
-    and al, 1
-    cmp al, 0
-    je Menu_OptionsDone
-Menu_OptionsCheckKey:
-    mov ah, 1
-    int 16h
-    jz Menu_OptionsWait
-    mov ah, 0
-    int 16h
-Menu_OptionsDone:
     pop si
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-Menu_ShowOptionsScreen ENDP
+Menu_DrawOptionsScreen ENDP
 
 Menu_ResetState PROC
     mov [currentSelection], 0
+    mov [lastSelection], 0FFh
     mov [menuResult], 0FFh
+    mov [menuState], 0
     mov [mouseBtn], 0
     mov [lastMouseBtn], 0
     mov [mouseOverButton], 0FFh
@@ -780,31 +811,88 @@ mostrar_menu_principal PROC
     push dx
     push si
 
-Menu_Loop_Start:
     call Menu_InitVideo
     call Menu_InitMouse
     call Menu_ResetState
 
+    mov pagina_visible, 0
+    mov pagina_dibujo, 1
+    mov lastSelection, 0FFh
+    mov menuState, 0
+
+    mov temp_offset, 0
+    cmp [menuState], 1
+    jne mmp_draw_main_p0
+    call Menu_DrawOptionsScreen
+    jmp mmp_draw_done_p0
+mmp_draw_main_p0:
+    call Menu_Draw
+mmp_draw_done_p0:
+
+    mov temp_offset, 8000h
+    cmp [menuState], 1
+    jne mmp_draw_main_p1
+    call Menu_DrawOptionsScreen
+    jmp mmp_draw_done_p1
+mmp_draw_main_p1:
+    call Menu_Draw
+mmp_draw_done_p1:
+
+    mov ah, 5
+    mov al, 0
+    int 10h
+
 Menu_MainLoop:
+    mov al, currentSelection
+    cmp al, lastSelection
+    jne mmp_hay_cambio
+    
+    call esperar_retrace
     call Menu_GetMouseState
     call Menu_ProcessKeyboard
     call Menu_ProcessMouse
-    call Menu_Draw
-    call Menu_DelayShort
-    cmp [menuResult], 0FFh
-    je Menu_MainLoop
+    jmp mmp_check_exit
 
-    mov al, [menuResult]
-    cmp al, 1
-    jne Menu_SelectionMade
-    call Menu_ShowOptionsScreen
-    call Menu_ResetState
+mmp_hay_cambio:
+    mov al, currentSelection
+    mov lastSelection, al
+
+    call esperar_retrace
+
+    mov al, pagina_dibujo
+    test al, 1
+    jz mmp_render_p0
+    mov temp_offset, 8000h
+    jmp mmp_render
+mmp_render_p0:
+    mov temp_offset, 0
+    
+mmp_render:
+    cmp [menuState], 1
+    jne mmp_draw_main
+    call Menu_DrawOptionsScreen
+    jmp mmp_post_render
+mmp_draw_main:
+    call Menu_Draw
+    
+mmp_post_render:
+    call Menu_GetMouseState
+    call Menu_ProcessKeyboard
+    call Menu_ProcessMouse
+
+    mov ah, 5
+    mov al, pagina_dibujo
+    int 10h
+    
+    xor pagina_dibujo, 1
+    xor pagina_visible, 1
+    
+mmp_check_exit:
+    cmp [menuResult], 0FFh
     jmp Menu_MainLoop
 
-Menu_SelectionMade:
     mov bl, al
     call Menu_DeInitMouse
-    call Menu_DeInitVideo
     mov al, bl
 
     pop si
@@ -1165,4 +1253,3 @@ csm_done:
     pop ax
     ret
 cargar_sprites_menu ENDP
-

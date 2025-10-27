@@ -228,7 +228,9 @@ MENU_BTN_HEIGHT  EQU 16
 MENU_BTN_PIXELS  EQU 512
 
 currentSelection    db 0
+lastSelection       db 0FFh  ; <-- AGREGA ESTA LÍNEA
 menuResult          db 0FFh
+menuState           db 0     ; <-- AGREGA ESTA LÍNEA
 mousePresent        db 0
 mouseX              dw 320
 mouseY              dw 175
@@ -513,24 +515,22 @@ anim_ok:
     int 21h
     call debug_verificar_todo
 
-; ===== FASE 7: MENU PRINCIPAL (DESHABILITADO TEMPORALMENTE) =====
-;    mov dx, OFFSET msg_menu
-;    mov ah, 9
-;    int 21h
-;    call cargar_sprites_menu
-;    jnc csmenu_ok
-;    jmp error_carga
-;csmenu_ok:
-;    mov dx, OFFSET msg_ok
-;    mov ah, 9
-;    int 21h
-;
-;    call mostrar_menu_principal
-;    cmp al, 2
-;    jne continuar_juego
-;    jmp fin_juego
-;
-;    jmp continuar_juego
+    mov dx, OFFSET msg_menu
+    mov ah, 9
+    int 21h
+    call cargar_sprites_menu
+    jnc csmenu_ok
+    jmp error_carga
+csmenu_ok:
+    mov dx, OFFSET msg_ok
+    mov ah, 9
+    int 21h
+
+    call mostrar_menu_principal
+    cmp al, 2
+    jne continuar_juego
+    jmp fin_juego
+
 continuar_juego:
 
 ; ===== ENTRAR A MODO GRÁFICO =====
