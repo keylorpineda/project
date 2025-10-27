@@ -1468,7 +1468,10 @@ dibujar_hud_hotbar PROC
 
 dhh_loop_slots:
     cmp bp, HUD_HOTBAR_SLOTS
-    jae dhh_fin
+    jb dhh_loop_slots_continue
+    jmp dhh_fin
+
+dhh_loop_slots_continue:
     
     mov ax, bp
     mov bx, ITEM_TOTAL
