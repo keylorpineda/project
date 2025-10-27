@@ -6,14 +6,12 @@ TILE_PATH     EQU 3
 TILE_WATER    EQU 4
 TILE_TREE     EQU 5
 TILE_SAND     EQU 6
-TILE_ROCK     EQU 7
 TILE_SNOW     EQU 8
 TILE_ICE      EQU 9
 TILE_WALL     EQU 10
-TILE_ROOF     EQU 11
-TILE_BRICK    EQU 12
 TILE_DIRT     EQU 13
 TILE_LAVA     EQU 14
+TILE_ROCK     EQU 7
 TILE_BRIDGE   EQU 15
 
 TILE_SIZE      EQU 16
@@ -35,8 +33,6 @@ archivo_sand   db 'SPRITES\SAND_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
 archivo_wall   db 'SPRITES\WALL_1.TXT',0
-archivo_roof   db 'SPRITES\HOUSE_RF.TXT',0
-archivo_brick  db 'SPRITES\FORT_BRK.TXT',0
 archivo_dirt   db 'SPRITES\DIRT_1.TXT',0
 archivo_lava   db 'SPRITES\LAVA_1.TXT',0
 archivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
@@ -55,7 +51,6 @@ mapa_datos  db 10000 dup(0)
 
 sprite_buffer_16   db 256 dup(0)
 sprite_buffer_32   db 1024 dup(0)
-sprite_buffer_8    db 64 dup(0)
 
 sprite_grass1   db 128 dup(0)
 sprite_path     db 128 dup(0)
@@ -65,24 +60,10 @@ sprite_sand     db 128 dup(0)
 sprite_snow     db 128 dup(0)
 sprite_ice      db 128 dup(0)
 sprite_wall     db 128 dup(0)
-sprite_roof     db 128 dup(0)
-sprite_brick    db 128 dup(0)
 sprite_dirt     db 128 dup(0)
 sprite_lava     db 128 dup(0)
 sprite_rock     db 128 dup(0)
 sprite_bridge   db 128 dup(0)
-
-sprite_cristal_small   db 32 dup(0)
-sprite_gema_small      db 32 dup(0)
-sprite_moneda_small    db 32 dup(0)
-sprite_espada          db 128 dup(0)
-sprite_espada_small    db 32 dup(0)
-
-sprite_cristal_small_mask   db 8 dup(0)
-sprite_gema_small_mask      db 8 dup(0)
-sprite_moneda_small_mask    db 8 dup(0)
-sprite_espada_mask          db 32 dup(0)
-sprite_espada_small_mask    db 8 dup(0)
 
 jugador_up_a    db 512 dup(0)
 jugador_up_b    db 512 dup(0)
@@ -125,21 +106,18 @@ temp_col  dw 0
 scroll_offset_x dw 0
 scroll_offset_y dw 0
 
-sprite_temp_ptr dw 0
-
 inventario_abierto db 0          
 inventario_toggle_bloqueado db 0 
 requiere_redibujar db 0          
 tecla_e_presionada db 0
 MAX_ITEMS EQU 8
-MAX_TIPOS_RECURSO EQU 4
+MAX_TIPOS_RECURSO EQU 3
 META_POR_TIPO EQU 2              ; Necesitamos 2 de cada tipo para ganar
 
 ; Contador de recursos recolectados por tipo
 recursos_tipo1 db 0              ; Cristales recolectados
 recursos_tipo2 db 0              ; Gemas recolectadas
 recursos_tipo3 db 0              ; Monedas recolectadas
-recursos_tipo4 db 0              ; Espadas recolectadas
 
 recursos_recogidos dw 0
 
@@ -183,11 +161,6 @@ sprite_moneda       db 128 dup(0)
 archivo_cristal db 'SPRITES\CRYSTAL.TXT',0
 archivo_gema    db 'SPRITES\GEM.TXT',0
 archivo_moneda  db 'SPRITES\COIN.TXT',0
-archivo_cristal_8 db 'SPRITES\CRY8.TXT',0
-archivo_gema_8    db 'SPRITES\GEM8.TXT',0
-archivo_moneda_8  db 'SPRITES\COIN8.TXT',0
-archivo_espada    db 'SPRITES\SWORD.TXT',0
-archivo_espada_8  db 'SPRITES\SWD8.TXT',0
 archivo_btn_jugar_n   db 'SPRITES\MENU\BTNJUGN.TXT',0
 archivo_btn_jugar_s   db 'SPRITES\MENU\BTNJUGS.TXT',0
 archivo_btn_opciones_n db 'SPRITES\MENU\BTNOPCN.TXT',0
@@ -208,7 +181,6 @@ msg_recursos    db 'RECURSOS',0
 msg_cristales   db 'CRISTALES:',0
 msg_gemas       db 'GEMAS:',0
 msg_monedas     db 'MONEDAS:',0
-msg_espadas     db 'ESPADAS:',0
 msg_objetivo    db 'OBJETIVO:',0
 msg_progreso    db 'PROGRESO:',0
 msg_completado  db 'COMPLETADO!',0
@@ -1527,28 +1499,6 @@ cst_ok_wall:
     mov bp, OFFSET sprite_wall_mask
     call convertir_sprite_a_planar_opt
 
-    mov dx, OFFSET archivo_roof
-    mov di, OFFSET sprite_buffer_16
-    call cargar_sprite_16x16
-    jnc cst_ok_roof
-    jmp cst_error
-cst_ok_roof:
-    mov si, OFFSET sprite_buffer_16
-    mov di, OFFSET sprite_roof
-    mov bp, OFFSET sprite_roof_mask
-    call convertir_sprite_a_planar_opt
-
-    mov dx, OFFSET archivo_brick
-    mov di, OFFSET sprite_buffer_16
-    call cargar_sprite_16x16
-    jnc cst_ok_brick
-    jmp cst_error
-cst_ok_brick:
-    mov si, OFFSET sprite_buffer_16
-    mov di, OFFSET sprite_brick
-    mov bp, OFFSET sprite_brick_mask
-    call convertir_sprite_a_planar_opt
-
     mov dx, OFFSET archivo_dirt
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
@@ -1593,17 +1543,6 @@ cst_ok_cristal:
     mov bp, OFFSET sprite_cristal_mask
     call convertir_sprite_a_planar_opt
 
-    mov dx, OFFSET archivo_cristal_8
-    mov di, OFFSET sprite_buffer_8
-    call cargar_sprite_8x8
-    jnc cst_ok_cristal8
-    jmp cst_error
-cst_ok_cristal8:
-    mov si, OFFSET sprite_buffer_8
-    mov di, OFFSET sprite_cristal_small
-    mov bp, OFFSET sprite_cristal_small_mask
-    call convertir_sprite_8x8_a_planar_opt
-
     mov dx, OFFSET archivo_gema
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
@@ -1615,60 +1554,16 @@ cst_ok_gema:
     mov bp, OFFSET sprite_gema_mask
     call convertir_sprite_a_planar_opt
 
-    mov dx, OFFSET archivo_gema_8
-    mov di, OFFSET sprite_buffer_8
-    call cargar_sprite_8x8
-    jnc cst_ok_gema8
-    jmp cst_error
-cst_ok_gema8:
-    mov si, OFFSET sprite_buffer_8
-    mov di, OFFSET sprite_gema_small
-    mov bp, OFFSET sprite_gema_small_mask
-    call convertir_sprite_8x8_a_planar_opt
-
     mov dx, OFFSET archivo_moneda
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
     jnc cst_ok_moneda
     jmp cst_error
 cst_ok_moneda:
-    mov si, OFFSET sprite_buffer_16
+   mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_moneda
     mov bp, OFFSET sprite_moneda_mask
     call convertir_sprite_a_planar_opt
-
-    mov dx, OFFSET archivo_moneda_8
-    mov di, OFFSET sprite_buffer_8
-    call cargar_sprite_8x8
-    jnc cst_ok_moneda8
-    jmp cst_error
-cst_ok_moneda8:
-    mov si, OFFSET sprite_buffer_8
-    mov di, OFFSET sprite_moneda_small
-    mov bp, OFFSET sprite_moneda_small_mask
-    call convertir_sprite_8x8_a_planar_opt
-
-    mov dx, OFFSET archivo_espada
-    mov di, OFFSET sprite_buffer_16
-    call cargar_sprite_16x16
-    jnc cst_ok_espada
-    jmp cst_error
-cst_ok_espada:
-    mov si, OFFSET sprite_buffer_16
-    mov di, OFFSET sprite_espada
-    mov bp, OFFSET sprite_espada_mask
-    call convertir_sprite_a_planar_opt
-
-    mov dx, OFFSET archivo_espada_8
-    mov di, OFFSET sprite_buffer_8
-    call cargar_sprite_8x8
-    jnc cst_ok_espada8
-    jmp cst_error
-cst_ok_espada8:
-    mov si, OFFSET sprite_buffer_8
-    mov di, OFFSET sprite_espada_small
-    mov bp, OFFSET sprite_espada_small_mask
-    call convertir_sprite_8x8_a_planar_opt
 
     mov dx, OFFSET archivo_heart1
     mov di, OFFSET sprite_buffer_16
@@ -2075,25 +1970,11 @@ ost_ice:
     
 ost_wall:
     cmp bl, TILE_WALL
-    jne ost_roof
+    jne ost_dirt
     mov di, OFFSET sprite_wall
     mov si, OFFSET sprite_wall_mask
     jmp ost_fin
-
-ost_roof:
-    cmp bl, TILE_ROOF
-    jne ost_brick
-    mov di, OFFSET sprite_roof
-    mov si, OFFSET sprite_roof_mask
-    jmp ost_fin
-
-ost_brick:
-    cmp bl, TILE_BRICK
-    jne ost_dirt
-    mov di, OFFSET sprite_brick
-    mov si, OFFSET sprite_brick_mask
-    jmp ost_fin
-
+    
 ost_dirt:
     cmp bl, TILE_DIRT
     jne ost_lava
@@ -2173,62 +2054,57 @@ dibujar_item_sostenido PROC
 
     cmp al, 1
     jne dis_tipo2
-    mov di, OFFSET sprite_cristal_small
-    mov si, OFFSET sprite_cristal_small_mask
-    jmp dis_calcular_pos_small
-
+    mov di, OFFSET sprite_cristal
+    mov si, OFFSET sprite_cristal_mask
+    jmp dis_calcular_pos
+    
 dis_tipo2:
     cmp al, 2
     jne dis_tipo3
-    mov di, OFFSET sprite_gema_small
-    mov si, OFFSET sprite_gema_small_mask
-    jmp dis_calcular_pos_small
-
+    mov di, OFFSET sprite_gema
+    mov si, OFFSET sprite_gema_mask
+    jmp dis_calcular_pos
+    
 dis_tipo3:
-    cmp al, 3
-    jne dis_tipo4
-    mov di, OFFSET sprite_moneda_small
-    mov si, OFFSET sprite_moneda_small_mask
-    jmp dis_calcular_pos_small
+    mov di, OFFSET sprite_moneda
+    mov si, OFFSET sprite_moneda_mask
 
-dis_tipo4:
-    mov di, OFFSET sprite_espada_small
-    mov si, OFFSET sprite_espada_small_mask
-
-dis_calcular_pos_small:
+dis_calcular_pos:
     push si
-
+    
     mov al, jugador_dir
-
+    
     cmp al, DIR_ABAJO
-    jne dis_dir_arriba_small
-    add cx, 12
-    add dx, 24
-    jmp dis_dibujar_small
+    jne dis_dir_arriba
+    add cx, 8
+    add dx, 20
+    jmp dis_dibujar
 
-dis_dir_arriba_small:
+dis_dir_arriba:
     cmp al, DIR_ARRIBA
-    jne dis_dir_izq_small
-    add cx, 12
-    jmp dis_dibujar_small
-
-dis_dir_izq_small:
+    jne dis_dir_izq
+    add cx, 8
+    sub dx, 4
+    jmp dis_dibujar
+    
+dis_dir_izq:
     cmp al, DIR_IZQUIERDA
-    jne dis_dir_der_small
-    add dx, 12
-    jmp dis_dibujar_small
+    jne dis_dir_der
+    sub cx, 4
+    add dx, 8
+    jmp dis_dibujar
 
-dis_dir_der_small:
-    add cx, 24
-    add dx, 12
+dis_dir_der:
+    add cx, 20
+    add dx, 8
 
-dis_dibujar_small:
+dis_dibujar:
     pop si
-
+    
     cmp inventario_abierto, 1
     je dis_fin_no_draw
-
-    call dibujar_sprite_planar_8x8_opt
+    
+    call dibujar_sprite_planar_16x16_opt
     
 dis_fin_no_draw:
     jmp dis_fin
@@ -2451,7 +2327,6 @@ cargar_recursos_desde_mapa PROC
     mov recursos_tipo1, 0
     mov recursos_tipo2, 0
     mov recursos_tipo3, 0
-    mov recursos_tipo4, 0
     mov recursos_recogidos, 0
     mov num_recursos_cargados, 0
 
@@ -2718,93 +2593,6 @@ cs16_fin:
     pop ax
     ret
 cargar_sprite_16x16 ENDP
-
-cargar_sprite_8x8 PROC
-    push ax
-    push bx
-    push cx
-    push si
-    push bp
-
-    mov ax, 3D00h
-    int 21h
-    jc cs8_error
-
-    mov bx, ax
-    call saltar_linea
-
-    xor bp, bp
-
-cs8_leer:
-    mov ah, 3Fh
-    mov cx, 200
-    push dx
-    mov dx, OFFSET buffer_temp
-    int 21h
-    pop dx
-
-    cmp ax, 0
-    je cs8_cerrar
-
-    mov cx, ax
-    xor si, si
-
-cs8_proc:
-    cmp si, cx
-    jae cs8_leer
-
-    mov al, [buffer_temp + si]
-    inc si
-
-    cmp al, ' '
-    je cs8_proc
-    cmp al, 13
-    je cs8_proc
-    cmp al, 10
-    je cs8_proc
-    cmp al, 9
-    je cs8_proc
-
-    cmp al, '0'
-    jb cs8_proc
-    cmp al, '9'
-    jbe cs8_dec
-
-    and al, 0DFh
-    cmp al, 'A'
-    jb cs8_proc
-    cmp al, 'F'
-    ja cs8_proc
-    sub al, 'A' - 10
-    jmp cs8_guardar
-
-cs8_dec:
-    sub al, '0'
-
-cs8_guardar:
-    mov [di], al
-    inc di
-    inc bp
-    cmp bp, 64
-    jb cs8_proc
-
-cs8_cerrar:
-    mov ah, 3Eh
-    int 21h
-    clc
-    jmp cs8_fin
-
-cs8_error:
-    stc
-
-cs8_fin:
-    pop bp
-    pop si
-    pop cx
-    pop bx
-    pop ax
-    ret
-cargar_sprite_8x8 ENDP
 
 cargar_sprite_32x32 PROC
     push ax
