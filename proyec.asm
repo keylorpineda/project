@@ -511,21 +511,22 @@ anim_ok:
     int 21h
     call debug_verificar_todo
 
-    mov dx, OFFSET msg_menu
-    mov ah, 9
-    int 21h
-    call cargar_sprites_menu
-    jnc csmenu_ok
-    jmp error_carga
-csmenu_ok:
-    mov dx, OFFSET msg_ok
-    mov ah, 9
-    int 21h
+    ; ===== MENU TEMPORALMENTE DESHABILITADO =====
+    ; mov dx, OFFSET msg_menu
+    ; mov ah, 9
+    ; int 21h
+    ; call cargar_sprites_menu
+    ; jnc csmenu_ok
+    ; jmp error_carga
+;csmenu_ok:
+    ; mov dx, OFFSET msg_ok
+    ; mov ah, 9
+    ; int 21h
 
-    call mostrar_menu_principal
-    cmp al, 2
-    jne continuar_juego
-    jmp fin_juego
+    ; call mostrar_menu_principal
+    ; cmp al, 2
+    ; jne continuar_juego
+    ; jmp fin_juego
 
 continuar_juego:
 
