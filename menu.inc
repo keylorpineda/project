@@ -181,12 +181,18 @@ Menu_MouseContinue:
     mov al, [mouseBtn]
     and al, 1
     cmp al, 1
-    jne Menu_MouseEnd ; Si no hay click, salir
+    je  .MenuMouse_CheckLast ; Si hay click, validar siguiente condición
+    jmp Menu_MouseEnd        ; Si no hay click, salir
+
+.MenuMouse_CheckLast:
 
     mov al, [lastMouseBtn]
     and al, 1
     cmp al, 0
-    jne Menu_MouseEnd ; Si el click ya estaba presionado, salir
+    je  .MenuMouse_HandleClick ; Si es un nuevo click, manejarlo
+    jmp Menu_MouseEnd           ; Si el click ya estaba presionado, salir
+
+.MenuMouse_HandleClick:
 
     ; Click detectado en pantalla de opciones
     mov [menuState], 0
