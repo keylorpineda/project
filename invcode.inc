@@ -1688,33 +1688,94 @@ dhh_fin:
     ret
 dibujar_hud_hotbar ENDP
 
-; ... (después de dibujar_hud_hotbar ENDP)
-
-; ============================================
-; RUTINAS DE VICTORIA
-; ============================================
-
 reproducir_sonido_victoria PROC
-    ; Reproduce una fanfarria simple de victoria
+    ; ==========================================================
+    ; == Himno de Victoria Lento (aprox 15 segundos) ==
+    ; ==========================================================
     push ax
+    push cx
 
-    ; Tono 1 (Bajo)
-    mov     ax, 2000        
+    ; --- Notas (Divisores del PIT) ---
+    ; C4 (Do grave) = 4560
+    ; E4 (Mi)       = 3620
+    ; G4 (Sol)      = 3044
+    ; C5 (Do medio) = 2280
+    ; E5 (Mi)       = 1810
+    ; F5 (Fa)       = 1710
+    ; G5 (Sol)      = 1522
+
+    ; --- Melodía ---
+
+    ; === Frase 1: Arpegio Lento Ascendente (C-E-G) ===
+    
+    ; C4 (Do grave) - Sostenido 2 tiempos
+    mov     ax, 4560        
     call    PlayNote
     call    SoundDurationDelay
-
-    ; Tono 2 (Medio)
-    mov     ax, 1500        
-    call    PlayNote
     call    SoundDurationDelay
 
-    ; Tono 3 (Alto)
-    mov     ax, 1000        
+    ; E4 (Mi) - Sostenido 2 tiempos
+    mov     ax, 3620
     call    PlayNote
     call    SoundDurationDelay
-    call    SoundDurationDelay ; Sostener la última nota
+    call    SoundDurationDelay
+    
+    ; G4 (Sol) - Sostenido 4 tiempos
+    mov     ax, 3044
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
 
+    ; Pausa
     call    SpeakerOff
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+
+    ; === Frase 2: Resolución (F-E-G-C5) ===
+
+    ; F5 (Fa) - Sostenido 2 tiempos
+    mov     ax, 1710
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    
+    ; E5 (Mi) - Sostenido 2 tiempos
+    mov     ax, 1810
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+
+    ; G5 (Sol) - Sostenido 2 tiempos
+    mov     ax, 1522
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    
+    ; Pausa
+    call    SpeakerOff
+    call    SoundDurationDelay
+
+    ; === Nota Final: Acorde Sostenido (C5) ===
+    
+    ; C5 (Do medio) - Sostenido por 8 tiempos (¡el gran final!)
+    mov     ax, 2280
+    call    PlayNote
+    
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+
+    ; Apagar sonido
+    call    SpeakerOff
+    
+    pop cx
     pop ax
     ret
 reproducir_sonido_victoria ENDP
@@ -1744,7 +1805,7 @@ pv_limpiar:
     ; 2. Limpiar esa página
     call limpiar_pagina_actual
 
-    ; 3. Reproducir sonido de victoria
+    ; 3. Reproducir sonido de victoria (la nueva versión larga)
     call reproducir_sonido_victoria
 
     ; 4. Dibujar texto "VICTORIA!" centrado
@@ -1761,11 +1822,21 @@ pv_limpiar:
     mov al, pagina_dibujo
     int 10h
 
-    ; 6. Esperar una tecla antes de salir
-    ; (Esto evita que el juego se cierre al instante)
-    mov ah, 0
+    ; 6. Esperar SOLAMENTE la tecla ESC
+pv_wait_esc:
+    mov ah, 1       ; Función: Comprobar si hay tecla en el buffer
     int 16h
+    jz pv_wait_esc  ; Si no hay tecla (Zero Flag=1), seguir esperando
 
+    ; Si hay una tecla, la leemos para sacarla del buffer
+    mov ah, 0       ; Función: Leer tecla
+    int 16h
+    
+    ; Comprobamos el Scan Code (en AH)
+    cmp ah, 01h     ; ¿Es el scancode de ESC?
+    jne pv_wait_esc ; Si no es ESC, ignorarla y volver a esperar
+
+    ; Si llegamos aquí, se presionó ESC
     pop si
     pop dx
     pop cx

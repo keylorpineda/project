@@ -1341,9 +1341,18 @@ SetSpeakerFreq ENDP
 
 SoundDurationDelay PROC
     push cx
-    mov     cx, 4000h       
+    push dx
+    
+    mov dx, 9               ; <-- CAMBIO: 3 * 3 = 9
+.sdd_outer_loop:
+    mov cx, 0FFFFh          ; Bucle interior (máxima duración)
 .sdd_loop:
-    loop    .sdd_loop
+    loop .sdd_loop
+    
+    dec dx                  ; Siguiente iteración del bucle exterior
+    jnz .sdd_outer_loop     ; Repetir si DX no es cero
+    
+    pop dx
     pop cx
     ret
 SoundDurationDelay ENDP
@@ -2015,6 +2024,8 @@ dibujar_jugador_en_offset PROC
 
     call dibujar_sprite_planar_32x32_opt
 
+    call dibujar_item_sostenido
+
     call dibujar_animacion_recoger
 
     pop di
@@ -2024,6 +2035,89 @@ dibujar_jugador_en_offset PROC
     pop ax
     ret
 dibujar_jugador_en_offset ENDP
+
+dibujar_item_sostenido PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    
+    mov al, hud_slot_seleccionado
+    xor ah, ah
+    mov si, ax
+    
+    mov al, [inventario_slots + si]
+    test al, al
+    jz dis_fin
+
+    cmp al, 1
+    jne dis_tipo2
+    mov di, OFFSET sprite_cristal
+    mov si, OFFSET sprite_cristal_mask
+    jmp dis_calcular_pos
+    
+dis_tipo2:
+    cmp al, 2
+    jne dis_tipo3
+    mov di, OFFSET sprite_gema
+    mov si, OFFSET sprite_gema_mask
+    jmp dis_calcular_pos
+    
+dis_tipo3:
+    mov di, OFFSET sprite_moneda
+    mov si, OFFSET sprite_moneda_mask
+
+dis_calcular_pos:
+    push si
+    
+    mov al, jugador_dir
+    
+    cmp al, DIR_ABAJO
+    jne dis_dir_arriba
+    add cx, 8
+    add dx, 20
+    jmp dis_dibujar
+
+dis_dir_arriba:
+    cmp al, DIR_ARRIBA
+    jne dis_dir_izq
+    add cx, 8
+    sub dx, 4
+    jmp dis_dibujar
+    
+dis_dir_izq:
+    cmp al, DIR_IZQUIERDA
+    jne dis_dir_der
+    sub cx, 4
+    add dx, 8
+    jmp dis_dibujar
+
+dis_dir_der:
+    add cx, 20
+    add dx, 8
+
+dis_dibujar:
+    pop si
+    
+    cmp inventario_abierto, 1
+    je dis_fin_no_draw
+    
+    call dibujar_sprite_planar_16x16_opt
+    
+dis_fin_no_draw:
+    jmp dis_fin
+
+dis_fin:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_item_sostenido ENDP
 
 esperar_retrace PROC
     push ax
