@@ -1982,39 +1982,3 @@ ccs_y_ok:
     pop ax
     ret
 centrar_camara_suave ENDP
-
-pantalla_victoria PROC
-    push ax
-    push dx
-    push si
-    
-    ; Limpiar pantalla
-    mov ax, VIDEO_SEG
-    mov es, ax
-    xor di, di
-    mov cx, 28000
-    xor ax, ax
-    rep stosw
-    
-    ; Dibujar mensaje de victoria centrado
-    mov cx, 240
-    mov dx, 150
-    
-    ; Dibujar rectángulo de fondo
-    mov ax, 160
-    mov bx, 50
-    mov si, COLOR_BARRA_LLENA
-    call dibujar_rectangulo_lleno
-    
-    ; TODO: Dibujar texto "¡FELICIDADES!"
-    ; (Por ahora solo el fondo)
-    
-    ; Esperar tecla
-    mov ah, 0
-    int 16h
-    
-    pop si
-    pop dx
-    pop ax
-    ret
-pantalla_victoria ENDP

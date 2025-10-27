@@ -1687,3 +1687,88 @@ dhh_fin:
     pop ax
     ret
 dibujar_hud_hotbar ENDP
+
+; ... (después de dibujar_hud_hotbar ENDP)
+
+; ============================================
+; RUTINAS DE VICTORIA
+; ============================================
+
+reproducir_sonido_victoria PROC
+    ; Reproduce una fanfarria simple de victoria
+    push ax
+
+    ; Tono 1 (Bajo)
+    mov     ax, 2000        
+    call    PlayNote
+    call    SoundDurationDelay
+
+    ; Tono 2 (Medio)
+    mov     ax, 1500        
+    call    PlayNote
+    call    SoundDurationDelay
+
+    ; Tono 3 (Alto)
+    mov     ax, 1000        
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay ; Sostener la última nota
+
+    call    SpeakerOff
+    pop ax
+    ret
+reproducir_sonido_victoria ENDP
+
+pantalla_victoria PROC
+    ; Esta función es llamada desde el bucle principal cuando
+    ; verificar_victoria devuelve el carry flag activado.
+    push ax
+    push cx
+    push dx
+    push si
+
+    ; 1. Seleccionar la página de dibujo (la que no se ve)
+    mov al, pagina_dibujo
+    test al, 1
+    jz pv_render_p0
+    
+    ; Dibujar en página 1
+    mov temp_offset, 8000h
+    jmp pv_limpiar
+    
+pv_render_p0:
+    ; Dibujar en página 0
+    mov temp_offset, 0
+
+pv_limpiar:
+    ; 2. Limpiar esa página
+    call limpiar_pagina_actual
+
+    ; 3. Reproducir sonido de victoria
+    call reproducir_sonido_victoria
+
+    ; 4. Dibujar texto "VICTORIA!" centrado
+    ; X = (640 / 2) - ((9 chars * 8px) / 2) = 320 - 36 = 284
+    ; Y = (350 / 2) - (8px / 2) = 175 - 4 = 171
+    mov cx, 284
+    mov dx, 171
+    mov si, OFFSET msg_victoria
+    mov al, COLOR_TEXTO         ; Color 14 (Amarillo)
+    call dibujar_texto_buffer
+
+    ; 5. Mostrar la página de victoria
+    mov ah, 5
+    mov al, pagina_dibujo
+    int 10h
+
+    ; 6. Esperar una tecla antes de salir
+    ; (Esto evita que el juego se cierre al instante)
+    mov ah, 0
+    int 16h
+
+    pop si
+    pop dx
+    pop cx
+    pop ax
+    ret
+pantalla_victoria ENDP
