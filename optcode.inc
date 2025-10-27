@@ -103,6 +103,7 @@ cspo_fila:
     xor bx, bx
     xor dx, dx
     mov cx, 8
+    cld
     
 cspo_byte_izq:
     lodsb
@@ -204,6 +205,76 @@ cspo_fin:
     pop ax
     ret
 convertir_sprite_a_planar_opt ENDP
+
+convertir_sprite_8x8_a_planar_opt PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+
+    mov cx, 8
+
+cs8ap_fila:
+    push cx
+
+    xor dx, dx
+    xor bx, bx
+    mov cx, 8
+
+cs8ap_pixel:
+    lodsb
+
+    shl dl, 1
+    test al, 01h
+    jz cs8ap_b0
+    or dl, 1
+cs8ap_b0:
+    shl dh, 1
+    test al, 02h
+    jz cs8ap_b1
+    or dh, 1
+cs8ap_b1:
+    shl bl, 1
+    test al, 04h
+    jz cs8ap_b2
+    or bl, 1
+cs8ap_b2:
+    shl bh, 1
+    test al, 08h
+    jz cs8ap_b3
+    or bh, 1
+cs8ap_b3:
+    loop cs8ap_pixel
+
+    mov [di], dl
+    mov [di+8], dh
+    mov [di+16], bl
+    mov [di+24], bh
+
+    mov al, dl
+    or al, dh
+    or al, bl
+    or al, bh
+    mov [bp], al
+
+    inc di
+    inc bp
+
+    pop cx
+    loop cs8ap_fila
+
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+convertir_sprite_8x8_a_planar_opt ENDP
 
 ; ============================================
 ; CONVERSIÓN A PLANAR - JUGADOR 32x32 ✅ CORREGIDO
@@ -637,6 +708,191 @@ ajustar_coords_scroll PROC
     pop ax
     ret
 ajustar_coords_scroll ENDP
+
+dibujar_sprite_planar_8x8_opt PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+    push es
+
+    mov sprite_temp_ptr, di
+
+    mov ax, 0A000h
+    mov es, ax
+
+    mov bx, dx
+    shl bx, 1
+    mov bp, [video_offsets + bx]
+    mov ax, cx
+    shr ax, 3
+    add bp, ax
+    add bp, temp_offset
+
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    xor al, al
+    out dx, al
+
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+
+    push bp
+    push si
+    mov bx, sprite_temp_ptr
+    mov cx, 8
+
+dsp8_p0:
+    mov di, bp
+    mov ah, [si]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    add bp, 80
+    inc si
+    inc bx
+    loop dsp8_p0
+
+    pop si
+    pop bp
+
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+
+    push bp
+    push si
+    mov bx, sprite_temp_ptr
+    add bx, 8
+    mov cx, 8
+
+dsp8_p1:
+    mov di, bp
+    mov ah, [si]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    add bp, 80
+    inc si
+    inc bx
+    loop dsp8_p1
+
+    pop si
+    pop bp
+
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+
+    push bp
+    push si
+    mov bx, sprite_temp_ptr
+    add bx, 16
+    mov cx, 8
+
+dsp8_p2:
+    mov di, bp
+    mov ah, [si]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    add bp, 80
+    inc si
+    inc bx
+    loop dsp8_p2
+
+    pop si
+    pop bp
+
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 3
+    out dx, al
+
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 8
+    out dx, al
+
+    push bp
+    push si
+    mov bx, sprite_temp_ptr
+    add bx, 24
+    mov cx, 8
+
+dsp8_p3:
+    mov di, bp
+    mov ah, [si]
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov dl, [bx]
+    and dl, ah
+    or al, dl
+    mov es:[di], al
+    add bp, 80
+    inc si
+    inc bx
+    loop dsp8_p3
+
+    pop si
+    pop bp
+
+    pop es
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_sprite_planar_8x8_opt ENDP
 
 dibujar_sprite_planar_16x16_opt PROC
     push ax

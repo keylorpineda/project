@@ -151,10 +151,15 @@ rr_tipo2:
 rr_tipo3:
     ; --- INICIO DE LA CORRECCIÓN ---
     cmp bl, 3
-    jne rr_actualizar ; Si no es tipo 3, saltar (aunque bl ya deberia ser 3)
+    jne rr_tipo4 ; Si no es tipo 3, revisar si es 4
     inc recursos_tipo3
     jmp rr_actualizar ; <-- ESTE SALTO FALTABA
     ; --- FIN DE LA CORRECCIÓN ---
+
+rr_tipo4:
+    cmp bl, 4
+    jne rr_actualizar
+    inc recursos_tipo4
 
 rr_actualizar:
     mov al, bl
@@ -344,10 +349,18 @@ drm_tipo2:
     jmp drm_dibujar
     
 drm_tipo3:
+    cmp al, 3
+    jne drm_tipo4
     mov di, OFFSET sprite_moneda
     push si
     mov si, OFFSET sprite_moneda_mask
-    
+    jmp drm_dibujar
+
+drm_tipo4:
+    mov di, OFFSET sprite_espada
+    push si
+    mov si, OFFSET sprite_espada_mask
+
 drm_dibujar:
     call dibujar_sprite_planar_16x16_opt
     pop si
@@ -515,9 +528,17 @@ dsi_tipo2:
     jmp dsi_dibujar
 
 dsi_tipo3:
+    cmp al, 3
+    jne dsi_tipo4
     mov di, OFFSET sprite_moneda
     push si
     mov si, OFFSET sprite_moneda_mask
+    jmp dsi_dibujar
+
+dsi_tipo4:
+    mov di, OFFSET sprite_espada
+    push si
+    mov si, OFFSET sprite_espada_mask
 
 dsi_dibujar:
     call dibujar_sprite_planar_16x16_opt
@@ -613,6 +634,22 @@ dibujar_estadisticas PROC
     mov dx, bp
     add dx, 24
     mov al, recursos_tipo3
+    xor ah, ah
+    call dibujar_numero
+
+    mov cx, ZONA_ITEMS_X
+    sub cx, 24
+    mov dx, bp
+    add dx, 36
+    mov si, OFFSET msg_espadas
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
+
+    mov cx, ZONA_ITEMS_X
+    add cx, STAT_VAL_OFFSET
+    mov dx, bp
+    add dx, 36
+    mov al, recursos_tipo4
     xor ah, ah
     call dibujar_numero
     
@@ -1646,9 +1683,17 @@ dhh_tipo2:
     jmp dhh_dibujar
 
 dhh_tipo3:
+    cmp al, 3
+    jne dhh_tipo4
     mov di, OFFSET sprite_moneda
     push si
     mov si, OFFSET sprite_moneda_mask
+    jmp dhh_dibujar
+
+dhh_tipo4:
+    mov di, OFFSET sprite_espada
+    push si
+    mov si, OFFSET sprite_espada_mask
 
 dhh_dibujar:
     call dibujar_sprite_planar_16x16_opt
