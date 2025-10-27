@@ -16,18 +16,26 @@ verificar_colision_recursos PROC
     push di
     push bp
 
+    ; Calcular bounding box del jugador EXPANDIDO
+    ; Expandimos 4 píxeles en cada dirección para compensar el movimiento
     mov ax, jugador_px
+    sub ax, 4                   ; Expandir hacia la izquierda
     mov player_left_temp, ax
-    add ax, 31
+    
+    add ax, 32
+    add ax, 8                   ; 32 del jugador + 4 de expansión izq + 4 de expansión der
     mov player_right_temp, ax
 
     mov ax, jugador_py
+    sub ax, 4                   ; Expandir hacia arriba
     mov player_top_temp, ax
-    add ax, 31
+    
+    add ax, 32
+    add ax, 8                   ; 32 del jugador + 4 de expansión arriba + 4 de expansión abajo
     mov player_bottom_temp, ax
 
-    xor si, si
-    mov bx, 1
+    xor si, si                  ; Índice del recurso
+    mov bx, 1                   ; Máscara de bits
 
 vcr_loop:
     mov al, num_recursos_cargados
@@ -35,56 +43,65 @@ vcr_loop:
     cmp si, ax
     jae vcr_fin
 
-    mov ax, recursos_recogidos
-    and ax, bx
+    ; ¿Ya fue recogido?
+    test recursos_recogidos, bx
     jnz vcr_next
 
+    ; Calcular offset (3 bytes por recurso: X, Y, Tipo)
     mov ax, si
-    shl ax, 1
-    add ax, si
+    mov dx, 3
+    mul dx
     mov di, ax
 
-    mov al, [recursos_mapa + di]
+    ; Obtener posición del recurso en píxeles del mundo
+    mov al, [recursos_mapa + di]        ; tile_x
     xor ah, ah
-    mov cx, ax
-    shl cx, 1
-    shl cx, 1
-    shl cx, 1
-    shl cx, 1
+    shl ax, 4                            ; tile_x * 16
+    mov cx, ax                           ; CX = recurso_left
 
-    mov al, [recursos_mapa + di + 1]
+    mov al, [recursos_mapa + di + 1]    ; tile_y
     xor ah, ah
-    mov dx, ax
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
+    shl ax, 4                            ; tile_y * 16
+    mov dx, ax                           ; DX = recurso_top
 
+    ; Calcular límites del recurso (16x16)
     mov ax, cx
     add ax, 15
-    mov bp, ax
+    mov bp, ax                           ; BP = recurso_right
 
     mov ax, dx
-    add ax, 15
-    mov di, ax
+    add ax, 15                           ; AX = recurso_bottom
 
+    ; Detección de colisión simple y efectiva
+    push ax                              ; Guardar recurso_bottom
+
+    ; player_right >= recurso_left?
     mov ax, player_right_temp
     cmp ax, cx
-    jl vcr_next
+    jl vcr_no_colision
 
+    ; player_left <= recurso_right?
     mov ax, player_left_temp
     cmp ax, bp
-    jg vcr_next
+    jg vcr_no_colision
 
+    ; player_bottom >= recurso_top?
     mov ax, player_bottom_temp
     cmp ax, dx
-    jl vcr_next
+    jl vcr_no_colision
 
+    ; player_top <= recurso_bottom?
     mov ax, player_top_temp
-    cmp ax, di
+    pop dx                               ; DX = recurso_bottom
+    cmp ax, dx
     jg vcr_next
 
+    ; ¡COLISIÓN DETECTADA!
     call recoger_recurso
+    jmp vcr_next
+
+vcr_no_colision:
+    pop ax                               ; Limpiar stack
 
 vcr_next:
     shl bx, 1
@@ -1579,7 +1596,7 @@ dhh_no_select:
     test al, al
     jz dhh_next
     
-    mov bh, al
+    push ax                 ; Guardar el tipo en el stack
     
     mov ax, si
     mov bx, ITEM_TOTAL
@@ -1591,7 +1608,8 @@ dhh_no_select:
     mov dx, HUD_HOTBAR_Y
     add dx, ITEM_ICON_OFFSET
 
-    mov al, bh
+    pop ax                  ; Recuperar el tipo del stack
+    
     cmp al, 1
     jne dhh_tipo2
     mov di, OFFSET sprite_cristal
