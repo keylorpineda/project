@@ -441,6 +441,7 @@ msg_menu    db 'Sprites menu: $'
 msg_ok      db 'OK',13,10,'$'
 msg_error   db 'ERROR',13,10,'$'
 msg_controles db 13,10,'WASD = Mover, ESC = Salir',13,10
+msg_victoria  db 'VICTORIA!',0
               db 'Presiona tecla...$'
 
 .CODE
