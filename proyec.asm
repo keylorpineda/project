@@ -9,6 +9,7 @@ TILE_SAND     EQU 6
 TILE_SNOW     EQU 8
 TILE_ICE      EQU 9
 TILE_WALL     EQU 10
+TILE_FORTRESS EQU 12
 TILE_DIRT     EQU 13
 TILE_LAVA     EQU 14
 TILE_ROCK     EQU 7
@@ -33,6 +34,7 @@ archivo_sand   db 'SPRITES\SAND_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
 archivo_wall   db 'SPRITES\WALL_1.TXT',0
+archivo_fortress db 'SPRITES\FORT_BRK.TXT',0
 archivo_dirt   db 'SPRITES\DIRT_1.TXT',0
 archivo_lava   db 'SPRITES\LAVA_1.TXT',0
 archivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
@@ -60,6 +62,7 @@ sprite_sand     db 128 dup(0)
 sprite_snow     db 128 dup(0)
 sprite_ice      db 128 dup(0)
 sprite_wall     db 128 dup(0)
+sprite_fortress db 128 dup(0)
 sprite_dirt     db 128 dup(0)
 sprite_lava     db 128 dup(0)
 sprite_rock     db 128 dup(0)
@@ -1499,6 +1502,17 @@ cst_ok_wall:
     mov bp, OFFSET sprite_wall_mask
     call convertir_sprite_a_planar_opt
 
+    mov dx, OFFSET archivo_fortress
+    mov di, OFFSET sprite_buffer_16
+    call cargar_sprite_16x16
+    jnc cst_ok_fortress
+    jmp cst_error
+cst_ok_fortress:
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_fortress
+    mov bp, OFFSET sprite_fortress_mask
+    call convertir_sprite_a_planar_opt
+
     mov dx, OFFSET archivo_dirt
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
@@ -1970,9 +1984,16 @@ ost_ice:
     
 ost_wall:
     cmp bl, TILE_WALL
-    jne ost_dirt
+    jne ost_fortress
     mov di, OFFSET sprite_wall
     mov si, OFFSET sprite_wall_mask
+    jmp ost_fin
+    
+ost_fortress:
+    cmp bl, TILE_FORTRESS
+    jne ost_dirt
+    mov di, OFFSET sprite_fortress
+    mov si, OFFSET sprite_fortress_mask
     jmp ost_fin
     
 ost_dirt:
