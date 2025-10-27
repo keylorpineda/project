@@ -181,7 +181,7 @@ msg_recursos    db 'RECURSOS',0
 msg_cristales   db 'CRISTALES:',0
 msg_gemas       db 'GEMAS:',0
 msg_monedas     db 'MONEDAS:',0
-msg_objetivo    db 'OBJETIVO: 2/TIPO',0
+msg_objetivo    db 'OBJETIVO:',0
 msg_progreso    db 'PROGRESO:',0
 msg_completado  db 'COMPLETADO!',0
 msg_slash       db '/',0
@@ -651,37 +651,29 @@ bucle_juego:
     jmp bucle_juego
 
 bg_hay_cambio:
-    ; Actualizar estado
     mov ax, jugador_px
     mov jugador_px_old, ax
-    
     mov ax, jugador_py
     mov jugador_py_old, ax
-
     mov al, jugador_frame
     mov frame_old, al
-
+    
     mov al, requiere_redibujar
     cmp al, 0
     je bg_redraw_reset
     dec al
     mov requiere_redibujar, al
     jmp bg_redraw_done
-
 bg_redraw_reset:
     mov requiere_redibujar, 0
-
 bg_redraw_done:
 
-    ; Esperar vertical retrace
     call esperar_retrace
-    
-    ; Renderizar en la página que NO está visible
+
     mov al, pagina_dibujo
     test al, 1
     jz bg_render_p0
-    
-    ; Renderizar en página 1
+
     mov temp_offset, 8000h
     call limpiar_pagina_actual
     call dibujar_mapa_en_offset
@@ -689,23 +681,20 @@ bg_redraw_done:
     call dibujar_hud
     call dibujar_inventario
     jmp bg_cambiar_pagina
-    
+
 bg_render_p0:
-    ; Renderizar en página 0
     mov temp_offset, 0
     call limpiar_pagina_actual
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
     call dibujar_hud
     call dibujar_inventario
-    
+
 bg_cambiar_pagina:
-    ; Cambiar página visible
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
     
-    ; Intercambiar páginas
     xor pagina_dibujo, 1
     xor pagina_visible, 1
     
@@ -797,7 +786,7 @@ pmc_verificar_movimiento:
 pmc_verificar_teclas:
     cmp al, '1'
     jb pmc_check_w_keys
-    cmp al, '9'
+    cmp al, '8'
     ja pmc_check_w_keys
     
     sub al, '1'
@@ -1184,51 +1173,77 @@ reproducir_sonido_paso ENDP
 
 reproducir_sonido_recoleccion PROC
     push ax
-    push bx
-    push cx
-    push dx
 
-    mov al, 0B6h
-    out 43h, al
+    mov     ax, 2200        
+    call    PlayNote
+    call    SoundDurationDelay
 
-    ; Primer tono agudo
-    mov ax, 089Bh             ; ≈ 542 Hz
-    out 42h, al
-    mov al, ah
-    out 42h, al
+    mov     ax, 1800        
+    call    PlayNote
+    call    SoundDurationDelay
 
-    in al, 61h
-    mov bl, al
-    or al, 3
-    out 61h, al
+    mov     ax, 1500        
+    call    PlayNote
+    call    SoundDurationDelay
 
-    mov cx, 450
-rsc_delay1:
-    loop rsc_delay1
-
-    ; Segundo tono más agudo
-    mov ax, 06D6h             ; ≈ 682 Hz
-    out 42h, al
-    mov al, ah
-    out 42h, al
-
-    mov cx, 350
-rsc_delay2:
-    loop rsc_delay2
-
-    mov al, bl
-    out 61h, al
-
-    mov cx, 200
-rsc_silencio:
-    loop rsc_silencio
-
-    pop dx
-    pop cx
-    pop bx
+    call    SpeakerOff
     pop ax
     ret
 reproducir_sonido_recoleccion ENDP
+
+PlayNote PROC
+    push ax
+    call    SetSpeakerFreq
+    call    SpeakerOn
+    pop ax
+    ret
+PlayNote ENDP
+
+SpeakerOn PROC
+    push ax
+    in      al, 61h
+    or      al, 03h
+    out     61h, al
+    pop ax
+    ret
+SpeakerOn ENDP
+
+SpeakerOff PROC
+    push ax
+    in      al, 61h
+    and     al, 0FCh
+    out     61h, al
+    pop ax
+    ret
+SpeakerOff ENDP
+
+SetSpeakerFreq PROC
+    push ax
+    push dx
+    
+    mov     al, 182
+    out     43h, al
+    
+    pop     dx
+    push    ax
+    
+    out     42h, al
+    mov     al, ah
+    out     42h, al
+    
+    pop     ax
+    pop     dx
+    ret
+SetSpeakerFreq ENDP
+
+SoundDurationDelay PROC
+    push cx
+    mov     cx, 4000h       
+.sdd_loop:
+    loop    .sdd_loop
+    pop cx
+    ret
+SoundDurationDelay ENDP
 
 centrar_camara PROC
     push ax
@@ -1880,8 +1895,7 @@ dibujar_jugador_en_offset PROC
     push dx
     push si
     push di
-    
-    ; Calcular posición relativa al viewport
+
     mov ax, jugador_px
     sub ax, camara_px
     add ax, viewport_x
@@ -1893,16 +1907,13 @@ dibujar_jugador_en_offset PROC
     add ax, viewport_y
     sub ax, 16
     mov dx, ax
-    
+
     call obtener_sprite_jugador
+
     call dibujar_sprite_planar_32x32_opt
-    
-    ; Dibujar animación de recolección
+
     call dibujar_animacion_recoger
-    
-    ; Dibujar panel de inventario (si está abierto)
-    ; call dibujar_inventario  <--- ESTA LÍNEA SE ELIMINA
-    
+
     pop di
     pop si
     pop dx
