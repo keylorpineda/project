@@ -1072,6 +1072,101 @@ pmc_fin:
     ret
 procesar_movimiento_continuo ENDP
 
+; ============================================
+; CARGAR SPRITES MENU (¡NUEVO!)
+; ============================================
+cargar_sprites_menu PROC
+    push dx
+    push di
+    push si
+    push bp
+
+    ; Cargar Botón Jugar Normal
+    mov dx, OFFSET archivo_btn_jugar_n
+    mov di, OFFSET menu_btn_jugar_n_data
+    call cargar_sprite_32x32
+    jnc csm_ok_jug_n
+    jmp csm_error
+csm_ok_jug_n:
+    mov si, OFFSET menu_btn_jugar_n_data
+    mov di, OFFSET menu_btn_jugar_n_planar
+    mov bp, OFFSET menu_btn_jugar_n_mask
+    call convertir_sprite_32x32_a_planar_opt
+
+    ; Cargar Botón Jugar Select
+    mov dx, OFFSET archivo_btn_jugar_s
+    mov di, OFFSET menu_btn_jugar_s_data
+    call cargar_sprite_32x32
+    jnc csm_ok_jug_s
+    jmp csm_error
+csm_ok_jug_s:
+    mov si, OFFSET menu_btn_jugar_s_data
+    mov di, OFFSET menu_btn_jugar_s_planar
+    mov bp, OFFSET menu_btn_jugar_s_mask
+    call convertir_sprite_32x32_a_planar_opt
+
+    ; Cargar Botón Opciones Normal
+    mov dx, OFFSET archivo_btn_opciones_n
+    mov di, OFFSET menu_btn_opciones_n_data
+    call cargar_sprite_32x32
+    jnc csm_ok_opt_n
+    jmp csm_error
+csm_ok_opt_n:
+    mov si, OFFSET menu_btn_opciones_n_data
+    mov di, OFFSET menu_btn_opciones_n_planar
+    mov bp, OFFSET menu_btn_opciones_n_mask
+    call convertir_sprite_32x32_a_planar_opt
+
+    ; Cargar Botón Opciones Select
+    mov dx, OFFSET archivo_btn_opciones_s
+    mov di, OFFSET menu_btn_opciones_s_data
+    call cargar_sprite_32x32
+    jnc csm_ok_opt_s
+    jmp csm_error
+csm_ok_opt_s:
+    mov si, OFFSET menu_btn_opciones_s_data
+    mov di, OFFSET menu_btn_opciones_s_planar
+    mov bp, OFFSET menu_btn_opciones_s_mask
+    call convertir_sprite_32x32_a_planar_opt
+
+    ; Cargar Botón Salir Normal
+    mov dx, OFFSET archivo_btn_salir_n
+    mov di, OFFSET menu_btn_salir_n_data
+    call cargar_sprite_32x32
+    jnc csm_ok_sal_n
+    jmp csm_error
+csm_ok_sal_n:
+    mov si, OFFSET menu_btn_salir_n_data
+    mov di, OFFSET menu_btn_salir_n_planar
+    mov bp, OFFSET menu_btn_salir_n_mask
+    call convertir_sprite_32x32_a_planar_opt
+
+    ; Cargar Botón Salir Select
+    mov dx, OFFSET archivo_btn_salir_s
+    mov di, OFFSET menu_btn_salir_s_data
+    call cargar_sprite_32x32
+    jnc csm_ok_sal_s
+    jmp csm_error
+csm_ok_sal_s:
+    mov si, OFFSET menu_btn_salir_s_data
+    mov di, OFFSET menu_btn_salir_s_planar
+    mov bp, OFFSET menu_btn_salir_s_mask
+    call convertir_sprite_32x32_a_planar_opt
+
+    clc
+    jmp csm_fin
+
+csm_error:
+    stc
+
+csm_fin:
+    pop bp
+    pop si
+    pop di
+    pop dx
+    ret
+cargar_sprites_menu ENDP
+
 limpiar_pagina_actual PROC
     push ax
     push cx

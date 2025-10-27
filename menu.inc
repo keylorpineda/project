@@ -1,3 +1,7 @@
+; ============================================
+; MENU.INC - VERSIÓN CORREGIDA
+; ============================================
+
 Menu_InitVideo PROC
     mov ax, 0010h
     int 10h
@@ -78,7 +82,6 @@ Menu_ProcessKeyboard PROC
         mov ah, 0
         int 16h
 
-    ; === INICIO: Corrección de Salto y Lógica ===
     cmp [menuState], 1
     jne .CheckMain_Kbd  ; Si no es 1, ir al menú principal
     
@@ -118,7 +121,6 @@ Menu_ProcessKeyboard PROC
     jmp Menu_KeyExit ; Es ESC, saltar (largo) a la salida
 .Not_Exit_Main_Kbd:
     jmp Menu_KeyDone
-    ; === FIN: Corrección de Salto y Lógica ===
 
 Menu_KeyUp:
     call Menu_PlayNavSound
@@ -140,7 +142,6 @@ Menu_KeySelect:
     call Menu_PlaySelectSound
     mov al, [currentSelection]
     
-    ; === INICIO: Corrección Lógica Opciones ===
     cmp al, 1
     jne Menu_SetResult_Kbd
     
@@ -151,7 +152,6 @@ Menu_KeySelect:
 Menu_SetResult_Kbd:
     mov [menuResult], al
     jmp Menu_KeyDone
-    ; === FIN: Corrección Lógica Opciones ===
 
 Menu_KeyExit:
     mov [menuResult], 2
@@ -173,7 +173,6 @@ Menu_ProcessMouse PROC
     jmp Menu_MouseEnd
 Menu_MouseContinue:
 
-    ; === INICIO: Corrección de Salto y Lógica ===
     cmp [menuState], 1
     jne .CheckMain_Mouse ; Si no es 1, ir al menú principal
 
@@ -181,19 +180,17 @@ Menu_MouseContinue:
     mov al, [mouseBtn]
     and al, 1
     cmp al, 1
-    je  .MenuMouse_CheckLast ; Si hay click, validar siguiente condición
-    jmp Menu_MouseEnd        ; Si no hay click, salir
+    je  .MenuMouse_CheckLast
+    jmp Menu_MouseEnd
 
 .MenuMouse_CheckLast:
-
     mov al, [lastMouseBtn]
     and al, 1
     cmp al, 0
-    je  .MenuMouse_HandleClick ; Si es un nuevo click, manejarlo
-    jmp Menu_MouseEnd           ; Si el click ya estaba presionado, salir
+    je  .MenuMouse_HandleClick
+    jmp Menu_MouseEnd
 
 .MenuMouse_HandleClick:
-
     ; Click detectado en pantalla de opciones
     mov [menuState], 0
     mov [lastSelection], 0FFh
@@ -202,7 +199,6 @@ Menu_MouseContinue:
     
 .CheckMain_Mouse:
     ; ESTADO 0: MENU PRINCIPAL
-    ; === FIN: Corrección de Salto y Lógica ===
 
     mov [mouseOverButton], 0FFh
 
@@ -266,7 +262,6 @@ Menu_CheckMouseClick:
     call Menu_PlaySelectSound
     mov al, [currentSelection]
 
-    ; === INICIO: Corrección Lógica Opciones (Mouse) ===
     cmp al, 1
     jne Menu_SetResult
     
@@ -277,7 +272,6 @@ Menu_CheckMouseClick:
 Menu_SetResult:
     ; Click en Jugar o Salir
     mov [menuResult], al
-    ; === FIN: Corrección Lógica Opciones (Mouse) ===
 
 Menu_MouseEnd:
     pop bx
@@ -571,7 +565,8 @@ Menu_Draw PROC
     push si
     push di
 
-    call limpiar_pagina_actual
+    ; *** CORRECCIÓN ***
+    ; 'call limpiar_pagina_actual' HA SIDO ELIMINADO DE AQUÍ
 
     mov cx, 96
     mov dx, 96
@@ -674,7 +669,8 @@ Menu_DrawOptionsScreen PROC
     push dx
     push si
 
-    call limpiar_pagina_actual
+    ; *** CORRECCIÓN ***
+    ; 'call limpiar_pagina_actual' HA SIDO ELIMINADO DE AQUÍ
 
     mov cx, 220
     mov dx, 120
@@ -721,6 +717,36 @@ Menu_ResetState PROC
     ret
 Menu_ResetState ENDP
 
+; ============================================
+; PROCEDIMIENTOS DE PAGINACIÓN
+; ============================================
+
+Menu_SetPage0 PROC
+    push ax
+    mov ah, 5       ; Función "Set Active Display Page"
+    mov al, 0       ; Página 0
+    int 10h
+    pop ax
+    ret
+Menu_SetPage0 ENDP
+
+Menu_SwapPages PROC
+    push ax
+    mov ah, 5       ; Función "Set Active Display Page"
+    mov al, [pagina_dibujo] ; Mostrar la página que acabamos de dibujar
+    int 10h
+    
+    ; Invertir las páginas para el siguiente cuadro
+    xor [pagina_dibujo], 1
+    xor [pagina_visible], 1
+    pop ax
+    ret
+Menu_SwapPages ENDP
+
+; ============================================
+; BUCLE PRINCIPAL DEL MENÚ (CORREGIDO)
+; ============================================
+
 mostrar_menu_principal PROC
     push bx
     push cx
@@ -741,6 +767,7 @@ mostrar_menu_principal PROC
 
     ; Renderizar PÁGINA 0 (la que se verá primero)
     mov temp_offset, 0
+    call limpiar_pagina_actual ; <-- Limpiamos PÁGINA 0
     cmp [menuState], 1
     jne mmp_draw_main_p0
     call Menu_DrawOptionsScreen
@@ -748,10 +775,11 @@ mostrar_menu_principal PROC
 mmp_draw_main_p0:
     call Menu_Draw
 mmp_draw_done_p0:
-    call Menu_SetPage0 ; <-- Muestra PÁGINA 0
+    call Menu_SetPage0
 
     ; Renderizar PÁGINA 1 (la oculta)
     mov temp_offset, 8000h
+    call limpiar_pagina_actual ; <-- Limpiamos PÁGINA 1
     cmp [menuState], 1
     jne mmp_draw_main_p1
     call Menu_DrawOptionsScreen
@@ -760,33 +788,29 @@ mmp_draw_main_p1:
     call Menu_Draw
 mmp_draw_done_p1:
 
+    ; Bucle principal del menú
 mmp_loop:
+    call Menu_DelayShort ; <-- Agregado un pequeño delay para estabilizar
     call Menu_GetMouseState
     call Menu_ProcessKeyboard
     call Menu_ProcessMouse
+
+    ; Verificar si hay que salir
+    cmp [menuResult], 0FFh
+    je      mmp_check_redraw
+    jmp     mmp_exit
+
+mmp_check_redraw:
+    ; ¿Cambió la selección o el estado?
+    mov     al, [currentSelection]
+    cmp     al, [lastSelection]
+    jne     mmp_state_changed
+    mov     al, [menuState]
+    cmp     al, [lastMenuState]
+    je      mmp_loop ; No cambió nada, seguir
     
-    mov al, [menuResult]
-    cmp al, 0FFh
-    je mmp_check_change
-    jmp mmp_exit
-
-mmp_check_change:
-    ; ¿Cambió la selección del mouse/teclado?
-    mov al, [currentSelection]
-    cmp al, [lastSelection]
-    jne mmp_redraw_needed
-
-    ; ¿Cambió el estado (Main vs Opciones)?
-    mov al, [menuState]
-    cmp al, [lastMenuState]
-    jne mmp_redraw_needed
-
-    ; Si nada cambió, no redibujar
-    call Menu_DelayShort
-    jmp mmp_loop
-
-mmp_redraw_needed:
-    ; Actualizar el último estado conocido
+mmp_state_changed:
+    ; Guardar estado conocido
     mov al, [currentSelection]
     mov [lastSelection], al
     mov al, [menuState]
@@ -802,432 +826,29 @@ mmp_set_offset_0:
     mov temp_offset, 0
     
 mmp_draw_content:
+    ; *** CORRECCIÓN ***
+    ; La limpieza de página AHORA ESTÁ AQUÍ,
+    ; igual que en el bucle del juego.
+    call    limpiar_pagina_actual
+    
     cmp [menuState], 1
     jne mmp_draw_main
-    
     call Menu_DrawOptionsScreen
     jmp mmp_swap_pages
-
 mmp_draw_main:
     call Menu_Draw
     
 mmp_swap_pages:
-    call Menu_SwapPages ; <-- Llama a la nueva función
-    
+    call Menu_SwapPages
     jmp mmp_loop
-
+    
 mmp_exit:
     mov al, [menuResult] ; Guardar resultado
-    
     call Menu_DeInitMouse
     ; NO LLAMAR a DeInitVideo, el juego lo necesita
-    
     pop si
     pop dx
     pop cx
     pop bx
     ret
 mostrar_menu_principal ENDP
-
-menu_leer_dimensiones PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-
-    mov word ptr menu_loader_width, 0
-    mov word ptr menu_loader_height, 0
-    mov byte ptr menu_loader_stage, 0
-
-Menu_ReadDimLoop:
-    mov bx, [menu_loader_file_handle]
-    mov ah, 3Fh
-    mov cx, 1
-    mov dx, OFFSET buffer_temp
-    int 21h
-    cmp ax, 0
-    jne Menu_ReadDimContinue
-    jmp Menu_DimEnd
-Menu_ReadDimContinue:
-
-    mov al, [buffer_temp]
-    cmp al, 10
-    je Menu_DimFinish
-    cmp al, 13
-    je Menu_ReadDimLoop
-    cmp al, ' '
-    je Menu_DimSpace
-    cmp al, 9
-    je Menu_DimSpace
-    cmp al, '0'
-    jb Menu_ReadDimLoop
-    cmp al, '9'
-    ja Menu_ReadDimLoop
-
-    sub al, '0'
-    mov ah, 0
-    mov bx, ax
-    cmp byte ptr menu_loader_stage, 0
-    jne Menu_DimAddHeight
-    mov ax, [menu_loader_width]
-    mov cx, 10
-    mul cx
-    add ax, bx
-    mov [menu_loader_width], ax
-    jmp Menu_ReadDimLoop
-
-Menu_DimAddHeight:
-    mov ax, [menu_loader_height]
-    mov cx, 10
-    mul cx
-    add ax, bx
-    mov [menu_loader_height], ax
-    jmp Menu_ReadDimLoop
-
-Menu_DimSpace:
-    cmp byte ptr menu_loader_stage, 0
-    jne Menu_ReadDimLoop
-    cmp word ptr menu_loader_width, 0
-    jne Menu_DimFinishContinue
-    jmp Menu_ReadDimLoop
-Menu_DimFinishContinue:
-    mov byte ptr menu_loader_stage, 1
-    jmp Menu_ReadDimLoop
-
-Menu_DimFinish:
-    cmp byte ptr menu_loader_stage, 0
-    jne Menu_DimEnd
-    cmp word ptr menu_loader_width, 0
-    jne Menu_DimFinishLoop
-    jmp Menu_ReadDimLoop
-Menu_DimFinishLoop:
-    mov byte ptr menu_loader_stage, 1
-
-Menu_DimEnd:
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-menu_leer_dimensiones ENDP
-
-cargar_sprite_menu PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-
-    mov di, [menu_loader_dest]
-    mov cx, [menu_loader_max_size]
-
-    mov dx, [menu_loader_path]
-    mov ax, 3D00h
-    int 21h
-    jnc csm_open_ok
-    jmp csm_error
-csm_open_ok:
-    mov menu_loader_file_handle, ax
-
-    call menu_leer_dimensiones
-
-    mov ax, [menu_loader_width]
-    mov bx, [menu_loader_height]
-    mul bx
-    mov menu_loader_expected, ax
-    cmp dx, 0
-    je csm_size_check
-    jmp csm_error_close
-csm_size_check:
-    cmp ax, cx
-    jbe csm_size_ok
-    jmp csm_error_close
-csm_size_ok:
-
-    mov word ptr menu_loader_pixels_read, 0
-
-csm_read_chunk:
-    mov ax, [menu_loader_pixels_read]
-    cmp ax, [menu_loader_expected]
-    jae csm_done_read
-    mov bx, [menu_loader_file_handle]
-    mov ah, 3Fh
-    mov cx, 200
-    mov dx, OFFSET buffer_temp
-    int 21h
-    cmp ax, 0
-    je csm_error_close
-    mov si, 0
-    mov bp, ax
-
-csm_process:
-    cmp si, bp
-    jae csm_read_chunk
-    mov al, [buffer_temp + si]
-    inc si
-    cmp al, ' '
-    je csm_process
-    cmp al, 13
-    je csm_process
-    cmp al, 10
-    je csm_process
-    cmp al, 9
-    je csm_process
-    cmp al, '0'
-    jb csm_process
-    cmp al, '9'
-    jbe csm_store_dec
-    and al, 0DFh
-    cmp al, 'A'
-    jb csm_process
-    cmp al, 'F'
-    ja csm_process
-    sub al, 'A' - 10
-    jmp csm_store
-csm_store_dec:
-    sub al, '0'
-csm_store:
-    mov [di], al
-    inc di
-    inc word ptr menu_loader_pixels_read
-    mov ax, [menu_loader_pixels_read]
-    cmp ax, [menu_loader_expected]
-    jb csm_process
-    jmp csm_done_read
-
-csm_done_read:
-    mov bx, [menu_loader_file_handle]
-    mov ah, 3Eh
-    int 21h
-    mov menu_loader_file_handle, 0
-    mov ax, [menu_loader_pixels_read]
-    cmp ax, [menu_loader_expected]
-    jne csm_error
-    clc
-    jmp csm_exit
-
-csm_error_close:
-    mov bx, [menu_loader_file_handle]
-    cmp bx, 0
-    je csm_error
-    mov ah, 3Eh
-    int 21h
-    mov menu_loader_file_handle, 0
-
-csm_error:
-    stc
-
-csm_exit:
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-cargar_sprite_menu ENDP
-
-cargar_sprites_menu PROC
-    push ax
-    push bx
-    push cx
-    push dx
-
-    mov ax, OFFSET menu_btn_jugar_n_data
-    mov menu_loader_dest, ax
-    mov ax, OFFSET archivo_btn_jugar_n
-    mov menu_loader_path, ax
-    mov ax, MENU_BTN_PIXELS
-    mov menu_loader_max_size, ax
-    call cargar_sprite_menu
-    jnc csm_ok_btn_jugar_n
-    jmp csm_fail
-  csm_ok_btn_jugar_n:
-    mov ax, [menu_loader_width]
-    mov menu_btn_jugar_n_width, ax
-    mov ax, [menu_loader_height]
-    mov menu_btn_jugar_n_height, ax
-    cmp menu_btn_jugar_n_width, MENU_BTN_WIDTH
-    je csm_ok_btn_jugar_n_width
-    jmp csm_fail
-  csm_ok_btn_jugar_n_width:
-    cmp menu_btn_jugar_n_height, MENU_BTN_HEIGHT
-    je csm_ok_btn_jugar_n_height
-    jmp csm_fail
-  csm_ok_btn_jugar_n_height:
-
-    mov si, OFFSET menu_btn_jugar_n_data
-    mov di, OFFSET menu_btn_jugar_n_planar
-    mov bp, OFFSET menu_btn_jugar_n_mask
-    call convertir_sprite_32x32_a_planar_opt
-
-    mov ax, OFFSET menu_btn_jugar_s_data
-    mov menu_loader_dest, ax
-    mov ax, OFFSET archivo_btn_jugar_s
-    mov menu_loader_path, ax
-    mov ax, MENU_BTN_PIXELS
-    mov menu_loader_max_size, ax
-    call cargar_sprite_menu
-    jnc csm_ok_btn_jugar_s
-    jmp csm_fail
-  csm_ok_btn_jugar_s:
-    mov ax, [menu_loader_width]
-    mov menu_btn_jugar_s_width, ax
-    mov ax, [menu_loader_height]
-    mov menu_btn_jugar_s_height, ax
-
-    mov si, OFFSET menu_btn_jugar_s_data
-    mov di, OFFSET menu_btn_jugar_s_planar
-    mov bp, OFFSET menu_btn_jugar_s_mask
-    call convertir_sprite_32x32_a_planar_opt
-
-    mov ax, OFFSET menu_btn_opciones_n_data
-    mov menu_loader_dest, ax
-    mov ax, OFFSET archivo_btn_opciones_n
-    mov menu_loader_path, ax
-    mov ax, MENU_BTN_PIXELS
-    mov menu_loader_max_size, ax
-    call cargar_sprite_menu
-    jnc csm_ok_btn_opciones_n
-    jmp csm_fail
-  csm_ok_btn_opciones_n:
-    mov ax, [menu_loader_width]
-    mov menu_btn_opciones_n_width, ax
-    mov ax, [menu_loader_height]
-    mov menu_btn_opciones_n_height, ax
-
-    mov si, OFFSET menu_btn_opciones_n_data
-    mov di, OFFSET menu_btn_opciones_n_planar
-    mov bp, OFFSET menu_btn_opciones_n_mask
-    call convertir_sprite_32x32_a_planar_opt
-
-    mov ax, OFFSET menu_btn_opciones_s_data
-    mov menu_loader_dest, ax
-    mov ax, OFFSET archivo_btn_opciones_s
-    mov menu_loader_path, ax
-    mov ax, MENU_BTN_PIXELS
-    mov menu_loader_max_size, ax
-    call cargar_sprite_menu
-    jnc csm_ok_btn_opciones_s
-    jmp csm_fail
-  csm_ok_btn_opciones_s:
-    mov ax, [menu_loader_width]
-    mov menu_btn_opciones_s_width, ax
-    mov ax, [menu_loader_height]
-    mov menu_btn_opciones_s_height, ax
-
-    mov si, OFFSET menu_btn_opciones_s_data
-    mov di, OFFSET menu_btn_opciones_s_planar
-    mov bp, OFFSET menu_btn_opciones_s_mask
-    call convertir_sprite_32x32_a_planar_opt
-
-    mov ax, OFFSET menu_btn_salir_n_data
-    mov menu_loader_dest, ax
-    mov ax, OFFSET archivo_btn_salir_n
-    mov menu_loader_path, ax
-    mov ax, MENU_BTN_PIXELS
-    mov menu_loader_max_size, ax
-    call cargar_sprite_menu
-    jnc csm_ok_btn_salir_n
-    jmp csm_fail
-  csm_ok_btn_salir_n:
-    mov ax, [menu_loader_width]
-    mov menu_btn_salir_n_width, ax
-    mov ax, [menu_loader_height]
-    mov menu_btn_salir_n_height, ax
-
-    mov si, OFFSET menu_btn_salir_n_data
-    mov di, OFFSET menu_btn_salir_n_planar
-    mov bp, OFFSET menu_btn_salir_n_mask
-    call convertir_sprite_32x32_a_planar_opt
-
-    mov ax, OFFSET menu_btn_salir_s_data
-    mov menu_loader_dest, ax
-    mov ax, OFFSET archivo_btn_salir_s
-    mov menu_loader_path, ax
-    mov ax, MENU_BTN_PIXELS
-    mov menu_loader_max_size, ax
-    call cargar_sprite_menu
-    jnc csm_ok_btn_salir_s
-    jmp csm_fail
-  csm_ok_btn_salir_s:
-    mov ax, [menu_loader_width]
-    mov menu_btn_salir_s_width, ax
-    mov ax, [menu_loader_height]
-    mov menu_btn_salir_s_height, ax
-
-    mov si, OFFSET menu_btn_salir_s_data
-    mov di, OFFSET menu_btn_salir_s_planar
-    mov bp, OFFSET menu_btn_salir_s_mask
-    call convertir_sprite_32x32_a_planar_opt
-
-    mov ax, OFFSET menu_background_data
-    mov menu_loader_dest, ax
-    mov ax, OFFSET archivo_fondo_menu
-    mov menu_loader_path, ax
-    mov ax, MENU_BG_PIXELS
-    mov menu_loader_max_size, ax
-    call cargar_sprite_menu
-    jnc csm_ok_background
-    jmp csm_fail
-  csm_ok_background:
-    mov ax, [menu_loader_width]
-    mov menu_background_width, ax
-    mov ax, [menu_loader_height]
-    mov menu_background_height, ax
-
-    clc
-    jmp csm_done
-
-csm_fail:
-    stc
-
-csm_done:
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-cargar_sprites_menu ENDP
-
-; ============================================
-; NUEVAS FUNCIONES DE PAGINACIÓN
-; ============================================
-
-Menu_SetPage0 PROC
-    ; Muestra la página 0 (offset 0)
-    push ax
-    push dx
-    
-    mov ah, 5
-    mov al, 0
-    int 10h
-    
-    mov [pagina_visible], 0
-    mov [pagina_dibujo], 1
-    
-    pop dx
-    pop ax
-    ret
-Menu_SetPage0 ENDP
-
-Menu_SwapPages PROC
-    ; Muestra la página que se acaba de dibujar
-    push ax
-    push dx
-    
-    mov ah, 5
-    mov al, [pagina_dibujo] ; Página 0 o 1
-    int 10h
-    
-    ; Invertir las páginas
-    xor [pagina_dibujo], 1
-    xor [pagina_visible], 1
-    
-    pop dx
-    pop ax
-    ret
-Menu_SwapPages ENDP
