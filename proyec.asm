@@ -161,13 +161,13 @@ sprite_moneda       db 128 dup(0)
 archivo_cristal db 'SPRITES\CRYSTAL.TXT',0
 archivo_gema    db 'SPRITES\GEM.TXT',0
 archivo_moneda  db 'SPRITES\COIN.TXT',0
-archivo_btn_jugar_n   db 'SPRITES\MENU\BTN_JUGAR_N.TXT',0
-archivo_btn_jugar_s   db 'SPRITES\MENU\BTN_JUGAR_S.TXT',0
-archivo_btn_opciones_n db 'SPRITES\MENU\BTN_OPCIONES_N.TXT',0
-archivo_btn_opciones_s db 'SPRITES\MENU\BTN_OPCIONES_S.TXT',0
-archivo_btn_salir_n    db 'SPRITES\MENU\BTN_SALIR_N.TXT',0
-archivo_btn_salir_s    db 'SPRITES\MENU\BTN_SALIR_S.TXT',0
-archivo_fondo_menu     db 'SPRITES\MENU\FONDO_MENU.TXT',0
+archivo_btn_jugar_n   db 'SPRITES\MENU\BTNJUGN.TXT',0
+archivo_btn_jugar_s   db 'SPRITES\MENU\BTNJUGS.TXT',0
+archivo_btn_opciones_n db 'SPRITES\MENU\BTNOPCN.TXT',0
+archivo_btn_opciones_s db 'SPRITES\MENU\BTNOPCS.TXT',0
+archivo_btn_salir_n    db 'SPRITES\MENU\BTNSALN.TXT',0
+archivo_btn_salir_s    db 'SPRITES\MENU\BTNSALS.TXT',0
+archivo_fondo_menu     db 'SPRITES\MENU\FONMENU.TXT',0
 
 COLOR_FONDO      EQU 0    ; Negro
 COLOR_MARCO      EQU 7    ; Blanco
