@@ -234,6 +234,7 @@ MENU_BG_PIXELS    EQU 1024
 
 currentSelection    db 0
 lastSelection       db 0FFh  ; <-- AGREGA ESTA LÍNEA
+lastMenuState       db 0
 menuResult          db 0FFh
 menuState           db 0     ; <-- AGREGA ESTA LÍNEA
 mousePresent        db 0
@@ -1078,28 +1079,38 @@ limpiar_pagina_actual PROC
     push di
     push es
 
-    ; Habilitar TODOS los planos de video
-    mov dx, 3C4h
-    mov al, 2
+    ; === INICIO DE CORRECCIÓN (GLITCH BARRAS Y CRASH) ===
+    
+    ; 1. Resetear Bit Mask (Corrige glitch de barras)
+    ; Hay que asegurar que los 8 píxeles del byte se puedan escribir.
+    mov dx, 3CEh
+    mov al, 8       ; Bit Mask Register
     out dx, al
     inc dx
-    mov al, 0Fh
+    mov al, 0FFh    ; Set all bits
     out dx, al
+
+    ; 2. Poner Map Mask en TODOS los planos
+    mov dx, 3C4h
+    mov al, 2       ; Map Mask Register
+    out dx, al
+    inc dx
+    mov al, 0Fh     ; Habilitar los 4 planos
+    out dx, al
+    
+    ; === FIN DE CORRECCIÓN (GLITCH BARRAS Y CRASH) ===
 
     mov ax, VIDEO_SEG
     mov es, ax
     
-    ; DI = 0 (Página 0) o 8000h (Página 1)
-    mov di, temp_offset 
+    ; === INICIO DE CORRECCIÓN (CRASH PÁGINA 1) ===
+    ; 3. Usar el temp_offset (0 o 8000h) en lugar de 'xor di, di'
+    mov di, [temp_offset] 
+    ; === FIN DE CORRECCIÓN (CRASH PÁGINA 1) ===
     
-    ; 14000 palabras = 28000 bytes (toda la pagina)
-    mov cx, 14000       
-    
-    ; Color 0 (negro)
-    xor ax, ax          
-    
-    ; Llena la memoria de video
-    rep stosw           
+    mov cx, 14000       ; 14000 words = 28000 bytes
+    xor ax, ax
+    rep stosw
 
     pop es
     pop di
