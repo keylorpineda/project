@@ -57,6 +57,10 @@ sprite_cristal_mask     db 32 dup(0)
 sprite_gema_mask        db 32 dup(0)
 sprite_moneda_mask      db 32 dup(0)
 
+sprite_heart_full_mask  db 32 dup(0)
+sprite_heart_empty_mask db 32 dup(0)
+
+; ============================================
 ; ============================================
 ; OPTIMIZACION #3: DIRTY RECTANGLES
 ; ============================================

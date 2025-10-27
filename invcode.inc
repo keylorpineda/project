@@ -1,3 +1,21 @@
+HUD_HEART_X       EQU 16
+HUD_HEART_Y       EQU 16
+HUD_HEART_SPACING EQU 20
+
+HUD_HOTBAR_SLOTS  EQU 9
+HUD_HOTBAR_X      EQU 120
+HUD_HOTBAR_Y      EQU 300
+
+HUD_PROG_X          EQU 460
+HUD_PROG_Y          EQU 16
+HUD_PROG_W          EQU 164
+HUD_PROG_H          EQU 84
+HUD_PROG_LINE_H     EQU 16
+HUD_PROG_PAD        EQU 8
+HUD_PROG_VAL_OFFSET EQU 100
+HUD_PROG_SLASH_OFFSET EQU 120
+HUD_PROG_META_OFFSET EQU 130
+
 verificar_colision_recursos PROC
     push ax
     push bx
@@ -1342,3 +1360,444 @@ vv_fin:
     pop ax
     ret
 verificar_victoria ENDP
+
+dibujar_hud PROC
+    push ax
+    
+    cmp inventario_abierto, 1
+    je dh_fin
+    
+    call dibujar_hud_corazones
+    call dibujar_hud_hotbar
+    call dibujar_hud_progreso
+
+dh_fin:
+    pop ax
+    ret
+dibujar_hud ENDP
+
+dibujar_hud_corazones PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+    
+    mov bl, jugador_vida_max
+    xor bh, bh
+    mov bp, bx
+    
+    xor cx, cx
+
+dhc_loop:
+    cmp cl, bl
+    jae dhc_fin
+    
+    mov ax, cx
+    mov bx, HUD_HEART_SPACING
+    mul bx
+    add ax, HUD_HEART_X
+    push ax
+    
+    mov ah, 0
+    mov al, cl
+    cmp al, jugador_vida_actual
+    jb dhc_full
+    
+    mov di, OFFSET sprite_heart_empty
+    mov si, OFFSET sprite_heart_empty_mask
+    jmp dhc_draw
+
+dhc_full:
+    mov di, OFFSET sprite_heart_full
+    mov si, OFFSET sprite_heart_full_mask
+
+dhc_draw:
+    pop cx
+    mov dx, HUD_HEART_Y
+    
+    call dibujar_sprite_planar_16x16_opt
+    
+    inc cl
+    jmp dhc_loop
+    
+dhc_fin:
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_hud_corazones ENDP
+
+dibujar_hud_hotbar PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+    
+    push bp
+    push di
+    push si
+    
+    mov ax, HUD_HOTBAR_X
+    mov bx, HUD_HOTBAR_Y
+    
+    mov ax, HUD_HOTBAR_SLOTS
+    mov dx, ITEM_TOTAL
+    mul dx
+    sub ax, ITEM_SPACING
+    mov cx, ax
+    
+    mov dx, ITEM_SIZE
+    mov si, COLOR_FONDO
+    call dibujar_rectangulo_lleno
+    
+    pop si
+    pop di
+    pop bp
+
+    xor bp, bp
+
+dhh_loop_slots:
+    cmp bp, HUD_HOTBAR_SLOTS
+    jae dhh_fin
+    
+    mov ax, bp
+    mov bx, ITEM_TOTAL
+    mul bx
+    add ax, HUD_HOTBAR_X
+    
+    push ax
+    push bp
+    
+    mov bx, HUD_HOTBAR_Y
+    mov cx, ITEM_SIZE
+    mov dx, ITEM_SIZE
+    mov si, COLOR_ITEM_SLOT
+    call dibujar_rectangulo_vacio
+    
+    pop bp
+    pop ax
+    
+    mov cx, bp
+    cmp cl, hud_slot_seleccionado
+    jne dhh_no_select
+    
+    push ax
+    push bp
+    
+    mov bx, HUD_HOTBAR_Y
+    mov cx, ITEM_SIZE
+    mov dx, ITEM_SIZE
+    mov si, COLOR_TEXTO
+    call dibujar_rectangulo_vacio
+    
+    pop bp
+    pop ax
+
+dhh_no_select:
+    mov bx, bp
+    
+    mov al, [inventario_slots + bx]
+    test al, al
+    jz dhh_next_slot
+    
+    mov ah, al
+    
+    push bx
+    push bp
+    
+    mov ax, bp
+    mov bx, ITEM_TOTAL
+    mul bx
+    add ax, HUD_HOTBAR_X
+    add ax, ITEM_ICON_OFFSET
+    mov cx, ax
+    
+    mov dx, HUD_HOTBAR_Y
+    add dx, ITEM_ICON_OFFSET
+    
+    mov al, ah
+    cmp al, 1
+    jne dhh_tipo2
+    mov di, OFFSET sprite_cristal
+    mov si, OFFSET sprite_cristal_mask
+    jmp dhh_dibujar
+
+dhh_tipo2:
+    cmp al, 2
+    jne dhh_tipo3
+    mov di, OFFSET sprite_gema
+    mov si, OFFSET sprite_gema_mask
+    jmp dhh_dibujar
+
+dhh_tipo3:
+    mov di, OFFSET sprite_moneda
+    mov si, OFFSET sprite_moneda_mask
+
+dhh_dibujar:
+    call dibujar_sprite_planar_16x16_opt
+    
+    pop bp
+    pop bx
+    
+    mov si, bx
+    mov al, [inventario_cantidades + si]
+    
+    push ax
+    push bx
+    push dx
+    push si
+    push bp
+    
+    mov ax, bp
+    mov bx, ITEM_TOTAL
+    mul bx
+    add ax, HUD_HOTBAR_X
+    add ax, ITEM_COUNT_OFFSET_X
+    mov cx, ax
+    
+    mov dx, HUD_HOTBAR_Y
+    add dx, ITEM_COUNT_OFFSET_Y
+    
+    xor ah, ah
+    mov si, COLOR_TEXTO
+    call dibujar_numero
+    
+    pop bp
+    pop si
+    pop dx
+    pop bx
+    pop ax
+
+dhh_next_slot:
+    inc bp
+    jmp dhh_loop_slots
+
+dhh_fin:
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_hud_hotbar ENDP
+
+dibujar_hud_progreso PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+
+    push bp
+    push di
+    push si
+    mov ax, HUD_PROG_X
+    mov bx, HUD_PROG_Y
+    mov cx, HUD_PROG_W
+    mov dx, HUD_PROG_H
+    mov si, COLOR_FONDO
+    call dibujar_rectangulo_lleno
+    pop si
+    pop di
+    pop bp
+
+    push bp
+    push di
+    push si
+    mov ax, HUD_PROG_X
+    mov bx, HUD_PROG_Y
+    mov cx, HUD_PROG_W
+    mov dx, HUD_PROG_H
+    mov si, COLOR_MARCO
+    call dibujar_rectangulo_vacio
+    pop si
+    pop di
+    pop bp
+
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_PAD
+    mov dx, HUD_PROG_Y
+    add dx, HUD_PROG_PAD
+
+    push cx
+    push dx
+    mov si, OFFSET msg_progreso
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
+    pop dx
+    pop cx
+    
+    add dx, HUD_PROG_LINE_H
+    push cx
+    push dx
+    mov si, OFFSET msg_objetivo
+    mov al, COLOR_MARCO
+    call dibujar_texto_buffer
+    pop dx
+    pop cx
+
+    add dx, HUD_PROG_LINE_H
+    mov bp, dx
+    
+    push cx
+    push bp
+    mov si, OFFSET msg_cristales
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
+    pop bp
+    pop cx
+    
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_VAL_OFFSET
+    mov dx, bp
+    mov al, recursos_tipo1
+    xor ah, ah
+    push ax
+    push cx
+    push dx
+    call dibujar_numero
+    pop dx
+    pop cx
+    pop ax
+    
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_SLASH_OFFSET
+    push cx
+    push dx
+    mov si, OFFSET msg_slash
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
+    pop dx
+    pop cx
+
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_META_OFFSET
+    mov al, META_POR_TIPO
+    xor ah, ah
+    push ax
+    push cx
+    push dx
+    call dibujar_numero
+    pop dx
+    pop cx
+    pop ax
+    
+    add bp, HUD_PROG_LINE_H
+    mov dx, bp
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_PAD
+    
+    push cx
+    push bp
+    mov si, OFFSET msg_gemas
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
+    pop bp
+    pop cx
+
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_VAL_OFFSET
+    mov dx, bp
+    mov al, recursos_tipo2
+    xor ah, ah
+    push ax
+    push cx
+    push dx
+    call dibujar_numero
+    pop dx
+    pop cx
+    pop ax
+
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_SLASH_OFFSET
+    push cx
+    push dx
+    mov si, OFFSET msg_slash
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
+    pop dx
+    pop cx
+
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_META_OFFSET
+    mov al, META_POR_TIPO
+    xor ah, ah
+    push ax
+    push cx
+    push dx
+    call dibujar_numero
+    pop dx
+    pop cx
+    pop ax
+    
+    add bp, HUD_PROG_LINE_H
+    mov dx, bp
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_PAD
+    
+    push cx
+    push bp
+    mov si, OFFSET msg_monedas
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
+    pop bp
+    pop cx
+
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_VAL_OFFSET
+    mov dx, bp
+    mov al, recursos_tipo3
+    xor ah, ah
+    push ax
+    push cx
+    push dx
+    call dibujar_numero
+    pop dx
+    pop cx
+    pop ax
+    
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_SLASH_OFFSET
+    push cx
+    push dx
+    mov si, OFFSET msg_slash
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
+    pop dx
+    pop cx
+
+    mov cx, HUD_PROG_X
+    add cx, HUD_PROG_META_OFFSET
+    mov al, META_POR_TIPO
+    xor ah, ah
+    push ax
+    push cx
+    push dx
+    call dibujar_numero
+    pop dx
+    pop cx
+    pop ax
+
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_hud_progreso ENDP

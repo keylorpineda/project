@@ -105,9 +105,6 @@ temp_col  dw 0
 
 scroll_offset_x dw 0
 scroll_offset_y dw 0
-; ============================================
-; SISTEMA DE INVENTARIO Y RECURSOS
-; ============================================
 
 inventario_abierto db 0          
 inventario_toggle_bloqueado db 0 
@@ -123,6 +120,16 @@ recursos_tipo2 db 0              ; Gemas recolectadas
 recursos_tipo3 db 0              ; Monedas recolectadas
 
 recursos_recogidos dw 0
+
+archivo_heart1 db 'SPRITES\HEART1.TXT',0
+archivo_heart2 db 'SPRITES\HEART2.TXT',0
+
+sprite_heart_full   db 128 dup(0)
+sprite_heart_empty  db 128 dup(0)
+
+jugador_vida_actual db 9
+jugador_vida_max    db 9
+hud_slot_seleccionado db 0
 
 NUM_RECURSOS EQU 15
 
@@ -679,6 +686,7 @@ bg_redraw_done:
     call limpiar_pagina_actual
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
+    call dibujar_hud
     call dibujar_inventario
     jmp bg_cambiar_pagina
     
@@ -688,6 +696,7 @@ bg_render_p0:
     call limpiar_pagina_actual
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
+    call dibujar_hud
     call dibujar_inventario
     
 bg_cambiar_pagina:
@@ -786,6 +795,17 @@ pmc_verificar_movimiento:
     jmp pmc_no_movimiento
 
 pmc_verificar_teclas:
+    cmp al, '1'
+    jb pmc_check_w_keys
+    cmp al, '9'
+    ja pmc_check_w_keys
+    
+    sub al, '1'
+    mov hud_slot_seleccionado, al
+    mov requiere_redibujar, 2
+    jmp pmc_no_movimiento
+
+pmc_check_w_keys:
     cmp al, 48h
     jne pmc_check_w
     jmp pmc_ir_arriba
@@ -1413,11 +1433,32 @@ cst_ok_gema:
     jnc cst_ok_moneda
     jmp cst_error
 cst_ok_moneda:
-    mov si, OFFSET sprite_buffer_16
+   mov si, OFFSET sprite_buffer_16
     mov di, OFFSET sprite_moneda
     mov bp, OFFSET sprite_moneda_mask
     call convertir_sprite_a_planar_opt
 
+    mov dx, OFFSET archivo_heart1
+    mov di, OFFSET sprite_buffer_16
+    call cargar_sprite_16x16
+    jnc cst_ok_heart1
+    jmp cst_error
+cst_ok_heart1:
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_heart_full
+    mov bp, OFFSET sprite_heart_full_mask
+    call convertir_sprite_a_planar_opt
+
+    mov dx, OFFSET archivo_heart2
+    mov di, OFFSET sprite_buffer_16
+    call cargar_sprite_16x16
+    jnc cst_ok_heart2
+    jmp cst_error
+cst_ok_heart2:
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_heart_empty
+    mov bp, OFFSET sprite_heart_empty_mask
+    call convertir_sprite_a_planar_opt
     clc
     jmp cst_fin
 
