@@ -101,9 +101,9 @@ D D D D D D D D D D D D E E D D D D D D D D D D D D D D D D 3 3 D D D D D D D D 
 D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D 3 3 D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D D 7 7 7 D D D D D D D D D D D D D D D D D D D D D D D D D D D D
 
 ; Recursos
-R 30 25 1 1
-R 32 24 2 1
-R 29 23 3 1
-R 31 28 1 1
-R 27 29 2 1
-R 35 30 3 1
+R 12 11 1 1
+R 13 12 2 1
+R 11 12 3 1
+R 14 12 1 1
+R 12 13 2 1
+R 13 13 3 1

@@ -79,20 +79,20 @@ jugador_der_b   db 512 dup(0)
 
 buffer_temp db 300 dup(0)
 
-jugador_px  dw 400
-jugador_py  dw 400
+jugador_px  dw 192
+jugador_py  dw 192
 jugador_dir db DIR_ABAJO
 jugador_frame db 0
 
-jugador_px_old  dw 400
-jugador_py_old  dw 400
+jugador_px_old  dw 192
+jugador_py_old  dw 192
 frame_old       db 0
 
 moviendo db 0
 pasos_dados db 0
 
-camara_px   dw 240
-camara_py   dw 304
+camara_px   dw 0
+camara_py   dw 72
 
 pagina_visible db 0
 pagina_dibujo  db 1
