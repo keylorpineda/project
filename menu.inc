@@ -69,12 +69,14 @@ Menu_ProcessKeyboard PROC
     push cx
     push dx
 
-    mov ah, 1
-    int 16h
-    jz Menu_KeyDone
-
-    mov ah, 0
-    int 16h
+        mov ah, 1
+        int 16h
+        jnz Menu_KeyContinue
+        jmp Menu_KeyDone
+    
+    Menu_KeyContinue:
+        mov ah, 0
+        int 16h
 
     ; --- INICIO: Corrección de Salto (Error 1) ---
     cmp [menuState], 1
