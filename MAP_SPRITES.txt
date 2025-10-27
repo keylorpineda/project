@@ -9,7 +9,7 @@ Codigo  Sprite                      Uso en el mapa
 9       SPRITES/ICE_1.TXT           Lagunas congeladas dentro de la tundra.
 A (10)  SPRITES/WALL_1.TXT          Muros de casas, iglúes y bastión nether.
 B (11)  SPRITES/HOUSE_ROOF.TXT      Techo de tejas para las cabañas del bosque.
-C (12)  SPRITES/FORTRESS_BRICK.TXT  Ladrillos pulidos del bastión infernal.
+C (12)  SPRITES/FORTRESS_BRICK.TXT  Muros del bastión infernal en la zona nether.
 D (13)  SPRITES/DIRT_1.TXT          Suelo del bioma nether.
 E (14)  SPRITES/LAVA_1.TXT          Rios y fosos de lava en el nether.
 F (15)  SPRITES/BRIDGE_1.TXT        Puentes seguros sobre la lava.

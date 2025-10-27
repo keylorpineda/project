@@ -68,6 +68,8 @@ verificar_tile_transitable_opt PROC
     je vtt_no_transitable
     cmp al, 10          ; TILE_WALL
     je vtt_no_transitable
+    cmp al, 12          ; TILE_FORTRESS
+    je vtt_no_transitable
     cmp al, 14          ; TILE_LAVA
     je vtt_no_transitable
 
@@ -468,7 +470,12 @@ precalcular_mascaras_tiles PROC
     mov si, OFFSET sprite_wall
     mov di, OFFSET sprite_wall_mask
     call calcular_mascara_16x16
-    
+
+    ; Fortress bricks
+    mov si, OFFSET sprite_fortress
+    mov di, OFFSET sprite_fortress_mask
+    call calcular_mascara_16x16
+
     ; Dirt
     mov si, OFFSET sprite_dirt
     mov di, OFFSET sprite_dirt_mask
