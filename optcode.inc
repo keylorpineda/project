@@ -1,12 +1,3 @@
-; ============================================
-; OPTCODE.INC - FASE 1A: MÁSCARAS CORREGIDAS
-; Universidad Nacional - Proyecto II Ciclo 2025
-; OPTIMIZACIÓN: Dirty tiles + máscaras correctas
-; ============================================
-
-; ============================================
-; LOOKUP TABLES (Ya funcionan bien)
-; ============================================
 inicializar_lookup_tables PROC
     push ax
     push bx
@@ -1954,45 +1945,37 @@ aplicar_scroll_hardware PROC
     and ax, 15
     mov scroll_offset_y, ax
     
-    ; ✅ NOTA: EGA no tiene scroll por píxel en hardware
-    ; Se implementa ajustando las coordenadas de dibujo
-    
     pop dx
     pop ax
     ret
 aplicar_scroll_hardware ENDP
 
-; ============================================
-; CENTRAR CÁMARA CON SCROLL SUAVE
-; ============================================
 centrar_camara_suave PROC
     push ax
     push bx
     
-    ; NO alinear a múltiplos de 16 para scroll suave
     mov ax, jugador_px
-    sub ax, 160
+    sub ax, 200
     jge ccs_x_pos
     xor ax, ax
 ccs_x_pos:
-    cmp ax, 1280
+    cmp ax, 1200
     jle ccs_x_ok
-    mov ax, 1280
+    mov ax, 1200
 ccs_x_ok:
     mov camara_px, ax
     
     mov ax, jugador_py
-    sub ax, 96
+    sub ax, 120
     jge ccs_y_pos
     xor ax, ax
 ccs_y_pos:
-    cmp ax, 1408
+    cmp ax, 1360
     jle ccs_y_ok
-    mov ax, 1408
+    mov ax, 1360
 ccs_y_ok:
     mov camara_py, ax
     
-    ; Calcular offsets de sub-píxel
     call aplicar_scroll_hardware
     
     pop bx

@@ -1,5 +1,3 @@
-; JUEGO EGA - Universidad Nacional - Proyecto II Ciclo 2025
-; VERSIÓN CORREGIDA Y FUNCIONAL
 .MODEL SMALL
 .STACK 2048
 
@@ -96,8 +94,8 @@ camara_py   dw 304
 pagina_visible db 0
 pagina_dibujo  db 1
 
-viewport_x  dw 160
-viewport_y  dw 79
+viewport_x  dw 120
+viewport_y  dw 55
 
 temp_offset     dw 0
 inicio_tile_x   dw 0
@@ -1216,26 +1214,25 @@ centrar_camara PROC
     push ax
     push bx
     
-    ; Alinear cámara a múltiplos de 16
     mov ax, jugador_px
-    sub ax, 160
+    sub ax, 200
     jge cc_x_pos
     xor ax, ax
 cc_x_pos:
-    cmp ax, 1280        ; ✅ CAMBIO: 100×16-320 = 1280 (antes 480)
+    cmp ax, 1200
     jle cc_x_ok
-    mov ax, 1280
+    mov ax, 1200
 cc_x_ok:
     mov camara_px, ax
     
     mov ax, jugador_py
-    sub ax, 96
+    sub ax, 120
     jge cc_y_pos
     xor ax, ax
 cc_y_pos:
-    cmp ax, 1408        ; ✅ CAMBIO: 100×16-192 = 1408 (antes 608)
+    cmp ax, 1360
     jle cc_y_ok
-    mov ax, 1408
+    mov ax, 1360
 cc_y_ok:
     mov camara_py, ax
     
@@ -1654,7 +1651,6 @@ dibujar_mapa_en_offset PROC
     push di
     push bp
     
-    ; Calcular tile inicial de la cámara
     mov ax, camara_px
     shr ax, 4
     mov inicio_tile_x, ax
@@ -1663,25 +1659,22 @@ dibujar_mapa_en_offset PROC
     shr ax, 4
     mov inicio_tile_y, ax
     
-    xor bp, bp              ; BP = fila actual (0-12)
+    xor bp, bp
 
 dmo_fila:
-    cmp bp, 13
+    cmp bp, 15
     jae dmo_fin
     
-    xor si, si              ; SI = columna actual (0-20)
-
+    xor si, si
 dmo_col:
-    cmp si, 21
+    cmp si, 25
     jae dmo_next_fila
     
-    ; ===== Calcular tile_y =====
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 100
     jae dmo_next_col
     
-    ; ===== Calcular índice en mapa (Y × 100 + X) =====
     mov bx, ax
     shl bx, 1
     mov ax, [mul100_table + bx]
@@ -1693,58 +1686,49 @@ dmo_col:
     
     add ax, bx
     
-    ; ===== Leer tipo de tile =====
     mov bx, ax
     mov al, [mapa_datos + bx]
     
     cmp al, 15
     ja dmo_next_col
     
-    ; ===== Guardar registros de BUCLE (col, fila) =====
-    push si                 ; [Stack]: col
-    push bp                 ; [Stack]: fila, col
+    push si
+    push bp
     
-    ; ===== Obtener sprite (pone DI=data, SI=mask) =====
     call obtener_sprite_tile
     
-    push si                 ; [Stack]: mask_ptr, fila, col
-    push di                 ; [Stack]: data_ptr, mask_ptr, fila, col
+    push si
+    push di
     
-    ; --- Crear Stack Frame ---
-    push bp                 ; Guardar BP (fila)
-    mov bp, sp              ; BP es ahora el puntero de pila
+    push bp
+    mov bp, sp
 
-    ; Calcular DX (Y) usando BP
-    mov ax, [bp+6]          ; AX = fila
-    shl ax, 4               
+    mov ax, [bp+6]
+    shl ax, 4
     add ax, viewport_y
-    mov dx, ax              ; DX = Y
+    mov dx, ax
     
-    ; Calcular CX (X) usando BP
-    mov ax, [bp+8]          ; AX = col
-    shl ax, 4               
+    mov ax, [bp+8]
+    shl ax, 4
     add ax, viewport_x
-    mov cx, ax              ; CX = X
+    mov cx, ax
     
-    ; --- Destruir Stack Frame ---
-    pop bp                  ; Restaurar BP (fila)
+    pop bp
     
-    pop di                  ; Restaurar DI (data_ptr)
-    pop si                  ; Restaurar SI (mask_ptr)
+    pop di
+    pop si
 
-    ; Llamar a dibujar con DI, SI, CX, DX correctos
     call dibujar_sprite_planar_16x16_opt
     
-    ; ===== Restaurar registros de BUCLE =====
-    pop bp                  
-    pop si                  
+    pop bp
+    pop si
     
 dmo_next_col:
-    inc si                  
+    inc si
     jmp dmo_col
     
 dmo_next_fila:
-    inc bp                  
+    inc bp
     jmp dmo_fila
     
 dmo_fin:
