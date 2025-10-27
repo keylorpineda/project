@@ -35,8 +35,8 @@ archivo_sand   db 'SPRITES\SAND_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
 archivo_wall   db 'SPRITES\WALL_1.TXT',0
-archivo_roof   db 'SPRITES\HOUSE_ROOF.TXT',0
-archivo_brick  db 'SPRITES\FORTRESS_BRICK.TXT',0
+archivo_roof   db 'SPRITES\HOUSE_RF.TXT',0
+archivo_brick  db 'SPRITES\FORT_BRK.TXT',0
 archivo_dirt   db 'SPRITES\DIRT_1.TXT',0
 archivo_lava   db 'SPRITES\LAVA_1.TXT',0
 archivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
