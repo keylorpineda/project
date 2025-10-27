@@ -224,8 +224,10 @@ anim_recoger_y      dw 0
 ; MENÚ PRINCIPAL
 ; ============================================
 MENU_BTN_WIDTH    EQU 32
-MENU_BTN_HEIGHT   EQU 16
-MENU_BTN_PIXELS   EQU 512
+MENU_BTN_HEIGHT   EQU 32
+MENU_BTN_PIXELS   EQU 1024
+MENU_BTN_PLANAR_SIZE EQU 512
+MENU_BTN_MASK_SIZE   EQU 128
 MENU_BG_WIDTH     EQU 32
 MENU_BG_HEIGHT    EQU 32
 MENU_BG_PIXELS    EQU 1024
@@ -284,37 +286,23 @@ menu_background_data      db MENU_BG_PIXELS dup(0)
 menu_background_width     dw 0
 menu_background_height    dw 0
 
-menu_btn_jugar_n_planar_left   db 128 dup(0)
-menu_btn_jugar_n_mask_left     db 32 dup(0)
-menu_btn_jugar_n_planar_right  db 128 dup(0)
-menu_btn_jugar_n_mask_right    db 32 dup(0)
+menu_btn_jugar_n_planar   db MENU_BTN_PLANAR_SIZE dup(0)
+menu_btn_jugar_n_mask     db MENU_BTN_MASK_SIZE dup(0)
 
-menu_btn_jugar_s_planar_left   db 128 dup(0)
-menu_btn_jugar_s_mask_left     db 32 dup(0)
-menu_btn_jugar_s_planar_right  db 128 dup(0)
-menu_btn_jugar_s_mask_right    db 32 dup(0)
+menu_btn_jugar_s_planar   db MENU_BTN_PLANAR_SIZE dup(0)
+menu_btn_jugar_s_mask     db MENU_BTN_MASK_SIZE dup(0)
 
-menu_btn_opciones_n_planar_left   db 128 dup(0)
-menu_btn_opciones_n_mask_left     db 32 dup(0)
-menu_btn_opciones_n_planar_right  db 128 dup(0)
-menu_btn_opciones_n_mask_right    db 32 dup(0)
+menu_btn_opciones_n_planar   db MENU_BTN_PLANAR_SIZE dup(0)
+menu_btn_opciones_n_mask     db MENU_BTN_MASK_SIZE dup(0)
 
-menu_btn_opciones_s_planar_left   db 128 dup(0)
-menu_btn_opciones_s_mask_left     db 32 dup(0)
-menu_btn_opciones_s_planar_right  db 128 dup(0)
-menu_btn_opciones_s_mask_right    db 32 dup(0)
+menu_btn_opciones_s_planar   db MENU_BTN_PLANAR_SIZE dup(0)
+menu_btn_opciones_s_mask     db MENU_BTN_MASK_SIZE dup(0)
 
-menu_btn_salir_n_planar_left   db 128 dup(0)
-menu_btn_salir_n_mask_left     db 32 dup(0)
-menu_btn_salir_n_planar_right  db 128 dup(0)
-menu_btn_salir_n_mask_right    db 32 dup(0)
+menu_btn_salir_n_planar   db MENU_BTN_PLANAR_SIZE dup(0)
+menu_btn_salir_n_mask     db MENU_BTN_MASK_SIZE dup(0)
 
-menu_btn_salir_s_planar_left   db 128 dup(0)
-menu_btn_salir_s_mask_left     db 32 dup(0)
-menu_btn_salir_s_planar_right  db 128 dup(0)
-menu_btn_salir_s_mask_right    db 32 dup(0)
-
-menu_sprite_half_buffer        db 256 dup(0)
+menu_btn_salir_s_planar   db MENU_BTN_PLANAR_SIZE dup(0)
+menu_btn_salir_s_mask     db MENU_BTN_MASK_SIZE dup(0)
 
 menu_loader_dest          dw 0
 menu_loader_max_size      dw 0

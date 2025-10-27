@@ -395,72 +395,6 @@ ClearScreenEGA PROC
     ret
 ClearScreenEGA ENDP
 
-Menu_CopyHalfSprite PROC
-    push cx
-    push dx
-
-    mov dx, MENU_BTN_HEIGHT
-
-Menu_CopyHalfRow:
-    mov cx, MENU_BTN_WIDTH / 2
-
-Menu_CopyHalfPixel:
-    lodsb
-    stosb
-    loop Menu_CopyHalfPixel
-
-    add si, MENU_BTN_WIDTH / 2
-    dec dx
-    jnz Menu_CopyHalfRow
-
-    pop dx
-    pop cx
-    ret
-Menu_CopyHalfSprite ENDP
-
-Menu_ConvertButtonSprite PROC
-    push bp
-    mov bp, sp
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-
-    mov si, [bp+4]
-    mov di, OFFSET menu_sprite_half_buffer
-    call Menu_CopyHalfSprite
-
-    mov si, OFFSET menu_sprite_half_buffer
-    mov di, [bp+6]
-    push bp
-    mov bp, [bp+8]
-    call convertir_sprite_a_planar_opt
-    pop bp
-
-    mov si, [bp+4]
-    add si, MENU_BTN_WIDTH / 2
-    mov di, OFFSET menu_sprite_half_buffer
-    call Menu_CopyHalfSprite
-
-    mov si, OFFSET menu_sprite_half_buffer
-    mov di, [bp+10]
-    push bp
-    mov bp, [bp+12]
-    call convertir_sprite_a_planar_opt
-    pop bp
-
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    pop bp
-    ret 10
-Menu_ConvertButtonSprite ENDP
-
 Menu_DrawDebugInfo PROC
     push ax
     push bx
@@ -654,29 +588,15 @@ Menu_Draw PROC
     cmp [currentSelection], 0
     jne Menu_DrawPlayNormal
 
-    mov di, OFFSET menu_btn_jugar_s_planar_left
-    mov si, OFFSET menu_btn_jugar_s_mask_left
-    call dibujar_sprite_planar_16x16_opt
-
-    mov cx, [btnPlayX1]
-    add cx, 16
-    mov dx, [btnPlayY1]
-    mov di, OFFSET menu_btn_jugar_s_planar_right
-    mov si, OFFSET menu_btn_jugar_s_mask_right
-    call dibujar_sprite_planar_16x16_opt
+    mov di, OFFSET menu_btn_jugar_s_planar
+    mov si, OFFSET menu_btn_jugar_s_mask
+    call dibujar_sprite_planar_32x32_opt
     jmp Menu_DrawPlayDone
 
 Menu_DrawPlayNormal:
-    mov di, OFFSET menu_btn_jugar_n_planar_left
-    mov si, OFFSET menu_btn_jugar_n_mask_left
-    call dibujar_sprite_planar_16x16_opt
-
-    mov cx, [btnPlayX1]
-    add cx, 16
-    mov dx, [btnPlayY1]
-    mov di, OFFSET menu_btn_jugar_n_planar_right
-    mov si, OFFSET menu_btn_jugar_n_mask_right
-    call dibujar_sprite_planar_16x16_opt
+    mov di, OFFSET menu_btn_jugar_n_planar
+    mov si, OFFSET menu_btn_jugar_n_mask
+    call dibujar_sprite_planar_32x32_opt
 
 Menu_DrawPlayDone:
 
@@ -685,29 +605,15 @@ Menu_DrawPlayDone:
     cmp [currentSelection], 1
     jne Menu_DrawOptNormal
 
-    mov di, OFFSET menu_btn_opciones_s_planar_left
-    mov si, OFFSET menu_btn_opciones_s_mask_left
-    call dibujar_sprite_planar_16x16_opt
-
-    mov cx, [btnOptionsX1]
-    add cx, 16
-    mov dx, [btnOptionsY1]
-    mov di, OFFSET menu_btn_opciones_s_planar_right
-    mov si, OFFSET menu_btn_opciones_s_mask_right
-    call dibujar_sprite_planar_16x16_opt
+    mov di, OFFSET menu_btn_opciones_s_planar
+    mov si, OFFSET menu_btn_opciones_s_mask
+    call dibujar_sprite_planar_32x32_opt
     jmp Menu_DrawOptDone
 
 Menu_DrawOptNormal:
-    mov di, OFFSET menu_btn_opciones_n_planar_left
-    mov si, OFFSET menu_btn_opciones_n_mask_left
-    call dibujar_sprite_planar_16x16_opt
-
-    mov cx, [btnOptionsX1]
-    add cx, 16
-    mov dx, [btnOptionsY1]
-    mov di, OFFSET menu_btn_opciones_n_planar_right
-    mov si, OFFSET menu_btn_opciones_n_mask_right
-    call dibujar_sprite_planar_16x16_opt
+    mov di, OFFSET menu_btn_opciones_n_planar
+    mov si, OFFSET menu_btn_opciones_n_mask
+    call dibujar_sprite_planar_32x32_opt
 
 Menu_DrawOptDone:
 
@@ -716,29 +622,15 @@ Menu_DrawOptDone:
     cmp [currentSelection], 2
     jne Menu_DrawExitNormal
 
-    mov di, OFFSET menu_btn_salir_s_planar_left
-    mov si, OFFSET menu_btn_salir_s_mask_left
-    call dibujar_sprite_planar_16x16_opt
-
-    mov cx, [btnExitX1]
-    add cx, 16
-    mov dx, [btnExitY1]
-    mov di, OFFSET menu_btn_salir_s_planar_right
-    mov si, OFFSET menu_btn_salir_s_mask_right
-    call dibujar_sprite_planar_16x16_opt
+    mov di, OFFSET menu_btn_salir_s_planar
+    mov si, OFFSET menu_btn_salir_s_mask
+    call dibujar_sprite_planar_32x32_opt
     jmp Menu_DrawExitDone
 
 Menu_DrawExitNormal:
-    mov di, OFFSET menu_btn_salir_n_planar_left
-    mov si, OFFSET menu_btn_salir_n_mask_left
-    call dibujar_sprite_planar_16x16_opt
-
-    mov cx, [btnExitX1]
-    add cx, 16
-    mov dx, [btnExitY1]
-    mov di, OFFSET menu_btn_salir_n_planar_right
-    mov si, OFFSET menu_btn_salir_n_mask_right
-    call dibujar_sprite_planar_16x16_opt
+    mov di, OFFSET menu_btn_salir_n_planar
+    mov si, OFFSET menu_btn_salir_n_mask
+    call dibujar_sprite_planar_32x32_opt
 
 Menu_DrawExitDone:
 
@@ -1134,12 +1026,10 @@ cargar_sprites_menu PROC
     jmp csm_fail
   csm_ok_btn_jugar_n_height:
 
-    push OFFSET menu_btn_jugar_n_mask_right
-    push OFFSET menu_btn_jugar_n_planar_right
-    push OFFSET menu_btn_jugar_n_mask_left
-    push OFFSET menu_btn_jugar_n_planar_left
-    push OFFSET menu_btn_jugar_n_data
-    call Menu_ConvertButtonSprite
+    mov si, OFFSET menu_btn_jugar_n_data
+    mov di, OFFSET menu_btn_jugar_n_planar
+    mov bp, OFFSET menu_btn_jugar_n_mask
+    call convertir_sprite_32x32_a_planar_opt
 
     mov ax, OFFSET menu_btn_jugar_s_data
     mov menu_loader_dest, ax
@@ -1156,12 +1046,10 @@ cargar_sprites_menu PROC
     mov ax, [menu_loader_height]
     mov menu_btn_jugar_s_height, ax
 
-    push OFFSET menu_btn_jugar_s_mask_right
-    push OFFSET menu_btn_jugar_s_planar_right
-    push OFFSET menu_btn_jugar_s_mask_left
-    push OFFSET menu_btn_jugar_s_planar_left
-    push OFFSET menu_btn_jugar_s_data
-    call Menu_ConvertButtonSprite
+    mov si, OFFSET menu_btn_jugar_s_data
+    mov di, OFFSET menu_btn_jugar_s_planar
+    mov bp, OFFSET menu_btn_jugar_s_mask
+    call convertir_sprite_32x32_a_planar_opt
 
     mov ax, OFFSET menu_btn_opciones_n_data
     mov menu_loader_dest, ax
@@ -1178,12 +1066,10 @@ cargar_sprites_menu PROC
     mov ax, [menu_loader_height]
     mov menu_btn_opciones_n_height, ax
 
-    push OFFSET menu_btn_opciones_n_mask_right
-    push OFFSET menu_btn_opciones_n_planar_right
-    push OFFSET menu_btn_opciones_n_mask_left
-    push OFFSET menu_btn_opciones_n_planar_left
-    push OFFSET menu_btn_opciones_n_data
-    call Menu_ConvertButtonSprite
+    mov si, OFFSET menu_btn_opciones_n_data
+    mov di, OFFSET menu_btn_opciones_n_planar
+    mov bp, OFFSET menu_btn_opciones_n_mask
+    call convertir_sprite_32x32_a_planar_opt
 
     mov ax, OFFSET menu_btn_opciones_s_data
     mov menu_loader_dest, ax
@@ -1200,12 +1086,10 @@ cargar_sprites_menu PROC
     mov ax, [menu_loader_height]
     mov menu_btn_opciones_s_height, ax
 
-    push OFFSET menu_btn_opciones_s_mask_right
-    push OFFSET menu_btn_opciones_s_planar_right
-    push OFFSET menu_btn_opciones_s_mask_left
-    push OFFSET menu_btn_opciones_s_planar_left
-    push OFFSET menu_btn_opciones_s_data
-    call Menu_ConvertButtonSprite
+    mov si, OFFSET menu_btn_opciones_s_data
+    mov di, OFFSET menu_btn_opciones_s_planar
+    mov bp, OFFSET menu_btn_opciones_s_mask
+    call convertir_sprite_32x32_a_planar_opt
 
     mov ax, OFFSET menu_btn_salir_n_data
     mov menu_loader_dest, ax
@@ -1222,12 +1106,10 @@ cargar_sprites_menu PROC
     mov ax, [menu_loader_height]
     mov menu_btn_salir_n_height, ax
 
-    push OFFSET menu_btn_salir_n_mask_right
-    push OFFSET menu_btn_salir_n_planar_right
-    push OFFSET menu_btn_salir_n_mask_left
-    push OFFSET menu_btn_salir_n_planar_left
-    push OFFSET menu_btn_salir_n_data
-    call Menu_ConvertButtonSprite
+    mov si, OFFSET menu_btn_salir_n_data
+    mov di, OFFSET menu_btn_salir_n_planar
+    mov bp, OFFSET menu_btn_salir_n_mask
+    call convertir_sprite_32x32_a_planar_opt
 
     mov ax, OFFSET menu_btn_salir_s_data
     mov menu_loader_dest, ax
@@ -1244,12 +1126,10 @@ cargar_sprites_menu PROC
     mov ax, [menu_loader_height]
     mov menu_btn_salir_s_height, ax
 
-    push OFFSET menu_btn_salir_s_mask_right
-    push OFFSET menu_btn_salir_s_planar_right
-    push OFFSET menu_btn_salir_s_mask_left
-    push OFFSET menu_btn_salir_s_planar_left
-    push OFFSET menu_btn_salir_s_data
-    call Menu_ConvertButtonSprite
+    mov si, OFFSET menu_btn_salir_s_data
+    mov di, OFFSET menu_btn_salir_s_planar
+    mov bp, OFFSET menu_btn_salir_s_mask
+    call convertir_sprite_32x32_a_planar_opt
 
     mov ax, OFFSET menu_background_data
     mov menu_loader_dest, ax
