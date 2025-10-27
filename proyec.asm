@@ -6,12 +6,14 @@ TILE_PATH     EQU 3
 TILE_WATER    EQU 4
 TILE_TREE     EQU 5
 TILE_SAND     EQU 6
+TILE_ROCK     EQU 7
 TILE_SNOW     EQU 8
 TILE_ICE      EQU 9
 TILE_WALL     EQU 10
+TILE_ROOF     EQU 11
+TILE_BRICK    EQU 12
 TILE_DIRT     EQU 13
 TILE_LAVA     EQU 14
-TILE_ROCK     EQU 7
 TILE_BRIDGE   EQU 15
 
 TILE_SIZE      EQU 16
@@ -33,6 +35,8 @@ archivo_sand   db 'SPRITES\SAND_1.TXT',0
 archivo_snow   db 'SPRITES\SNOW_1.TXT',0
 archivo_ice    db 'SPRITES\ICE_1.TXT',0
 archivo_wall   db 'SPRITES\WALL_1.TXT',0
+archivo_roof   db 'SPRITES\HOUSE_ROOF.TXT',0
+archivo_brick  db 'SPRITES\FORTRESS_BRICK.TXT',0
 archivo_dirt   db 'SPRITES\DIRT_1.TXT',0
 archivo_lava   db 'SPRITES\LAVA_1.TXT',0
 archivo_bridge db 'SPRITES\BRIDGE_1.TXT',0
@@ -61,6 +65,8 @@ sprite_sand     db 128 dup(0)
 sprite_snow     db 128 dup(0)
 sprite_ice      db 128 dup(0)
 sprite_wall     db 128 dup(0)
+sprite_roof     db 128 dup(0)
+sprite_brick    db 128 dup(0)
 sprite_dirt     db 128 dup(0)
 sprite_lava     db 128 dup(0)
 sprite_rock     db 128 dup(0)
@@ -1521,6 +1527,28 @@ cst_ok_wall:
     mov bp, OFFSET sprite_wall_mask
     call convertir_sprite_a_planar_opt
 
+    mov dx, OFFSET archivo_roof
+    mov di, OFFSET sprite_buffer_16
+    call cargar_sprite_16x16
+    jnc cst_ok_roof
+    jmp cst_error
+cst_ok_roof:
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_roof
+    mov bp, OFFSET sprite_roof_mask
+    call convertir_sprite_a_planar_opt
+
+    mov dx, OFFSET archivo_brick
+    mov di, OFFSET sprite_buffer_16
+    call cargar_sprite_16x16
+    jnc cst_ok_brick
+    jmp cst_error
+cst_ok_brick:
+    mov si, OFFSET sprite_buffer_16
+    mov di, OFFSET sprite_brick
+    mov bp, OFFSET sprite_brick_mask
+    call convertir_sprite_a_planar_opt
+
     mov dx, OFFSET archivo_dirt
     mov di, OFFSET sprite_buffer_16
     call cargar_sprite_16x16
@@ -2047,11 +2075,25 @@ ost_ice:
     
 ost_wall:
     cmp bl, TILE_WALL
-    jne ost_dirt
+    jne ost_roof
     mov di, OFFSET sprite_wall
     mov si, OFFSET sprite_wall_mask
     jmp ost_fin
-    
+
+ost_roof:
+    cmp bl, TILE_ROOF
+    jne ost_brick
+    mov di, OFFSET sprite_roof
+    mov si, OFFSET sprite_roof_mask
+    jmp ost_fin
+
+ost_brick:
+    cmp bl, TILE_BRICK
+    jne ost_dirt
+    mov di, OFFSET sprite_brick
+    mov si, OFFSET sprite_brick_mask
+    jmp ost_fin
+
 ost_dirt:
     cmp bl, TILE_DIRT
     jne ost_lava

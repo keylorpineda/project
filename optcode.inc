@@ -68,6 +68,10 @@ verificar_tile_transitable_opt PROC
     je vtt_no_transitable
     cmp al, 10          ; TILE_WALL
     je vtt_no_transitable
+    cmp al, 11          ; TILE_ROOF
+    je vtt_no_transitable
+    cmp al, 12          ; TILE_BRICK
+    je vtt_no_transitable
     cmp al, 14          ; TILE_LAVA
     je vtt_no_transitable
 
