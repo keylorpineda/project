@@ -82,6 +82,19 @@ Menu_ProcessKeyboard PROC
         mov ah, 0
         int 16h
 
+        ; Normalizar caracteres alfabéticos a mayúsculas para
+        ; manejar correctamente tanto 'w'/'s' como 'W'/'S'.
+        mov bl, al
+        cmp bl, 0
+        je  Menu_KeyNormalized
+        cmp bl, 'a'
+        jb  Menu_KeyNormalized
+        cmp bl, 'z'
+        ja  Menu_KeyNormalized
+        and bl, 5Fh
+    Menu_KeyNormalized:
+        mov al, bl
+
     cmp [menuState], 1
     jne .CheckMain_Kbd  ; Si no es 1, ir al menú principal
     
@@ -103,14 +116,10 @@ Menu_ProcessKeyboard PROC
     je Menu_KeyUp
     cmp al, 'W'
     je Menu_KeyUp
-    cmp al, 'w'
-    je Menu_KeyUp
 
     cmp ah, 50h
     je Menu_KeyDown
     cmp al, 'S'
-    je Menu_KeyDown
-    cmp al, 's'
     je Menu_KeyDown
 
     cmp ah, 1Ch
