@@ -782,8 +782,9 @@ mmp_post_render:
     xor pagina_visible, 1
     
 mmp_check_exit:
-    cmp [menuResult], 0FFh
-    jmp Menu_MainLoop
+    mov al, [menuResult]
+    cmp al, 0FFh
+    je Menu_MainLoop
 
     mov bl, al
     call Menu_DeInitMouse
