@@ -925,12 +925,14 @@ procesar_movimiento_continuo PROC
 		call verificar_tile_transitable
 		pop cx
 		
-		jnc rcm_x_colision
-		
-		inc si
-		jmp rcm_x_loop
-	
-	rcm_x_colision:
+                jc rcm_x_no_colision
+                jmp rcm_x_colision
+
+        rcm_x_no_colision:
+                inc si
+                jmp rcm_x_loop
+
+        rcm_x_colision:
 		mov ax, col_tile_x
 		shl ax, 4
 		
@@ -1001,12 +1003,14 @@ procesar_movimiento_continuo PROC
 		call verificar_tile_transitable
 		pop cx
 		
-		jnc rcm_y_colision
-		
-		inc si
-		jmp rcm_y_loop
-	
-	rcm_y_colision:
+                jc rcm_y_no_colision
+                jmp rcm_y_colision
+
+        rcm_y_no_colision:
+                inc si
+                jmp rcm_y_loop
+
+        rcm_y_colision:
 		mov ax, col_tile_y
 		shl ax, 4
 		
