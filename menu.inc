@@ -1,7 +1,3 @@
-
-
-
-
 Menu_InitVideo PROC
     mov ax, 0010h
     int 10h
@@ -677,10 +673,6 @@ Menu_DrawOptionsScreen PROC
     push cx
     push dx
     push si
-
-
-
-
     mov cx, 220
     mov dx, 120
     mov si, OFFSET menu_options_title
@@ -726,10 +718,6 @@ Menu_ResetState PROC
     ret
 Menu_ResetState ENDP
 
-
-
-
-
 Menu_SetPage0 PROC
     push ax
     mov ah, 5
@@ -744,17 +732,11 @@ Menu_SwapPages PROC
     mov ah, 5
     mov al, [pagina_dibujo]
     int 10h
-
-
     xor [pagina_dibujo], 1
     xor [pagina_visible], 1
     pop ax
     ret
 Menu_SwapPages ENDP
-
-
-
-
 
 mostrar_menu_principal PROC
     push bx
@@ -773,8 +755,6 @@ mostrar_menu_principal PROC
     mov [lastSelection], al
     mov al, [menuState]
     mov [lastMenuState], al
-
-
     mov temp_offset, 0
     call limpiar_pagina_actual
     cmp [menuState], 1
@@ -785,8 +765,6 @@ mmp_draw_main_p0:
     call Menu_Draw
 mmp_draw_done_p0:
     call Menu_SetPage0
-
-
     mov temp_offset, 8000h
     call limpiar_pagina_actual
     cmp [menuState], 1
@@ -796,15 +774,11 @@ mmp_draw_done_p0:
 mmp_draw_main_p1:
     call Menu_Draw
 mmp_draw_done_p1:
-
-
 mmp_loop:
     call Menu_DelayShort
     call Menu_GetMouseState
     call Menu_ProcessKeyboard
     call Menu_ProcessMouse
-
-
     cmp [menuResult], 0FFh
     je      mmp_check_redraw
     jmp     mmp_exit
@@ -835,9 +809,6 @@ mmp_set_offset_0:
     mov temp_offset, 0
 
 mmp_draw_content:
-
-
-
     call    limpiar_pagina_actual
 
     cmp [menuState], 1

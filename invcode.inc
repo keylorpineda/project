@@ -3,11 +3,9 @@ HUD_HEART_Y       EQU 282
 HUD_HEART_SPACING EQU 20
 HUD_HEART_MARGIN  EQU 8
 HUD_HEART_SPACING EQU 20
-
 HUD_HOTBAR_SLOTS  EQU 8
 HUD_HOTBAR_X      EQU 128
 HUD_HOTBAR_Y      EQU 302
-
 
 verificar_colision_recursos PROC
     push ax
@@ -17,9 +15,6 @@ verificar_colision_recursos PROC
     push si
     push di
     push bp
-
-
-
     mov ax, jugador_px
     sub ax, 4
     mov player_left_temp, ax
@@ -65,29 +60,19 @@ vcr_loop:
     xor ah, ah
     shl ax, 4
     mov dx, ax
-
-
     mov ax, cx
     add ax, 15
     mov bp, ax
 
     mov ax, dx
     add ax, 15
-
-
     push ax
-
-
     mov ax, player_right_temp
     cmp ax, cx
     jl vcr_no_colision
-
-
     mov ax, player_left_temp
     cmp ax, bp
     jg vcr_no_colision
-
-
     mov ax, player_bottom_temp
     cmp ax, dx
     jl vcr_no_colision
@@ -97,8 +82,6 @@ vcr_loop:
     pop dx
     cmp ax, dx
     jg vcr_next
-
-
     call recoger_recurso
     jmp vcr_next
 
@@ -128,15 +111,12 @@ recoger_recurso PROC
 
     or recursos_recogidos, bx
     mov requiere_redibujar, 2
-
     mov ax, si
     mov bx, 3
     mul bx
     mov di, ax
-
     mov al, [recursos_mapa + di + 2]
     mov bl, al
-
     cmp bl, 1
     jne rr_tipo2
     inc recursos_tipo1
@@ -167,9 +147,7 @@ rr_actualizar:
     mov ax, jugador_py
     sub ax, 32
     mov anim_recoger_y, ax
-
     call reproducir_sonido_recoleccion
-
     pop di
     pop bx
     pop ax
@@ -1689,80 +1667,41 @@ dhh_fin:
 dibujar_hud_hotbar ENDP
 
 reproducir_sonido_victoria PROC
-
-
-
     push ax
     push cx
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     mov     ax, 4560
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
-
-
     mov     ax, 3620
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
-
-
     mov     ax, 3044
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
     call    SoundDurationDelay
     call    SoundDurationDelay
-
-
     call    SpeakerOff
     call    SoundDurationDelay
     call    SoundDurationDelay
-
-
-
-
     mov     ax, 1710
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
-
-
     mov     ax, 1810
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
-
-
     mov     ax, 1522
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
-
-
     call    SpeakerOff
     call    SoundDurationDelay
-
-
-
-
     mov     ax, 2280
     call    PlayNote
-
     call    SoundDurationDelay
     call    SoundDurationDelay
     call    SoundDurationDelay
@@ -1771,29 +1710,20 @@ reproducir_sonido_victoria PROC
     call    SoundDurationDelay
     call    SoundDurationDelay
     call    SoundDurationDelay
-
-
     call    SpeakerOff
-
     pop cx
     pop ax
     ret
 reproducir_sonido_victoria ENDP
 
 pantalla_victoria PROC
-
-
     push ax
     push cx
     push dx
     push si
-
-
     mov al, pagina_dibujo
     test al, 1
     jz pv_render_p0
-
-
     mov temp_offset, 8000h
     jmp pv_limpiar
 
@@ -1802,41 +1732,25 @@ pv_render_p0:
     mov temp_offset, 0
 
 pv_limpiar:
-
     call limpiar_pagina_actual
-
-
     call reproducir_sonido_victoria
-
-
-
-
     mov cx, 284
     mov dx, 171
     mov si, OFFSET msg_victoria
     mov al, COLOR_TEXTO
     call dibujar_texto_buffer
 
-
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
-
-
 pv_wait_esc:
     mov ah, 1
     int 16h
     jz pv_wait_esc
-
-
     mov ah, 0
     int 16h
-
-
     cmp ah, 01h
     jne pv_wait_esc
-
-
     pop si
     pop dx
     pop cx
