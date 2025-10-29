@@ -47,18 +47,18 @@ ilt_loop_video:
 	add ax, bx
 	mov bx, ax
 	mov al, [mapa_datos + bx]
-	cmp al, 4
-	je vtt_no_transitable
-	cmp al, 5
-	je vtt_no_transitable
-	cmp al, 7
-	je vtt_no_transitable
-	cmp al, 10
-	je vtt_no_transitable
-	cmp al, 12
-	je vtt_no_transitable
-	cmp al, 14
-	je vtt_no_transitable
+        cmp al, 1
+        je vtt_no_transitable
+        cmp al, 3
+        je vtt_no_transitable
+        cmp al, 6
+        je vtt_no_transitable
+        cmp al, 7
+        je vtt_no_transitable
+        cmp al, 9
+        je vtt_no_transitable
+        cmp al, 11
+        je vtt_no_transitable
 	
 	pop dx
 	pop bx
@@ -414,69 +414,64 @@ csp32o_fin:
 	push ax
 	
 	
-	mov si, OFFSET sprite_grass1
-	mov di, OFFSET sprite_grass1_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_path
-	mov di, OFFSET sprite_path_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_water
-	mov di, OFFSET sprite_water_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_tree
-	mov di, OFFSET sprite_tree_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_sand
-	mov di, OFFSET sprite_sand_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_rock
-	mov di, OFFSET sprite_rock_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_snow
-	mov di, OFFSET sprite_snow_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_ice
-	mov di, OFFSET sprite_ice_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_wall
-	mov di, OFFSET sprite_wall_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_fortress
-	mov di, OFFSET sprite_fortress_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_dirt
-	mov di, OFFSET sprite_dirt_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_lava
-	mov di, OFFSET sprite_lava_mask
-	call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_bridge
-	mov di, OFFSET sprite_bridge_mask
-	call calcular_mascara_16x16
+        mov si, OFFSET sprite_roca_volcanica
+        mov di, OFFSET sprite_roca_volcanica_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_lava
+        mov di, OFFSET sprite_lava_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_ceniza
+        mov di, OFFSET sprite_ceniza_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_roca_bloque
+        mov di, OFFSET sprite_roca_bloque_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_nieve
+        mov di, OFFSET sprite_nieve_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_hielo
+        mov di, OFFSET sprite_hielo_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_agua_congelada
+        mov di, OFFSET sprite_agua_congelada_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_roca_nevada
+        mov di, OFFSET sprite_roca_nevada_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_lodo
+        mov di, OFFSET sprite_lodo_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_agua_toxica
+        mov di, OFFSET sprite_agua_toxica_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_tierra_muerta
+        mov di, OFFSET sprite_tierra_muerta_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_arbol_muerto
+        mov di, OFFSET sprite_arbol_muerto_mask
+        call calcular_mascara_16x16
 	
 	
 	mov si, OFFSET sprite_cristal

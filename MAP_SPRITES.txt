@@ -1,15 +1,14 @@
 Codigo  Sprite                      Uso en el mapa
 ------  --------------------------  -------------------------------------------
-0       SPRITES/GRASS_1.TXT         Pradera base y zonas de transición.
-3       SPRITES/PATH_2.TXT          Caminos y pisos interiores de estructuras.
-4       SPRITES/WATER_2.TXT         Lago del bioma normal.
-5       SPRITES/TREE_1.TXT          Árboles/pinos en pradera y tundra.
-6       SPRITES/SAND_1.TXT          Orillas de lago y transición pradera-nieve.
-8       SPRITES/SNOW_1.TXT          Suelo del bioma nevado.
-9       SPRITES/ICE_1.TXT           Lagunas congeladas dentro de la tundra.
-A (10)  SPRITES/WALL_1.TXT          Muros de casas, iglúes y bastión nether.
-B (11)  SPRITES/HOUSE_ROOF.TXT      Techo de tejas para las cabañas del bosque.
-C (12)  SPRITES/FORT_BRK.TXT        Muros del bastión infernal en la zona nether.
-D (13)  SPRITES/DIRT_1.TXT          Suelo del bioma nether.
-E (14)  SPRITES/LAVA_1.TXT          Rios y fosos de lava en el nether.
-F (15)  SPRITES/BRIDGE_1.TXT        Puentes seguros sobre la lava.
+0       SPRITES/VOLCROC.TXT         Roca volcánica: suelo básico del bioma volcánico.
+1       SPRITES/VOLCLAV.TXT         Lava: peligro incandescente no transitable.
+2       SPRITES/VOLCASH.TXT         Ceniza: transición entre roca volcánica y otros biomas.
+3       SPRITES/VOLCROB.TXT         Bloque de roca volcánica: obstáculo no transitable.
+4       SPRITES/TUNSNOW.TXT         Nieve: suelo principal de la tundra.
+5       SPRITES/TUNICE.TXT          Hielo: placas resbaladizas dentro de la tundra.
+6       SPRITES/TUNWATR.TXT         Agua congelada: lagos helados no transitables.
+7       SPRITES/TUNROCK.TXT         Roca nevada: obstáculo rocoso cubierto de nieve.
+8       SPRITES/SWMLODO.TXT         Lodo tóxico: suelo del pantano venenoso.
+9       SPRITES/SWMWATR.TXT         Agua tóxica: charcos peligrosos.
+A (10)  SPRITES/SWMDEAD.TXT         Tierra muerta: transición árida hacia el pantano.
+B (11)  SPRITES/SWMTREE.TXT         Árbol muerto: obstáculo marchito del pantano.

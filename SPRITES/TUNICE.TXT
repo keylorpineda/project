@@ -1,0 +1,17 @@
+16 16
+B B B B B B F B B B B F B B B B
+B B F B B F B B B F B B F B B B
+B F B B B B B F B B B B B F B B
+B B B B F B B B B F B B B B B F
+B B B F B B F B B B F B B F B B
+F B B B B F B B F B B B B F B B
+B B B B B B B F B B B B B B B B
+B F B B F B B B B F B B F B B B
+B B B F B B F B B B F B B B B F
+B B B B B F B B B B B F B B B B
+B F B B B B B F B B B B B F B B
+B B F B B F B B B F B B F B B B
+B B B B F B B B B F B B B B B F
+B F B B B B F B B B B F B B F B
+B B B B B F B B B B B F B B B B
+F B B B B B B F B B B B B B B F
