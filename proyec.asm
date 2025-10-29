@@ -109,18 +109,18 @@ temp_col  dw 0
 scroll_offset_x dw 0
 scroll_offset_y dw 0
 
-inventario_abierto db 0          
-inventario_toggle_bloqueado db 0 
-requiere_redibujar db 0          
+inventario_abierto db 0
+inventario_toggle_bloqueado db 0
+requiere_redibujar db 0
 tecla_e_presionada db 0
 MAX_ITEMS EQU 8
 MAX_TIPOS_RECURSO EQU 3
-META_POR_TIPO EQU 2              ; Necesitamos 2 de cada tipo para ganar
+META_POR_TIPO EQU 2
 
-; Contador de recursos recolectados por tipo
-recursos_tipo1 db 0              ; Cristales recolectados
-recursos_tipo2 db 0              ; Gemas recolectadas
-recursos_tipo3 db 0              ; Monedas recolectadas
+
+recursos_tipo1 db 0
+recursos_tipo2 db 0
+recursos_tipo3 db 0
 
 recursos_recogidos dw 0
 
@@ -136,9 +136,9 @@ hud_slot_seleccionado db 0
 
 NUM_RECURSOS EQU 15
 
-recursos_mapa       db NUM_RECURSOS * 3 dup(0)   ; [x, y, tipo]
-recursos_cantidad   db NUM_RECURSOS dup(0)       ; Cantidad por recurso
-num_recursos_cargados db 0                      ; Total cargado desde mapa
+recursos_mapa       db NUM_RECURSOS * 3 dup(0)
+recursos_cantidad   db NUM_RECURSOS dup(0)
+num_recursos_cargados db 0
 inventario_slots       db MAX_ITEMS dup(0)
 inventario_cantidades  db MAX_ITEMS dup(0)
 
@@ -147,7 +147,7 @@ player_right_temp  dw 0
 player_top_temp    dw 0
 player_bottom_temp dw 0
 
-; Variables auxiliares para carga de recursos desde el mapa
+
 carga_recursos_estado      db 0
 carga_recursos_guardar     db 0
 carga_recursos_comentario  db 0
@@ -172,12 +172,12 @@ archivo_btn_salir_n    db 'SPRITES\MENU\BTNSALN.TXT',0
 archivo_btn_salir_s    db 'SPRITES\MENU\BTNSALS.TXT',0
 archivo_fondo_menu     db 'SPRITES\MENU\FONMENU.TXT',0
 
-COLOR_FONDO      EQU 0    ; Negro
-COLOR_MARCO      EQU 7    ; Blanco
-COLOR_TEXTO      EQU 14   ; Amarillo
-COLOR_BARRA_VACIA EQU 8   ; Gris oscuro
-COLOR_BARRA_LLENA EQU 10  ; Verde claro
-COLOR_ITEM_SLOT  EQU 1    ; Azul oscuro
+COLOR_FONDO      EQU 0
+COLOR_MARCO      EQU 7
+COLOR_TEXTO      EQU 14
+COLOR_BARRA_VACIA EQU 8
+COLOR_BARRA_LLENA EQU 10
+COLOR_ITEM_SLOT  EQU 1
 
 msg_inventario  db 'INVENTARIO',0
 msg_recursos    db 'RECURSOS',0
@@ -191,41 +191,41 @@ msg_slash       db '/',0
 
 
 
-INV_X           EQU 80           ; ✅ CAMBIO: Más a la izquierda (era 160)
-INV_Y           EQU 40           ; ✅ CAMBIO: Más arriba (era 50)
-INV_WIDTH       EQU 480          ; ✅ CAMBIO: Más ancho (era 320)
-INV_HEIGHT      EQU 270          ; ✅ CAMBIO: Más alto (era 250)
+INV_X           EQU 80
+INV_Y           EQU 40
+INV_WIDTH       EQU 480
+INV_HEIGHT      EQU 270
 
-; Zonas del panel
-ZONA_PLAYER_X   EQU 100          ; ✅ CAMBIO: Jugador a la izquierda (era 170)
-ZONA_PLAYER_Y   EQU 80           ; ✅ CAMBIO: (era 80, mantener)
+
+ZONA_PLAYER_X   EQU 100
+ZONA_PLAYER_Y   EQU 80
 ZONA_PLAYER_W   EQU 64
 
-ZONA_ITEMS_X    EQU 180          ; ✅ CAMBIO: Items al centro (era 250)
-ZONA_ITEMS_Y    EQU 70           ; ✅ CAMBIO: Más arriba (era 80)
-ITEM_SIZE       EQU 40           ; ✅ CAMBIO: Era 32
-ITEM_SPACING    EQU 8            ; ✅ CAMBIO: Era 4
-ITEM_TOTAL      EQU 48           ; ✅ CAMBIO: 40+8 (Era 36)
-ITEM_ICON_OFFSET EQU 12          ; ✅ CAMBIO: (40-16)/2 (Era 8)
-ITEM_COUNT_OFFSET_X EQU 28       ; ✅ CAMBIO: (Era 20)
+ZONA_ITEMS_X    EQU 180
+ZONA_ITEMS_Y    EQU 70
+ITEM_SIZE       EQU 40
+ITEM_SPACING    EQU 8
+ITEM_TOTAL      EQU 48
+ITEM_ICON_OFFSET EQU 12
+ITEM_COUNT_OFFSET_X EQU 28
 ITEM_COUNT_OFFSET_Y EQU 28
 
-ZONA_STATS_X    EQU 420          ; ✅ CAMBIO: Estadísticas a la derecha (era 352)
-ZONA_STATS_Y    EQU 70           ; ✅ CAMBIO: Más arriba (era 80)
-ZONA_STATS_W    EQU 120          ; ✅ CAMBIO: Más ancho (era 80)
+ZONA_STATS_X    EQU 420
+ZONA_STATS_Y    EQU 70
+ZONA_STATS_W    EQU 120
 
-STAT_VAL_OFFSET     EQU 88       ; ✅ CAMBIO: Más espacio para el texto (era 64)
-STAT_SLASH_OFFSET   EQU 104      ; ✅ CAMBIO: (era 80)
-STAT_META_OFFSET    EQU 112      ; ✅ CAMBIO: (era 88)
-; Animación de recolección
+STAT_VAL_OFFSET     EQU 88
+STAT_SLASH_OFFSET   EQU 104
+STAT_META_OFFSET    EQU 112
+
 anim_recoger_activa db 0
 anim_recoger_frame  db 0
 anim_recoger_x      dw 0
 anim_recoger_y      dw 0
 
-; ============================================
-; MENÚ PRINCIPAL
-; ============================================
+
+
+
 MENU_BTN_WIDTH    EQU 32
 MENU_BTN_HEIGHT   EQU 32
 MENU_BTN_PIXELS   EQU 1024
@@ -236,10 +236,10 @@ MENU_BG_HEIGHT    EQU 32
 MENU_BG_PIXELS    EQU 1024
 
 currentSelection    db 0
-lastSelection       db 0FFh  ; <-- AGREGA ESTA LÍNEA
+lastSelection       db 0FFh
 lastMenuState       db 0
 menuResult          db 0FFh
-menuState           db 0     ; <-- AGREGA ESTA LÍNEA
+menuState           db 0
 mousePresent        db 0
 mouseX              dw 320
 mouseY              dw 175
@@ -352,83 +352,83 @@ FONT_SLASH_INDEX   EQU 37
 FONT_EXCLAM_INDEX  EQU 38
 
 font_8x8 LABEL BYTE
-    ; '0'
+
     db 00111100b,01000010b,01000110b,01001010b,01010010b,01100010b,01000010b,00111100b
-    ; '1'
+
     db 00011000b,00101000b,01001000b,00001000b,00001000b,00001000b,00001000b,01111110b
-    ; '2'
+
     db 00111100b,01000010b,00000010b,00000100b,00001000b,00010000b,00100000b,01111110b
-    ; '3'
+
     db 00111100b,01000010b,00000010b,00011100b,00000010b,00000010b,01000010b,00111100b
-    ; '4'
+
     db 00000100b,00001100b,00010100b,00100100b,01000100b,01111110b,00000100b,00000100b
-    ; '5'
+
     db 01111110b,01000000b,01000000b,01111100b,00000010b,00000010b,01000010b,00111100b
-    ; '6'
+
     db 00111100b,01000010b,01000000b,01111100b,01000010b,01000010b,01000010b,00111100b
-    ; '7'
+
     db 01111110b,00000010b,00000100b,00001000b,00010000b,00100000b,00100000b,00100000b
-    ; '8'
+
     db 00111100b,01000010b,01000010b,00111100b,01000010b,01000010b,01000010b,00111100b
-    ; '9'
+
     db 00111100b,01000010b,01000010b,01000010b,00111110b,00000010b,01000010b,00111100b
-    ; 'A'
+
     db 00011000b,00100100b,01000010b,01000010b,01111110b,01000010b,01000010b,00000000b
-    ; 'B'
+
     db 01111100b,01000010b,01000010b,01111100b,01000010b,01000010b,01111100b,00000000b
-    ; 'C'
+
     db 00111100b,01000010b,01000000b,01000000b,01000000b,01000010b,00111100b,00000000b
-    ; 'D'
+
     db 01111000b,01000100b,01000010b,01000010b,01000010b,01000100b,01111000b,00000000b
-    ; 'E'
+
     db 01111110b,01000000b,01000000b,01111100b,01000000b,01000000b,01111110b,00000000b
-    ; 'F'
+
     db 01111110b,01000000b,01000000b,01111100b,01000000b,01000000b,01000000b,00000000b
-    ; 'G'
+
     db 00111100b,01000010b,01000000b,01011110b,01000010b,01000010b,00111100b,00000000b
-    ; 'H'
+
     db 01000010b,01000010b,01000010b,01111110b,01000010b,01000010b,01000010b,00000000b
-    ; 'I'
+
     db 00111100b,00011000b,00011000b,00011000b,00011000b,00011000b,00111100b,00000000b
-    ; 'J'
+
     db 00011110b,00000100b,00000100b,00000100b,00000100b,01000100b,00111000b,00000000b
-    ; 'K'
+
     db 01000010b,01000100b,01001000b,01110000b,01001000b,01000100b,01000010b,00000000b
-    ; 'L'
+
     db 01000000b,01000000b,01000000b,01000000b,01000000b,01000000b,01111110b,00000000b
-    ; 'M'
+
     db 01000010b,01100110b,01011010b,01000010b,01000010b,01000010b,01000010b,00000000b
-    ; 'N'
+
     db 01000010b,01100010b,01010010b,01001010b,01000110b,01000010b,01000010b,00000000b
-    ; 'O'
+
     db 00111100b,01000010b,01000010b,01000010b,01000010b,01000010b,00111100b,00000000b
-    ; 'P'
+
     db 01111100b,01000010b,01000010b,01111100b,01000000b,01000000b,01000000b,00000000b
-    ; 'Q'
+
     db 00111100b,01000010b,01000010b,01000010b,01001010b,01000110b,00111110b,00000000b
-    ; 'R'
+
     db 01111100b,01000010b,01000010b,01111100b,01001000b,01000100b,01000010b,00000000b
-    ; 'S'
+
     db 00111110b,01000000b,01000000b,00111100b,00000010b,00000010b,01111100b,00000000b
-    ; 'T'
+
     db 01111110b,00011000b,00011000b,00011000b,00011000b,00011000b,00011000b,00000000b
-    ; 'U'
+
     db 01000010b,01000010b,01000010b,01000010b,01000010b,01000010b,00111100b,00000000b
-    ; 'V'
+
     db 01000010b,01000010b,01000010b,01000010b,00100100b,00100100b,00011000b,00000000b
-    ; 'W'
+
     db 01000010b,01000010b,01000010b,01000010b,01011010b,01100110b,01000010b,00000000b
-    ; 'X'
+
     db 01000010b,00100100b,00011000b,00011000b,00011000b,00100100b,01000010b,00000000b
-    ; 'Y'
+
     db 01000010b,00100100b,00011000b,00011000b,00011000b,00011000b,00011000b,00000000b
-    ; 'Z'
+
     db 01111110b,00000010b,00000100b,00001000b,00010000b,00100000b,01111110b,00000000b
-    ; ':'
+
     db 00000000b,00011000b,00011000b,00000000b,00000000b,00011000b,00011000b,00000000b
-    ; '/'
+
     db 00000010b,00000100b,00001000b,00010000b,00100000b,01000000b,10000000b,00000000b
-    ; '!'
+
     db 00011000b,00011000b,00011000b,00011000b,00011000b,00000000b,00011000b,00000000b
 
 INCLUDE OPTDATA.INC
@@ -454,8 +454,8 @@ inicio:
     mov dx, OFFSET msg_cargando
     mov ah, 9
     int 21h
-    
-    ; ===== FASE 2: CARGAR MAPA =====
+
+
     mov dx, OFFSET msg_mapa
     mov ah, 9
     int 21h
@@ -470,8 +470,8 @@ crm_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
-    
-    ; ===== FASE 3: CARGAR SPRITES =====
+
+
     mov dx, OFFSET msg_sprites
     mov ah, 9
     int 21h
@@ -482,8 +482,8 @@ st_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
-    
-    ; ===== FASE 4: CARGAR ANIMACIONES =====
+
+
     mov dx, OFFSET msg_anim
     mov ah, 9
     int 21h
@@ -494,8 +494,8 @@ anim_ok:
     mov dx, OFFSET msg_ok
     mov ah, 9
     int 21h
-    
-    ; ===== FASE 5: PRE-CALCULAR MÁSCARAS (CRÍTICO) =====
+
+
     mov dx, OFFSET msg_convert
     mov ah, 9
     int 21h
@@ -505,7 +505,7 @@ anim_ok:
     mov ah, 9
     int 21h
 
-    ; ===== FASE 6: INICIALIZAR TABLAS =====
+
     mov dx, OFFSET msg_tablas
     mov ah, 9
     int 21h
@@ -515,50 +515,50 @@ anim_ok:
     int 21h
     call debug_verificar_todo
 
-    ; ===== MENU TEMPORALMENTE DESHABILITADO =====
-    ; mov dx, OFFSET msg_menu
-    ; mov ah, 9
-    ; int 21h
-    ; call cargar_sprites_menu
-    ; jnc csmenu_ok
-    ; jmp error_carga
-;csmenu_ok:
-    ; mov dx, OFFSET msg_ok
-    ; mov ah, 9
-    ; int 21h
 
-    ; call mostrar_menu_principal
-    ; cmp al, 2
-    ; jne continuar_juego
-    ; jmp fin_juego
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 continuar_juego:
 
-; ===== ENTRAR A MODO GRÁFICO =====
+
     mov ax, 10h
     int 10h
 
-; ===== CONFIGURAR PALETA =====
+
     call inicializar_paleta_ega
 
-; ===== CONFIGURAR REGISTROS EGA =====
-; Sequence Controller - Map Mask
+
+
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
-    mov al, 0Fh         ; Habilitar los 4 planos
+    mov al, 0Fh
     out dx, al
 
-; Graphics Controller - Modo de escritura
+
     mov dx, 3CEh
     mov al, 5
     out dx, al
     inc dx
-    mov al, 0           ; Write Mode 0
+    mov al, 0
     out dx, al
 
-; Graphics Controller - Bit Mask
+
     mov dx, 3CEh
     mov al, 8
     out dx, al
@@ -566,36 +566,36 @@ continuar_juego:
     mov al, 0FFh
     out dx, al
 
-; ===== LIMPIAR AMBAS PÁGINAS =====
+
     mov ax, VIDEO_SEG
     mov es, ax
 
-; Limpiar página 0 (offset 0)
+
     xor di, di
-    mov cx, 14000       ; 28000 bytes / 2 = 14000 words
+    mov cx, 14000
     xor ax, ax
     rep stosw
 
-; Limpiar página 1 (offset 8000h)
+
     mov di, 8000h
     mov cx, 14000
     xor ax, ax
     rep stosw
 
-; ===== INICIALIZAR JUEGO =====
+
     call centrar_camara
 
-; **CRÍTICO**: Renderizar PÁGINA 0 primero
+
     mov temp_offset, 0
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
 
-; **CRÍTICO**: Renderizar PÁGINA 1
+
     mov temp_offset, 8000h
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
 
-; Guardar estado inicial
+
     mov ax, jugador_px
     mov jugador_px_old, ax
     mov ax, jugador_py
@@ -603,7 +603,7 @@ continuar_juego:
     mov al, jugador_frame
     mov frame_old, al
 
-; **CRÍTICO**: Mostrar página 0 y configurar variables
+
 mov ah, 5
 mov al, 0
 int 10h
@@ -611,35 +611,35 @@ int 10h
 mov pagina_visible, 0
 mov pagina_dibujo, 1
 
-; ===== BUCLE PRINCIPAL =====
+
 bucle_juego:
     call verificar_colision_recursos
-    
-    ; Actualizar animación de recolección
+
+
     call actualizar_animacion_recoger
-    
+
     call procesar_movimiento_continuo
     call actualizar_animacion
     call centrar_camara_suave
-    
-    ; Verificar victoria
+
+
     call verificar_victoria
     jnc bg_continuar
-    
-    ; ¡VICTORIA! Mostrar pantalla de victoria y salir
+
+
     call pantalla_victoria
-    jmp fin_juego  
-    
+    jmp fin_juego
+
     bg_continuar:
-    ; Verificar si algo cambió
+
     mov ax, jugador_px
     cmp ax, jugador_px_old
     jne bg_hay_cambio
-    
+
     mov ax, jugador_py
     cmp ax, jugador_py_old
     jne bg_hay_cambio
-    
+
     mov al, jugador_frame
     cmp al, frame_old
     jne bg_hay_cambio
@@ -647,7 +647,7 @@ bucle_juego:
     cmp requiere_redibujar, 0
     jne bg_hay_cambio
 
-    ; Si no hay cambios, solo esperar
+
     call esperar_retrace
     jmp bucle_juego
 
@@ -658,7 +658,7 @@ bg_hay_cambio:
     mov jugador_py_old, ax
     mov al, jugador_frame
     mov frame_old, al
-    
+
     mov al, requiere_redibujar
     cmp al, 0
     je bg_redraw_reset
@@ -695,10 +695,10 @@ bg_cambiar_pagina:
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
-    
+
     xor pagina_dibujo, 1
     xor pagina_visible, 1
-    
+
     jmp bucle_juego
 
 error_carga:
@@ -726,11 +726,11 @@ procesar_movimiento_continuo PROC
     push bx
     push cx
     push dx
-    
+
     mov ah, 1
     int 16h
     jnz pmc_tiene_tecla
-    
+
     mov tecla_e_presionada, 0
     mov moviendo, 0
     jmp pmc_fin
@@ -738,7 +738,7 @@ procesar_movimiento_continuo PROC
 pmc_tiene_tecla:
     mov ah, 0
     int 16h
-    
+
     cmp ah, 01h
     jne pmc_check_ascii
     jmp pmc_salir
@@ -754,10 +754,10 @@ pmc_continuar:
     jz pmc_usar_scan
     mov al, bl
     jmp pmc_normalizar
-    
+
 pmc_usar_scan:
     mov al, bh
-    
+
 pmc_normalizar:
     cmp al, 'a'
     jb pmc_verificar
@@ -789,7 +789,7 @@ pmc_verificar_teclas:
     jb pmc_check_w_keys
     cmp al, '8'
     ja pmc_check_w_keys
-    
+
     sub al, '1'
     mov hud_slot_seleccionado, al
     mov requiere_redibujar, 2
@@ -1077,16 +1077,16 @@ pmc_fin:
     ret
 procesar_movimiento_continuo ENDP
 
-; ============================================
-; CARGAR SPRITES MENU (¡NUEVO!)
-; ============================================
+
+
+
 cargar_sprites_menu PROC
     push dx
     push di
     push si
     push bp
 
-    ; Cargar Botón Jugar Normal
+
     mov dx, OFFSET archivo_btn_jugar_n
     mov di, OFFSET menu_btn_jugar_n_data
     call cargar_sprite_32x32
@@ -1098,7 +1098,7 @@ csm_ok_jug_n:
     mov bp, OFFSET menu_btn_jugar_n_mask
     call convertir_sprite_32x32_a_planar_opt
 
-    ; Cargar Botón Jugar Select
+
     mov dx, OFFSET archivo_btn_jugar_s
     mov di, OFFSET menu_btn_jugar_s_data
     call cargar_sprite_32x32
@@ -1110,7 +1110,7 @@ csm_ok_jug_s:
     mov bp, OFFSET menu_btn_jugar_s_mask
     call convertir_sprite_32x32_a_planar_opt
 
-    ; Cargar Botón Opciones Normal
+
     mov dx, OFFSET archivo_btn_opciones_n
     mov di, OFFSET menu_btn_opciones_n_data
     call cargar_sprite_32x32
@@ -1122,7 +1122,7 @@ csm_ok_opt_n:
     mov bp, OFFSET menu_btn_opciones_n_mask
     call convertir_sprite_32x32_a_planar_opt
 
-    ; Cargar Botón Opciones Select
+
     mov dx, OFFSET archivo_btn_opciones_s
     mov di, OFFSET menu_btn_opciones_s_data
     call cargar_sprite_32x32
@@ -1134,7 +1134,7 @@ csm_ok_opt_s:
     mov bp, OFFSET menu_btn_opciones_s_mask
     call convertir_sprite_32x32_a_planar_opt
 
-    ; Cargar Botón Salir Normal
+
     mov dx, OFFSET archivo_btn_salir_n
     mov di, OFFSET menu_btn_salir_n_data
     call cargar_sprite_32x32
@@ -1146,7 +1146,7 @@ csm_ok_sal_n:
     mov bp, OFFSET menu_btn_salir_n_mask
     call convertir_sprite_32x32_a_planar_opt
 
-    ; Cargar Botón Salir Select
+
     mov dx, OFFSET archivo_btn_salir_s
     mov di, OFFSET menu_btn_salir_s_data
     call cargar_sprite_32x32
@@ -1179,36 +1179,36 @@ limpiar_pagina_actual PROC
     push di
     push es
 
-    ; === INICIO DE CORRECCIÓN (GLITCH BARRAS Y CRASH) ===
-    
-    ; 1. Resetear Bit Mask (Corrige glitch de barras)
-    ; Hay que asegurar que los 8 píxeles del byte se puedan escribir.
+
+
+
+
     mov dx, 3CEh
-    mov al, 8       ; Bit Mask Register
+    mov al, 8
     out dx, al
     inc dx
-    mov al, 0FFh    ; Set all bits
+    mov al, 0FFh
     out dx, al
 
-    ; 2. Poner Map Mask en TODOS los planos
+
     mov dx, 3C4h
-    mov al, 2       ; Map Mask Register
+    mov al, 2
     out dx, al
     inc dx
-    mov al, 0Fh     ; Habilitar los 4 planos
+    mov al, 0Fh
     out dx, al
-    
-    ; === FIN DE CORRECCIÓN (GLITCH BARRAS Y CRASH) ===
+
+
 
     mov ax, VIDEO_SEG
     mov es, ax
-    
-    ; === INICIO DE CORRECCIÓN (CRASH PÁGINA 1) ===
-    ; 3. Usar el temp_offset (0 o 8000h) en lugar de 'xor di, di'
-    mov di, [temp_offset] 
-    ; === FIN DE CORRECCIÓN (CRASH PÁGINA 1) ===
-    
-    mov cx, 14000       ; 14000 words = 28000 bytes
+
+
+
+    mov di, [temp_offset]
+
+
+    mov cx, 14000
     xor ax, ax
     rep stosw
 
@@ -1222,10 +1222,10 @@ limpiar_pagina_actual ENDP
 
 actualizar_animacion PROC
     push ax
-    
+
     cmp moviendo, 0
     je aa_fin
-    
+
     inc pasos_dados
     mov al, pasos_dados
     cmp al, 4
@@ -1249,24 +1249,24 @@ reproducir_sonido_paso PROC
     mov al, 0B6h
     out 43h, al
 
-    mov ax, 0F89h           ; ≈300 Hz, tono grave similar a pasos
-    out 42h, al             ; Enviar byte bajo
+    mov ax, 0F89h
+    out 42h, al
     mov al, ah
-    out 42h, al             ; Enviar byte alto
+    out 42h, al
 
     in al, 61h
     mov bl, al
     or al, 3
     out 61h, al
 
-    mov cx, 600             ; Pulso corto
+    mov cx, 600
  rsp_delay:
     loop rsp_delay
 
     mov al, bl
     out 61h, al
 
-    mov cx, 150             ; Breve silencio para simular paso
+    mov cx, 150
  rsp_silencio:
     loop rsp_silencio
 
@@ -1280,15 +1280,15 @@ reproducir_sonido_paso ENDP
 reproducir_sonido_recoleccion PROC
     push ax
 
-    mov     ax, 2200        
+    mov     ax, 2200
     call    PlayNote
     call    SoundDurationDelay
 
-    mov     ax, 1800        
+    mov     ax, 1800
     call    PlayNote
     call    SoundDurationDelay
 
-    mov     ax, 1500        
+    mov     ax, 1500
     call    PlayNote
     call    SoundDurationDelay
 
@@ -1326,17 +1326,17 @@ SpeakerOff ENDP
 SetSpeakerFreq PROC
     push ax
     push dx
-    
+
     mov     al, 182
     out     43h, al
-    
+
     pop     dx
     push    ax
-    
+
     out     42h, al
     mov     al, ah
     out     42h, al
-    
+
     pop     ax
     pop     dx
     ret
@@ -1345,16 +1345,16 @@ SetSpeakerFreq ENDP
 SoundDurationDelay PROC
     push cx
     push dx
-    
-    mov dx, 9               ; <-- CAMBIO: 3 * 3 = 9
+
+    mov dx, 9
 .sdd_outer_loop:
-    mov cx, 0FFFFh          ; Bucle interior (máxima duración)
+    mov cx, 0FFFFh
 .sdd_loop:
     loop .sdd_loop
-    
-    dec dx                  ; Siguiente iteración del bucle exterior
-    jnz .sdd_outer_loop     ; Repetir si DX no es cero
-    
+
+    dec dx
+    jnz .sdd_outer_loop
+
     pop dx
     pop cx
     ret
@@ -1363,7 +1363,7 @@ SoundDurationDelay ENDP
 centrar_camara PROC
     push ax
     push bx
-    
+
     mov ax, jugador_px
     sub ax, 200
     jge cc_x_pos
@@ -1374,7 +1374,7 @@ cc_x_pos:
     mov ax, 1200
 cc_x_ok:
     mov camara_px, ax
-    
+
     mov ax, jugador_py
     sub ax, 120
     jge cc_y_pos
@@ -1385,7 +1385,7 @@ cc_y_pos:
     mov ax, 1360
 cc_y_ok:
     mov camara_py, ax
-    
+
     pop bx
     pop ax
     ret
@@ -1614,7 +1614,7 @@ cst_fin:
     ret
 cargar_sprites_terreno ENDP
 
-; REEMPLAZAR cargar_animaciones_jugador COMPLETO:
+
 
 cargar_animaciones_jugador PROC
     push dx
@@ -1727,22 +1727,22 @@ cargar_animaciones_jugador ENDP
 obtener_sprite_jugador PROC
     push ax
     push bx
-    
+
     mov al, jugador_dir
     mov bl, jugador_frame
-    
+
     cmp al, DIR_ABAJO
     jne osj_arr
     test bl, bl
     jz osj_down_a
-    mov di, OFFSET jugador_down_b           ; ✅ DI = DATA
-    mov si, OFFSET jugador_down_b_mask      ; ✅ SI = MASK
+    mov di, OFFSET jugador_down_b
+    mov si, OFFSET jugador_down_b_mask
     jmp osj_fin
 osj_down_a:
-    mov di, OFFSET jugador_down_a           ; ✅ DI = DATA
-    mov si, OFFSET jugador_down_a_mask      ; ✅ SI = MASK
+    mov di, OFFSET jugador_down_a
+    mov si, OFFSET jugador_down_a_mask
     jmp osj_fin
-    
+
 osj_arr:
     cmp al, DIR_ARRIBA
     jne osj_izq
@@ -1755,7 +1755,7 @@ osj_up_a:
     mov di, OFFSET jugador_up_a
     mov si, OFFSET jugador_up_a_mask
     jmp osj_fin
-    
+
 osj_izq:
     cmp al, DIR_IZQUIERDA
     jne osj_der
@@ -1768,7 +1768,7 @@ osj_izq_a:
     mov di, OFFSET jugador_izq_a
     mov si, OFFSET jugador_izq_a_mask
     jmp osj_fin
-    
+
 osj_der:
     test bl, bl
     jz osj_der_a
@@ -1778,7 +1778,7 @@ osj_der:
 osj_der_a:
     mov di, OFFSET jugador_der_a
     mov si, OFFSET jugador_der_a_mask
-    
+
 osj_fin:
     pop bx
     pop ax
@@ -1788,12 +1788,12 @@ obtener_sprite_jugador ENDP
 renderizar_en_pagina_0 PROC
     push ax
     push es
-    
+
     mov ax, VIDEO_SEG
     mov es, ax
     mov ax, 0
     call dibujar_todo_en_offset
-    
+
     pop es
     pop ax
     ret
@@ -1802,12 +1802,12 @@ renderizar_en_pagina_0 ENDP
 renderizar_en_pagina_1 PROC
     push ax
     push es
-    
+
     mov ax, VIDEO_SEG
     mov es, ax
     mov ax, 8000h
     call dibujar_todo_en_offset
-    
+
     pop es
     pop ax
     ret
@@ -1815,11 +1815,11 @@ renderizar_en_pagina_1 ENDP
 
 dibujar_todo_en_offset PROC
     push ax
-    
+
     mov temp_offset, ax
     call dibujar_mapa_en_offset
     call dibujar_jugador_en_offset
-    
+
     pop ax
     ret
 dibujar_todo_en_offset ENDP
@@ -1832,56 +1832,56 @@ dibujar_mapa_en_offset PROC
     push si
     push di
     push bp
-    
+
     mov ax, camara_px
     shr ax, 4
     mov inicio_tile_x, ax
-    
+
     mov ax, camara_py
     shr ax, 4
     mov inicio_tile_y, ax
-    
+
     xor bp, bp
 
 dmo_fila:
     cmp bp, 15
     jae dmo_fin
-    
+
     xor si, si
 dmo_col:
     cmp si, 25
     jae dmo_next_fila
-    
+
     mov ax, inicio_tile_y
     add ax, bp
     cmp ax, 100
     jae dmo_next_col
-    
+
     mov bx, ax
     shl bx, 1
     mov ax, [mul100_table + bx]
-    
+
     mov bx, inicio_tile_x
     add bx, si
     cmp bx, 100
     jae dmo_next_col
-    
+
     add ax, bx
-    
+
     mov bx, ax
     mov al, [mapa_datos + bx]
-    
+
     cmp al, 15
     ja dmo_next_col
-    
+
     push si
     push bp
-    
+
     call obtener_sprite_tile
-    
+
     push si
     push di
-    
+
     push bp
     mov bp, sp
 
@@ -1889,30 +1889,30 @@ dmo_col:
     shl ax, 4
     add ax, viewport_y
     mov dx, ax
-    
+
     mov ax, [bp+8]
     shl ax, 4
     add ax, viewport_x
     mov cx, ax
-    
+
     pop bp
-    
+
     pop di
     pop si
 
     call dibujar_sprite_planar_16x16_opt
-    
+
     pop bp
     pop si
-    
+
 dmo_next_col:
     inc si
     jmp dmo_col
-    
+
 dmo_next_fila:
     inc bp
     jmp dmo_fila
-    
+
 dmo_fin:
 call dibujar_recursos_en_mapa
     pop bp
@@ -1928,88 +1928,88 @@ dibujar_mapa_en_offset ENDP
 obtener_sprite_tile PROC
     push ax
     push bx
-    
+
     mov bl, al
-    
-    ; Default: GRASS1
+
+
     mov di, OFFSET sprite_grass1
     mov si, OFFSET sprite_grass1_mask
-    
+
     cmp bl, TILE_PATH
     jne ost_water
     mov di, OFFSET sprite_path
     mov si, OFFSET sprite_path_mask
     jmp ost_fin
-    
+
 ost_water:
     cmp bl, TILE_WATER
     jne ost_tree
     mov di, OFFSET sprite_water
     mov si, OFFSET sprite_water_mask
     jmp ost_fin
-    
+
 ost_tree:
     cmp bl, TILE_TREE
     jne ost_sand
     mov di, OFFSET sprite_tree
     mov si, OFFSET sprite_tree_mask
     jmp ost_fin
-    
+
 ost_sand:
     cmp bl, TILE_SAND
     jne ost_rock
     mov di, OFFSET sprite_sand
     mov si, OFFSET sprite_sand_mask
     jmp ost_fin
-    
-ost_rock:                   ; ← AGREGAR ESTO
-    cmp bl, TILE_ROCK       ; ← AGREGAR ESTO
-    jne ost_snow            ; ← AGREGAR ESTO
-    mov di, OFFSET sprite_rock       ; ← AGREGAR ESTO
-    mov si, OFFSET sprite_rock_mask  ; ← AGREGAR ESTO
-    jmp ost_fin         
+
+ost_rock:
+    cmp bl, TILE_ROCK
+    jne ost_snow
+    mov di, OFFSET sprite_rock
+    mov si, OFFSET sprite_rock_mask
+    jmp ost_fin
 ost_snow:
     cmp bl, TILE_SNOW
     jne ost_ice
     mov di, OFFSET sprite_snow
     mov si, OFFSET sprite_snow_mask
     jmp ost_fin
-    
+
 ost_ice:
     cmp bl, TILE_ICE
     jne ost_wall
     mov di, OFFSET sprite_ice
     mov si, OFFSET sprite_ice_mask
     jmp ost_fin
-    
+
 ost_wall:
     cmp bl, TILE_WALL
     jne ost_fortress
     mov di, OFFSET sprite_wall
     mov si, OFFSET sprite_wall_mask
     jmp ost_fin
-    
+
 ost_fortress:
     cmp bl, TILE_FORTRESS
     jne ost_dirt
     mov di, OFFSET sprite_fortress
     mov si, OFFSET sprite_fortress_mask
     jmp ost_fin
-    
+
 ost_dirt:
     cmp bl, TILE_DIRT
     jne ost_lava
     mov di, OFFSET sprite_dirt
     mov si, OFFSET sprite_dirt_mask
     jmp ost_fin
-    
+
 ost_lava:
     cmp bl, TILE_LAVA
     jne ost_bridge
     mov di, OFFSET sprite_lava
     mov si, OFFSET sprite_lava_mask
     jmp ost_fin
-    
+
 ost_bridge:
     cmp bl, TILE_BRIDGE
     jne ost_fin
@@ -2034,7 +2034,7 @@ dibujar_jugador_en_offset PROC
     add ax, viewport_x
     sub ax, 16
     mov cx, ax
-    
+
     mov ax, jugador_py
     sub ax, camara_py
     add ax, viewport_y
@@ -2064,11 +2064,11 @@ dibujar_item_sostenido PROC
     push dx
     push si
     push di
-    
+
     mov al, hud_slot_seleccionado
     xor ah, ah
     mov si, ax
-    
+
     mov al, [inventario_slots + si]
     test al, al
     jz dis_fin
@@ -2078,23 +2078,23 @@ dibujar_item_sostenido PROC
     mov di, OFFSET sprite_cristal
     mov si, OFFSET sprite_cristal_mask
     jmp dis_calcular_pos
-    
+
 dis_tipo2:
     cmp al, 2
     jne dis_tipo3
     mov di, OFFSET sprite_gema
     mov si, OFFSET sprite_gema_mask
     jmp dis_calcular_pos
-    
+
 dis_tipo3:
     mov di, OFFSET sprite_moneda
     mov si, OFFSET sprite_moneda_mask
 
 dis_calcular_pos:
     push si
-    
+
     mov al, jugador_dir
-    
+
     cmp al, DIR_ABAJO
     jne dis_dir_arriba
     add cx, 8
@@ -2107,7 +2107,7 @@ dis_dir_arriba:
     add cx, 8
     sub dx, 4
     jmp dis_dibujar
-    
+
 dis_dir_izq:
     cmp al, DIR_IZQUIERDA
     jne dis_dir_der
@@ -2121,12 +2121,12 @@ dis_dir_der:
 
 dis_dibujar:
     pop si
-    
+
     cmp inventario_abierto, 1
     je dis_fin_no_draw
-    
+
     call dibujar_sprite_planar_16x16_opt
-    
+
 dis_fin_no_draw:
     jmp dis_fin
 
@@ -2143,21 +2143,21 @@ dibujar_item_sostenido ENDP
 esperar_retrace PROC
     push ax
     push dx
-    
+
     mov dx, 3DAh
-    
-    ; Esperar hasta que NO esté en retrace (evita empezar a mitad)
+
+
 er_wait_not_retrace:
     in al, dx
     test al, 8
     jnz er_wait_not_retrace
-    
-    ; Ahora esperar hasta que EMPIECE el retrace
+
+
 er_wait_start:
     in al, dx
     test al, 8
     jz er_wait_start
-    
+
     pop dx
     pop ax
     ret
@@ -2171,27 +2171,27 @@ cargar_mapa PROC
     push si
     push di
     push bp
-    
+
     mov ax, 3D00h
     mov dx, OFFSET archivo_mapa
     int 21h
     jc cm_error
-    
+
     mov bx, ax
     call saltar_linea
-    
+
     mov di, OFFSET mapa_datos
     xor bp, bp
-    
+
 cm_leer:
     mov ah, 3Fh
     mov cx, 200
     mov dx, OFFSET buffer_temp
     int 21h
-    
+
     cmp ax, 0
     je cm_cerrar
-    
+
     mov cx, ax
     xor si, si
 
@@ -2201,7 +2201,7 @@ cm_proc:
 
     mov al, [buffer_temp + si]
     inc si
-    
+
     cmp al, ' '
     je cm_proc
     cmp al, 13
@@ -2210,7 +2210,7 @@ cm_proc:
     je cm_proc
     cmp al, 9
     je cm_proc
-    
+
     cmp al, '0'
     jb cm_chk_upper
     cmp al, '9'
@@ -2239,18 +2239,18 @@ cm_store:
     mov [di], al
     inc di
     inc bp
-    cmp bp, 10000       ; ✅ CAMBIO: 100×100 = 10,000 (antes 2500)
+    cmp bp, 10000
     jb cm_proc
-    
+
 cm_cerrar:
     mov ah, 3Eh
     int 21h
     clc
     jmp cm_fin
-    
+
 cm_error:
     stc
-    
+
 cm_fin:
     pop bp
     pop di
@@ -2401,7 +2401,7 @@ crm_continuar_lectura:
     jmp crm_loop
 
 crm_no_comentario:
-    cmp al, ';'
+    cmp al, '
     jne crm_no_puntoycoma
     mov carga_recursos_comentario, 1
     jmp crm_loop
@@ -2534,16 +2534,16 @@ cargar_sprite_16x16 PROC
     push cx
     push si
     push bp
-    
+
     mov ax, 3D00h
     int 21h
     jc cs16_error
-    
+
     mov bx, ax
     call saltar_linea
-    
+
     xor bp, bp
-    
+
 cs16_leer:
     mov ah, 3Fh
     mov cx, 200
@@ -2551,10 +2551,10 @@ cs16_leer:
     mov dx, OFFSET buffer_temp
     int 21h
     pop dx
-    
+
     cmp ax, 0
     je cs16_cerrar
-    
+
     mov cx, ax
     xor si, si
 
@@ -2564,7 +2564,7 @@ cs16_proc:
 
     mov al, [buffer_temp + si]
     inc si
-    
+
     cmp al, ' '
     je cs16_proc
     cmp al, 13
@@ -2573,12 +2573,12 @@ cs16_proc:
     je cs16_proc
     cmp al, 9
     je cs16_proc
-    
+
     cmp al, '0'
     jb cs16_proc
     cmp al, '9'
     jbe cs16_dec
-    
+
     and al, 0DFh
     cmp al, 'A'
     jb cs16_proc
@@ -2596,16 +2596,16 @@ cs16_guardar:
     inc bp
     cmp bp, 256
     jb cs16_proc
-    
+
 cs16_cerrar:
     mov ah, 3Eh
     int 21h
     clc
     jmp cs16_fin
-    
+
 cs16_error:
     stc
-    
+
 cs16_fin:
     pop bp
     pop si
@@ -2621,16 +2621,16 @@ cargar_sprite_32x32 PROC
     push cx
     push si
     push bp
-    
+
     mov ax, 3D00h
     int 21h
     jc cs32_error
-    
+
     mov bx, ax
     call saltar_linea
-    
+
     xor bp, bp
-    
+
 cs32_leer:
     mov ah, 3Fh
     mov cx, 200
@@ -2638,10 +2638,10 @@ cs32_leer:
     mov dx, OFFSET buffer_temp
     int 21h
     pop dx
-    
+
     cmp ax, 0
     je cs32_cerrar
-    
+
     mov cx, ax
     xor si, si
 
@@ -2651,7 +2651,7 @@ cs32_proc:
 
     mov al, [buffer_temp + si]
     inc si
-    
+
     cmp al, ' '
     je cs32_proc
     cmp al, 13
@@ -2660,12 +2660,12 @@ cs32_proc:
     je cs32_proc
     cmp al, 9
     je cs32_proc
-    
+
     cmp al, '0'
     jb cs32_proc
     cmp al, '9'
     jbe cs32_dec
-    
+
     and al, 0DFh
     cmp al, 'A'
     jb cs32_proc
@@ -2681,18 +2681,18 @@ cs32_guardar:
     mov [di], al
     inc di
     inc bp
-    cmp bp, 1024        ; 32x32 = 1024
+    cmp bp, 1024
     jb cs32_proc
-    
+
 cs32_cerrar:
     mov ah, 3Eh
     int 21h
     clc
     jmp cs32_fin
-    
+
 cs32_error:
     stc
-    
+
 cs32_fin:
     pop bp
     pop si
@@ -2706,22 +2706,22 @@ saltar_linea PROC
     push ax
     push cx
     push dx
-    
+
 sl_loop:
     mov ah, 3Fh
     mov cx, 1
     mov dx, OFFSET buffer_temp
     int 21h
-    
+
     cmp ax, 0
     je sl_fin
-    
+
     mov al, [buffer_temp]
     cmp al, 10
     je sl_fin
     cmp al, 13
     jne sl_loop
-    
+
 sl_fin:
     pop dx
     pop cx
@@ -2734,23 +2734,23 @@ debug_mostrar_tile PROC
     push bx
     push cx
     push dx
-    
-    ; Obtener tile en posición (15, 19)
+
+
     mov bx, 19
     shl bx, 1
     mov ax, [mul100_table + bx]
     add ax, 15
     mov bx, ax
-    
+
     mov al, [mapa_datos + bx]
-    
-    ; Convertir a ASCII y mostrar
+
+
     add al, '0'
-    mov [msg_error], al     ; Reutilizar buffer
+    mov [msg_error], al
     mov dx, OFFSET msg_error
     mov ah, 9
     int 21h
-    
+
     pop dx
     pop cx
     pop bx
@@ -2761,21 +2761,21 @@ debug_mostrar_tile ENDP
 debug_verificar_mapa PROC
     push ax
     push bx
-    
-    ; Verificar tile en (25, 25) - debería ser no-cero
+
+
     mov bx, 25
     shl bx, 1
     mov ax, [mul100_table + bx]
     add ax, 25
     mov bx, ax
-    
+
     mov al, [mapa_datos + bx]
-    
-    ; Si es 0, hay un problema
+
+
     test al, al
     jnz dvm_ok
-    
-    ; Mostrar error
+
+
     mov ax, 3
     int 10h
     mov dx, OFFSET msg_error
@@ -2783,7 +2783,7 @@ debug_verificar_mapa PROC
     int 21h
     mov ah, 0
     int 16h
-    
+
 dvm_ok:
     pop bx
     pop ax
@@ -2794,14 +2794,14 @@ debug_verificar_mapa ENDP
 debug_verificar_todo PROC
     push ax
     push bx
-    
-    ; Verificar que mul100_table esté inicializada
-    mov bx, 2               ; mul100_table[1]
+
+
+    mov bx, 2
     mov ax, [mul100_table + bx]
     cmp ax, 100
     je dvt_tabla_ok
-    
-    ; ERROR: Tabla no inicializada
+
+
     mov ax, 3
     int 10h
     mov dx, OFFSET msg_error
@@ -2810,14 +2810,14 @@ debug_verificar_todo PROC
     mov ah, 0
     int 16h
     jmp fin_juego
-    
+
 dvt_tabla_ok:
-    ; Verificar que el mapa tenga datos
+
     mov al, [mapa_datos + 0]
     test al, al
     jnz dvt_mapa_ok
-    
-    ; ERROR: Mapa vacío
+
+
     mov ax, 3
     int 10h
     mov dx, OFFSET msg_error
@@ -2826,7 +2826,7 @@ dvt_tabla_ok:
     mov ah, 0
     int 16h
     jmp fin_juego
-    
+
 dvt_mapa_ok:
     pop bx
     pop ax

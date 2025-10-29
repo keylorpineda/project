@@ -1,8 +1,8 @@
-HUD_HEART_X       EQU 230 ; Centrado ( (640 - (9 corazones * 20px)) / 2 )
-HUD_HEART_Y       EQU 282 ; Justo arriba del hotbar (que está en 302)
+HUD_HEART_X       EQU 230
+HUD_HEART_Y       EQU 282
 HUD_HEART_SPACING EQU 20
-HUD_HEART_MARGIN  EQU 8     ; Margen desde el borde del viewport
-HUD_HEART_SPACING EQU 20    ; Espacio entre corazones
+HUD_HEART_MARGIN  EQU 8
+HUD_HEART_SPACING EQU 20
 
 HUD_HOTBAR_SLOTS  EQU 8
 HUD_HOTBAR_X      EQU 128
@@ -18,26 +18,26 @@ verificar_colision_recursos PROC
     push di
     push bp
 
-    ; Calcular bounding box del jugador EXPANDIDO
-    ; Expandimos 4 píxeles en cada dirección para compensar el movimiento
+
+
     mov ax, jugador_px
-    sub ax, 4                   ; Expandir hacia la izquierda
+    sub ax, 4
     mov player_left_temp, ax
-    
+
     add ax, 32
-    add ax, 8                   ; 32 del jugador + 4 de expansión izq + 4 de expansión der
+    add ax, 8
     mov player_right_temp, ax
 
     mov ax, jugador_py
-    sub ax, 4                   ; Expandir hacia arriba
+    sub ax, 4
     mov player_top_temp, ax
-    
+
     add ax, 32
-    add ax, 8                   ; 32 del jugador + 4 de expansión arriba + 4 de expansión abajo
+    add ax, 8
     mov player_bottom_temp, ax
 
-    xor si, si                  ; Índice del recurso
-    mov bx, 1                   ; Máscara de bits
+    xor si, si
+    mov bx, 1
 
 vcr_loop:
     mov al, num_recursos_cargados
@@ -45,65 +45,65 @@ vcr_loop:
     cmp si, ax
     jae vcr_fin
 
-    ; ¿Ya fue recogido?
+
     test recursos_recogidos, bx
     jnz vcr_next
 
-    ; Calcular offset (3 bytes por recurso: X, Y, Tipo)
+
     mov ax, si
     mov dx, 3
     mul dx
     mov di, ax
 
-    ; Obtener posición del recurso en píxeles del mundo
-    mov al, [recursos_mapa + di]        ; tile_x
-    xor ah, ah
-    shl ax, 4                            ; tile_x * 16
-    mov cx, ax                           ; CX = recurso_left
 
-    mov al, [recursos_mapa + di + 1]    ; tile_y
+    mov al, [recursos_mapa + di]
     xor ah, ah
-    shl ax, 4                            ; tile_y * 16
-    mov dx, ax                           ; DX = recurso_top
+    shl ax, 4
+    mov cx, ax
 
-    ; Calcular límites del recurso (16x16)
+    mov al, [recursos_mapa + di + 1]
+    xor ah, ah
+    shl ax, 4
+    mov dx, ax
+
+
     mov ax, cx
     add ax, 15
-    mov bp, ax                           ; BP = recurso_right
+    mov bp, ax
 
     mov ax, dx
-    add ax, 15                           ; AX = recurso_bottom
+    add ax, 15
 
-    ; Detección de colisión simple y efectiva
-    push ax                              ; Guardar recurso_bottom
 
-    ; player_right >= recurso_left?
+    push ax
+
+
     mov ax, player_right_temp
     cmp ax, cx
     jl vcr_no_colision
 
-    ; player_left <= recurso_right?
+
     mov ax, player_left_temp
     cmp ax, bp
     jg vcr_no_colision
 
-    ; player_bottom >= recurso_top?
+
     mov ax, player_bottom_temp
     cmp ax, dx
     jl vcr_no_colision
 
-    ; player_top <= recurso_bottom?
+
     mov ax, player_top_temp
-    pop dx                               ; DX = recurso_bottom
+    pop dx
     cmp ax, dx
     jg vcr_next
 
-    ; ¡COLISIÓN DETECTADA!
+
     call recoger_recurso
     jmp vcr_next
 
 vcr_no_colision:
-    pop ax                               ; Limpiar stack
+    pop ax
 
 vcr_next:
     shl bx, 1
@@ -149,12 +149,12 @@ rr_tipo2:
     jmp rr_actualizar
 
 rr_tipo3:
-    ; --- INICIO DE LA CORRECCIÓN ---
+
     cmp bl, 3
-    jne rr_actualizar ; Si no es tipo 3, saltar (aunque bl ya deberia ser 3)
+    jne rr_actualizar
     inc recursos_tipo3
-    jmp rr_actualizar ; <-- ESTE SALTO FALTABA
-    ; --- FIN DE LA CORRECCIÓN ---
+    jmp rr_actualizar
+
 
 rr_actualizar:
     mov al, bl
@@ -229,10 +229,10 @@ dibujar_recursos_en_mapa PROC
     push dx
     push si
     push di
-    
+
     xor si, si
     mov bx, 1
-    
+
 drm_loop:
     mov al, num_recursos_cargados
     mov ah, 0
@@ -251,7 +251,7 @@ drm_loop_continue:
 drm_procesar:
     push bx
     push si
-    
+
     mov ax, si
     mov bx, 3
     mul bx
@@ -325,7 +325,7 @@ drm_visible_y_max_ok:
     shl ax, 1
     sub dx, ax
     add dx, viewport_y
-    
+
     mov al, [recursos_mapa + di + 2]
 
     cmp al, 1
@@ -334,7 +334,7 @@ drm_visible_y_max_ok:
     push si
     mov si, OFFSET sprite_cristal_mask
     jmp drm_dibujar
-    
+
 drm_tipo2:
     cmp al, 2
     jne drm_tipo3
@@ -342,25 +342,25 @@ drm_tipo2:
     push si
     mov si, OFFSET sprite_gema_mask
     jmp drm_dibujar
-    
+
 drm_tipo3:
     mov di, OFFSET sprite_moneda
     push si
     mov si, OFFSET sprite_moneda_mask
-    
+
 drm_dibujar:
     call dibujar_sprite_planar_16x16_opt
     pop si
-    
+
 drm_next_pop:
     pop si
     pop bx
-    
+
 drm_next:
     shl bx, 1
     inc si
     jmp drm_loop
-    
+
 drm_fin:
     pop di
     pop si
@@ -378,10 +378,10 @@ dibujar_inventario PROC
     push dx
     push si
     push di
-    
+
     cmp inventario_abierto, 0
     je di_fin
-    
+
     mov cx, INV_X
     mov dx, INV_Y
     mov ax, INV_WIDTH
@@ -407,7 +407,7 @@ dibujar_inventario PROC
     call dibujar_jugador_inventario
     call dibujar_slots_items
     call dibujar_estadisticas
-    
+
 di_fin:
     pop di
     pop si
@@ -423,14 +423,14 @@ dibujar_jugador_inventario PROC
     push dx
     push si
     push di
-    
+
     call obtener_sprite_jugador
-    
+
     mov cx, ZONA_PLAYER_X
     mov dx, ZONA_PLAYER_Y
-    
+
     call dibujar_sprite_planar_32x32_opt
-    
+
     pop di
     pop si
     pop dx
@@ -491,10 +491,10 @@ dsi_continuar:
     jz dsi_next
 
     mov bh, al
-    
+
     push cx
     push dx
-    
+
     add cx, ITEM_ICON_OFFSET
     add dx, ITEM_ICON_OFFSET
 
@@ -525,20 +525,20 @@ dsi_dibujar:
 
     pop dx
     pop cx
-    
+
     push cx
     push dx
-    
+
     add cx, ITEM_COUNT_OFFSET_X
     add dx, ITEM_COUNT_OFFSET_Y
-    
+
     mov bx, OFFSET inventario_cantidades
     add bx, si
     mov al, [bx]
     xor ah, ah
-    
+
     call dibujar_numero
-    
+
     pop dx
     pop cx
 
@@ -615,7 +615,7 @@ dibujar_estadisticas PROC
     mov al, recursos_tipo3
     xor ah, ah
     call dibujar_numero
-    
+
     pop bp
     pop di
     pop si
@@ -633,10 +633,10 @@ dibujar_barra_progreso PROC
     push dx
     push si
     push di
-    
+
     mov si, ax
     mov di, bx
-    
+
     push cx
     push dx
     mov ax, 80
@@ -647,7 +647,7 @@ dibujar_barra_progreso PROC
     pop si
     pop dx
     pop cx
-    
+
     cmp di, 0
     je dbp_fin
 
@@ -664,13 +664,13 @@ dibujar_barra_progreso PROC
 dbp_width_ok:
     test ax, ax
     jz dbp_fin
-    
+
     mov bx, 8
     push si
     mov si, COLOR_BARRA_LLENA
     call dibujar_rectangulo_lleno
     pop si
-    
+
 dbp_fin:
     pop di
     pop si
@@ -690,7 +690,7 @@ dibujar_rectangulo_lleno PROC
     push di
     push es
     push bp
-    
+
     mov bp, ax
     mov di, bx
 
@@ -726,12 +726,12 @@ drl_fila:
     mov al, 0Fh
     out dx, al
     pop ax
-    
+
     mov cx, bp
     shr cx, 1
     shr cx, 1
     shr cx, 1
-    
+
 drl_pixel:
     mov es:[bx], al
     inc bx
@@ -959,16 +959,16 @@ dce_exit:
     ret
 dibujar_caracter_8x8 ENDP
 
-; ==============================================================
-; Variables para dibujar_caracter_buffer_8x8
-; DEBEN estar declaradas ANTES del procedimiento
-; ==============================================================
+
+
+
+
 dcb_color db 0
 dcb_glyph_ptr dw 0
 
-; ==============================================================
-; Procedimiento: dibujar_caracter_buffer_8x8
-; ==============================================================
+
+
+
 dibujar_caracter_buffer_8x8 PROC
     push ax
     push bx
@@ -986,7 +986,7 @@ dibujar_caracter_buffer_8x8 PROC
 dcb_continue:
     mov ax, VIDEO_SEG
     mov es, ax
-    
+
     mov bx, dx
     shl bx, 1
     mov bp, [video_offsets + bx]
@@ -1001,21 +1001,21 @@ dcb_continue:
     and al, 0Fh
     mov byte ptr [dcb_color], al
 
-    ; Plano 0
+
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
     xor al, al
     out dx, al
-    
+
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 1
     out dx, al
-    
+
     mov cx, 8
     mov di, bp
 
@@ -1024,7 +1024,7 @@ dcb_p0:
     mov al, ah
     not al
     and al, es:[di]
-    
+
     mov dl, byte ptr [dcb_color]
     test dl, 1
     jz dcb_p0_skip
@@ -1037,22 +1037,22 @@ dcb_p0_skip:
     loop dcb_p0
 
     mov si, word ptr [dcb_glyph_ptr]
-    
-    ; Plano 1
+
+
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
     mov al, 1
     out dx, al
-    
+
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 2
     out dx, al
-    
+
     mov cx, 8
     mov di, bp
 
@@ -1061,7 +1061,7 @@ dcb_p1:
     mov al, ah
     not al
     and al, es:[di]
-    
+
     mov dl, byte ptr [dcb_color]
     test dl, 2
     jz dcb_p1_skip
@@ -1074,22 +1074,22 @@ dcb_p1_skip:
     loop dcb_p1
 
     mov si, word ptr [dcb_glyph_ptr]
-    
-    ; Plano 2
+
+
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
     mov al, 2
     out dx, al
-    
+
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 4
     out dx, al
-    
+
     mov cx, 8
     mov di, bp
 
@@ -1098,7 +1098,7 @@ dcb_p2:
     mov al, ah
     not al
     and al, es:[di]
-    
+
     mov dl, byte ptr [dcb_color]
     test dl, 4
     jz dcb_p2_skip
@@ -1111,22 +1111,22 @@ dcb_p2_skip:
     loop dcb_p2
 
     mov si, word ptr [dcb_glyph_ptr]
-    
-    ; Plano 3
+
+
     mov dx, 3CEh
     mov al, 4
     out dx, al
     inc dx
     mov al, 3
     out dx, al
-    
+
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 8
     out dx, al
-    
+
     mov cx, 8
     mov di, bp
 
@@ -1135,7 +1135,7 @@ dcb_p3:
     mov al, ah
     not al
     and al, es:[di]
-    
+
     mov dl, byte ptr [dcb_color]
     test dl, 8
     jz dcb_p3_skip
@@ -1147,14 +1147,14 @@ dcb_p3_skip:
     inc si
     loop dcb_p3
 
-    ; Restaurar registros del controlador de video
+
     mov dx, 3C4h
     mov al, 2
     out dx, al
     inc dx
     mov al, 0Fh
     out dx, al
-    
+
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -1299,18 +1299,18 @@ dibujar_numero ENDP
 
 actualizar_animacion_recoger PROC
     push ax
-    
+
     cmp anim_recoger_activa, 0
     je aar_fin
-    
+
     inc anim_recoger_frame
     sub anim_recoger_y, 2
-    
+
     cmp anim_recoger_frame, 15
     jb aar_fin
-    
+
     mov anim_recoger_activa, 0
-    
+
 aar_fin:
     pop ax
     ret
@@ -1320,20 +1320,20 @@ dibujar_animacion_recoger PROC
     push ax
     push cx
     push dx
-    
+
     cmp anim_recoger_activa, 0
     je dar_fin
-    
+
     mov ax, anim_recoger_x
     sub ax, camara_px
     add ax, viewport_x
     mov cx, ax
-    
+
     mov ax, anim_recoger_y
     sub ax, camara_py
     add ax, viewport_y
     mov dx, ax
-    
+
     cmp cx, -16
     jl dar_fin
     cmp cx, 336
@@ -1342,7 +1342,7 @@ dibujar_animacion_recoger PROC
     jl dar_fin
     cmp dx, 208
     jg dar_fin
-    
+
 dar_fin:
     pop dx
     pop cx
@@ -1352,25 +1352,25 @@ dibujar_animacion_recoger ENDP
 
 verificar_victoria PROC
     push ax
-    
+
     mov al, recursos_tipo1
     cmp al, META_POR_TIPO
     jb vv_no_gano
-    
+
     mov al, recursos_tipo2
     cmp al, META_POR_TIPO
     jb vv_no_gano
-    
+
     mov al, recursos_tipo3
     cmp al, META_POR_TIPO
     jb vv_no_gano
-    
+
     stc
     jmp vv_fin
-    
+
 vv_no_gano:
     clc
-    
+
 vv_fin:
     pop ax
     ret
@@ -1378,10 +1378,10 @@ verificar_victoria ENDP
 
 dibujar_hud PROC
     push ax
-    
+
     cmp inventario_abierto, 1
     je dh_fin
-    
+
     call dibujar_hud_progreso
     call dibujar_hud_corazones
     call dibujar_hud_hotbar
@@ -1399,65 +1399,65 @@ dibujar_hud_corazones PROC
     push si
     push di
     push bp
-    
-    ; Obtener vida máxima
+
+
     mov bl, jugador_vida_max
     xor bh, bh
-    
-    ; Inicializar contador
+
+
     xor si, si
 
 dhc_loop:
-    ; ¿Hemos dibujado todos los corazones?
+
     cmp si, bx
     jae dhc_fin
-    
-    ; Calcular posición X (de izquierda a derecha)
+
+
     mov ax, si
     mov dx, HUD_HEART_SPACING
-    mul dx                          ; ax = si * 20
-    add ax, HUD_HEART_X  
+    mul dx
+    add ax, HUD_HEART_X
     mov cx, ax
-    
-    ; Posición Y (arriba del viewport)
+
+
     mov ax, viewport_y
     add ax, HUD_HEART_MARGIN
     mov dx, ax
-    add ax, HUD_HEART_X  
-    
-    ; Guardar SI antes de usarlo para otra cosa
+    add ax, HUD_HEART_X
+
+
     push si
-    
-    ; Determinar si este corazón está lleno o vacío
+
+
     mov al, byte ptr jugador_vida_actual
     xor ah, ah
-    pop bp                          ; Recuperar índice en BP
-    push bp                         ; Volver a guardar
-    
+    pop bp
+    push bp
+
     cmp bp, ax
-    jae dhc_empty                   ; Si índice >= vida_actual, está vacío
-    
-    ; Corazón lleno (rojo)
+    jae dhc_empty
+
+
     mov di, OFFSET sprite_heart_full
     mov si, OFFSET sprite_heart_full_mask
     jmp dhc_draw
 
 dhc_empty:
-    ; Corazón vacío (gris)
+
     mov di, OFFSET sprite_heart_empty
     mov si, OFFSET sprite_heart_empty_mask
 
 dhc_draw:
-    ; Dibujar el corazón
+
     call dibujar_sprite_planar_16x16_opt
-    
-    ; Recuperar el contador
+
+
     pop si
-    
-    ; Siguiente corazón
+
+
     inc si
     jmp dhc_loop
-    
+
 dhc_fin:
     pop bp
     pop di
@@ -1478,7 +1478,7 @@ dibujar_hud_progreso PROC
     push di
 
     mov dx, 15
-    
+
     mov cx, 530
     mov si, OFFSET msg_objetivo
     mov al, COLOR_TEXTO
@@ -1582,7 +1582,7 @@ dhh_continue:
     mul bx
     add ax, HUD_HOTBAR_X
     mov cx, ax
-    
+
     mov dx, HUD_HOTBAR_Y
 
     mov ax, ITEM_SIZE
@@ -1591,11 +1591,11 @@ dhh_continue:
     mov si, COLOR_ITEM_SLOT
     call dibujar_rectangulo_vacio
     pop si
-    
+
     mov cx, si
     cmp cl, hud_slot_seleccionado
     jne dhh_no_select
-    
+
     mov ax, si
     mov bx, ITEM_TOTAL
     mul bx
@@ -1611,25 +1611,25 @@ dhh_continue:
 
 dhh_no_select:
     mov bx, si
-    
+
     mov al, [inventario_slots + bx]
     test al, al
     jz dhh_next
-    
-    push ax                 ; Guardar el tipo en el stack
-    
+
+    push ax
+
     mov ax, si
     mov bx, ITEM_TOTAL
     mul bx
     add ax, HUD_HOTBAR_X
     add ax, ITEM_ICON_OFFSET
     mov cx, ax
-    
+
     mov dx, HUD_HOTBAR_Y
     add dx, ITEM_ICON_OFFSET
 
-    pop ax                  ; Recuperar el tipo del stack
-    
+    pop ax
+
     cmp al, 1
     jne dhh_tipo2
     mov di, OFFSET sprite_cristal
@@ -1653,24 +1653,24 @@ dhh_tipo3:
 dhh_dibujar:
     call dibujar_sprite_planar_16x16_opt
     pop si
-    
+
     mov bx, si
     mov al, [inventario_cantidades + bx]
-    
+
     mov ax, si
     mov bx, ITEM_TOTAL
     mul bx
     add ax, HUD_HOTBAR_X
     add ax, ITEM_COUNT_OFFSET_X
     mov cx, ax
-    
+
     mov dx, HUD_HOTBAR_Y
     add dx, ITEM_COUNT_OFFSET_Y
-    
+
     mov bx, si
     mov al, [inventario_cantidades + bx]
     xor ah, ah
-    
+
     call dibujar_numero
 
 dhh_next:
@@ -1689,38 +1689,38 @@ dhh_fin:
 dibujar_hud_hotbar ENDP
 
 reproducir_sonido_victoria PROC
-    ; ==========================================================
-    ; == Himno de Victoria Lento (aprox 15 segundos) ==
-    ; ==========================================================
+
+
+
     push ax
     push cx
 
-    ; --- Notas (Divisores del PIT) ---
-    ; C4 (Do grave) = 4560
-    ; E4 (Mi)       = 3620
-    ; G4 (Sol)      = 3044
-    ; C5 (Do medio) = 2280
-    ; E5 (Mi)       = 1810
-    ; F5 (Fa)       = 1710
-    ; G5 (Sol)      = 1522
 
-    ; --- Melodía ---
 
-    ; === Frase 1: Arpegio Lento Ascendente (C-E-G) ===
-    
-    ; C4 (Do grave) - Sostenido 2 tiempos
-    mov     ax, 4560        
+
+
+
+
+
+
+
+
+
+
+
+
+    mov     ax, 4560
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
 
-    ; E4 (Mi) - Sostenido 2 tiempos
+
     mov     ax, 3620
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
-    
-    ; G4 (Sol) - Sostenido 4 tiempos
+
+
     mov     ax, 3044
     call    PlayNote
     call    SoundDurationDelay
@@ -1728,41 +1728,41 @@ reproducir_sonido_victoria PROC
     call    SoundDurationDelay
     call    SoundDurationDelay
 
-    ; Pausa
+
     call    SpeakerOff
     call    SoundDurationDelay
     call    SoundDurationDelay
 
-    ; === Frase 2: Resolución (F-E-G-C5) ===
 
-    ; F5 (Fa) - Sostenido 2 tiempos
+
+
     mov     ax, 1710
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
-    
-    ; E5 (Mi) - Sostenido 2 tiempos
+
+
     mov     ax, 1810
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
 
-    ; G5 (Sol) - Sostenido 2 tiempos
+
     mov     ax, 1522
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
-    
-    ; Pausa
+
+
     call    SpeakerOff
     call    SoundDurationDelay
 
-    ; === Nota Final: Acorde Sostenido (C5) ===
-    
-    ; C5 (Do medio) - Sostenido por 8 tiempos (¡el gran final!)
+
+
+
     mov     ax, 2280
     call    PlayNote
-    
+
     call    SoundDurationDelay
     call    SoundDurationDelay
     call    SoundDurationDelay
@@ -1772,71 +1772,71 @@ reproducir_sonido_victoria PROC
     call    SoundDurationDelay
     call    SoundDurationDelay
 
-    ; Apagar sonido
+
     call    SpeakerOff
-    
+
     pop cx
     pop ax
     ret
 reproducir_sonido_victoria ENDP
 
 pantalla_victoria PROC
-    ; Esta función es llamada desde el bucle principal cuando
-    ; verificar_victoria devuelve el carry flag activado.
+
+
     push ax
     push cx
     push dx
     push si
 
-    ; 1. Seleccionar la página de dibujo (la que no se ve)
+
     mov al, pagina_dibujo
     test al, 1
     jz pv_render_p0
-    
-    ; Dibujar en página 1
+
+
     mov temp_offset, 8000h
     jmp pv_limpiar
-    
+
 pv_render_p0:
-    ; Dibujar en página 0
+
     mov temp_offset, 0
 
 pv_limpiar:
-    ; 2. Limpiar esa página
+
     call limpiar_pagina_actual
 
-    ; 3. Reproducir sonido de victoria (la nueva versión larga)
+
     call reproducir_sonido_victoria
 
-    ; 4. Dibujar texto "VICTORIA!" centrado
-    ; X = (640 / 2) - ((9 chars * 8px) / 2) = 320 - 36 = 284
-    ; Y = (350 / 2) - (8px / 2) = 175 - 4 = 171
+
+
+
     mov cx, 284
     mov dx, 171
     mov si, OFFSET msg_victoria
-    mov al, COLOR_TEXTO         ; Color 14 (Amarillo)
+    mov al, COLOR_TEXTO
     call dibujar_texto_buffer
 
-    ; 5. Mostrar la página de victoria
+
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
 
-    ; 6. Esperar SOLAMENTE la tecla ESC
+
 pv_wait_esc:
-    mov ah, 1       ; Función: Comprobar si hay tecla en el buffer
+    mov ah, 1
     int 16h
-    jz pv_wait_esc  ; Si no hay tecla (Zero Flag=1), seguir esperando
+    jz pv_wait_esc
 
-    ; Si hay una tecla, la leemos para sacarla del buffer
-    mov ah, 0       ; Función: Leer tecla
+
+    mov ah, 0
     int 16h
-    
-    ; Comprobamos el Scan Code (en AH)
-    cmp ah, 01h     ; ¿Es el scancode de ESC?
-    jne pv_wait_esc ; Si no es ESC, ignorarla y volver a esperar
 
-    ; Si llegamos aquí, se presionó ESC
+
+    cmp ah, 01h
+    jne pv_wait_esc
+
+
     pop si
     pop dx
     pop cx
