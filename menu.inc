@@ -1,6 +1,6 @@
-; ============================================
-; MENU.INC - VERSIÓN CORREGIDA
-; ============================================
+
+
+
 
 Menu_InitVideo PROC
     mov ax, 0010h
@@ -77,13 +77,13 @@ Menu_ProcessKeyboard PROC
         int 16h
         jnz Menu_KeyContinue
         jmp Menu_KeyDone
-    
+
     Menu_KeyContinue:
         mov ah, 0
         int 16h
 
-        ; Normalizar caracteres alfabéticos a mayúsculas para
-        ; manejar correctamente tanto 'w'/'s' como 'W'/'S'.
+
+
         mov bl, al
         cmp bl, 0
         je  Menu_KeyNormalized
@@ -96,22 +96,22 @@ Menu_ProcessKeyboard PROC
         mov al, bl
 
     cmp [menuState], 1
-    jne .CheckMain_Kbd  ; Si no es 1, ir al menú principal
-    
-    ; ESTADO 1: PANTALLA DE OPCIONES
+    jne .CheckMain_Kbd
+
+
     cmp ah, 1
-    jne .Not_Exit_Kbd   ; Si no es ESC
-    jmp Menu_KeyExit    ; Es ESC, saltar (largo) a la salida
+    jne .Not_Exit_Kbd
+    jmp Menu_KeyExit
 .Not_Exit_Kbd:
-    
-    ; Cualquier otra tecla (Enter, etc.) vuelve al menú principal
+
+
     mov [menuState], 0
     mov [lastSelection], 0FFh
     call Menu_PlaySelectSound
     jmp Menu_KeyDone
-    
+
 .CheckMain_Kbd:
-    ; ESTADO 0: MENU PRINCIPAL
+
     cmp ah, 48h
     je Menu_KeyUp
     cmp al, 'W'
@@ -127,7 +127,7 @@ Menu_ProcessKeyboard PROC
 
     cmp ah, 1
     jne .Not_Exit_Main_Kbd
-    jmp Menu_KeyExit ; Es ESC, saltar (largo) a la salida
+    jmp Menu_KeyExit
 .Not_Exit_Main_Kbd:
     jmp Menu_KeyDone
 
@@ -150,11 +150,11 @@ Menu_KeyDown:
 Menu_KeySelect:
     call Menu_PlaySelectSound
     mov al, [currentSelection]
-    
+
     cmp al, 1
     jne Menu_SetResult_Kbd
-    
-    ; Seleccionó Opciones
+
+
     mov [menuState], 1
     mov [lastSelection], 0FFh
     jmp Menu_KeyDone
@@ -183,9 +183,9 @@ Menu_ProcessMouse PROC
 Menu_MouseContinue:
 
     cmp [menuState], 1
-    jne .CheckMain_Mouse ; Si no es 1, ir al menú principal
+    jne .CheckMain_Mouse
 
-    ; ESTADO 1: PANTALLA DE OPCIONES
+
     mov al, [mouseBtn]
     and al, 1
     cmp al, 1
@@ -200,14 +200,14 @@ Menu_MouseContinue:
     jmp Menu_MouseEnd
 
 .MenuMouse_HandleClick:
-    ; Click detectado en pantalla de opciones
+
     mov [menuState], 0
     mov [lastSelection], 0FFh
     call Menu_PlaySelectSound
     jmp Menu_MouseEnd
-    
+
 .CheckMain_Mouse:
-    ; ESTADO 0: MENU PRINCIPAL
+
 
     mov [mouseOverButton], 0FFh
 
@@ -273,13 +273,13 @@ Menu_CheckMouseClick:
 
     cmp al, 1
     jne Menu_SetResult
-    
-    ; Click en Opciones
+
+
     mov [menuState], 1
     mov [lastSelection], 0FFh
     jmp Menu_MouseEnd
 Menu_SetResult:
-    ; Click en Jugar o Salir
+
     mov [menuResult], al
 
 Menu_MouseEnd:
@@ -574,8 +574,8 @@ Menu_Draw PROC
     push si
     push di
 
-    ; *** CORRECCIÓN ***
-    ; 'call limpiar_pagina_actual' HA SIDO ELIMINADO DE AQUÍ
+
+
 
     mov cx, 96
     mov dx, 96
@@ -678,8 +678,8 @@ Menu_DrawOptionsScreen PROC
     push dx
     push si
 
-    ; *** CORRECCIÓN ***
-    ; 'call limpiar_pagina_actual' HA SIDO ELIMINADO DE AQUÍ
+
+
 
     mov cx, 220
     mov dx, 120
@@ -726,14 +726,14 @@ Menu_ResetState PROC
     ret
 Menu_ResetState ENDP
 
-; ============================================
-; PROCEDIMIENTOS DE PAGINACIÓN
-; ============================================
+
+
+
 
 Menu_SetPage0 PROC
     push ax
-    mov ah, 5       ; Función "Set Active Display Page"
-    mov al, 0       ; Página 0
+    mov ah, 5
+    mov al, 0
     int 10h
     pop ax
     ret
@@ -741,20 +741,20 @@ Menu_SetPage0 ENDP
 
 Menu_SwapPages PROC
     push ax
-    mov ah, 5       ; Función "Set Active Display Page"
-    mov al, [pagina_dibujo] ; Mostrar la página que acabamos de dibujar
+    mov ah, 5
+    mov al, [pagina_dibujo]
     int 10h
-    
-    ; Invertir las páginas para el siguiente cuadro
+
+
     xor [pagina_dibujo], 1
     xor [pagina_visible], 1
     pop ax
     ret
 Menu_SwapPages ENDP
 
-; ============================================
-; BUCLE PRINCIPAL DEL MENÚ (CORREGIDO)
-; ============================================
+
+
+
 
 mostrar_menu_principal PROC
     push bx
@@ -768,15 +768,15 @@ mostrar_menu_principal PROC
 
     mov pagina_visible, 0
     mov pagina_dibujo, 1
-    
+
     mov al, [currentSelection]
     mov [lastSelection], al
     mov al, [menuState]
     mov [lastMenuState], al
 
-    ; Renderizar PÁGINA 0 (la que se verá primero)
+
     mov temp_offset, 0
-    call limpiar_pagina_actual ; <-- Limpiamos PÁGINA 0
+    call limpiar_pagina_actual
     cmp [menuState], 1
     jne mmp_draw_main_p0
     call Menu_DrawOptionsScreen
@@ -786,9 +786,9 @@ mmp_draw_main_p0:
 mmp_draw_done_p0:
     call Menu_SetPage0
 
-    ; Renderizar PÁGINA 1 (la oculta)
+
     mov temp_offset, 8000h
-    call limpiar_pagina_actual ; <-- Limpiamos PÁGINA 1
+    call limpiar_pagina_actual
     cmp [menuState], 1
     jne mmp_draw_main_p1
     call Menu_DrawOptionsScreen
@@ -797,29 +797,29 @@ mmp_draw_main_p1:
     call Menu_Draw
 mmp_draw_done_p1:
 
-    ; Bucle principal del menú
+
 mmp_loop:
-    call Menu_DelayShort ; <-- Agregado un pequeño delay para estabilizar
+    call Menu_DelayShort
     call Menu_GetMouseState
     call Menu_ProcessKeyboard
     call Menu_ProcessMouse
 
-    ; Verificar si hay que salir
+
     cmp [menuResult], 0FFh
     je      mmp_check_redraw
     jmp     mmp_exit
 
 mmp_check_redraw:
-    ; ¿Cambió la selección o el estado?
+
     mov     al, [currentSelection]
     cmp     al, [lastSelection]
     jne     mmp_state_changed
     mov     al, [menuState]
     cmp     al, [lastMenuState]
-    je      mmp_loop ; No cambió nada, seguir
-    
+    je      mmp_loop
+
 mmp_state_changed:
-    ; Guardar estado conocido
+
     mov al, [currentSelection]
     mov [lastSelection], al
     mov al, [menuState]
@@ -833,28 +833,28 @@ mmp_redraw:
     jmp mmp_draw_content
 mmp_set_offset_0:
     mov temp_offset, 0
-    
+
 mmp_draw_content:
-    ; *** CORRECCIÓN ***
-    ; La limpieza de página AHORA ESTÁ AQUÍ,
-    ; igual que en el bucle del juego.
+
+
+
     call    limpiar_pagina_actual
-    
+
     cmp [menuState], 1
     jne mmp_draw_main
     call Menu_DrawOptionsScreen
     jmp mmp_swap_pages
 mmp_draw_main:
     call Menu_Draw
-    
+
 mmp_swap_pages:
     call Menu_SwapPages
     jmp mmp_loop
-    
+
 mmp_exit:
-    mov al, [menuResult] ; Guardar resultado
+    mov al, [menuResult]
     call Menu_DeInitMouse
-    ; NO LLAMAR a DeInitVideo, el juego lo necesita
+
     pop si
     pop dx
     pop cx
