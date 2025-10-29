@@ -880,7 +880,10 @@ procesar_movimiento_continuo PROC
 	
 		mov ax, mov_dx
 		test ax, ax
-		jz rcm_fase_y
+                jnz rcm_procesar_x
+                jmp rcm_fase_y
+
+        rcm_procesar_x:
 	
 		mov bx, jugador_px
 		add bx, ax
@@ -958,7 +961,10 @@ procesar_movimiento_continuo PROC
 	rcm_fase_y:
 		mov ax, mov_dy
 		test ax, ax
-		jz rcm_fin
+                jnz rcm_procesar_y
+                jmp rcm_fin
+
+        rcm_procesar_y:
 	
 		mov bx, jugador_py
 		add bx, ax
