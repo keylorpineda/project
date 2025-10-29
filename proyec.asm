@@ -711,7 +711,6 @@ fin_juego:
 	ret
 	inicializar_paleta_ega ENDP
 	
-	; --- REEMPLAZA EL VIEJO PROCEDIMIENTO CON ESTE ---
 procesar_movimiento_continuo PROC
 		push ax
 		push bx
@@ -893,30 +892,31 @@ procesar_movimiento_continuo PROC
 	
 	rcm_x_izquierda:
 		mov ax, bx
-		sub ax, 16
+		sub ax, 8
 		shr ax, 4
 		mov col_tile_x, ax
 		
 		mov si, jugador_py
-		sub si, 16
+		sub si, 8
 		shr si, 4
 		mov cx, jugador_py
-		add cx, 15
+		add cx, 7
 		shr cx, 4
 		jmp rcm_x_loop
 		
 	rcm_x_derecha:
 		mov ax, bx
-		add ax, 15
+		add ax, 7
 		shr ax, 4
 		mov col_tile_x, ax
 		
 		mov si, jugador_py
-		sub si, 16
+		sub si, 8
 		shr si, 4
 		mov cx, jugador_py
-		add cx, 15
+		add cx, 7
 		shr cx, 4
+		jmp rcm_x_loop
 	
 	rcm_x_loop:
 		cmp si, cx
@@ -943,12 +943,12 @@ procesar_movimiento_continuo PROC
 		jg rcm_x_snap_der
 		
 	rcm_x_snap_izq:
-		add ax, 32
+		add ax, 24
 		mov jugador_px, ax
 		jmp rcm_x_col_fin
 		
 	rcm_x_snap_der:
-		sub ax, 16
+		sub ax, 8
 		mov jugador_px, ax
 	
 	rcm_x_col_fin:
@@ -974,30 +974,31 @@ procesar_movimiento_continuo PROC
 	
 	rcm_y_arriba:
 		mov ax, bx
-		sub ax, 16
+		sub ax, 8
 		shr ax, 4
 		mov col_tile_y, ax
 		
 		mov si, jugador_px
-		sub si, 16
+		sub si, 8
 		shr si, 4
 		mov cx, jugador_px
-		add cx, 15
+		add cx, 7
 		shr cx, 4
 		jmp rcm_y_loop
 		
 	rcm_y_abajo:
 		mov ax, bx
-		add ax, 15
+		add ax, 7
 		shr ax, 4
 		mov col_tile_y, ax
 		
 		mov si, jugador_px
-		sub si, 16
+		sub si, 8
 		shr si, 4
 		mov cx, jugador_px
-		add cx, 15
+		add cx, 7
 		shr cx, 4
+		jmp rcm_y_loop
 	
 	rcm_y_loop:
 		cmp si, cx
@@ -1024,12 +1025,12 @@ procesar_movimiento_continuo PROC
 		jg rcm_y_snap_abajo
 		
 	rcm_y_snap_arriba:
-		add ax, 32
+		add ax, 24
 		mov jugador_py, ax
 		jmp rcm_y_col_fin
 		
 	rcm_y_snap_abajo:
-		sub ax, 16
+		sub ax, 8
 		mov jugador_py, ax
 		
 	rcm_y_col_fin:
