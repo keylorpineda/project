@@ -708,365 +708,362 @@ fin_juego:
 	inicializar_paleta_ega ENDP
 	
 	procesar_movimiento_continuo PROC
-	push ax
-	push bx
-	push cx
-	push dx
-	
-	mov ah, 1
-	int 16h
-	jnz pmc_tiene_tecla
-	
-	mov tecla_e_presionada, 0
-	mov moviendo, 0
-	jmp pmc_fin
-	
+    push ax
+    push bx
+    push cx
+    push dx
+    
+    mov ah, 1
+    int 16h
+    jnz pmc_tiene_tecla
+    
+    mov tecla_e_presionada, 0
+    mov moviendo, 0
+    jmp pmc_fin
+    
 pmc_tiene_tecla:
-	mov ah, 0
-	int 16h
-	
-	cmp ah, 01h
-	jne pmc_check_ascii
-	jmp pmc_salir
-	
+    mov ah, 0
+    int 16h
+    
+    cmp ah, 01h
+    jne pmc_check_ascii
+    jmp pmc_salir
+    
 pmc_check_ascii:
-	cmp al, 27
-	jne pmc_continuar
-	jmp pmc_salir
-	
+    cmp al, 27
+    jne pmc_continuar
+    jmp pmc_salir
+    
 pmc_continuar:
-	mov bl, al
-	test bl, bl
-	jz pmc_usar_scan
-	mov al, bl
-	jmp pmc_normalizar
-	
+    mov bl, al
+    test bl, bl
+    jz pmc_usar_scan
+    mov al, bl
+    jmp pmc_normalizar
+    
 pmc_usar_scan:
-	mov al, bh
-	
+    mov al, bh
+    
 pmc_normalizar:
-	cmp al, 'a'
-	jb pmc_verificar
-	cmp al, 'z'
-	ja pmc_verificar
-	and al, 5Fh
-	
+    cmp al, 'a'
+    jb pmc_verificar
+    cmp al, 'z'
+    ja pmc_verificar
+    and al, 5Fh
+    
 pmc_verificar:
-	cmp al, 'E'
-	jne pmc_verificar_movimiento
-	cmp tecla_e_presionada, 1
-	jne pmc_toggle_e
-	jmp pmc_fin
-	
+    cmp al, 'E'
+    jne pmc_verificar_movimiento
+    cmp tecla_e_presionada, 1
+    jne pmc_toggle_e
+    jmp pmc_fin
+    
 pmc_toggle_e:
-	mov tecla_e_presionada, 1
-	xor inventario_abierto, 1
-	mov moviendo, 0
-	mov requiere_redibujar, 2
-	jmp pmc_fin
-	
+    mov tecla_e_presionada, 1
+    xor inventario_abierto, 1
+    mov moviendo, 0
+    mov requiere_redibujar, 2
+    jmp pmc_fin
+    
 pmc_verificar_movimiento:
-	cmp inventario_abierto, 1
-	jne pmc_verificar_teclas
-	jmp pmc_no_movimiento
-	
+    cmp inventario_abierto, 1
+    jne pmc_verificar_teclas
+    jmp pmc_no_movimiento
+    
 pmc_verificar_teclas:
-	cmp al, '1'
-	jb pmc_check_w_keys
-	cmp al, '8'
-	ja pmc_check_w_keys
-	
-	sub al, '1'
-	mov hud_slot_seleccionado, al
-	mov requiere_redibujar, 2
-	jmp pmc_no_movimiento
-	
+    cmp al, '1'
+    jb pmc_check_w_keys
+    cmp al, '8'
+    ja pmc_check_w_keys
+    
+    sub al, '1'
+    mov hud_slot_seleccionado, al
+    mov requiere_redibujar, 2
+    jmp pmc_no_movimiento
+    
 pmc_check_w_keys:
-	cmp al, 48h
-	jne pmc_check_w
-	jmp pmc_ir_arriba
-	
+    cmp al, 48h
+    jne pmc_check_w
+    jmp pmc_ir_arriba
+    
 pmc_check_w:
-	cmp al, 'W'
-	jne pmc_check_down
-	jmp pmc_ir_arriba
-	
+    cmp al, 'W'
+    jne pmc_check_down
+    jmp pmc_ir_arriba
+    
 pmc_check_down:
-	cmp al, 50h
-	jne pmc_check_s
-	jmp pmc_ir_abajo
-	
+    cmp al, 50h
+    jne pmc_check_s
+    jmp pmc_ir_abajo
+    
 pmc_check_s:
-	cmp al, 'S'
-	jne pmc_check_left
-	jmp pmc_ir_abajo
-	
+    cmp al, 'S'
+    jne pmc_check_left
+    jmp pmc_ir_abajo
+    
 pmc_check_left:
-	cmp al, 4Bh
-	jne pmc_check_a
-	jmp pmc_ir_izquierda
-	
+    cmp al, 4Bh
+    jne pmc_check_a
+    jmp pmc_ir_izquierda
+    
 pmc_check_a:
-	cmp al, 'A'
-	jne pmc_check_right
-	jmp pmc_ir_izquierda
-	
+    cmp al, 'A'
+    jne pmc_check_right
+    jmp pmc_ir_izquierda
+    
 pmc_check_right:
-	cmp al, 4Dh
-	jne pmc_check_d
-	jmp pmc_ir_derecha
-	
+    cmp al, 4Dh
+    jne pmc_check_d
+    jmp pmc_ir_derecha
+    
 pmc_check_d:
-	cmp al, 'D'
-	jne pmc_default
-	jmp pmc_ir_derecha
-	
+    cmp al, 'D'
+    jne pmc_default
+    jmp pmc_ir_derecha
+    
 pmc_default:
-	jmp pmc_no_movimiento
-	
+    jmp pmc_no_movimiento
+    
 pmc_salir:
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	mov ax, 3
-	int 10h
-	mov ax, 4C00h
-	int 21h
-	
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    mov ax, 3
+    int 10h
+    mov ax, 4C00h
+    int 21h
+    
 pmc_arriba:
-	mov jugador_dir, DIR_ARRIBA
-	mov ax, jugador_py
-	sub ax, VELOCIDAD
-	cmp ax, 16
-	jae pmc_arriba_continuar
-	jmp pmc_no_movimiento
-	
+    mov jugador_dir, DIR_ARRIBA
+    mov ax, jugador_py
+    sub ax, VELOCIDAD
+    cmp ax, 16
+    jae pmc_arriba_continuar
+    jmp pmc_no_movimiento
+    
 pmc_arriba_continuar:
-	mov cx, jugador_px
-	sub cx, 4
-	shr cx, 4
-	mov dx, ax
-	add dx, 4
-	shr dx, 4
-	call verificar_tile_transitable
-	jnc pmc_arriba_slide
-	
-	mov cx, jugador_px
-	add cx, 3
-	shr cx, 4
-	call verificar_tile_transitable
-	jnc pmc_arriba_slide
-	
+    mov cx, jugador_px
+    sub cx, 16
+    shr cx, 4
+    mov dx, ax
+    sub dx, 16
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pmc_arriba_slide
+    
+    mov cx, jugador_px
+    add cx, 15
+    shr cx, 4
+    call verificar_tile_transitable
+    jnc pmc_arriba_slide
+    
 pmc_arriba_avanzar:
-	mov jugador_py, ax
-	mov moviendo, 1
-	jmp pmc_fin
-	
+    mov jugador_py, ax
+    mov moviendo, 1
+    jmp pmc_fin
+    
 pmc_arriba_slide:
-	mov bx, dx
-	inc bx
-	shl bx, 4
-	mov ax, jugador_py
-	add ax, 4
-	sub ax, bx
-	cmp ax, 0
-	jg pmc_arriba_slide_pos
-	jmp pmc_no_movimiento
-	
+    mov bx, dx
+    inc bx
+    shl bx, 4
+    mov ax, jugador_py
+    sub ax, 16
+    sub bx, ax
+    cmp bx, 0
+    jg pmc_arriba_slide_pos
+    jmp pmc_no_movimiento
+    
 pmc_arriba_slide_pos:
-	cmp ax, VELOCIDAD
-	jb pmc_arriba_slide_aplicar
-	jmp pmc_no_movimiento
-	
+    cmp bx, VELOCIDAD
+    jb pmc_arriba_slide_aplicar
+    jmp pmc_no_movimiento
+    
 pmc_arriba_slide_aplicar:
-	mov bx, jugador_py
-	sub bx, ax
-	mov jugador_py, bx
-	mov moviendo, 1
-	jmp pmc_fin
-	
+    mov ax, jugador_py
+    sub ax, bx
+    mov jugador_py, ax
+    mov moviendo, 1
+    jmp pmc_fin
+    
 pmc_abajo:
-	mov jugador_dir, DIR_ABAJO
-	mov ax, jugador_py
-	add ax, VELOCIDAD
-	cmp ax, 1584
-	jbe pmc_abajo_continuar
-	jmp pmc_no_movimiento
-	
+    mov jugador_dir, DIR_ABAJO
+    mov ax, jugador_py
+    add ax, VELOCIDAD
+    cmp ax, 1584
+    jbe pmc_abajo_continuar
+    jmp pmc_no_movimiento
+    
 pmc_abajo_continuar:
-	mov cx, jugador_px
-	sub cx, 4
-	shr cx, 4
-	mov dx, ax
-	add dx, 11
-	shr dx, 4
-	call verificar_tile_transitable
-	jnc pmc_abajo_slide
-	
-	mov cx, jugador_px
-	add cx, 3
-	shr cx, 4
-	call verificar_tile_transitable
-	jnc pmc_abajo_slide
-	
+    mov cx, jugador_px
+    sub cx, 16
+    shr cx, 4
+    mov dx, ax
+    add dx, 15
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pmc_abajo_slide
+    
+    mov cx, jugador_px
+    add cx, 15
+    shr cx, 4
+    call verificar_tile_transitable
+    jnc pmc_abajo_slide
+    
 pmc_abajo_avanzar:
-	mov jugador_py, ax
-	mov moviendo, 1
-	jmp pmc_fin
-	
+    mov jugador_py, ax
+    mov moviendo, 1
+    jmp pmc_fin
+    
 pmc_abajo_slide:
-	mov bx, dx
-	shl bx, 4
-	mov ax, jugador_py
-	add ax, 11
-	sub bx, ax
-	cmp bx, 0
-	jg pmc_abajo_slide_pos
-	jmp pmc_no_movimiento
-	
+    mov bx, dx
+    shl bx, 4
+    mov ax, jugador_py
+    add ax, 15
+    sub bx, ax
+    cmp bx, 0
+    jg pmc_abajo_slide_pos
+    jmp pmc_no_movimiento
+    
 pmc_abajo_slide_pos:
-	cmp bx, VELOCIDAD
-	jb pmc_abajo_slide_aplicar
-	jmp pmc_no_movimiento
-	
+    cmp bx, VELOCIDAD
+    jb pmc_abajo_slide_aplicar
+    jmp pmc_no_movimiento
+    
 pmc_abajo_slide_aplicar:
-	mov ax, jugador_py
-	add ax, bx
-	mov jugador_py, ax
-	mov moviendo, 1
-	jmp pmc_fin
-	
+    mov ax, jugador_py
+    add ax, bx
+    mov jugador_py, ax
+    mov moviendo, 1
+    jmp pmc_fin
+    
 pmc_izquierda:
-	mov jugador_dir, DIR_IZQUIERDA
-	mov ax, jugador_px
-	sub ax, VELOCIDAD
-	cmp ax, 16
-	jae pmc_izquierda_continuar
-	jmp pmc_no_movimiento
-	
+    mov jugador_dir, DIR_IZQUIERDA
+    mov ax, jugador_px
+    sub ax, VELOCIDAD
+    cmp ax, 16
+    jae pmc_izquierda_continuar
+    jmp pmc_no_movimiento
+    
 pmc_izquierda_continuar:
-	mov cx, ax
-	sub cx, 4
-	shr cx, 4
-	mov dx, jugador_py
-	add dx, 4
-	shr dx, 4
-	call verificar_tile_transitable
-	jnc pmc_izquierda_slide
-	
-	mov dx, jugador_py
-	add dx, 11
-	shr dx, 4
-	call verificar_tile_transitable
-	jnc pmc_izquierda_slide
-	
+    mov cx, ax
+    sub cx, 16
+    shr cx, 4
+    mov dx, jugador_py
+    sub dx, 16
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pmc_izquierda_slide
+    
+    mov dx, jugador_py
+    add dx, 15
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pmc_izquierda_slide
+    
 pmc_izquierda_avanzar:
-	mov jugador_px, ax
-	mov moviendo, 1
-	jmp pmc_fin
-	
+    mov jugador_px, ax
+    mov moviendo, 1
+    jmp pmc_fin
+    
 pmc_izquierda_slide:
-	mov bx, cx
-	inc bx
-	shl bx, 4
-	mov ax, jugador_px
-	sub ax, 4
-	sub ax, bx
-	cmp ax, 0
-	jg pmc_izquierda_slide_pos
-	jmp pmc_no_movimiento
-	
+    mov bx, cx
+    inc bx
+    shl bx, 4
+    mov ax, jugador_px
+    sub ax, 16
+    sub bx, ax
+    cmp bx, 0
+    jg pmc_izquierda_slide_pos
+    jmp pmc_no_movimiento
+    
 pmc_izquierda_slide_pos:
-	cmp ax, VELOCIDAD
-	jb pmc_izquierda_slide_aplicar
-	jmp pmc_no_movimiento
-	
+    cmp bx, VELOCIDAD
+    jb pmc_izquierda_slide_aplicar
+    jmp pmc_no_movimiento
+    
 pmc_izquierda_slide_aplicar:
-	mov bx, jugador_px
-	sub bx, ax
-	mov jugador_px, bx
-	mov moviendo, 1
-	jmp pmc_fin
-	
+    mov bx, jugador_px
+    sub bx, ax
+    mov jugador_px, bx
+    mov moviendo, 1
+    jmp pmc_fin
+    
 pmc_derecha:
-	mov jugador_dir, DIR_DERECHA
-	mov ax, jugador_px
-	add ax, VELOCIDAD
-	cmp ax, 1584
-	jbe pmc_derecha_continuar
-	jmp pmc_no_movimiento
-	
+    mov jugador_dir, DIR_DERECHA
+    mov ax, jugador_px
+    add ax, VELOCIDAD
+    cmp ax, 1584
+    jbe pmc_derecha_continuar
+    jmp pmc_no_movimiento
+    
 pmc_derecha_continuar:
-	mov cx, ax
-	add cx, 3
-	shr cx, 4
-	mov dx, jugador_py
-	add dx, 4
-	shr dx, 4
-	call verificar_tile_transitable
-	jnc pmc_derecha_slide
-	
-	mov dx, jugador_py
-	add dx, 11
-	shr dx, 4
-	call verificar_tile_transitable
-	jnc pmc_derecha_slide
-	
+    mov cx, ax
+    add cx, 15
+    shr cx, 4
+    mov dx, jugador_py
+    sub dx, 16
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pmc_derecha_slide
+    
+    mov dx, jugador_py
+    add dx, 15
+    shr dx, 4
+    call verificar_tile_transitable
+    jnc pmc_derecha_slide
+    
 pmc_derecha_avanzar:
-	mov jugador_px, ax
-	mov moviendo, 1
-	jmp pmc_fin
-	
+    mov jugador_px, ax
+    mov moviendo, 1
+    jmp pmc_fin
+    
 pmc_derecha_slide:
-	mov bx, cx
-	shl bx, 4
-	mov ax, jugador_px
-	add ax, 3
-	sub bx, ax
-	cmp bx, 0
-	jg pmc_derecha_slide_pos
-	jmp pmc_no_movimiento
-	
+    mov bx, cx
+    shl bx, 4
+    mov ax, jugador_px
+    add ax, 15
+    sub bx, ax
+    cmp bx, 0
+    jg pmc_derecha_slide_pos
+    jmp pmc_no_movimiento
+    
 pmc_derecha_slide_pos:
-	cmp bx, VELOCIDAD
-	jb pmc_derecha_slide_aplicar
-	jmp pmc_no_movimiento
-	
+    cmp bx, VELOCIDAD
+    jb pmc_derecha_slide_aplicar
+    jmp pmc_no_movimiento
+    
 pmc_derecha_slide_aplicar:
-	mov ax, jugador_px
-	add ax, bx
-	mov jugador_px, ax
-	mov moviendo, 1
-	jmp pmc_fin
-	
+    mov ax, jugador_px
+    add ax, bx
+    mov jugador_px, ax
+    mov moviendo, 1
+    jmp pmc_fin
+    
 pmc_ir_arriba:
-	jmp pmc_arriba
-	
+    jmp pmc_arriba
+    
 pmc_ir_abajo:
-	jmp pmc_abajo
-	
+    jmp pmc_abajo
+    
 pmc_ir_izquierda:
-	jmp pmc_izquierda
-	
+    jmp pmc_izquierda
+    
 pmc_ir_derecha:
-	jmp pmc_derecha
-	
+    jmp pmc_derecha
+    
 pmc_no_movimiento:
-	mov moviendo, 0
-	
+    mov moviendo, 0
+    
 pmc_fin:
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	ret
-	procesar_movimiento_continuo ENDP
-	
-	
-	
-	
-	cargar_sprites_menu PROC
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+procesar_movimiento_continuo ENDP
+
+cargar_sprites_menu PROC
 	push dx
 	push di
 	push si
@@ -2360,7 +2357,7 @@ crm_continuar_lectura:
 	jmp crm_loop
 	
 crm_no_comentario:
-	cmp al, '
+	cmp al, ';'
 	jne crm_no_puntoycoma
 	mov carga_recursos_comentario, 1
 	jmp crm_loop

@@ -15,20 +15,21 @@ verificar_colision_recursos PROC
     push si
     push di
     push bp
-    mov ax, jugador_px
-    sub ax, 4
-    mov player_left_temp, ax
 
-    add ax, 32
-    add ax, 8
+    mov ax, jugador_px
+    sub ax, 16
+    mov player_left_temp, ax
+    
+    mov ax, jugador_px
+    add ax, 15
     mov player_right_temp, ax
 
     mov ax, jugador_py
-    sub ax, 4
+    sub ax, 16
     mov player_top_temp, ax
 
-    add ax, 32
-    add ax, 8
+    mov ax, jugador_py
+    add ax, 15
     mov player_bottom_temp, ax
 
     xor si, si
@@ -40,16 +41,13 @@ vcr_loop:
     cmp si, ax
     jae vcr_fin
 
-
     test recursos_recogidos, bx
     jnz vcr_next
-
 
     mov ax, si
     mov dx, 3
     mul dx
     mov di, ax
-
 
     mov al, [recursos_mapa + di]
     xor ah, ah
@@ -60,6 +58,7 @@ vcr_loop:
     xor ah, ah
     shl ax, 4
     mov dx, ax
+    
     mov ax, cx
     add ax, 15
     mov bp, ax
@@ -67,21 +66,24 @@ vcr_loop:
     mov ax, dx
     add ax, 15
     push ax
+
     mov ax, player_right_temp
     cmp ax, cx
     jl vcr_no_colision
+
     mov ax, player_left_temp
     cmp ax, bp
     jg vcr_no_colision
+
     mov ax, player_bottom_temp
     cmp ax, dx
     jl vcr_no_colision
-
 
     mov ax, player_top_temp
     pop dx
     cmp ax, dx
     jg vcr_next
+    
     call recoger_recurso
     jmp vcr_next
 
@@ -172,8 +174,6 @@ ais_loop:
     jz ais_fin
 
     mov al, [si]
-    cmp al, dl
-    je ais_incrementar
     test al, al
     jz ais_asignar
 
@@ -181,10 +181,6 @@ ais_loop:
     inc di
     dec cx
     jmp ais_loop
-
-ais_incrementar:
-    inc byte ptr [di]
-    jmp ais_fin
 
 ais_asignar:
     mov [si], dl
@@ -500,22 +496,6 @@ dsi_tipo3:
 dsi_dibujar:
     call dibujar_sprite_planar_16x16_opt
     pop si
-
-    pop dx
-    pop cx
-
-    push cx
-    push dx
-
-    add cx, ITEM_COUNT_OFFSET_X
-    add dx, ITEM_COUNT_OFFSET_Y
-
-    mov bx, OFFSET inventario_cantidades
-    add bx, si
-    mov al, [bx]
-    xor ah, ah
-
-    call dibujar_numero
 
     pop dx
     pop cx
@@ -1474,6 +1454,7 @@ dibujar_hud_progreso PROC
     xor ah, ah
     call dibujar_numero
 
+    
     mov cx, 562
     mov si, OFFSET msg_slash
     mov al, COLOR_TEXTO
@@ -1538,6 +1519,7 @@ dibujar_hud_progreso PROC
     pop ax
     ret
 dibujar_hud_progreso ENDP
+
 dibujar_hud_hotbar PROC
     push ax
     push bx
@@ -1601,6 +1583,7 @@ dhh_no_select:
     mul bx
     add ax, HUD_HOTBAR_X
     add ax, ITEM_ICON_OFFSET
+    add ax, 4 ; <-- Mover 4px a la derecha
     mov cx, ax
 
     mov dx, HUD_HOTBAR_Y
@@ -1631,25 +1614,6 @@ dhh_tipo3:
 dhh_dibujar:
     call dibujar_sprite_planar_16x16_opt
     pop si
-
-    mov bx, si
-    mov al, [inventario_cantidades + bx]
-
-    mov ax, si
-    mov bx, ITEM_TOTAL
-    mul bx
-    add ax, HUD_HOTBAR_X
-    add ax, ITEM_COUNT_OFFSET_X
-    mov cx, ax
-
-    mov dx, HUD_HOTBAR_Y
-    add dx, ITEM_COUNT_OFFSET_Y
-
-    mov bx, si
-    mov al, [inventario_cantidades + bx]
-    xor ah, ah
-
-    call dibujar_numero
 
 dhh_next:
     inc si
