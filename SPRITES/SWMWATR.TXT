@@ -1,0 +1,17 @@
+16 16
+A A A A A A 5 A A A A 5 A A A A
+A A 5 A A 5 A A A 5 A A 5 A A A
+A 5 A A A A A 5 A A A A A 5 A A
+A A A A 5 A A A A 5 A A A A A 5
+A A A 5 A A 5 A A A 5 A A 5 A A
+5 A A A A 5 A A 5 A A A A 5 A A
+A A A A A A A 5 A A A A A A A A
+A 5 A A 5 A A A A 5 A A 5 A A A
+A A A 5 A A 5 A A A 5 A A A A 5
+A A A A A 5 A A A A A 5 A A A A
+A 5 A A A A A 5 A A A A A 5 A A
+A A 5 A A 5 A A A 5 A A 5 A A A
+A A A A 5 A A A A 5 A A A A A 5
+A 5 A A A A 5 A A A A 5 A A 5 A
+A A A A A 5 A A A A A 5 A A A A
+5 A A A A A A 5 A A A A A A A 5
