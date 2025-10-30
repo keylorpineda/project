@@ -511,34 +511,10 @@ anim_ok:
 	int 21h
 	call debug_verificar_todo
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 continuar_juego:
-	
-	
 	mov ax, 10h
 	int 10h
-	
-	
 	call inicializar_paleta_ega
-	
-	
-	
 	mov dx, 3C4h
 	mov al, 2
 	out dx, al
@@ -675,8 +651,8 @@ bg_redraw_done:
 	call limpiar_pagina_actual
 	call dibujar_mapa_en_offset
 	call dibujar_jugador_en_offset
-	call dibujar_hud
 	call dibujar_inventario
+	call dibujar_hud
 	jmp bg_cambiar_pagina
 	
 bg_render_p0:
@@ -684,8 +660,8 @@ bg_render_p0:
 	call limpiar_pagina_actual
 	call dibujar_mapa_en_offset
 	call dibujar_jugador_en_offset
-	call dibujar_hud
 	call dibujar_inventario
+	call dibujar_hud
 	
 bg_cambiar_pagina:
 	mov ah, 5

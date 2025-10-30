@@ -176,7 +176,17 @@ ais_loop:
     mov al, [si]
     test al, al
     jz ais_asignar
+    
+    cmp al, dl ; <- Comprobar si ya existe el item
+    jne ais_next_slot ; Si no es, buscar siguiente slot
+    
+    ; Si ya existe, incrementar cantidad
+    mov al, [di]
+    inc al
+    mov [di], al
+    jmp ais_fin ; Terminar
 
+ais_next_slot:
     inc si
     inc di
     dec cx
@@ -499,6 +509,50 @@ dsi_dibujar:
 
     pop dx
     pop cx
+    
+    ; --- Dibujar cantidad ---
+    mov bx, OFFSET inventario_cantidades
+    add bx, si
+    mov al, [bx]
+    cmp al, 1  ; No dibujar '1'
+    jbe dsi_next 
+    
+    xor ah, ah
+    push si
+    
+    mov cx, ax ; Guardar Coordenada X del slot
+    mov dx, ax ; Guardar Coordenada Y del slot
+    
+    mov ax, si
+    xor dx, dx
+    mov bx, 4
+    div bx
+    mov bp, ax
+
+    mov ax, dx
+    mov bx, ITEM_TOTAL
+    mul bx
+    add ax, ZONA_ITEMS_X
+    mov cx, ax
+
+    mov ax, bp
+    mov bx, ITEM_TOTAL
+    mul bx
+    add ax, ZONA_ITEMS_Y
+    mov dx, ax
+    
+    add cx, ITEM_COUNT_OFFSET_X
+    add dx, ITEM_COUNT_OFFSET_Y
+    
+    mov bx, OFFSET inventario_cantidades
+    add bx, si
+    mov al, [bx]
+    xor ah, ah
+    
+    call dibujar_numero
+    
+    pop si
+    ; --- Fin dibujar cantidad ---
 
 dsi_next:
     inc si
@@ -1337,11 +1391,12 @@ verificar_victoria ENDP
 dibujar_hud PROC
     push ax
 
+    call dibujar_hud_corazones
+
     cmp inventario_abierto, 1
     je dh_fin
 
     call dibujar_hud_progreso
-    call dibujar_hud_corazones
     call dibujar_hud_hotbar
 
 dh_fin:
@@ -1371,17 +1426,24 @@ dhc_loop:
     jae dhc_fin
 
 
-    mov ax, si
-    mov dx, HUD_HEART_SPACING
-    mul dx
-    add ax, HUD_HEART_X
-    mov cx, ax
+    ; --- INICIO DE CÓDIGO CORREGIDO ---
+    
+    ; Calcular X basado en viewport_x
+    mov ax, si                     ; ax = índice del corazón (0-8)
+    mov dx, HUD_HEART_SPACING      ; Usar tu constante de espaciado (20)
+    mul dx                         
+    add ax, [viewport_x]           ; Usar la X del viewport (120) como base
+    add ax, HUD_HEART_MARGIN       ; Sumar el margen (8)
+    mov cx, ax                     ; cx = Coordenada X final
 
-
-    mov ax, viewport_y
-    add ax, HUD_HEART_MARGIN
-    mov dx, ax
-    add ax, HUD_HEART_X
+    ; Calcular Y basado en viewport_y
+    mov ax, [viewport_y]           ; Usar la Y del viewport (55)
+    add ax, HUD_HEART_MARGIN       ; Sumar el margen (8)
+    mov dx, ax                     ; dx = Coordenada Y final
+    
+    ; La línea errónea 'add ax, HUD_HEART_X' se ha eliminado.
+    
+    ; --- FIN DE CÓDIGO CORREGIDO ---
 
 
     push si
@@ -1583,7 +1645,7 @@ dhh_no_select:
     mul bx
     add ax, HUD_HOTBAR_X
     add ax, ITEM_ICON_OFFSET
-    add ax, 4 ; <-- Mover 4px a la derecha
+    add ax, 4 ;<-- Mover 4px a la derecha
     mov cx, ax
 
     mov dx, HUD_HOTBAR_Y
@@ -1614,6 +1676,37 @@ dhh_tipo3:
 dhh_dibujar:
     call dibujar_sprite_planar_16x16_opt
     pop si
+    
+    ; --- Dibujar cantidad ---
+    mov bx, OFFSET inventario_cantidades
+    add bx, si
+    mov al, [bx]
+    cmp al, 1  ; No dibujar '1'
+    jbe dhh_next 
+    
+    xor ah, ah
+    push si
+    
+    mov ax, si
+    mov bx, ITEM_TOTAL
+    mul bx
+    add ax, HUD_HOTBAR_X
+    mov cx, ax
+
+    mov dx, HUD_HOTBAR_Y
+    
+    add cx, ITEM_COUNT_OFFSET_X
+    add dx, ITEM_COUNT_OFFSET_Y
+    
+    mov bx, OFFSET inventario_cantidades
+    add bx, si
+    mov al, [bx]
+    xor ah, ah
+    
+    call dibujar_numero
+    
+    pop si
+    ; --- Fin dibujar cantidad ---
 
 dhh_next:
     inc si
