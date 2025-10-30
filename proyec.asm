@@ -12,6 +12,9 @@
         TILE_AGUA_TOXICA EQU 9
         TILE_TIERRA_MUERTA EQU 10
         TILE_ARBOL_MUERTO EQU 11
+        TILE_CESPED EQU 12
+        TILE_TOTEM_AVES EQU 13
+        TILE_ESTANQUE_AVES EQU 14
 	TILE_SIZE EQU 16
 	VIDEO_SEG EQU 0A000h
 	VELOCIDAD EQU 4
@@ -35,6 +38,9 @@
         archivo_agua_toxica db 'SPRITES\SWMWATR.TXT', 0
         archivo_tierra_muerta db 'SPRITES\SWMDEAD.TXT', 0
         archivo_arbol_muerto db 'SPRITES\SWMTREE.TXT', 0
+        archivo_cesped db 'SPRITES\GRSCESP.TXT', 0
+        archivo_estanque_aves db 'SPRITES\GRSPOOL.TXT', 0
+        archivo_totem_aves db 'SPRITES\GRSTOTM.TXT', 0
 	
 	archivo_player_up_a db 'SPRITES\PLAYER\UP1.TXT', 0
 	archivo_player_up_b db 'SPRITES\PLAYER\UP2.TXT', 0
@@ -62,6 +68,9 @@
         sprite_agua_toxica db 128 dup(0)
         sprite_tierra_muerta db 128 dup(0)
         sprite_arbol_muerto db 128 dup(0)
+        sprite_cesped db 128 dup(0)
+        sprite_estanque_aves db 128 dup(0)
+        sprite_totem_aves db 128 dup(0)
 	
 	jugador_up_a db 512 dup(0)
 	jugador_up_b db 512 dup(0)
@@ -1486,7 +1495,40 @@ cst_ok_arbol_muerto:
         mov bp, OFFSET sprite_arbol_muerto_mask
         call convertir_sprite_a_planar_opt
 	
-	mov dx, OFFSET archivo_cristal
+        mov dx, OFFSET archivo_cesped
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_cesped
+        jmp cst_error
+cst_ok_cesped:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_cesped
+        mov bp, OFFSET sprite_cesped_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_estanque_aves
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_estanque_aves
+        jmp cst_error
+cst_ok_estanque_aves:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_estanque_aves
+        mov bp, OFFSET sprite_estanque_aves_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_totem_aves
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_totem_aves
+        jmp cst_error
+cst_ok_totem_aves:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_totem_aves
+        mov bp, OFFSET sprite_totem_aves_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_cristal
 	mov di, OFFSET sprite_buffer_16
 	call cargar_sprite_16x16
 	jnc cst_ok_cristal
@@ -1937,9 +1979,30 @@ ost_tierra_muerta:
 
 ost_arbol_muerto:
         cmp bl, TILE_ARBOL_MUERTO
-        jne ost_fin
+        jne ost_cesped
         mov di, OFFSET sprite_arbol_muerto
         mov si, OFFSET sprite_arbol_muerto_mask
+        jmp ost_fin
+
+ost_cesped:
+        cmp bl, TILE_CESPED
+        jne ost_totem_aves
+        mov di, OFFSET sprite_cesped
+        mov si, OFFSET sprite_cesped_mask
+        jmp ost_fin
+
+ost_totem_aves:
+        cmp bl, TILE_TOTEM_AVES
+        jne ost_estanque_aves
+        mov di, OFFSET sprite_totem_aves
+        mov si, OFFSET sprite_totem_aves_mask
+        jmp ost_fin
+
+ost_estanque_aves:
+        cmp bl, TILE_ESTANQUE_AVES
+        jne ost_fin
+        mov di, OFFSET sprite_estanque_aves
+        mov si, OFFSET sprite_estanque_aves_mask
 	
 ost_fin:
 	pop bx

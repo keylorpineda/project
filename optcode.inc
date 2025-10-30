@@ -59,6 +59,10 @@ ilt_loop_video:
         je vtt_no_transitable
         cmp al, 11
         je vtt_no_transitable
+        cmp al, 13
+        je vtt_no_transitable
+        cmp al, 14
+        je vtt_no_transitable
 	
 	pop dx
 	pop bx
@@ -471,6 +475,21 @@ csp32o_fin:
 
         mov si, OFFSET sprite_arbol_muerto
         mov di, OFFSET sprite_arbol_muerto_mask
+        call calcular_mascara_16x16
+	
+	
+        mov si, OFFSET sprite_cesped
+        mov di, OFFSET sprite_cesped_mask
+        call calcular_mascara_16x16
+	
+	
+        mov si, OFFSET sprite_estanque_aves
+        mov di, OFFSET sprite_estanque_aves_mask
+        call calcular_mascara_16x16
+	
+	
+        mov si, OFFSET sprite_totem_aves
+        mov di, OFFSET sprite_totem_aves_mask
         call calcular_mascara_16x16
 	
 	

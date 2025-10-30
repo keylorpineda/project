@@ -12,3 +12,6 @@ Codigo  Sprite                      Uso en el mapa
 9       SPRITES/SWMWATR.TXT         Agua tóxica: charcos peligrosos.
 A (10)  SPRITES/SWMDEAD.TXT         Tierra muerta: transición árida hacia el pantano.
 B (11)  SPRITES/SWMTREE.TXT         Árbol muerto: obstáculo marchito del pantano.
+C (12)  SPRITES/GRSCESP.TXT         Pradera vibrante: césped transitable con flores y plumas verdes.
+D (13)  SPRITES/GRSTOTM.TXT         Tótem aviario: santuario de aves que bloquea el paso.
+E (14)  SPRITES/GRSPOOL.TXT         Estanque de aves: charca brillante no transitable.

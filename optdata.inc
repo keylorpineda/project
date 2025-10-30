@@ -21,6 +21,9 @@
         sprite_agua_toxica_mask db 32 dup(0)
         sprite_tierra_muerta_mask db 32 dup(0)
         sprite_arbol_muerto_mask db 32 dup(0)
+        sprite_cesped_mask db 32 dup(0)
+        sprite_estanque_aves_mask db 32 dup(0)
+        sprite_totem_aves_mask db 32 dup(0)
 	
 	sprite_cristal_mask db 32 dup(0)
 	sprite_gema_mask db 32 dup(0)
