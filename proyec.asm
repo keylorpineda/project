@@ -1,18 +1,20 @@
 	.MODEL SMALL
 	.STACK 2048
-	TILE_GRASS1 EQU 0
-	TILE_PATH EQU 3
-	TILE_WATER EQU 4
-	TILE_TREE EQU 5
-	TILE_SAND EQU 6
-	TILE_SNOW EQU 8
-	TILE_ICE EQU 9
-	TILE_WALL EQU 10
-	TILE_FORTRESS EQU 12
-	TILE_DIRT EQU 13
-	TILE_LAVA EQU 14
-	TILE_ROCK EQU 7
-	TILE_BRIDGE EQU 15
+        TILE_ROCA_VOLCANICA EQU 0
+        TILE_LAVA EQU 1
+        TILE_CENIZA EQU 2
+        TILE_ROCA_BLOQUE EQU 3
+        TILE_NIEVE EQU 4
+        TILE_HIELO EQU 5
+        TILE_AGUA_CONGELADA EQU 6
+        TILE_ROCA_NEVADA EQU 7
+        TILE_LODO EQU 8
+        TILE_AGUA_TOXICA EQU 9
+        TILE_TIERRA_MUERTA EQU 10
+        TILE_ARBOL_MUERTO EQU 11
+        TILE_CESPED EQU 12
+        TILE_TOTEM_AVES EQU 13
+        TILE_ESTANQUE_AVES EQU 14
 	TILE_SIZE EQU 16
 	VIDEO_SEG EQU 0A000h
 	VELOCIDAD EQU 4
@@ -24,19 +26,21 @@
 	
 	.DATA
 	archivo_mapa db 'MAPA.TXT', 0
-	archivo_grass1 db 'SPRITES\GRASS_1.TXT', 0
-	archivo_path db 'SPRITES\PATH_2.TXT', 0
-	archivo_water db 'SPRITES\WATER_2.TXT', 0
-	archivo_tree db 'SPRITES\TREE_1.TXT', 0
-	archivo_sand db 'SPRITES\SAND_1.TXT', 0
-	archivo_snow db 'SPRITES\SNOW_1.TXT', 0
-	archivo_ice db 'SPRITES\ICE_1.TXT', 0
-	archivo_wall db 'SPRITES\WALL_1.TXT', 0
-	archivo_fortress db 'SPRITES\FORT_BRK.TXT', 0
-	archivo_dirt db 'SPRITES\DIRT_1.TXT', 0
-	archivo_lava db 'SPRITES\LAVA_1.TXT', 0
-	archivo_bridge db 'SPRITES\BRIDGE_1.TXT', 0
-	archivo_rock db 'SPRITES\ROCK_1.TXT', 0
+        archivo_roca_volcanica db 'SPRITES\VOLCROC.TXT', 0
+        archivo_lava db 'SPRITES\VOLCLAV.TXT', 0
+        archivo_ceniza db 'SPRITES\VOLCASH.TXT', 0
+        archivo_roca_bloque db 'SPRITES\VOLCROB.TXT', 0
+        archivo_nieve db 'SPRITES\TUNSNOW.TXT', 0
+        archivo_hielo db 'SPRITES\TUNICE.TXT', 0
+        archivo_agua_congelada db 'SPRITES\TUNWATR.TXT', 0
+        archivo_roca_nevada db 'SPRITES\TUNROCK.TXT', 0
+        archivo_lodo db 'SPRITES\SWMLODO.TXT', 0
+        archivo_agua_toxica db 'SPRITES\SWMWATR.TXT', 0
+        archivo_tierra_muerta db 'SPRITES\SWMDEAD.TXT', 0
+        archivo_arbol_muerto db 'SPRITES\SWMTREE.TXT', 0
+        archivo_cesped db 'SPRITES\GRSCESP.TXT', 0
+        archivo_estanque_aves db 'SPRITES\GRSPOOL.TXT', 0
+        archivo_totem_aves db 'SPRITES\GRSTOTM.TXT', 0
 	
 	archivo_player_up_a db 'SPRITES\PLAYER\UP1.TXT', 0
 	archivo_player_up_b db 'SPRITES\PLAYER\UP2.TXT', 0
@@ -52,19 +56,21 @@
 	sprite_buffer_16 db 256 dup(0)
 	sprite_buffer_32 db 1024 dup(0)
 	
-	sprite_grass1 db 128 dup(0)
-	sprite_path db 128 dup(0)
-	sprite_water db 128 dup(0)
-	sprite_tree db 128 dup(0)
-	sprite_sand db 128 dup(0)
-	sprite_snow db 128 dup(0)
-	sprite_ice db 128 dup(0)
-	sprite_wall db 128 dup(0)
-	sprite_fortress db 128 dup(0)
-	sprite_dirt db 128 dup(0)
-	sprite_lava db 128 dup(0)
-	sprite_rock db 128 dup(0)
-	sprite_bridge db 128 dup(0)
+        sprite_roca_volcanica db 128 dup(0)
+        sprite_lava db 128 dup(0)
+        sprite_ceniza db 128 dup(0)
+        sprite_roca_bloque db 128 dup(0)
+        sprite_nieve db 128 dup(0)
+        sprite_hielo db 128 dup(0)
+        sprite_agua_congelada db 128 dup(0)
+        sprite_roca_nevada db 128 dup(0)
+        sprite_lodo db 128 dup(0)
+        sprite_agua_toxica db 128 dup(0)
+        sprite_tierra_muerta db 128 dup(0)
+        sprite_arbol_muerto db 128 dup(0)
+        sprite_cesped db 128 dup(0)
+        sprite_estanque_aves db 128 dup(0)
+        sprite_totem_aves db 128 dup(0)
 	
 	jugador_up_a db 512 dup(0)
 	jugador_up_b db 512 dup(0)
@@ -1357,150 +1363,172 @@ cc_y_ok:
 	push si
 	push bp
 	
-	mov dx, OFFSET archivo_grass1
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_grass1
-	jmp cst_error
-cst_ok_grass1:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_grass1
-	mov bp, OFFSET sprite_grass1_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_path
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_path
-	jmp cst_error
-cst_ok_path:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_path
-	mov bp, OFFSET sprite_path_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_water
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_water
-	jmp cst_error
-cst_ok_water:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_water
-	mov bp, OFFSET sprite_water_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_tree
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_tree
-	jmp cst_error
-cst_ok_tree:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_tree
-	mov bp, OFFSET sprite_tree_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_sand
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_sand
-	jmp cst_error
-cst_ok_sand:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_sand
-	mov bp, OFFSET sprite_sand_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_rock
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_rock
-	jmp cst_error
-cst_ok_rock:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_rock
-	mov bp, OFFSET sprite_rock_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_snow
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_snow
-	jmp cst_error
-cst_ok_snow:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_snow
-	mov bp, OFFSET sprite_snow_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_ice
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_ice
-	jmp cst_error
-cst_ok_ice:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_ice
-	mov bp, OFFSET sprite_ice_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_wall
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_wall
-	jmp cst_error
-cst_ok_wall:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_wall
-	mov bp, OFFSET sprite_wall_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_fortress
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_fortress
-	jmp cst_error
-cst_ok_fortress:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_fortress
-	mov bp, OFFSET sprite_fortress_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_dirt
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_dirt
-	jmp cst_error
-cst_ok_dirt:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_dirt
-	mov bp, OFFSET sprite_dirt_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_lava
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_lava
-	jmp cst_error
+        mov dx, OFFSET archivo_roca_volcanica
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_roca_volcanica
+        jmp cst_error
+cst_ok_roca_volcanica:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_roca_volcanica
+        mov bp, OFFSET sprite_roca_volcanica_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_lava
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_lava
+        jmp cst_error
 cst_ok_lava:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_lava
-	mov bp, OFFSET sprite_lava_mask
-	call convertir_sprite_a_planar_opt
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_lava
+        mov bp, OFFSET sprite_lava_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_ceniza
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_ceniza
+        jmp cst_error
+cst_ok_ceniza:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_ceniza
+        mov bp, OFFSET sprite_ceniza_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_roca_bloque
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_roca_bloque
+        jmp cst_error
+cst_ok_roca_bloque:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_roca_bloque
+        mov bp, OFFSET sprite_roca_bloque_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_nieve
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_nieve
+        jmp cst_error
+cst_ok_nieve:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_nieve
+        mov bp, OFFSET sprite_nieve_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_hielo
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_hielo
+        jmp cst_error
+cst_ok_hielo:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_hielo
+        mov bp, OFFSET sprite_hielo_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_agua_congelada
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_agua_congelada
+        jmp cst_error
+cst_ok_agua_congelada:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_agua_congelada
+        mov bp, OFFSET sprite_agua_congelada_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_roca_nevada
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_roca_nevada
+        jmp cst_error
+cst_ok_roca_nevada:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_roca_nevada
+        mov bp, OFFSET sprite_roca_nevada_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_lodo
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_lodo
+        jmp cst_error
+cst_ok_lodo:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_lodo
+        mov bp, OFFSET sprite_lodo_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_agua_toxica
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_agua_toxica
+        jmp cst_error
+cst_ok_agua_toxica:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_agua_toxica
+        mov bp, OFFSET sprite_agua_toxica_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_tierra_muerta
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_tierra_muerta
+        jmp cst_error
+cst_ok_tierra_muerta:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_tierra_muerta
+        mov bp, OFFSET sprite_tierra_muerta_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_arbol_muerto
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_arbol_muerto
+        jmp cst_error
+cst_ok_arbol_muerto:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_arbol_muerto
+        mov bp, OFFSET sprite_arbol_muerto_mask
+        call convertir_sprite_a_planar_opt
 	
-	mov dx, OFFSET archivo_bridge
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_bridge
-	jmp cst_error
-cst_ok_bridge:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_bridge
-	mov bp, OFFSET sprite_bridge_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_cristal
+        mov dx, OFFSET archivo_cesped
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_cesped
+        jmp cst_error
+cst_ok_cesped:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_cesped
+        mov bp, OFFSET sprite_cesped_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_estanque_aves
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_estanque_aves
+        jmp cst_error
+cst_ok_estanque_aves:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_estanque_aves
+        mov bp, OFFSET sprite_estanque_aves_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_totem_aves
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_totem_aves
+        jmp cst_error
+cst_ok_totem_aves:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_totem_aves
+        mov bp, OFFSET sprite_totem_aves_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_cristal
 	mov di, OFFSET sprite_buffer_16
 	call cargar_sprite_16x16
 	jnc cst_ok_cristal
@@ -1877,89 +1905,104 @@ dmo_fin:
 	mov bl, al
 	
 	
-	mov di, OFFSET sprite_grass1
-	mov si, OFFSET sprite_grass1_mask
-	
-	cmp bl, TILE_PATH
-	jne ost_water
-	mov di, OFFSET sprite_path
-	mov si, OFFSET sprite_path_mask
-	jmp ost_fin
-	
-ost_water:
-	cmp bl, TILE_WATER
-	jne ost_tree
-	mov di, OFFSET sprite_water
-	mov si, OFFSET sprite_water_mask
-	jmp ost_fin
-	
-ost_tree:
-	cmp bl, TILE_TREE
-	jne ost_sand
-	mov di, OFFSET sprite_tree
-	mov si, OFFSET sprite_tree_mask
-	jmp ost_fin
-	
-ost_sand:
-	cmp bl, TILE_SAND
-	jne ost_rock
-	mov di, OFFSET sprite_sand
-	mov si, OFFSET sprite_sand_mask
-	jmp ost_fin
-	
-ost_rock:
-	cmp bl, TILE_ROCK
-	jne ost_snow
-	mov di, OFFSET sprite_rock
-	mov si, OFFSET sprite_rock_mask
-	jmp ost_fin
-ost_snow:
-	cmp bl, TILE_SNOW
-	jne ost_ice
-	mov di, OFFSET sprite_snow
-	mov si, OFFSET sprite_snow_mask
-	jmp ost_fin
-	
-ost_ice:
-	cmp bl, TILE_ICE
-	jne ost_wall
-	mov di, OFFSET sprite_ice
-	mov si, OFFSET sprite_ice_mask
-	jmp ost_fin
-	
-ost_wall:
-	cmp bl, TILE_WALL
-	jne ost_fortress
-	mov di, OFFSET sprite_wall
-	mov si, OFFSET sprite_wall_mask
-	jmp ost_fin
-	
-ost_fortress:
-	cmp bl, TILE_FORTRESS
-	jne ost_dirt
-	mov di, OFFSET sprite_fortress
-	mov si, OFFSET sprite_fortress_mask
-	jmp ost_fin
-	
-ost_dirt:
-	cmp bl, TILE_DIRT
-	jne ost_lava
-	mov di, OFFSET sprite_dirt
-	mov si, OFFSET sprite_dirt_mask
-	jmp ost_fin
-	
-ost_lava:
-	cmp bl, TILE_LAVA
-	jne ost_bridge
-	mov di, OFFSET sprite_lava
-	mov si, OFFSET sprite_lava_mask
-	jmp ost_fin
-	
-ost_bridge:
-	cmp bl, TILE_BRIDGE
-	jne ost_fin
-	mov di, OFFSET sprite_bridge
-	mov si, OFFSET sprite_bridge_mask
+        mov di, OFFSET sprite_roca_volcanica
+        mov si, OFFSET sprite_roca_volcanica_mask
+
+        cmp bl, TILE_LAVA
+        jne ost_ceniza
+        mov di, OFFSET sprite_lava
+        mov si, OFFSET sprite_lava_mask
+        jmp ost_fin
+
+ost_ceniza:
+        cmp bl, TILE_CENIZA
+        jne ost_roca_bloque
+        mov di, OFFSET sprite_ceniza
+        mov si, OFFSET sprite_ceniza_mask
+        jmp ost_fin
+
+ost_roca_bloque:
+        cmp bl, TILE_ROCA_BLOQUE
+        jne ost_nieve
+        mov di, OFFSET sprite_roca_bloque
+        mov si, OFFSET sprite_roca_bloque_mask
+        jmp ost_fin
+
+ost_nieve:
+        cmp bl, TILE_NIEVE
+        jne ost_hielo
+        mov di, OFFSET sprite_nieve
+        mov si, OFFSET sprite_nieve_mask
+        jmp ost_fin
+
+ost_hielo:
+        cmp bl, TILE_HIELO
+        jne ost_agua_congelada
+        mov di, OFFSET sprite_hielo
+        mov si, OFFSET sprite_hielo_mask
+        jmp ost_fin
+
+ost_agua_congelada:
+        cmp bl, TILE_AGUA_CONGELADA
+        jne ost_roca_nevada
+        mov di, OFFSET sprite_agua_congelada
+        mov si, OFFSET sprite_agua_congelada_mask
+        jmp ost_fin
+
+ost_roca_nevada:
+        cmp bl, TILE_ROCA_NEVADA
+        jne ost_lodo
+        mov di, OFFSET sprite_roca_nevada
+        mov si, OFFSET sprite_roca_nevada_mask
+        jmp ost_fin
+
+ost_lodo:
+        cmp bl, TILE_LODO
+        jne ost_agua_toxica
+        mov di, OFFSET sprite_lodo
+        mov si, OFFSET sprite_lodo_mask
+        jmp ost_fin
+
+ost_agua_toxica:
+        cmp bl, TILE_AGUA_TOXICA
+        jne ost_tierra_muerta
+        mov di, OFFSET sprite_agua_toxica
+        mov si, OFFSET sprite_agua_toxica_mask
+        jmp ost_fin
+
+ost_tierra_muerta:
+        cmp bl, TILE_TIERRA_MUERTA
+        jne ost_arbol_muerto
+        mov di, OFFSET sprite_tierra_muerta
+        mov si, OFFSET sprite_tierra_muerta_mask
+        jmp ost_fin
+
+ost_arbol_muerto:
+        cmp bl, TILE_ARBOL_MUERTO
+        jne ost_cesped
+        mov di, OFFSET sprite_arbol_muerto
+        mov si, OFFSET sprite_arbol_muerto_mask
+        jmp ost_fin
+
+ost_cesped:
+        cmp bl, TILE_CESPED
+        jne ost_totem_aves
+        mov di, OFFSET sprite_cesped
+        mov si, OFFSET sprite_cesped_mask
+        jmp ost_fin
+
+ost_totem_aves:
+        cmp bl, TILE_TOTEM_AVES
+        jne ost_estanque_aves
+        mov di, OFFSET sprite_totem_aves
+        mov si, OFFSET sprite_totem_aves_mask
+        jmp ost_fin
+
+ost_estanque_aves:
+        cmp bl, TILE_ESTANQUE_AVES
+        jne ost_fin
+        mov di, OFFSET sprite_estanque_aves
+        mov si, OFFSET sprite_estanque_aves_mask
 	
 ost_fin:
 	pop bx
