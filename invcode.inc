@@ -1430,19 +1430,26 @@ dhc_loop:
     
     ; Calcular X basado en viewport_x
     mov ax, si                     ; ax = índice del corazón (0-8)
-    mov dx, HUD_HEART_SPACING      ; Usar tu constante de espaciado (20)
-    mul dx                         
-    add ax, [viewport_x]           ; Usar la X del viewport (120) como base
-    add ax, HUD_HEART_MARGIN       ; Sumar el margen (8)
-    mov cx, ax                     ; cx = Coordenada X final
+    mov dx, HUD_HEART_SPACING      ; usar la constante de espaciado (20)
+    mul dx
+    add ax, viewport_x             ; origen horizontal del viewport
+    add ax, HUD_HEART_MARGIN       ; margen desde el borde
+    mov cx, ax                     ; cx = coordenada X final
 
-    ; Calcular Y basado en viewport_y
-    mov ax, [viewport_y]           ; Usar la Y del viewport (55)
-    add ax, HUD_HEART_MARGIN       ; Sumar el margen (8)
-    mov dx, ax                     ; dx = Coordenada Y final
-    
-    ; La línea errónea 'add ax, HUD_HEART_X' se ha eliminado.
-    
+    ; Calcular Y para ubicar los corazones sobre el viewport
+    mov ax, viewport_y             ; posición vertical del viewport
+    mov dx, HUD_HEART_MARGIN + TILE_SIZE ; margen + altura del corazón (16)
+    cmp ax, dx
+    jb dhc_y_min                   ; si el viewport está cerca del borde superior, usar mínimo
+    sub ax, dx                     ; restar margen y alto del sprite
+    jmp dhc_y_set
+
+dhc_y_min:
+    mov ax, HUD_HEART_MARGIN       ; coloca los corazones pegados al borde superior
+
+dhc_y_set:
+    mov dx, ax                     ; dx = coordenada Y final
+
     ; --- FIN DE CÓDIGO CORREGIDO ---
 
 
