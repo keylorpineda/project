@@ -749,8 +749,10 @@ fin_juego:
 
         mov tecla_e_presionada, 0
         cmp jugador_resbalando, 0
-        je pmc_fin_movimiento
+        jne pmc_procesar_deslizamiento
+        jmp pmc_fin_movimiento
 
+pmc_procesar_deslizamiento:
         call continuar_deslizamiento
         mov moviendo, 1
         jmp pmc_fin_movimiento
@@ -965,6 +967,7 @@ aes_fin:
 
         obtener_tile_bajo_jugador PROC
         push bx
+        push cx
         push dx
 
         mov ax, jugador_py
@@ -974,16 +977,19 @@ aes_fin:
 
         mov ax, jugador_px
         shr ax, 4
-        mov bx, ax
+        mov cx, ax
 
         mov ax, dx
         shl ax, 1
-        mov ax, [mul100_table + ax]
-        add ax, bx
-        mov al, [mapa_datos + ax]
+        mov bx, ax
+        mov ax, [mul100_table + bx]
+        add ax, cx
+        mov bx, ax
+        mov al, [mapa_datos + bx]
         xor ah, ah
 
         pop dx
+        pop cx
         pop bx
         ret
         obtener_tile_bajo_jugador ENDP
