@@ -15,7 +15,12 @@
         TILE_CESPED EQU 12
         TILE_TOTEM_AVES EQU 13
         TILE_ESTANQUE_AVES EQU 14
-        TILE_CASA_TECHO EQU 15
+        TILE_CASA_TECHO_IZQ EQU 15
+        TILE_CASA_TECHO_CEN EQU 16
+        TILE_CASA_TECHO_DER EQU 17
+        TILE_CASA_PARED EQU 18
+        TILE_CASA_VENTANA EQU 19
+        TILE_CASA_PUERTA EQU 20
         TILE_FLAG_DANO_TOXICO EQU 1
         TILE_FLAG_DANO_FUEGO EQU 2
 	TILE_SIZE EQU 16
@@ -44,7 +49,12 @@
 	archivo_cesped db 'SPRITES\GRSCESP.TXT', 0
         archivo_estanque_aves db 'SPRITES\GRSPOOL.TXT', 0
         archivo_totem_aves db 'SPRITES\GRSTOTM.TXT', 0
-        archivo_casa_techo db 'SPRITES\HOUSE_ROOF.TXT', 0
+        archivo_casa_techo_izq db 'SPRITES\HSE_TL.TXT', 0
+        archivo_casa_techo_cen db 'SPRITES\HSE_TC.TXT', 0
+        archivo_casa_techo_der db 'SPRITES\HSE_TR.TXT', 0
+        archivo_casa_pared db 'SPRITES\HSE_WL.TXT', 0
+        archivo_casa_ventana db 'SPRITES\HSE_WN.TXT', 0
+        archivo_casa_puerta db 'SPRITES\HSE_DR.TXT', 0
 	
 	archivo_player_up_a db 'SPRITES\PLAYER\UP1.TXT', 0
 	archivo_player_up_b db 'SPRITES\PLAYER\UP2.TXT', 0
@@ -77,7 +87,12 @@
 	sprite_cesped db 128 dup(0)
         sprite_estanque_aves db 128 dup(0)
         sprite_totem_aves db 128 dup(0)
-        sprite_casa_techo db 128 dup(0)
+        sprite_casa_techo_izq db 128 dup(0)
+        sprite_casa_techo_cen db 128 dup(0)
+        sprite_casa_techo_der db 128 dup(0)
+        sprite_casa_pared db 128 dup(0)
+        sprite_casa_ventana db 128 dup(0)
+        sprite_casa_puerta db 128 dup(0)
 	
 	jugador_up_a db 512 dup(0)
 	jugador_up_b db 512 dup(0)
@@ -1514,15 +1529,70 @@ cst_ok_totem_aves:
         mov bp, OFFSET sprite_totem_aves_mask
         call convertir_sprite_a_planar_opt
 
-        mov dx, OFFSET archivo_casa_techo
+        mov dx, OFFSET archivo_casa_techo_izq
         mov di, OFFSET sprite_buffer_16
         call cargar_sprite_16x16
-        jnc cst_ok_casa_techo
+        jnc cst_ok_casa_techo_izq
         jmp cst_error
-cst_ok_casa_techo:
+cst_ok_casa_techo_izq:
         mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_casa_techo
-        mov bp, OFFSET sprite_casa_techo_mask
+        mov di, OFFSET sprite_casa_techo_izq
+        mov bp, OFFSET sprite_casa_techo_izq_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_techo_cen
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_techo_cen
+        jmp cst_error
+cst_ok_casa_techo_cen:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_techo_cen
+        mov bp, OFFSET sprite_casa_techo_cen_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_techo_der
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_techo_der
+        jmp cst_error
+cst_ok_casa_techo_der:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_techo_der
+        mov bp, OFFSET sprite_casa_techo_der_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_pared
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_pared
+        jmp cst_error
+cst_ok_casa_pared:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_pared
+        mov bp, OFFSET sprite_casa_pared_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_ventana
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_ventana
+        jmp cst_error
+cst_ok_casa_ventana:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_ventana
+        mov bp, OFFSET sprite_casa_ventana_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_puerta
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_puerta
+        jmp cst_error
+cst_ok_casa_puerta:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_puerta
+        mov bp, OFFSET sprite_casa_puerta_mask
         call convertir_sprite_a_planar_opt
 
         mov dx, OFFSET archivo_cristal
@@ -1870,7 +1940,7 @@ dmo_col:
 	mov bx, ax
 	mov al, [mapa_datos + bx]
 	
-        cmp al, TILE_CASA_TECHO
+        cmp al, TILE_CASA_PUERTA
 	ja dmo_next_col
 	push si
 	push bp
@@ -2019,16 +2089,51 @@ ost_totem_aves:
 
 ost_estanque_aves:
         cmp bl, TILE_ESTANQUE_AVES
-        jne ost_casa_techo
+        jne ost_casa_techo_izq
         mov di, OFFSET sprite_estanque_aves
         mov si, OFFSET sprite_estanque_aves_mask
         jmp ost_fin
 
-ost_casa_techo:
-        cmp bl, TILE_CASA_TECHO
+ost_casa_techo_izq:
+        cmp bl, TILE_CASA_TECHO_IZQ
+        jne ost_casa_techo_cen
+        mov di, OFFSET sprite_casa_techo_izq
+        mov si, OFFSET sprite_casa_techo_izq_mask
+        jmp ost_fin
+
+ost_casa_techo_cen:
+        cmp bl, TILE_CASA_TECHO_CEN
+        jne ost_casa_techo_der
+        mov di, OFFSET sprite_casa_techo_cen
+        mov si, OFFSET sprite_casa_techo_cen_mask
+        jmp ost_fin
+
+ost_casa_techo_der:
+        cmp bl, TILE_CASA_TECHO_DER
+        jne ost_casa_pared
+        mov di, OFFSET sprite_casa_techo_der
+        mov si, OFFSET sprite_casa_techo_der_mask
+        jmp ost_fin
+
+ost_casa_pared:
+        cmp bl, TILE_CASA_PARED
+        jne ost_casa_ventana
+        mov di, OFFSET sprite_casa_pared
+        mov si, OFFSET sprite_casa_pared_mask
+        jmp ost_fin
+
+ost_casa_ventana:
+        cmp bl, TILE_CASA_VENTANA
+        jne ost_casa_puerta
+        mov di, OFFSET sprite_casa_ventana
+        mov si, OFFSET sprite_casa_ventana_mask
+        jmp ost_fin
+
+ost_casa_puerta:
+        cmp bl, TILE_CASA_PUERTA
         jne ost_fin
-        mov di, OFFSET sprite_casa_techo
-        mov si, OFFSET sprite_casa_techo_mask
+        mov di, OFFSET sprite_casa_puerta
+        mov si, OFFSET sprite_casa_puerta_mask
 
 ost_fin:
 	pop bx

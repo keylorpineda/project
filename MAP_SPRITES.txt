@@ -15,4 +15,9 @@ B (11)  SPRITES/SWMTREE.TXT         Árbol muerto: obstáculo marchito del panta
 C (12)  SPRITES/GRSCESP.TXT         Pradera vibrante: césped transitable con flores y plumas verdes.
 D (13)  SPRITES/GRSTOTM.TXT         Tótem aviario: santuario de aves que bloquea el paso.
 E (14)  SPRITES/GRSPOOL.TXT         Estanque de aves: charca brillante no transitable.
-F (15)  SPRITES/HOUSE_ROOF.TXT      Techo modular de casa: se combina para formar viviendas grandes.
+F (15)  SPRITES/HSE_TL.TXT          Techo de casa - esquina izquierda.
+10 (16) SPRITES/HSE_TC.TXT          Techo de casa - tramo central.
+11 (17) SPRITES/HSE_TR.TXT          Techo de casa - esquina derecha.
+12 (18) SPRITES/HSE_WL.TXT          Pared de casa con entramado de madera.
+13 (19) SPRITES/HSE_WN.TXT          Pared de casa con ventana.
+14 (20) SPRITES/HSE_DR.TXT          Entrada principal de la casa.

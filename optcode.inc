@@ -55,15 +55,23 @@ ilt_loop_video:
         je vtt_no_transitable
         cmp al, 7
         je vtt_no_transitable
-        cmp al, 9
-        je vtt_no_transitable
         cmp al, 11
         je vtt_no_transitable
         cmp al, 13
         je vtt_no_transitable
         cmp al, 14
         je vtt_no_transitable
-        cmp al, TILE_CASA_TECHO
+        cmp al, TILE_CASA_TECHO_IZQ
+        je vtt_no_transitable
+        cmp al, TILE_CASA_TECHO_CEN
+        je vtt_no_transitable
+        cmp al, TILE_CASA_TECHO_DER
+        je vtt_no_transitable
+        cmp al, TILE_CASA_PARED
+        je vtt_no_transitable
+        cmp al, TILE_CASA_VENTANA
+        je vtt_no_transitable
+        cmp al, TILE_CASA_PUERTA
         je vtt_no_transitable
 	
 	pop dx
@@ -99,11 +107,15 @@ vtt_no_transitable:
         mov byte ptr [tile_walkable + TILE_ROCA_BLOQUE], 0
         mov byte ptr [tile_walkable + TILE_AGUA_CONGELADA], 0
         mov byte ptr [tile_walkable + TILE_ROCA_NEVADA], 0
-        mov byte ptr [tile_walkable + TILE_AGUA_TOXICA], 0
         mov byte ptr [tile_walkable + TILE_ARBOL_MUERTO], 0
         mov byte ptr [tile_walkable + TILE_TOTEM_AVES], 0
         mov byte ptr [tile_walkable + TILE_ESTANQUE_AVES], 0
-        mov byte ptr [tile_walkable + TILE_CASA_TECHO], 0
+        mov byte ptr [tile_walkable + TILE_CASA_TECHO_IZQ], 0
+        mov byte ptr [tile_walkable + TILE_CASA_TECHO_CEN], 0
+        mov byte ptr [tile_walkable + TILE_CASA_TECHO_DER], 0
+        mov byte ptr [tile_walkable + TILE_CASA_PARED], 0
+        mov byte ptr [tile_walkable + TILE_CASA_VENTANA], 0
+        mov byte ptr [tile_walkable + TILE_CASA_PUERTA], 0
 
         mov byte ptr [tile_damage + TILE_LAVA], TILE_FLAG_DANO_FUEGO
         mov byte ptr [tile_damage + TILE_CENIZA], TILE_FLAG_DANO_FUEGO
@@ -530,8 +542,28 @@ csp32o_fin:
         mov di, OFFSET sprite_totem_aves_mask
         call calcular_mascara_16x16
 	
-        mov si, OFFSET sprite_casa_techo
-        mov di, OFFSET sprite_casa_techo_mask
+        mov si, OFFSET sprite_casa_techo_izq
+        mov di, OFFSET sprite_casa_techo_izq_mask
+        call calcular_mascara_16x16
+
+        mov si, OFFSET sprite_casa_techo_cen
+        mov di, OFFSET sprite_casa_techo_cen_mask
+        call calcular_mascara_16x16
+
+        mov si, OFFSET sprite_casa_techo_der
+        mov di, OFFSET sprite_casa_techo_der_mask
+        call calcular_mascara_16x16
+
+        mov si, OFFSET sprite_casa_pared
+        mov di, OFFSET sprite_casa_pared_mask
+        call calcular_mascara_16x16
+
+        mov si, OFFSET sprite_casa_ventana
+        mov di, OFFSET sprite_casa_ventana_mask
+        call calcular_mascara_16x16
+
+        mov si, OFFSET sprite_casa_puerta
+        mov di, OFFSET sprite_casa_puerta_mask
         call calcular_mascara_16x16
 	
 	

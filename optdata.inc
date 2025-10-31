@@ -27,7 +27,12 @@
         sprite_cesped_mask db 32 dup(0)
         sprite_estanque_aves_mask db 32 dup(0)
         sprite_totem_aves_mask db 32 dup(0)
-        sprite_casa_techo_mask db 32 dup(0)
+        sprite_casa_techo_izq_mask db 32 dup(0)
+        sprite_casa_techo_cen_mask db 32 dup(0)
+        sprite_casa_techo_der_mask db 32 dup(0)
+        sprite_casa_pared_mask db 32 dup(0)
+        sprite_casa_ventana_mask db 32 dup(0)
+        sprite_casa_puerta_mask db 32 dup(0)
 	
 	sprite_cristal_mask db 32 dup(0)
 	sprite_gema_mask db 32 dup(0)
