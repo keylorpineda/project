@@ -969,6 +969,7 @@ aes_fin:
 
         obtener_tile_bajo_jugador PROC
         push bx
+        push cx
         push dx
         push si
 
@@ -979,19 +980,20 @@ aes_fin:
 
         mov ax, jugador_px
         shr ax, 4
-        mov bx, ax
+        mov cx, ax
 
         mov ax, dx
         shl ax, 1
-        mov si, ax
-        mov ax, [mul100_table + si]
-        add ax, bx
-        mov si, ax
-        mov al, [mapa_datos + si]
+        mov bx, ax
+        mov ax, [mul100_table + bx]
+        add ax, cx
+        mov bx, ax
+        mov al, [mapa_datos + bx]
         xor ah, ah
 
         pop si
         pop dx
+        pop cx
         pop bx
         ret
         obtener_tile_bajo_jugador ENDP
