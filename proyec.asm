@@ -12,9 +12,17 @@
 	TILE_AGUA_TOXICA EQU 9
 	TILE_TIERRA_MUERTA EQU 10
 	TILE_ARBOL_MUERTO EQU 11
-	TILE_CESPED EQU 12
-	TILE_TOTEM_AVES EQU 13
-	TILE_ESTANQUE_AVES EQU 14
+        TILE_CESPED EQU 12
+        TILE_TOTEM_AVES EQU 13
+        TILE_ESTANQUE_AVES EQU 14
+        TILE_CASA_TECHO_IZQ EQU 15
+        TILE_CASA_TECHO_CEN EQU 16
+        TILE_CASA_TECHO_DER EQU 17
+        TILE_CASA_PARED EQU 18
+        TILE_CASA_VENTANA EQU 19
+        TILE_CASA_PUERTA EQU 20
+        TILE_FLAG_DANO_TOXICO EQU 1
+        TILE_FLAG_DANO_FUEGO EQU 2
 	TILE_SIZE EQU 16
 	VIDEO_SEG EQU 0A000h
 	VELOCIDAD EQU 4
@@ -39,8 +47,14 @@
 	archivo_tierra_muerta db 'SPRITES\SWMDEAD.TXT', 0
 	archivo_arbol_muerto db 'SPRITES\SWMTREE.TXT', 0
 	archivo_cesped db 'SPRITES\GRSCESP.TXT', 0
-	archivo_estanque_aves db 'SPRITES\GRSPOOL.TXT', 0
-	archivo_totem_aves db 'SPRITES\GRSTOTM.TXT', 0
+        archivo_estanque_aves db 'SPRITES\GRSPOOL.TXT', 0
+        archivo_totem_aves db 'SPRITES\GRSTOTM.TXT', 0
+        archivo_casa_techo_izq db 'SPRITES\HSE_TL.TXT', 0
+        archivo_casa_techo_cen db 'SPRITES\HSE_TC.TXT', 0
+        archivo_casa_techo_der db 'SPRITES\HSE_TR.TXT', 0
+        archivo_casa_pared db 'SPRITES\HSE_WL.TXT', 0
+        archivo_casa_ventana db 'SPRITES\HSE_WN.TXT', 0
+        archivo_casa_puerta db 'SPRITES\HSE_DR.TXT', 0
 	
 	archivo_player_up_a db 'SPRITES\PLAYER\UP1.TXT', 0
 	archivo_player_up_b db 'SPRITES\PLAYER\UP2.TXT', 0
@@ -48,8 +62,10 @@
 	archivo_player_down_b db 'SPRITES\PLAYER\DOWN2.TXT', 0
 	archivo_player_izq_a db 'SPRITES\PLAYER\LEFT1.TXT', 0
 	archivo_player_izq_b db 'SPRITES\PLAYER\LEFT2.TXT', 0
-	archivo_player_der_a db 'SPRITES\PLAYER\RIGHT1.TXT', 0
-	archivo_player_der_b db 'SPRITES\PLAYER\RIGHT2.TXT', 0
+        archivo_player_der_a db 'SPRITES\PLAYER\RIGHT1.TXT', 0
+        archivo_player_der_b db 'SPRITES\PLAYER\RIGHT2.TXT', 0
+        archivo_player_hurt_a db 'SPRITES\PLAYER\HURT1.TXT', 0
+        archivo_player_hurt_b db 'SPRITES\PLAYER\HURT2.TXT', 0
 	
 	mapa_datos db 10000 dup(0)
 	
@@ -69,8 +85,14 @@
 	sprite_tierra_muerta db 128 dup(0)
 	sprite_arbol_muerto db 128 dup(0)
 	sprite_cesped db 128 dup(0)
-	sprite_estanque_aves db 128 dup(0)
-	sprite_totem_aves db 128 dup(0)
+        sprite_estanque_aves db 128 dup(0)
+        sprite_totem_aves db 128 dup(0)
+        sprite_casa_techo_izq db 128 dup(0)
+        sprite_casa_techo_cen db 128 dup(0)
+        sprite_casa_techo_der db 128 dup(0)
+        sprite_casa_pared db 128 dup(0)
+        sprite_casa_ventana db 128 dup(0)
+        sprite_casa_puerta db 128 dup(0)
 	
 	jugador_up_a db 512 dup(0)
 	jugador_up_b db 512 dup(0)
@@ -78,8 +100,10 @@
 	jugador_down_b db 512 dup(0)
 	jugador_izq_a db 512 dup(0)
 	jugador_izq_b db 512 dup(0)
-	jugador_der_a db 512 dup(0)
-	jugador_der_b db 512 dup(0)
+        jugador_der_a db 512 dup(0)
+        jugador_der_b db 512 dup(0)
+        jugador_hurt_a db 512 dup(0)
+        jugador_hurt_b db 512 dup(0)
 	
 	buffer_temp db 300 dup(0)
 	
@@ -92,8 +116,10 @@
 	jugador_py_old dw 192
 	frame_old db 0
 	
-	moviendo db 0
-	pasos_dados db 0
+        moviendo db 0
+        pasos_dados db 0
+
+        jugador_resbalando db 0
 	
 	camara_px dw 0
 	camara_py dw 72
@@ -495,9 +521,10 @@ anim_ok:
 	mov dx, OFFSET msg_convert
 	mov ah, 9
 	int 21h
-	call precalcular_mascaras_tiles
-	call precalcular_mascaras_jugador
-	mov dx, OFFSET msg_ok
+        call precalcular_mascaras_tiles
+        call precalcular_mascaras_jugador
+        call configurar_propiedades_tiles
+        mov dx, OFFSET msg_ok
 	mov ah, 9
 	int 21h
 	
@@ -693,22 +720,27 @@ fin_juego:
 	ret
 	inicializar_paleta_ega ENDP
 	
-	procesar_movimiento_continuo PROC
-	push ax
-	push bx
-	push cx
-	push dx
-	
-	mov mov_dx, 0
-	mov mov_dy, 0
-	mov moviendo, 0
-	
-	mov ah, 1
-	int 16h
-	jnz pmc_tiene_tecla
-	
-	mov tecla_e_presionada, 0
-	jmp pmc_fin_movimiento
+        procesar_movimiento_continuo PROC
+        push ax
+        push bx
+        push cx
+        push dx
+
+        mov mov_dx, 0
+        mov mov_dy, 0
+        mov moviendo, 0
+
+        mov ah, 1
+        int 16h
+        jnz pmc_tiene_tecla
+
+        mov tecla_e_presionada, 0
+        cmp jugador_resbalando, 0
+        je pmc_fin_movimiento
+
+        call continuar_deslizamiento
+        mov moviendo, 1
+        jmp pmc_fin_movimiento
 	
 pmc_tiene_tecla:
 	mov ah, 0
@@ -830,14 +862,15 @@ pmc_default:
 	jne pmc_fin_sin_mov
 	
 pmc_fin_movimiento:
-	cmp moviendo, 1
-	jne pmc_fin_sin_mov
-	call resolver_colisiones_y_mover
-	
+        cmp moviendo, 1
+        jne pmc_fin_sin_mov
+        call resolver_colisiones_y_mover
+        call actualizar_estado_superficie
+
 pmc_fin_sin_mov:
-	pop dx
-	pop cx
-	pop bx
+        pop dx
+        pop cx
+        pop bx
 	pop ax
 	ret
 	
@@ -850,7 +883,97 @@ pmc_salir:
 	int 10h
 	mov ax, 4C00h
 	int 21h
-	procesar_movimiento_continuo ENDP
+        procesar_movimiento_continuo ENDP
+
+        continuar_deslizamiento PROC
+        push ax
+
+        mov mov_dx, 0
+        mov mov_dy, 0
+
+        mov al, jugador_dir
+        cmp al, DIR_ABAJO
+        jne cd_check_arriba
+        mov mov_dy, VELOCIDAD
+        jmp cd_fin
+
+cd_check_arriba:
+        cmp al, DIR_ARRIBA
+        jne cd_check_izquierda
+        mov mov_dy, - VELOCIDAD
+        jmp cd_fin
+
+cd_check_izquierda:
+        cmp al, DIR_IZQUIERDA
+        jne cd_check_derecha
+        mov mov_dx, - VELOCIDAD
+        jmp cd_fin
+
+cd_check_derecha:
+        cmp al, DIR_DERECHA
+        jne cd_fin
+        mov mov_dx, VELOCIDAD
+
+cd_fin:
+        pop ax
+        ret
+        continuar_deslizamiento ENDP
+
+        actualizar_estado_superficie PROC
+        push ax
+        push bx
+        push dx
+
+        call obtener_tile_bajo_jugador
+        mov bl, al
+        cmp bl, TILE_HIELO
+        jne aes_no_hielo
+
+        mov ax, mov_dx
+        or ax, mov_dy
+        jne aes_deslizando
+
+        mov byte ptr [jugador_resbalando], 0
+        jmp aes_fin
+
+aes_deslizando:
+        mov byte ptr [jugador_resbalando], 1
+        jmp aes_fin
+
+aes_no_hielo:
+        mov byte ptr [jugador_resbalando], 0
+
+aes_fin:
+        pop dx
+        pop bx
+        pop ax
+        ret
+        actualizar_estado_superficie ENDP
+
+        obtener_tile_bajo_jugador PROC
+        push bx
+        push dx
+
+        mov ax, jugador_py
+        add ax, 7
+        shr ax, 4
+        mov dx, ax
+
+        mov ax, jugador_px
+        shr ax, 4
+        mov bx, ax
+
+        mov ax, dx
+        shl ax, 1
+        mov ax, [mul100_table + ax]
+        add ax, bx
+        mov al, [mapa_datos + ax]
+        xor ah, ah
+
+        pop dx
+        pop bx
+        ret
+        obtener_tile_bajo_jugador ENDP
 	
 	resolver_colisiones_y_mover PROC
 	push ax
@@ -1493,20 +1616,86 @@ cst_ok_estanque_aves:
 	mov bp, OFFSET sprite_estanque_aves_mask
 	call convertir_sprite_a_planar_opt
 	
-	mov dx, OFFSET archivo_totem_aves
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_totem_aves
-	jmp cst_error
+        mov dx, OFFSET archivo_totem_aves
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_totem_aves
+        jmp cst_error
 cst_ok_totem_aves:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_totem_aves
-	mov bp, OFFSET sprite_totem_aves_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_cristal
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_totem_aves
+        mov bp, OFFSET sprite_totem_aves_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_techo_izq
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_techo_izq
+        jmp cst_error
+cst_ok_casa_techo_izq:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_techo_izq
+        mov bp, OFFSET sprite_casa_techo_izq_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_techo_cen
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_techo_cen
+        jmp cst_error
+cst_ok_casa_techo_cen:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_techo_cen
+        mov bp, OFFSET sprite_casa_techo_cen_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_techo_der
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_techo_der
+        jmp cst_error
+cst_ok_casa_techo_der:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_techo_der
+        mov bp, OFFSET sprite_casa_techo_der_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_pared
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_pared
+        jmp cst_error
+cst_ok_casa_pared:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_pared
+        mov bp, OFFSET sprite_casa_pared_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_ventana
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_ventana
+        jmp cst_error
+cst_ok_casa_ventana:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_ventana
+        mov bp, OFFSET sprite_casa_ventana_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_puerta
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_puerta
+        jmp cst_error
+cst_ok_casa_puerta:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_puerta
+        mov bp, OFFSET sprite_casa_puerta_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_cristal
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
 	jnc cst_ok_cristal
 	jmp cst_error
 cst_ok_cristal:
@@ -1655,19 +1844,41 @@ caj_ok_der_a:
 	mov bp, OFFSET jugador_der_a_mask
 	call convertir_sprite_32x32_a_planar_opt
 	
-	mov dx, OFFSET archivo_player_der_b
-	mov di, OFFSET sprite_buffer_32
-	call cargar_sprite_32x32
-	jnc caj_ok_der_b
-	jmp caj_error
+        mov dx, OFFSET archivo_player_der_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_der_b
+        jmp caj_error
 caj_ok_der_b:
-	mov si, OFFSET sprite_buffer_32
-	mov di, OFFSET jugador_der_b
-	mov bp, OFFSET jugador_der_b_mask
-	call convertir_sprite_32x32_a_planar_opt
-	
-	clc
-	jmp caj_fin
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_der_b
+        mov bp, OFFSET jugador_der_b_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_hurt_a
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_hurt_a
+        jmp caj_error
+caj_ok_hurt_a:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_hurt_a
+        mov bp, OFFSET jugador_hurt_a_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_hurt_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_hurt_b
+        jmp caj_error
+caj_ok_hurt_b:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_hurt_b
+        mov bp, OFFSET jugador_hurt_b_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        clc
+        jmp caj_fin
 	
 caj_error:
 	stc
@@ -1827,7 +2038,7 @@ dmo_col:
 	mov bx, ax
 	mov al, [mapa_datos + bx]
 	
-	cmp al, 15
+        cmp al, TILE_CASA_PUERTA
 	ja dmo_next_col
 	push si
 	push bp
@@ -1968,18 +2179,60 @@ ost_cesped:
 	jmp ost_fin
 	
 ost_totem_aves:
-	cmp bl, TILE_TOTEM_AVES
-	jne ost_estanque_aves
-	mov di, OFFSET sprite_totem_aves
-	mov si, OFFSET sprite_totem_aves_mask
-	jmp ost_fin
-	
+        cmp bl, TILE_TOTEM_AVES
+        jne ost_estanque_aves
+        mov di, OFFSET sprite_totem_aves
+        mov si, OFFSET sprite_totem_aves_mask
+        jmp ost_fin
+
 ost_estanque_aves:
-	cmp bl, TILE_ESTANQUE_AVES
-	jne ost_fin
-	mov di, OFFSET sprite_estanque_aves
-	mov si, OFFSET sprite_estanque_aves_mask
-	
+        cmp bl, TILE_ESTANQUE_AVES
+        jne ost_casa_techo_izq
+        mov di, OFFSET sprite_estanque_aves
+        mov si, OFFSET sprite_estanque_aves_mask
+        jmp ost_fin
+
+ost_casa_techo_izq:
+        cmp bl, TILE_CASA_TECHO_IZQ
+        jne ost_casa_techo_cen
+        mov di, OFFSET sprite_casa_techo_izq
+        mov si, OFFSET sprite_casa_techo_izq_mask
+        jmp ost_fin
+
+ost_casa_techo_cen:
+        cmp bl, TILE_CASA_TECHO_CEN
+        jne ost_casa_techo_der
+        mov di, OFFSET sprite_casa_techo_cen
+        mov si, OFFSET sprite_casa_techo_cen_mask
+        jmp ost_fin
+
+ost_casa_techo_der:
+        cmp bl, TILE_CASA_TECHO_DER
+        jne ost_casa_pared
+        mov di, OFFSET sprite_casa_techo_der
+        mov si, OFFSET sprite_casa_techo_der_mask
+        jmp ost_fin
+
+ost_casa_pared:
+        cmp bl, TILE_CASA_PARED
+        jne ost_casa_ventana
+        mov di, OFFSET sprite_casa_pared
+        mov si, OFFSET sprite_casa_pared_mask
+        jmp ost_fin
+
+ost_casa_ventana:
+        cmp bl, TILE_CASA_VENTANA
+        jne ost_casa_puerta
+        mov di, OFFSET sprite_casa_ventana
+        mov si, OFFSET sprite_casa_ventana_mask
+        jmp ost_fin
+
+ost_casa_puerta:
+        cmp bl, TILE_CASA_PUERTA
+        jne ost_fin
+        mov di, OFFSET sprite_casa_puerta
+        mov si, OFFSET sprite_casa_puerta_mask
+
 ost_fin:
 	pop bx
 	pop ax
