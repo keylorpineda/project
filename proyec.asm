@@ -938,6 +938,7 @@ cd_fin:
         push ax
         push bx
         push dx
+        push si
 
         call obtener_tile_bajo_jugador
         mov bl, al
@@ -959,6 +960,7 @@ aes_no_hielo:
         mov byte ptr [jugador_resbalando], 0
 
 aes_fin:
+        pop si
         pop dx
         pop bx
         pop ax
@@ -969,6 +971,7 @@ aes_fin:
         push bx
         push cx
         push dx
+        push si
 
         mov ax, jugador_py
         add ax, 7
@@ -988,6 +991,7 @@ aes_fin:
         mov al, [mapa_datos + bx]
         xor ah, ah
 
+        pop si
         pop dx
         pop cx
         pop bx
