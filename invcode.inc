@@ -456,6 +456,26 @@ dsi_continuar:
     add ax, ZONA_ITEMS_Y
     mov dx, ax
 
+    mov bx, OFFSET inventario_slots
+    add bx, si
+    mov al, [bx]
+    mov bh, al
+
+    test al, al
+    jnz dsi_draw_slot_border
+
+    push cx
+    push dx
+    push si
+    mov ax, ITEM_SIZE
+    mov bx, ITEM_SIZE
+    mov si, COLOR_FONDO
+    call dibujar_rectangulo_lleno
+    pop si
+    pop dx
+    pop cx
+
+dsi_draw_slot_border:
     push cx
     push dx
     push si
@@ -478,13 +498,8 @@ dsi_continuar:
     pop dx
     pop cx
 
-    mov bx, OFFSET inventario_slots
-    add bx, si
-    mov al, [bx]
-    test al, al
+    test bh, bh
     jz dsi_next
-
-    mov bh, al
 
     push cx
     push dx
