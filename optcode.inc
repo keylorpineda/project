@@ -63,6 +63,8 @@ ilt_loop_video:
         je vtt_no_transitable
         cmp al, 14
         je vtt_no_transitable
+        cmp al, TILE_CASA_TECHO
+        je vtt_no_transitable
 	
 	pop dx
 	pop bx
@@ -76,9 +78,45 @@ vtt_no_transitable:
 	pop ax
 	clc
 	ret
-	verificar_tile_transitable_opt ENDP
-	
-	convertir_sprite_a_planar_opt PROC
+        verificar_tile_transitable_opt ENDP
+
+        configurar_propiedades_tiles PROC
+        push ax
+        push cx
+        push di
+
+        mov di, OFFSET tile_walkable
+        mov cx, 256
+        mov al, 1
+        rep stosb
+
+        mov di, OFFSET tile_damage
+        mov cx, 256
+        xor al, al
+        rep stosb
+
+        mov byte ptr [tile_walkable + TILE_LAVA], 0
+        mov byte ptr [tile_walkable + TILE_ROCA_BLOQUE], 0
+        mov byte ptr [tile_walkable + TILE_AGUA_CONGELADA], 0
+        mov byte ptr [tile_walkable + TILE_ROCA_NEVADA], 0
+        mov byte ptr [tile_walkable + TILE_AGUA_TOXICA], 0
+        mov byte ptr [tile_walkable + TILE_ARBOL_MUERTO], 0
+        mov byte ptr [tile_walkable + TILE_TOTEM_AVES], 0
+        mov byte ptr [tile_walkable + TILE_ESTANQUE_AVES], 0
+        mov byte ptr [tile_walkable + TILE_CASA_TECHO], 0
+
+        mov byte ptr [tile_damage + TILE_LAVA], TILE_FLAG_DANO_FUEGO
+        mov byte ptr [tile_damage + TILE_CENIZA], TILE_FLAG_DANO_FUEGO
+        mov byte ptr [tile_damage + TILE_LODO], TILE_FLAG_DANO_TOXICO
+        mov byte ptr [tile_damage + TILE_AGUA_TOXICA], TILE_FLAG_DANO_TOXICO
+
+        pop di
+        pop cx
+        pop ax
+        ret
+        configurar_propiedades_tiles ENDP
+
+        convertir_sprite_a_planar_opt PROC
 	push ax
 	push bx
 	push cx
@@ -490,6 +528,10 @@ csp32o_fin:
 	
         mov si, OFFSET sprite_totem_aves
         mov di, OFFSET sprite_totem_aves_mask
+        call calcular_mascara_16x16
+	
+        mov si, OFFSET sprite_casa_techo
+        mov di, OFFSET sprite_casa_techo_mask
         call calcular_mascara_16x16
 	
 	

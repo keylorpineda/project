@@ -12,9 +12,12 @@
 	TILE_AGUA_TOXICA EQU 9
 	TILE_TIERRA_MUERTA EQU 10
 	TILE_ARBOL_MUERTO EQU 11
-	TILE_CESPED EQU 12
-	TILE_TOTEM_AVES EQU 13
-	TILE_ESTANQUE_AVES EQU 14
+        TILE_CESPED EQU 12
+        TILE_TOTEM_AVES EQU 13
+        TILE_ESTANQUE_AVES EQU 14
+        TILE_CASA_TECHO EQU 15
+        TILE_FLAG_DANO_TOXICO EQU 1
+        TILE_FLAG_DANO_FUEGO EQU 2
 	TILE_SIZE EQU 16
 	VIDEO_SEG EQU 0A000h
 	VELOCIDAD EQU 4
@@ -39,8 +42,9 @@
 	archivo_tierra_muerta db 'SPRITES\SWMDEAD.TXT', 0
 	archivo_arbol_muerto db 'SPRITES\SWMTREE.TXT', 0
 	archivo_cesped db 'SPRITES\GRSCESP.TXT', 0
-	archivo_estanque_aves db 'SPRITES\GRSPOOL.TXT', 0
-	archivo_totem_aves db 'SPRITES\GRSTOTM.TXT', 0
+        archivo_estanque_aves db 'SPRITES\GRSPOOL.TXT', 0
+        archivo_totem_aves db 'SPRITES\GRSTOTM.TXT', 0
+        archivo_casa_techo db 'SPRITES\HOUSE_ROOF.TXT', 0
 	
 	archivo_player_up_a db 'SPRITES\PLAYER\UP1.TXT', 0
 	archivo_player_up_b db 'SPRITES\PLAYER\UP2.TXT', 0
@@ -48,8 +52,10 @@
 	archivo_player_down_b db 'SPRITES\PLAYER\DOWN2.TXT', 0
 	archivo_player_izq_a db 'SPRITES\PLAYER\LEFT1.TXT', 0
 	archivo_player_izq_b db 'SPRITES\PLAYER\LEFT2.TXT', 0
-	archivo_player_der_a db 'SPRITES\PLAYER\RIGHT1.TXT', 0
-	archivo_player_der_b db 'SPRITES\PLAYER\RIGHT2.TXT', 0
+        archivo_player_der_a db 'SPRITES\PLAYER\RIGHT1.TXT', 0
+        archivo_player_der_b db 'SPRITES\PLAYER\RIGHT2.TXT', 0
+        archivo_player_hurt_a db 'SPRITES\PLAYER\HURT1.TXT', 0
+        archivo_player_hurt_b db 'SPRITES\PLAYER\HURT2.TXT', 0
 	
 	mapa_datos db 10000 dup(0)
 	
@@ -69,8 +75,9 @@
 	sprite_tierra_muerta db 128 dup(0)
 	sprite_arbol_muerto db 128 dup(0)
 	sprite_cesped db 128 dup(0)
-	sprite_estanque_aves db 128 dup(0)
-	sprite_totem_aves db 128 dup(0)
+        sprite_estanque_aves db 128 dup(0)
+        sprite_totem_aves db 128 dup(0)
+        sprite_casa_techo db 128 dup(0)
 	
 	jugador_up_a db 512 dup(0)
 	jugador_up_b db 512 dup(0)
@@ -78,8 +85,10 @@
 	jugador_down_b db 512 dup(0)
 	jugador_izq_a db 512 dup(0)
 	jugador_izq_b db 512 dup(0)
-	jugador_der_a db 512 dup(0)
-	jugador_der_b db 512 dup(0)
+        jugador_der_a db 512 dup(0)
+        jugador_der_b db 512 dup(0)
+        jugador_hurt_a db 512 dup(0)
+        jugador_hurt_b db 512 dup(0)
 	
 	buffer_temp db 300 dup(0)
 	
@@ -495,9 +504,10 @@ anim_ok:
 	mov dx, OFFSET msg_convert
 	mov ah, 9
 	int 21h
-	call precalcular_mascaras_tiles
-	call precalcular_mascaras_jugador
-	mov dx, OFFSET msg_ok
+        call precalcular_mascaras_tiles
+        call precalcular_mascaras_jugador
+        call configurar_propiedades_tiles
+        mov dx, OFFSET msg_ok
 	mov ah, 9
 	int 21h
 	
@@ -1493,20 +1503,31 @@ cst_ok_estanque_aves:
 	mov bp, OFFSET sprite_estanque_aves_mask
 	call convertir_sprite_a_planar_opt
 	
-	mov dx, OFFSET archivo_totem_aves
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
-	jnc cst_ok_totem_aves
-	jmp cst_error
+        mov dx, OFFSET archivo_totem_aves
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_totem_aves
+        jmp cst_error
 cst_ok_totem_aves:
-	mov si, OFFSET sprite_buffer_16
-	mov di, OFFSET sprite_totem_aves
-	mov bp, OFFSET sprite_totem_aves_mask
-	call convertir_sprite_a_planar_opt
-	
-	mov dx, OFFSET archivo_cristal
-	mov di, OFFSET sprite_buffer_16
-	call cargar_sprite_16x16
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_totem_aves
+        mov bp, OFFSET sprite_totem_aves_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_casa_techo
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
+        jnc cst_ok_casa_techo
+        jmp cst_error
+cst_ok_casa_techo:
+        mov si, OFFSET sprite_buffer_16
+        mov di, OFFSET sprite_casa_techo
+        mov bp, OFFSET sprite_casa_techo_mask
+        call convertir_sprite_a_planar_opt
+
+        mov dx, OFFSET archivo_cristal
+        mov di, OFFSET sprite_buffer_16
+        call cargar_sprite_16x16
 	jnc cst_ok_cristal
 	jmp cst_error
 cst_ok_cristal:
@@ -1655,19 +1676,41 @@ caj_ok_der_a:
 	mov bp, OFFSET jugador_der_a_mask
 	call convertir_sprite_32x32_a_planar_opt
 	
-	mov dx, OFFSET archivo_player_der_b
-	mov di, OFFSET sprite_buffer_32
-	call cargar_sprite_32x32
-	jnc caj_ok_der_b
-	jmp caj_error
+        mov dx, OFFSET archivo_player_der_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_der_b
+        jmp caj_error
 caj_ok_der_b:
-	mov si, OFFSET sprite_buffer_32
-	mov di, OFFSET jugador_der_b
-	mov bp, OFFSET jugador_der_b_mask
-	call convertir_sprite_32x32_a_planar_opt
-	
-	clc
-	jmp caj_fin
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_der_b
+        mov bp, OFFSET jugador_der_b_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_hurt_a
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_hurt_a
+        jmp caj_error
+caj_ok_hurt_a:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_hurt_a
+        mov bp, OFFSET jugador_hurt_a_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_hurt_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_hurt_b
+        jmp caj_error
+caj_ok_hurt_b:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_hurt_b
+        mov bp, OFFSET jugador_hurt_b_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        clc
+        jmp caj_fin
 	
 caj_error:
 	stc
@@ -1827,7 +1870,7 @@ dmo_col:
 	mov bx, ax
 	mov al, [mapa_datos + bx]
 	
-	cmp al, 15
+        cmp al, TILE_CASA_TECHO
 	ja dmo_next_col
 	push si
 	push bp
@@ -1968,18 +2011,25 @@ ost_cesped:
 	jmp ost_fin
 	
 ost_totem_aves:
-	cmp bl, TILE_TOTEM_AVES
-	jne ost_estanque_aves
-	mov di, OFFSET sprite_totem_aves
-	mov si, OFFSET sprite_totem_aves_mask
-	jmp ost_fin
-	
+        cmp bl, TILE_TOTEM_AVES
+        jne ost_estanque_aves
+        mov di, OFFSET sprite_totem_aves
+        mov si, OFFSET sprite_totem_aves_mask
+        jmp ost_fin
+
 ost_estanque_aves:
-	cmp bl, TILE_ESTANQUE_AVES
-	jne ost_fin
-	mov di, OFFSET sprite_estanque_aves
-	mov si, OFFSET sprite_estanque_aves_mask
-	
+        cmp bl, TILE_ESTANQUE_AVES
+        jne ost_casa_techo
+        mov di, OFFSET sprite_estanque_aves
+        mov si, OFFSET sprite_estanque_aves_mask
+        jmp ost_fin
+
+ost_casa_techo:
+        cmp bl, TILE_CASA_TECHO
+        jne ost_fin
+        mov di, OFFSET sprite_casa_techo
+        mov si, OFFSET sprite_casa_techo_mask
+
 ost_fin:
 	pop bx
 	pop ax
