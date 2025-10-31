@@ -72,6 +72,8 @@
         archivo_player_izq_hurt_b db 'SPRITES\PLAYER\HURT_LEFT2.TXT', 0
         archivo_player_der_hurt_a db 'SPRITES\PLAYER\HURT_RIGHT1.TXT', 0
         archivo_player_der_hurt_b db 'SPRITES\PLAYER\HURT_RIGHT2.TXT', 0
+        archivo_player_hurt_a db 'SPRITES\PLAYER\HURT1.TXT', 0
+        archivo_player_hurt_b db 'SPRITES\PLAYER\HURT2.TXT', 0
 	
 	mapa_datos db 10000 dup(0)
 	
@@ -749,8 +751,10 @@ fin_juego:
 
         mov tecla_e_presionada, 0
         cmp jugador_resbalando, 0
-        je pmc_fin_movimiento
+        jne pmc_procesar_deslizamiento
+        jmp pmc_fin_movimiento
 
+pmc_procesar_deslizamiento:
         call continuar_deslizamiento
         mov moviendo, 1
         jmp pmc_fin_movimiento
@@ -965,6 +969,7 @@ aes_fin:
 
         obtener_tile_bajo_jugador PROC
         push bx
+        push cx
         push dx
 
         mov ax, jugador_py
@@ -974,16 +979,19 @@ aes_fin:
 
         mov ax, jugador_px
         shr ax, 4
-        mov bx, ax
+        mov cx, ax
 
         mov ax, dx
         shl ax, 1
-        mov ax, [mul100_table + ax]
-        add ax, bx
-        mov al, [mapa_datos + ax]
+        mov bx, ax
+        mov ax, [mul100_table + bx]
+        add ax, cx
+        mov bx, ax
+        mov al, [mapa_datos + bx]
         xor ah, ah
 
         pop dx
+        pop cx
         pop bx
         ret
         obtener_tile_bajo_jugador ENDP
@@ -1872,6 +1880,10 @@ caj_ok_der_b:
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
         jnc caj_ok_down_hurt_a
+        mov dx, OFFSET archivo_player_hurt_a
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_down_hurt_a
         jmp caj_error
 caj_ok_down_hurt_a:
         mov si, OFFSET sprite_buffer_32
@@ -1880,6 +1892,10 @@ caj_ok_down_hurt_a:
         call convertir_sprite_32x32_a_planar_opt
 
         mov dx, OFFSET archivo_player_down_hurt_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_down_hurt_b
+        mov dx, OFFSET archivo_player_hurt_b
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
         jnc caj_ok_down_hurt_b
@@ -1894,6 +1910,10 @@ caj_ok_down_hurt_b:
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
         jnc caj_ok_up_hurt_a
+        mov dx, OFFSET archivo_player_hurt_a
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_up_hurt_a
         jmp caj_error
 caj_ok_up_hurt_a:
         mov si, OFFSET sprite_buffer_32
@@ -1902,6 +1922,10 @@ caj_ok_up_hurt_a:
         call convertir_sprite_32x32_a_planar_opt
 
         mov dx, OFFSET archivo_player_up_hurt_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_up_hurt_b
+        mov dx, OFFSET archivo_player_hurt_b
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
         jnc caj_ok_up_hurt_b
@@ -1916,6 +1940,10 @@ caj_ok_up_hurt_b:
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
         jnc caj_ok_izq_hurt_a
+        mov dx, OFFSET archivo_player_hurt_a
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_izq_hurt_a
         jmp caj_error
 caj_ok_izq_hurt_a:
         mov si, OFFSET sprite_buffer_32
@@ -1924,6 +1952,10 @@ caj_ok_izq_hurt_a:
         call convertir_sprite_32x32_a_planar_opt
 
         mov dx, OFFSET archivo_player_izq_hurt_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_izq_hurt_b
+        mov dx, OFFSET archivo_player_hurt_b
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
         jnc caj_ok_izq_hurt_b
@@ -1938,6 +1970,10 @@ caj_ok_izq_hurt_b:
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
         jnc caj_ok_der_hurt_a
+        mov dx, OFFSET archivo_player_hurt_a
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_der_hurt_a
         jmp caj_error
 caj_ok_der_hurt_a:
         mov si, OFFSET sprite_buffer_32
@@ -1946,6 +1982,10 @@ caj_ok_der_hurt_a:
         call convertir_sprite_32x32_a_planar_opt
 
         mov dx, OFFSET archivo_player_der_hurt_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_der_hurt_b
+        mov dx, OFFSET archivo_player_hurt_b
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
         jnc caj_ok_der_hurt_b
