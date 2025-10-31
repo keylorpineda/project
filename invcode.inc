@@ -1,7 +1,6 @@
-HUD_HEART_X       EQU 230
-HUD_HEART_Y       EQU 282
-HUD_HEART_SPACING EQU 20
 HUD_HEART_MARGIN  EQU 8
+HUD_HEART_X       EQU HUD_HEART_MARGIN
+HUD_HEART_Y       EQU HUD_HEART_MARGIN
 HUD_HEART_SPACING EQU 20
 HUD_HOTBAR_SLOTS  EQU 8
 HUD_HOTBAR_X      EQU 128
@@ -1413,77 +1412,51 @@ dibujar_hud_corazones PROC
     push di
     push bp
 
-
-    mov bl, jugador_vida_max
-    xor bh, bh
-
-
     xor si, si
 
-dhc_loop:
-
+dhc_loop_hearts:
+    mov bl, jugador_vida_max
+    xor bh, bh
     cmp si, bx
-    jae dhc_fin
+    jb dhc_continue
+    jmp dhc_fin
 
+dhc_continue:
+    mov ax, si
+    mov bx, HUD_HEART_SPACING
+    mul bx
+    add ax, HUD_HEART_X
+    mov cx, ax
 
-    ; --- INICIO DE CÓDIGO CORREGIDO ---
-    
-    ; Calcular X basado en viewport_x
-    mov ax, si                     ; ax = índice del corazón (0-8)
-    mov dx, HUD_HEART_SPACING      ; usar la constante de espaciado (20)
-    mul dx
-    add ax, viewport_x             ; origen horizontal del viewport
-    add ax, HUD_HEART_MARGIN       ; margen desde el borde
-    mov cx, ax                     ; cx = coordenada X final
-
-    ; Calcular Y para ubicar los corazones sobre el viewport
-    mov ax, viewport_y             ; posición vertical del viewport
-    mov dx, HUD_HEART_MARGIN + TILE_SIZE ; margen + altura del corazón (16)
-    cmp ax, dx
-    jb dhc_y_min                   ; si el viewport está cerca del borde superior, usar mínimo
-    sub ax, dx                     ; restar margen y alto del sprite
-    jmp dhc_y_set
-
-dhc_y_min:
-    mov ax, HUD_HEART_MARGIN       ; coloca los corazones pegados al borde superior
-
-dhc_y_set:
-    mov dx, ax                     ; dx = coordenada Y final
-
-    ; --- FIN DE CÓDIGO CORREGIDO ---
-
+    mov dx, HUD_HEART_Y
 
     push si
 
-
     mov al, byte ptr jugador_vida_actual
     xor ah, ah
-    pop bp
-    push bp
-
-    cmp bp, ax
-    jae dhc_empty
-
-
-    mov di, OFFSET sprite_heart_full
-    mov si, OFFSET sprite_heart_full_mask
-    jmp dhc_draw
-
-dhc_empty:
-
+    cmp si, ax
+    jb dhc_draw_full
+    
     mov di, OFFSET sprite_heart_empty
     mov si, OFFSET sprite_heart_empty_mask
+    jmp dhc_draw
+
+dhc_draw_full:
+    mov di, OFFSET sprite_heart_full
+    mov si, OFFSET sprite_heart_full_mask
 
 dhc_draw:
-
+    ;--- ESTA ES LA CORRECCION ---
+    push bx
     call dibujar_sprite_planar_16x16_opt
-
-
+    pop bx
+    ;--- FIN DE LA CORRECCION ---
+    
     pop si
 
-
+dhc_next_heart:
     inc si
-    jmp dhc_loop
+    jmp dhc_loop_hearts
 
 dhc_fin:
     pop bp

@@ -1,20 +1,20 @@
 	.MODEL SMALL
 	.STACK 2048
-        TILE_ROCA_VOLCANICA EQU 0
-        TILE_LAVA EQU 1
-        TILE_CENIZA EQU 2
-        TILE_ROCA_BLOQUE EQU 3
-        TILE_NIEVE EQU 4
-        TILE_HIELO EQU 5
-        TILE_AGUA_CONGELADA EQU 6
-        TILE_ROCA_NEVADA EQU 7
-        TILE_LODO EQU 8
-        TILE_AGUA_TOXICA EQU 9
-        TILE_TIERRA_MUERTA EQU 10
-        TILE_ARBOL_MUERTO EQU 11
-        TILE_CESPED EQU 12
-        TILE_TOTEM_AVES EQU 13
-        TILE_ESTANQUE_AVES EQU 14
+	TILE_ROCA_VOLCANICA EQU 0
+	TILE_LAVA EQU 1
+	TILE_CENIZA EQU 2
+	TILE_ROCA_BLOQUE EQU 3
+	TILE_NIEVE EQU 4
+	TILE_HIELO EQU 5
+	TILE_AGUA_CONGELADA EQU 6
+	TILE_ROCA_NEVADA EQU 7
+	TILE_LODO EQU 8
+	TILE_AGUA_TOXICA EQU 9
+	TILE_TIERRA_MUERTA EQU 10
+	TILE_ARBOL_MUERTO EQU 11
+	TILE_CESPED EQU 12
+	TILE_TOTEM_AVES EQU 13
+	TILE_ESTANQUE_AVES EQU 14
 	TILE_SIZE EQU 16
 	VIDEO_SEG EQU 0A000h
 	VELOCIDAD EQU 4
@@ -26,21 +26,21 @@
 	
 	.DATA
 	archivo_mapa db 'MAPA.TXT', 0
-        archivo_roca_volcanica db 'SPRITES\VOLCROC.TXT', 0
-        archivo_lava db 'SPRITES\VOLCLAV.TXT', 0
-        archivo_ceniza db 'SPRITES\VOLCASH.TXT', 0
-        archivo_roca_bloque db 'SPRITES\VOLCROB.TXT', 0
-        archivo_nieve db 'SPRITES\TUNSNOW.TXT', 0
-        archivo_hielo db 'SPRITES\TUNICE.TXT', 0
-        archivo_agua_congelada db 'SPRITES\TUNWATR.TXT', 0
-        archivo_roca_nevada db 'SPRITES\TUNROCK.TXT', 0
-        archivo_lodo db 'SPRITES\SWMLODO.TXT', 0
-        archivo_agua_toxica db 'SPRITES\SWMWATR.TXT', 0
-        archivo_tierra_muerta db 'SPRITES\SWMDEAD.TXT', 0
-        archivo_arbol_muerto db 'SPRITES\SWMTREE.TXT', 0
-        archivo_cesped db 'SPRITES\GRSCESP.TXT', 0
-        archivo_estanque_aves db 'SPRITES\GRSPOOL.TXT', 0
-        archivo_totem_aves db 'SPRITES\GRSTOTM.TXT', 0
+	archivo_roca_volcanica db 'SPRITES\VOLCROC.TXT', 0
+	archivo_lava db 'SPRITES\VOLCLAV.TXT', 0
+	archivo_ceniza db 'SPRITES\VOLCASH.TXT', 0
+	archivo_roca_bloque db 'SPRITES\VOLCROB.TXT', 0
+	archivo_nieve db 'SPRITES\TUNSNOW.TXT', 0
+	archivo_hielo db 'SPRITES\TUNICE.TXT', 0
+	archivo_agua_congelada db 'SPRITES\TUNWATR.TXT', 0
+	archivo_roca_nevada db 'SPRITES\TUNROCK.TXT', 0
+	archivo_lodo db 'SPRITES\SWMLODO.TXT', 0
+	archivo_agua_toxica db 'SPRITES\SWMWATR.TXT', 0
+	archivo_tierra_muerta db 'SPRITES\SWMDEAD.TXT', 0
+	archivo_arbol_muerto db 'SPRITES\SWMTREE.TXT', 0
+	archivo_cesped db 'SPRITES\GRSCESP.TXT', 0
+	archivo_estanque_aves db 'SPRITES\GRSPOOL.TXT', 0
+	archivo_totem_aves db 'SPRITES\GRSTOTM.TXT', 0
 	
 	archivo_player_up_a db 'SPRITES\PLAYER\UP1.TXT', 0
 	archivo_player_up_b db 'SPRITES\PLAYER\UP2.TXT', 0
@@ -56,21 +56,21 @@
 	sprite_buffer_16 db 256 dup(0)
 	sprite_buffer_32 db 1024 dup(0)
 	
-        sprite_roca_volcanica db 128 dup(0)
-        sprite_lava db 128 dup(0)
-        sprite_ceniza db 128 dup(0)
-        sprite_roca_bloque db 128 dup(0)
-        sprite_nieve db 128 dup(0)
-        sprite_hielo db 128 dup(0)
-        sprite_agua_congelada db 128 dup(0)
-        sprite_roca_nevada db 128 dup(0)
-        sprite_lodo db 128 dup(0)
-        sprite_agua_toxica db 128 dup(0)
-        sprite_tierra_muerta db 128 dup(0)
-        sprite_arbol_muerto db 128 dup(0)
-        sprite_cesped db 128 dup(0)
-        sprite_estanque_aves db 128 dup(0)
-        sprite_totem_aves db 128 dup(0)
+	sprite_roca_volcanica db 128 dup(0)
+	sprite_lava db 128 dup(0)
+	sprite_ceniza db 128 dup(0)
+	sprite_roca_bloque db 128 dup(0)
+	sprite_nieve db 128 dup(0)
+	sprite_hielo db 128 dup(0)
+	sprite_agua_congelada db 128 dup(0)
+	sprite_roca_nevada db 128 dup(0)
+	sprite_lodo db 128 dup(0)
+	sprite_agua_toxica db 128 dup(0)
+	sprite_tierra_muerta db 128 dup(0)
+	sprite_arbol_muerto db 128 dup(0)
+	sprite_cesped db 128 dup(0)
+	sprite_estanque_aves db 128 dup(0)
+	sprite_totem_aves db 128 dup(0)
 	
 	jugador_up_a db 512 dup(0)
 	jugador_up_b db 512 dup(0)
@@ -693,345 +693,345 @@ fin_juego:
 	ret
 	inicializar_paleta_ega ENDP
 	
-procesar_movimiento_continuo PROC
-		push ax
-		push bx
-		push cx
-		push dx
-		
-		mov mov_dx, 0
-		mov mov_dy, 0
-		mov moviendo, 0
-
-		mov ah, 1
-		int 16h
-		jnz pmc_tiene_tecla
-		
-		mov tecla_e_presionada, 0
-		jmp pmc_fin_movimiento
-		
-	pmc_tiene_tecla:
-		mov ah, 0
-		int 16h
-		
-		cmp ah, 01h
-		jne pmc_check_ascii
-		jmp pmc_salir
-		
-	pmc_check_ascii:
-		cmp al, 27
-		jne pmc_continuar
-		jmp pmc_salir
-		
-	pmc_continuar:
-		mov bl, al
-		test bl, bl
-		jz pmc_usar_scan
-		mov al, bl
-		jmp pmc_normalizar
-		
-	pmc_usar_scan:
-		mov al, bh
-		
-	pmc_normalizar:
-		cmp al, 'a'
-		jb pmc_verificar
-		cmp al, 'z'
-		ja pmc_verificar
-		and al, 5Fh
-		
-	pmc_verificar:
-		cmp al, 'E'
-		jne pmc_verificar_movimiento
-		cmp tecla_e_presionada, 1
-		jne pmc_toggle_e
-		jmp pmc_fin_sin_mov
-		
-	pmc_toggle_e:
-		mov tecla_e_presionada, 1
-		xor inventario_abierto, 1
-		mov requiere_redibujar, 2
-		jmp pmc_fin_sin_mov
-		
-	pmc_verificar_movimiento:
-		cmp inventario_abierto, 1
-		jne pmc_verificar_teclas
-		jmp pmc_fin_sin_mov
-		
-	pmc_verificar_teclas:
-		cmp al, '1'
-		jb pmc_check_w_keys
-		cmp al, '8'
-		ja pmc_check_w_keys
-		
-		sub al, '1'
-		mov hud_slot_seleccionado, al
-		mov requiere_redibujar, 2
-		jmp pmc_fin_sin_mov
-		
-	pmc_check_w_keys:
-		cmp al, 48h
-		jne pmc_check_w
-		mov mov_dy, -VELOCIDAD
-		mov jugador_dir, DIR_ARRIBA
-		mov moviendo, 1
-		
-	pmc_check_w:
-		cmp al, 'W'
-		jne pmc_check_down
-		mov mov_dy, -VELOCIDAD
-		mov jugador_dir, DIR_ARRIBA
-		mov moviendo, 1
-		
-	pmc_check_down:
-		cmp al, 50h
-		jne pmc_check_s
-		mov mov_dy, VELOCIDAD
-		mov jugador_dir, DIR_ABAJO
-		mov moviendo, 1
-		
-	pmc_check_s:
-		cmp al, 'S'
-		jne pmc_check_left
-		mov mov_dy, VELOCIDAD
-		mov jugador_dir, DIR_ABAJO
-		mov moviendo, 1
-		
-	pmc_check_left:
-		cmp al, 4Bh
-		jne pmc_check_a
-		mov mov_dx, -VELOCIDAD
-		mov jugador_dir, DIR_IZQUIERDA
-		mov moviendo, 1
-		
-	pmc_check_a:
-		cmp al, 'A'
-		jne pmc_check_right
-		mov mov_dx, -VELOCIDAD
-		mov jugador_dir, DIR_IZQUIERDA
-		mov moviendo, 1
-		
-	pmc_check_right:
-		cmp al, 4Dh
-		jne pmc_check_d
-		mov mov_dx, VELOCIDAD
-		mov jugador_dir, DIR_DERECHA
-		mov moviendo, 1
-		
-	pmc_check_d:
-		cmp al, 'D'
-		jne pmc_default
-		mov mov_dx, VELOCIDAD
-		mov jugador_dir, DIR_DERECHA
-		mov moviendo, 1
-		
-	pmc_default:
-		cmp moviendo, 1
-		jne pmc_fin_sin_mov
+	procesar_movimiento_continuo PROC
+	push ax
+	push bx
+	push cx
+	push dx
 	
-	pmc_fin_movimiento:
-		cmp moviendo, 1
-		jne pmc_fin_sin_mov
-		call resolver_colisiones_y_mover
-		
-	pmc_fin_sin_mov:
-		pop dx
-		pop cx
-		pop bx
-		pop ax
-		ret
-		
-	pmc_salir:
-		pop dx
-		pop cx
-		pop bx
-		pop ax
-		mov ax, 3
-		int 10h
-		mov ax, 4C00h
-		int 21h
+	mov mov_dx, 0
+	mov mov_dy, 0
+	mov moviendo, 0
+	
+	mov ah, 1
+	int 16h
+	jnz pmc_tiene_tecla
+	
+	mov tecla_e_presionada, 0
+	jmp pmc_fin_movimiento
+	
+pmc_tiene_tecla:
+	mov ah, 0
+	int 16h
+	
+	cmp ah, 01h
+	jne pmc_check_ascii
+	jmp pmc_salir
+	
+pmc_check_ascii:
+	cmp al, 27
+	jne pmc_continuar
+	jmp pmc_salir
+	
+pmc_continuar:
+	mov bl, al
+	test bl, bl
+	jz pmc_usar_scan
+	mov al, bl
+	jmp pmc_normalizar
+	
+pmc_usar_scan:
+	mov al, bh
+	
+pmc_normalizar:
+	cmp al, 'a'
+	jb pmc_verificar
+	cmp al, 'z'
+	ja pmc_verificar
+	and al, 5Fh
+	
+pmc_verificar:
+	cmp al, 'E'
+	jne pmc_verificar_movimiento
+	cmp tecla_e_presionada, 1
+	jne pmc_toggle_e
+	jmp pmc_fin_sin_mov
+	
+pmc_toggle_e:
+	mov tecla_e_presionada, 1
+	xor inventario_abierto, 1
+	mov requiere_redibujar, 2
+	jmp pmc_fin_sin_mov
+	
+pmc_verificar_movimiento:
+	cmp inventario_abierto, 1
+	jne pmc_verificar_teclas
+	jmp pmc_fin_sin_mov
+	
+pmc_verificar_teclas:
+	cmp al, '1'
+	jb pmc_check_w_keys
+	cmp al, '8'
+	ja pmc_check_w_keys
+	
+	sub al, '1'
+	mov hud_slot_seleccionado, al
+	mov requiere_redibujar, 2
+	jmp pmc_fin_sin_mov
+	
+pmc_check_w_keys:
+	cmp al, 48h
+	jne pmc_check_w
+	mov mov_dy, - VELOCIDAD
+	mov jugador_dir, DIR_ARRIBA
+	mov moviendo, 1
+	
+pmc_check_w:
+	cmp al, 'W'
+	jne pmc_check_down
+	mov mov_dy, - VELOCIDAD
+	mov jugador_dir, DIR_ARRIBA
+	mov moviendo, 1
+	
+pmc_check_down:
+	cmp al, 50h
+	jne pmc_check_s
+	mov mov_dy, VELOCIDAD
+	mov jugador_dir, DIR_ABAJO
+	mov moviendo, 1
+	
+pmc_check_s:
+	cmp al, 'S'
+	jne pmc_check_left
+	mov mov_dy, VELOCIDAD
+	mov jugador_dir, DIR_ABAJO
+	mov moviendo, 1
+	
+pmc_check_left:
+	cmp al, 4Bh
+	jne pmc_check_a
+	mov mov_dx, - VELOCIDAD
+	mov jugador_dir, DIR_IZQUIERDA
+	mov moviendo, 1
+	
+pmc_check_a:
+	cmp al, 'A'
+	jne pmc_check_right
+	mov mov_dx, - VELOCIDAD
+	mov jugador_dir, DIR_IZQUIERDA
+	mov moviendo, 1
+	
+pmc_check_right:
+	cmp al, 4Dh
+	jne pmc_check_d
+	mov mov_dx, VELOCIDAD
+	mov jugador_dir, DIR_DERECHA
+	mov moviendo, 1
+	
+pmc_check_d:
+	cmp al, 'D'
+	jne pmc_default
+	mov mov_dx, VELOCIDAD
+	mov jugador_dir, DIR_DERECHA
+	mov moviendo, 1
+	
+pmc_default:
+	cmp moviendo, 1
+	jne pmc_fin_sin_mov
+	
+pmc_fin_movimiento:
+	cmp moviendo, 1
+	jne pmc_fin_sin_mov
+	call resolver_colisiones_y_mover
+	
+pmc_fin_sin_mov:
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+	
+pmc_salir:
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	mov ax, 3
+	int 10h
+	mov ax, 4C00h
+	int 21h
 	procesar_movimiento_continuo ENDP
-
+	
 	resolver_colisiones_y_mover PROC
-		push ax
-		push bx
-		push cx
-		push dx
-		push si
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
 	
-		mov ax, mov_dx
-		test ax, ax
-                jnz rcm_procesar_x
-                jmp rcm_fase_y
-
-        rcm_procesar_x:
+	mov ax, mov_dx
+	test ax, ax
+	jnz rcm_procesar_x
+	jmp rcm_fase_y
 	
-		mov bx, jugador_px
-		add bx, ax
-		
-		cmp ax, 0
-		jg rcm_x_derecha
+rcm_procesar_x:
 	
-	rcm_x_izquierda:
-		mov ax, bx
-		sub ax, 8
-		shr ax, 4
-		mov col_tile_x, ax
-		
-		mov si, jugador_py
-		sub si, 8
-		shr si, 4
-		mov cx, jugador_py
-		add cx, 7
-		shr cx, 4
-		jmp rcm_x_loop
-		
-	rcm_x_derecha:
-		mov ax, bx
-		add ax, 7
-		shr ax, 4
-		mov col_tile_x, ax
-		
-		mov si, jugador_py
-		sub si, 8
-		shr si, 4
-		mov cx, jugador_py
-		add cx, 7
-		shr cx, 4
-		jmp rcm_x_loop
+	mov bx, jugador_px
+	add bx, ax
 	
-	rcm_x_loop:
-		cmp si, cx
-		jg rcm_x_sin_colision
-		
-		push cx
-		mov dx, si
-		mov cx, col_tile_x
-		call verificar_tile_transitable
-		pop cx
-		
-                jc rcm_x_no_colision
-                jmp rcm_x_colision
-
-        rcm_x_no_colision:
-                inc si
-                jmp rcm_x_loop
-
-        rcm_x_colision:
-		mov ax, col_tile_x
-		shl ax, 4
-		
-		cmp [mov_dx], 0
-		jg rcm_x_snap_der
-		
-	rcm_x_snap_izq:
-		add ax, 24
-		mov jugador_px, ax
-		jmp rcm_x_col_fin
-		
-	rcm_x_snap_der:
-		sub ax, 8
-		mov jugador_px, ax
+	cmp ax, 0
+	jg rcm_x_derecha
 	
-	rcm_x_col_fin:
-		mov mov_dx, 0
-		jmp rcm_fase_y
+rcm_x_izquierda:
+	mov ax, bx
+	sub ax, 8
+	shr ax, 4
+	mov col_tile_x, ax
 	
-	rcm_x_sin_colision:
-		mov jugador_px, bx
+	mov si, jugador_py
+	sub si, 8
+	shr si, 4
+	mov cx, jugador_py
+	add cx, 7
+	shr cx, 4
+	jmp rcm_x_loop
 	
-	rcm_fase_y:
-		mov ax, mov_dy
-		test ax, ax
-                jnz rcm_procesar_y
-                jmp rcm_fin
-
-        rcm_procesar_y:
+rcm_x_derecha:
+	mov ax, bx
+	add ax, 7
+	shr ax, 4
+	mov col_tile_x, ax
 	
-		mov bx, jugador_py
-		add bx, ax
-		
-		cmp ax, 0
-		jg rcm_y_abajo
+	mov si, jugador_py
+	sub si, 8
+	shr si, 4
+	mov cx, jugador_py
+	add cx, 7
+	shr cx, 4
+	jmp rcm_x_loop
 	
-	rcm_y_arriba:
-		mov ax, bx
-		sub ax, 8
-		shr ax, 4
-		mov col_tile_y, ax
-		
-		mov si, jugador_px
-		sub si, 8
-		shr si, 4
-		mov cx, jugador_px
-		add cx, 7
-		shr cx, 4
-		jmp rcm_y_loop
-		
-	rcm_y_abajo:
-		mov ax, bx
-		add ax, 7
-		shr ax, 4
-		mov col_tile_y, ax
-		
-		mov si, jugador_px
-		sub si, 8
-		shr si, 4
-		mov cx, jugador_px
-		add cx, 7
-		shr cx, 4
-		jmp rcm_y_loop
+rcm_x_loop:
+	cmp si, cx
+	jg rcm_x_sin_colision
 	
-	rcm_y_loop:
-		cmp si, cx
-		jg rcm_y_sin_colision
-		
-		push cx
-		mov dx, col_tile_y
-		mov cx, si
-		call verificar_tile_transitable
-		pop cx
-		
-                jc rcm_y_no_colision
-                jmp rcm_y_colision
-
-        rcm_y_no_colision:
-                inc si
-                jmp rcm_y_loop
-
-        rcm_y_colision:
-		mov ax, col_tile_y
-		shl ax, 4
-		
-		cmp [mov_dy], 0
-		jg rcm_y_snap_abajo
-		
-	rcm_y_snap_arriba:
-		add ax, 24
-		mov jugador_py, ax
-		jmp rcm_y_col_fin
-		
-	rcm_y_snap_abajo:
-		sub ax, 8
-		mov jugador_py, ax
-		
-	rcm_y_col_fin:
-		mov mov_dy, 0
-		jmp rcm_fin
+	push cx
+	mov dx, si
+	mov cx, col_tile_x
+	call verificar_tile_transitable
+	pop cx
 	
-	rcm_y_sin_colision:
-		mov jugador_py, bx
+	jc rcm_x_no_colision
+	jmp rcm_x_colision
 	
-	rcm_fin:
-		pop si
-		pop dx
-		pop cx
-		pop bx
-		pop ax
-		ret
+rcm_x_no_colision:
+	inc si
+	jmp rcm_x_loop
+	
+rcm_x_colision:
+	mov ax, col_tile_x
+	shl ax, 4
+	
+	cmp [mov_dx], 0
+	jg rcm_x_snap_der
+	
+rcm_x_snap_izq:
+	add ax, 24
+	mov jugador_px, ax
+	jmp rcm_x_col_fin
+	
+rcm_x_snap_der:
+	sub ax, 8
+	mov jugador_px, ax
+	
+rcm_x_col_fin:
+	mov mov_dx, 0
+	jmp rcm_fase_y
+	
+rcm_x_sin_colision:
+	mov jugador_px, bx
+	
+rcm_fase_y:
+	mov ax, mov_dy
+	test ax, ax
+	jnz rcm_procesar_y
+	jmp rcm_fin
+	
+rcm_procesar_y:
+	
+	mov bx, jugador_py
+	add bx, ax
+	
+	cmp ax, 0
+	jg rcm_y_abajo
+	
+rcm_y_arriba:
+	mov ax, bx
+	sub ax, 8
+	shr ax, 4
+	mov col_tile_y, ax
+	
+	mov si, jugador_px
+	sub si, 8
+	shr si, 4
+	mov cx, jugador_px
+	add cx, 7
+	shr cx, 4
+	jmp rcm_y_loop
+	
+rcm_y_abajo:
+	mov ax, bx
+	add ax, 7
+	shr ax, 4
+	mov col_tile_y, ax
+	
+	mov si, jugador_px
+	sub si, 8
+	shr si, 4
+	mov cx, jugador_px
+	add cx, 7
+	shr cx, 4
+	jmp rcm_y_loop
+	
+rcm_y_loop:
+	cmp si, cx
+	jg rcm_y_sin_colision
+	
+	push cx
+	mov dx, col_tile_y
+	mov cx, si
+	call verificar_tile_transitable
+	pop cx
+	
+	jc rcm_y_no_colision
+	jmp rcm_y_colision
+	
+rcm_y_no_colision:
+	inc si
+	jmp rcm_y_loop
+	
+rcm_y_colision:
+	mov ax, col_tile_y
+	shl ax, 4
+	
+	cmp [mov_dy], 0
+	jg rcm_y_snap_abajo
+	
+rcm_y_snap_arriba:
+	add ax, 24
+	mov jugador_py, ax
+	jmp rcm_y_col_fin
+	
+rcm_y_snap_abajo:
+	sub ax, 8
+	mov jugador_py, ax
+	
+rcm_y_col_fin:
+	mov mov_dy, 0
+	jmp rcm_fin
+	
+rcm_y_sin_colision:
+	mov jugador_py, bx
+	
+rcm_fin:
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
 	resolver_colisiones_y_mover ENDP
-
-cargar_sprites_menu PROC
+	
+	cargar_sprites_menu PROC
 	push dx
 	push di
 	push si
@@ -1339,172 +1339,172 @@ cc_y_ok:
 	push si
 	push bp
 	
-        mov dx, OFFSET archivo_roca_volcanica
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_roca_volcanica
-        jmp cst_error
+	mov dx, OFFSET archivo_roca_volcanica
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_roca_volcanica
+	jmp cst_error
 cst_ok_roca_volcanica:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_roca_volcanica
-        mov bp, OFFSET sprite_roca_volcanica_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_lava
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_lava
-        jmp cst_error
-cst_ok_lava:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_lava
-        mov bp, OFFSET sprite_lava_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_ceniza
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_ceniza
-        jmp cst_error
-cst_ok_ceniza:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_ceniza
-        mov bp, OFFSET sprite_ceniza_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_roca_bloque
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_roca_bloque
-        jmp cst_error
-cst_ok_roca_bloque:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_roca_bloque
-        mov bp, OFFSET sprite_roca_bloque_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_nieve
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_nieve
-        jmp cst_error
-cst_ok_nieve:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_nieve
-        mov bp, OFFSET sprite_nieve_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_hielo
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_hielo
-        jmp cst_error
-cst_ok_hielo:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_hielo
-        mov bp, OFFSET sprite_hielo_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_agua_congelada
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_agua_congelada
-        jmp cst_error
-cst_ok_agua_congelada:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_agua_congelada
-        mov bp, OFFSET sprite_agua_congelada_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_roca_nevada
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_roca_nevada
-        jmp cst_error
-cst_ok_roca_nevada:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_roca_nevada
-        mov bp, OFFSET sprite_roca_nevada_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_lodo
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_lodo
-        jmp cst_error
-cst_ok_lodo:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_lodo
-        mov bp, OFFSET sprite_lodo_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_agua_toxica
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_agua_toxica
-        jmp cst_error
-cst_ok_agua_toxica:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_agua_toxica
-        mov bp, OFFSET sprite_agua_toxica_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_tierra_muerta
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_tierra_muerta
-        jmp cst_error
-cst_ok_tierra_muerta:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_tierra_muerta
-        mov bp, OFFSET sprite_tierra_muerta_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_arbol_muerto
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_arbol_muerto
-        jmp cst_error
-cst_ok_arbol_muerto:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_arbol_muerto
-        mov bp, OFFSET sprite_arbol_muerto_mask
-        call convertir_sprite_a_planar_opt
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_roca_volcanica
+	mov bp, OFFSET sprite_roca_volcanica_mask
+	call convertir_sprite_a_planar_opt
 	
-        mov dx, OFFSET archivo_cesped
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_cesped
-        jmp cst_error
+	mov dx, OFFSET archivo_lava
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_lava
+	jmp cst_error
+cst_ok_lava:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_lava
+	mov bp, OFFSET sprite_lava_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_ceniza
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_ceniza
+	jmp cst_error
+cst_ok_ceniza:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_ceniza
+	mov bp, OFFSET sprite_ceniza_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_roca_bloque
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_roca_bloque
+	jmp cst_error
+cst_ok_roca_bloque:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_roca_bloque
+	mov bp, OFFSET sprite_roca_bloque_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_nieve
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_nieve
+	jmp cst_error
+cst_ok_nieve:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_nieve
+	mov bp, OFFSET sprite_nieve_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_hielo
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_hielo
+	jmp cst_error
+cst_ok_hielo:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_hielo
+	mov bp, OFFSET sprite_hielo_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_agua_congelada
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_agua_congelada
+	jmp cst_error
+cst_ok_agua_congelada:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_agua_congelada
+	mov bp, OFFSET sprite_agua_congelada_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_roca_nevada
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_roca_nevada
+	jmp cst_error
+cst_ok_roca_nevada:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_roca_nevada
+	mov bp, OFFSET sprite_roca_nevada_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_lodo
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_lodo
+	jmp cst_error
+cst_ok_lodo:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_lodo
+	mov bp, OFFSET sprite_lodo_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_agua_toxica
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_agua_toxica
+	jmp cst_error
+cst_ok_agua_toxica:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_agua_toxica
+	mov bp, OFFSET sprite_agua_toxica_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_tierra_muerta
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_tierra_muerta
+	jmp cst_error
+cst_ok_tierra_muerta:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_tierra_muerta
+	mov bp, OFFSET sprite_tierra_muerta_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_arbol_muerto
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_arbol_muerto
+	jmp cst_error
+cst_ok_arbol_muerto:
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_arbol_muerto
+	mov bp, OFFSET sprite_arbol_muerto_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_cesped
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_cesped
+	jmp cst_error
 cst_ok_cesped:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_cesped
-        mov bp, OFFSET sprite_cesped_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_estanque_aves
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_estanque_aves
-        jmp cst_error
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_cesped
+	mov bp, OFFSET sprite_cesped_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_estanque_aves
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_estanque_aves
+	jmp cst_error
 cst_ok_estanque_aves:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_estanque_aves
-        mov bp, OFFSET sprite_estanque_aves_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_totem_aves
-        mov di, OFFSET sprite_buffer_16
-        call cargar_sprite_16x16
-        jnc cst_ok_totem_aves
-        jmp cst_error
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_estanque_aves
+	mov bp, OFFSET sprite_estanque_aves_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_totem_aves
+	mov di, OFFSET sprite_buffer_16
+	call cargar_sprite_16x16
+	jnc cst_ok_totem_aves
+	jmp cst_error
 cst_ok_totem_aves:
-        mov si, OFFSET sprite_buffer_16
-        mov di, OFFSET sprite_totem_aves
-        mov bp, OFFSET sprite_totem_aves_mask
-        call convertir_sprite_a_planar_opt
-
-        mov dx, OFFSET archivo_cristal
+	mov si, OFFSET sprite_buffer_16
+	mov di, OFFSET sprite_totem_aves
+	mov bp, OFFSET sprite_totem_aves_mask
+	call convertir_sprite_a_planar_opt
+	
+	mov dx, OFFSET archivo_cristal
 	mov di, OFFSET sprite_buffer_16
 	call cargar_sprite_16x16
 	jnc cst_ok_cristal
@@ -1881,104 +1881,104 @@ dmo_fin:
 	mov bl, al
 	
 	
-        mov di, OFFSET sprite_roca_volcanica
-        mov si, OFFSET sprite_roca_volcanica_mask
-
-        cmp bl, TILE_LAVA
-        jne ost_ceniza
-        mov di, OFFSET sprite_lava
-        mov si, OFFSET sprite_lava_mask
-        jmp ost_fin
-
+	mov di, OFFSET sprite_roca_volcanica
+	mov si, OFFSET sprite_roca_volcanica_mask
+	
+	cmp bl, TILE_LAVA
+	jne ost_ceniza
+	mov di, OFFSET sprite_lava
+	mov si, OFFSET sprite_lava_mask
+	jmp ost_fin
+	
 ost_ceniza:
-        cmp bl, TILE_CENIZA
-        jne ost_roca_bloque
-        mov di, OFFSET sprite_ceniza
-        mov si, OFFSET sprite_ceniza_mask
-        jmp ost_fin
-
+	cmp bl, TILE_CENIZA
+	jne ost_roca_bloque
+	mov di, OFFSET sprite_ceniza
+	mov si, OFFSET sprite_ceniza_mask
+	jmp ost_fin
+	
 ost_roca_bloque:
-        cmp bl, TILE_ROCA_BLOQUE
-        jne ost_nieve
-        mov di, OFFSET sprite_roca_bloque
-        mov si, OFFSET sprite_roca_bloque_mask
-        jmp ost_fin
-
+	cmp bl, TILE_ROCA_BLOQUE
+	jne ost_nieve
+	mov di, OFFSET sprite_roca_bloque
+	mov si, OFFSET sprite_roca_bloque_mask
+	jmp ost_fin
+	
 ost_nieve:
-        cmp bl, TILE_NIEVE
-        jne ost_hielo
-        mov di, OFFSET sprite_nieve
-        mov si, OFFSET sprite_nieve_mask
-        jmp ost_fin
-
+	cmp bl, TILE_NIEVE
+	jne ost_hielo
+	mov di, OFFSET sprite_nieve
+	mov si, OFFSET sprite_nieve_mask
+	jmp ost_fin
+	
 ost_hielo:
-        cmp bl, TILE_HIELO
-        jne ost_agua_congelada
-        mov di, OFFSET sprite_hielo
-        mov si, OFFSET sprite_hielo_mask
-        jmp ost_fin
-
+	cmp bl, TILE_HIELO
+	jne ost_agua_congelada
+	mov di, OFFSET sprite_hielo
+	mov si, OFFSET sprite_hielo_mask
+	jmp ost_fin
+	
 ost_agua_congelada:
-        cmp bl, TILE_AGUA_CONGELADA
-        jne ost_roca_nevada
-        mov di, OFFSET sprite_agua_congelada
-        mov si, OFFSET sprite_agua_congelada_mask
-        jmp ost_fin
-
+	cmp bl, TILE_AGUA_CONGELADA
+	jne ost_roca_nevada
+	mov di, OFFSET sprite_agua_congelada
+	mov si, OFFSET sprite_agua_congelada_mask
+	jmp ost_fin
+	
 ost_roca_nevada:
-        cmp bl, TILE_ROCA_NEVADA
-        jne ost_lodo
-        mov di, OFFSET sprite_roca_nevada
-        mov si, OFFSET sprite_roca_nevada_mask
-        jmp ost_fin
-
+	cmp bl, TILE_ROCA_NEVADA
+	jne ost_lodo
+	mov di, OFFSET sprite_roca_nevada
+	mov si, OFFSET sprite_roca_nevada_mask
+	jmp ost_fin
+	
 ost_lodo:
-        cmp bl, TILE_LODO
-        jne ost_agua_toxica
-        mov di, OFFSET sprite_lodo
-        mov si, OFFSET sprite_lodo_mask
-        jmp ost_fin
-
+	cmp bl, TILE_LODO
+	jne ost_agua_toxica
+	mov di, OFFSET sprite_lodo
+	mov si, OFFSET sprite_lodo_mask
+	jmp ost_fin
+	
 ost_agua_toxica:
-        cmp bl, TILE_AGUA_TOXICA
-        jne ost_tierra_muerta
-        mov di, OFFSET sprite_agua_toxica
-        mov si, OFFSET sprite_agua_toxica_mask
-        jmp ost_fin
-
+	cmp bl, TILE_AGUA_TOXICA
+	jne ost_tierra_muerta
+	mov di, OFFSET sprite_agua_toxica
+	mov si, OFFSET sprite_agua_toxica_mask
+	jmp ost_fin
+	
 ost_tierra_muerta:
-        cmp bl, TILE_TIERRA_MUERTA
-        jne ost_arbol_muerto
-        mov di, OFFSET sprite_tierra_muerta
-        mov si, OFFSET sprite_tierra_muerta_mask
-        jmp ost_fin
-
+	cmp bl, TILE_TIERRA_MUERTA
+	jne ost_arbol_muerto
+	mov di, OFFSET sprite_tierra_muerta
+	mov si, OFFSET sprite_tierra_muerta_mask
+	jmp ost_fin
+	
 ost_arbol_muerto:
-        cmp bl, TILE_ARBOL_MUERTO
-        jne ost_cesped
-        mov di, OFFSET sprite_arbol_muerto
-        mov si, OFFSET sprite_arbol_muerto_mask
-        jmp ost_fin
-
+	cmp bl, TILE_ARBOL_MUERTO
+	jne ost_cesped
+	mov di, OFFSET sprite_arbol_muerto
+	mov si, OFFSET sprite_arbol_muerto_mask
+	jmp ost_fin
+	
 ost_cesped:
-        cmp bl, TILE_CESPED
-        jne ost_totem_aves
-        mov di, OFFSET sprite_cesped
-        mov si, OFFSET sprite_cesped_mask
-        jmp ost_fin
-
+	cmp bl, TILE_CESPED
+	jne ost_totem_aves
+	mov di, OFFSET sprite_cesped
+	mov si, OFFSET sprite_cesped_mask
+	jmp ost_fin
+	
 ost_totem_aves:
-        cmp bl, TILE_TOTEM_AVES
-        jne ost_estanque_aves
-        mov di, OFFSET sprite_totem_aves
-        mov si, OFFSET sprite_totem_aves_mask
-        jmp ost_fin
-
+	cmp bl, TILE_TOTEM_AVES
+	jne ost_estanque_aves
+	mov di, OFFSET sprite_totem_aves
+	mov si, OFFSET sprite_totem_aves_mask
+	jmp ost_fin
+	
 ost_estanque_aves:
-        cmp bl, TILE_ESTANQUE_AVES
-        jne ost_fin
-        mov di, OFFSET sprite_estanque_aves
-        mov si, OFFSET sprite_estanque_aves_mask
+	cmp bl, TILE_ESTANQUE_AVES
+	jne ost_fin
+	mov di, OFFSET sprite_estanque_aves
+	mov si, OFFSET sprite_estanque_aves_mask
 	
 ost_fin:
 	pop bx
