@@ -64,8 +64,14 @@
 	archivo_player_izq_b db 'SPRITES\PLAYER\LEFT2.TXT', 0
         archivo_player_der_a db 'SPRITES\PLAYER\RIGHT1.TXT', 0
         archivo_player_der_b db 'SPRITES\PLAYER\RIGHT2.TXT', 0
-        archivo_player_hurt_a db 'SPRITES\PLAYER\HURT1.TXT', 0
-        archivo_player_hurt_b db 'SPRITES\PLAYER\HURT2.TXT', 0
+        archivo_player_down_hurt_a db 'SPRITES\PLAYER\HURT_DOWN1.TXT', 0
+        archivo_player_down_hurt_b db 'SPRITES\PLAYER\HURT_DOWN2.TXT', 0
+        archivo_player_up_hurt_a db 'SPRITES\PLAYER\HURT_UP1.TXT', 0
+        archivo_player_up_hurt_b db 'SPRITES\PLAYER\HURT_UP2.TXT', 0
+        archivo_player_izq_hurt_a db 'SPRITES\PLAYER\HURT_LEFT1.TXT', 0
+        archivo_player_izq_hurt_b db 'SPRITES\PLAYER\HURT_LEFT2.TXT', 0
+        archivo_player_der_hurt_a db 'SPRITES\PLAYER\HURT_RIGHT1.TXT', 0
+        archivo_player_der_hurt_b db 'SPRITES\PLAYER\HURT_RIGHT2.TXT', 0
 	
 	mapa_datos db 10000 dup(0)
 	
@@ -102,22 +108,31 @@
 	jugador_izq_b db 512 dup(0)
         jugador_der_a db 512 dup(0)
         jugador_der_b db 512 dup(0)
-        jugador_hurt_a db 512 dup(0)
-        jugador_hurt_b db 512 dup(0)
+        jugador_down_hurt_a db 512 dup(0)
+        jugador_down_hurt_b db 512 dup(0)
+        jugador_up_hurt_a db 512 dup(0)
+        jugador_up_hurt_b db 512 dup(0)
+        jugador_izq_hurt_a db 512 dup(0)
+        jugador_izq_hurt_b db 512 dup(0)
+        jugador_der_hurt_a db 512 dup(0)
+        jugador_der_hurt_b db 512 dup(0)
 	
 	buffer_temp db 300 dup(0)
 	
 	jugador_px dw 192
 	jugador_py dw 192
-	jugador_dir db DIR_ABAJO
-	jugador_frame db 0
+        jugador_dir db DIR_ABAJO
+        jugador_frame db 0
+        jugador_mostrando_dano db 0
 	
 	jugador_px_old dw 192
 	jugador_py_old dw 192
 	frame_old db 0
 	
-	moviendo db 0
-	pasos_dados db 0
+        moviendo db 0
+        pasos_dados db 0
+
+        jugador_resbalando db 0
 	
 	camara_px dw 0
 	camara_py dw 72
@@ -718,22 +733,27 @@ fin_juego:
 	ret
 	inicializar_paleta_ega ENDP
 	
-	procesar_movimiento_continuo PROC
-	push ax
-	push bx
-	push cx
-	push dx
-	
-	mov mov_dx, 0
-	mov mov_dy, 0
-	mov moviendo, 0
-	
-	mov ah, 1
-	int 16h
-	jnz pmc_tiene_tecla
-	
-	mov tecla_e_presionada, 0
-	jmp pmc_fin_movimiento
+        procesar_movimiento_continuo PROC
+        push ax
+        push bx
+        push cx
+        push dx
+
+        mov mov_dx, 0
+        mov mov_dy, 0
+        mov moviendo, 0
+
+        mov ah, 1
+        int 16h
+        jnz pmc_tiene_tecla
+
+        mov tecla_e_presionada, 0
+        cmp jugador_resbalando, 0
+        je pmc_fin_movimiento
+
+        call continuar_deslizamiento
+        mov moviendo, 1
+        jmp pmc_fin_movimiento
 	
 pmc_tiene_tecla:
 	mov ah, 0
@@ -855,14 +875,15 @@ pmc_default:
 	jne pmc_fin_sin_mov
 	
 pmc_fin_movimiento:
-	cmp moviendo, 1
-	jne pmc_fin_sin_mov
-	call resolver_colisiones_y_mover
-	
+        cmp moviendo, 1
+        jne pmc_fin_sin_mov
+        call resolver_colisiones_y_mover
+        call actualizar_estado_superficie
+
 pmc_fin_sin_mov:
-	pop dx
-	pop cx
-	pop bx
+        pop dx
+        pop cx
+        pop bx
 	pop ax
 	ret
 	
@@ -875,7 +896,97 @@ pmc_salir:
 	int 10h
 	mov ax, 4C00h
 	int 21h
-	procesar_movimiento_continuo ENDP
+        procesar_movimiento_continuo ENDP
+
+        continuar_deslizamiento PROC
+        push ax
+
+        mov mov_dx, 0
+        mov mov_dy, 0
+
+        mov al, jugador_dir
+        cmp al, DIR_ABAJO
+        jne cd_check_arriba
+        mov mov_dy, VELOCIDAD
+        jmp cd_fin
+
+cd_check_arriba:
+        cmp al, DIR_ARRIBA
+        jne cd_check_izquierda
+        mov mov_dy, - VELOCIDAD
+        jmp cd_fin
+
+cd_check_izquierda:
+        cmp al, DIR_IZQUIERDA
+        jne cd_check_derecha
+        mov mov_dx, - VELOCIDAD
+        jmp cd_fin
+
+cd_check_derecha:
+        cmp al, DIR_DERECHA
+        jne cd_fin
+        mov mov_dx, VELOCIDAD
+
+cd_fin:
+        pop ax
+        ret
+        continuar_deslizamiento ENDP
+
+        actualizar_estado_superficie PROC
+        push ax
+        push bx
+        push dx
+
+        call obtener_tile_bajo_jugador
+        mov bl, al
+        cmp bl, TILE_HIELO
+        jne aes_no_hielo
+
+        mov ax, mov_dx
+        or ax, mov_dy
+        jne aes_deslizando
+
+        mov byte ptr [jugador_resbalando], 0
+        jmp aes_fin
+
+aes_deslizando:
+        mov byte ptr [jugador_resbalando], 1
+        jmp aes_fin
+
+aes_no_hielo:
+        mov byte ptr [jugador_resbalando], 0
+
+aes_fin:
+        pop dx
+        pop bx
+        pop ax
+        ret
+        actualizar_estado_superficie ENDP
+
+        obtener_tile_bajo_jugador PROC
+        push bx
+        push dx
+
+        mov ax, jugador_py
+        add ax, 7
+        shr ax, 4
+        mov dx, ax
+
+        mov ax, jugador_px
+        shr ax, 4
+        mov bx, ax
+
+        mov ax, dx
+        shl ax, 1
+        mov ax, [mul100_table + ax]
+        add ax, bx
+        mov al, [mapa_datos + ax]
+        xor ah, ah
+
+        pop dx
+        pop bx
+        ret
+        obtener_tile_bajo_jugador ENDP
 	
 	resolver_colisiones_y_mover PROC
 	push ax
@@ -1757,26 +1868,92 @@ caj_ok_der_b:
         mov bp, OFFSET jugador_der_b_mask
         call convertir_sprite_32x32_a_planar_opt
 
-        mov dx, OFFSET archivo_player_hurt_a
+        mov dx, OFFSET archivo_player_down_hurt_a
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
-        jnc caj_ok_hurt_a
+        jnc caj_ok_down_hurt_a
         jmp caj_error
-caj_ok_hurt_a:
+caj_ok_down_hurt_a:
         mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_hurt_a
-        mov bp, OFFSET jugador_hurt_a_mask
+        mov di, OFFSET jugador_down_hurt_a
+        mov bp, OFFSET jugador_down_hurt_a_mask
         call convertir_sprite_32x32_a_planar_opt
 
-        mov dx, OFFSET archivo_player_hurt_b
+        mov dx, OFFSET archivo_player_down_hurt_b
         mov di, OFFSET sprite_buffer_32
         call cargar_sprite_32x32
-        jnc caj_ok_hurt_b
+        jnc caj_ok_down_hurt_b
         jmp caj_error
-caj_ok_hurt_b:
+caj_ok_down_hurt_b:
         mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_hurt_b
-        mov bp, OFFSET jugador_hurt_b_mask
+        mov di, OFFSET jugador_down_hurt_b
+        mov bp, OFFSET jugador_down_hurt_b_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_up_hurt_a
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_up_hurt_a
+        jmp caj_error
+caj_ok_up_hurt_a:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_up_hurt_a
+        mov bp, OFFSET jugador_up_hurt_a_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_up_hurt_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_up_hurt_b
+        jmp caj_error
+caj_ok_up_hurt_b:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_up_hurt_b
+        mov bp, OFFSET jugador_up_hurt_b_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_izq_hurt_a
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_izq_hurt_a
+        jmp caj_error
+caj_ok_izq_hurt_a:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_izq_hurt_a
+        mov bp, OFFSET jugador_izq_hurt_a_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_izq_hurt_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_izq_hurt_b
+        jmp caj_error
+caj_ok_izq_hurt_b:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_izq_hurt_b
+        mov bp, OFFSET jugador_izq_hurt_b_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_der_hurt_a
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_der_hurt_a
+        jmp caj_error
+caj_ok_der_hurt_a:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_der_hurt_a
+        mov bp, OFFSET jugador_der_hurt_a_mask
+        call convertir_sprite_32x32_a_planar_opt
+
+        mov dx, OFFSET archivo_player_der_hurt_b
+        mov di, OFFSET sprite_buffer_32
+        call cargar_sprite_32x32
+        jnc caj_ok_der_hurt_b
+        jmp caj_error
+caj_ok_der_hurt_b:
+        mov si, OFFSET sprite_buffer_32
+        mov di, OFFSET jugador_der_hurt_b
+        mov bp, OFFSET jugador_der_hurt_b_mask
         call convertir_sprite_32x32_a_planar_opt
 
         clc
@@ -1797,13 +1974,66 @@ caj_fin:
 	push ax
 	push bx
 	
-	mov al, jugador_dir
-	mov bl, jugador_frame
-	
-	cmp al, DIR_ABAJO
-	jne osj_arr
-	test bl, bl
-	jz osj_down_a
+        mov al, jugador_dir
+        mov bl, jugador_frame
+
+        cmp jugador_mostrando_dano, 0
+        je osj_normal
+
+        cmp al, DIR_ABAJO
+        jne osj_hurt_arr
+        test bl, bl
+        jz osj_hurt_down_a
+        mov di, OFFSET jugador_down_hurt_b
+        mov si, OFFSET jugador_down_hurt_b_mask
+        jmp osj_fin
+osj_hurt_down_a:
+        mov di, OFFSET jugador_down_hurt_a
+        mov si, OFFSET jugador_down_hurt_a_mask
+        jmp osj_fin
+
+osj_hurt_arr:
+        cmp al, DIR_ARRIBA
+        jne osj_hurt_izq
+        test bl, bl
+        jz osj_hurt_up_a
+        mov di, OFFSET jugador_up_hurt_b
+        mov si, OFFSET jugador_up_hurt_b_mask
+        jmp osj_fin
+osj_hurt_up_a:
+        mov di, OFFSET jugador_up_hurt_a
+        mov si, OFFSET jugador_up_hurt_a_mask
+        jmp osj_fin
+
+osj_hurt_izq:
+        cmp al, DIR_IZQUIERDA
+        jne osj_hurt_der
+        test bl, bl
+        jz osj_hurt_izq_a
+        mov di, OFFSET jugador_izq_hurt_b
+        mov si, OFFSET jugador_izq_hurt_b_mask
+        jmp osj_fin
+osj_hurt_izq_a:
+        mov di, OFFSET jugador_izq_hurt_a
+        mov si, OFFSET jugador_izq_hurt_a_mask
+        jmp osj_fin
+
+osj_hurt_der:
+        test bl, bl
+        jz osj_hurt_der_a
+        mov di, OFFSET jugador_der_hurt_b
+        mov si, OFFSET jugador_der_hurt_b_mask
+        jmp osj_fin
+osj_hurt_der_a:
+        mov di, OFFSET jugador_der_hurt_a
+        mov si, OFFSET jugador_der_hurt_a_mask
+        jmp osj_fin
+
+osj_normal:
+        cmp al, DIR_ABAJO
+        jne osj_arr
+        test bl, bl
+        jz osj_down_a
 	mov di, OFFSET jugador_down_b
 	mov si, OFFSET jugador_down_b_mask
 	jmp osj_fin
@@ -2335,19 +2565,19 @@ cm_proc:
 	jmp cm_store
 	
 cm_chk_upper:
-	cmp al, 'A'
-	jb cm_chk_lower
-	cmp al, 'F'
-	ja cm_chk_lower
+        cmp al, 'A'
+        jb cm_chk_lower
+        cmp al, 'Z'
+        ja cm_chk_lower
 	sub al, 'A'
 	add al, 10
 	jmp cm_store
 	
 cm_chk_lower:
-	cmp al, 'a'
-	jb cm_proc
-	cmp al, 'f'
-	ja cm_proc
+        cmp al, 'a'
+        jb cm_proc
+        cmp al, 'z'
+        ja cm_proc
 	sub al, 'a'
 	add al, 10
 	
