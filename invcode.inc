@@ -461,6 +461,17 @@ dsi_continuar:
     push si
     mov ax, ITEM_SIZE
     mov bx, ITEM_SIZE
+    mov si, COLOR_FONDO
+    call dibujar_rectangulo_lleno
+    pop si
+    pop dx
+    pop cx
+
+    push cx
+    push dx
+    push si
+    mov ax, ITEM_SIZE
+    mov bx, ITEM_SIZE
     mov si, COLOR_ITEM_SLOT
     call dibujar_rectangulo_vacio
     pop si
