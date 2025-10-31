@@ -116,8 +116,10 @@
 	jugador_py_old dw 192
 	frame_old db 0
 	
-	moviendo db 0
-	pasos_dados db 0
+        moviendo db 0
+        pasos_dados db 0
+
+        jugador_resbalando db 0
 	
 	camara_px dw 0
 	camara_py dw 72
@@ -718,22 +720,27 @@ fin_juego:
 	ret
 	inicializar_paleta_ega ENDP
 	
-	procesar_movimiento_continuo PROC
-	push ax
-	push bx
-	push cx
-	push dx
-	
-	mov mov_dx, 0
-	mov mov_dy, 0
-	mov moviendo, 0
-	
-	mov ah, 1
-	int 16h
-	jnz pmc_tiene_tecla
-	
-	mov tecla_e_presionada, 0
-	jmp pmc_fin_movimiento
+        procesar_movimiento_continuo PROC
+        push ax
+        push bx
+        push cx
+        push dx
+
+        mov mov_dx, 0
+        mov mov_dy, 0
+        mov moviendo, 0
+
+        mov ah, 1
+        int 16h
+        jnz pmc_tiene_tecla
+
+        mov tecla_e_presionada, 0
+        cmp jugador_resbalando, 0
+        je pmc_fin_movimiento
+
+        call continuar_deslizamiento
+        mov moviendo, 1
+        jmp pmc_fin_movimiento
 	
 pmc_tiene_tecla:
 	mov ah, 0
@@ -855,14 +862,15 @@ pmc_default:
 	jne pmc_fin_sin_mov
 	
 pmc_fin_movimiento:
-	cmp moviendo, 1
-	jne pmc_fin_sin_mov
-	call resolver_colisiones_y_mover
-	
+        cmp moviendo, 1
+        jne pmc_fin_sin_mov
+        call resolver_colisiones_y_mover
+        call actualizar_estado_superficie
+
 pmc_fin_sin_mov:
-	pop dx
-	pop cx
-	pop bx
+        pop dx
+        pop cx
+        pop bx
 	pop ax
 	ret
 	
@@ -875,7 +883,97 @@ pmc_salir:
 	int 10h
 	mov ax, 4C00h
 	int 21h
-	procesar_movimiento_continuo ENDP
+        procesar_movimiento_continuo ENDP
+
+        continuar_deslizamiento PROC
+        push ax
+
+        mov mov_dx, 0
+        mov mov_dy, 0
+
+        mov al, jugador_dir
+        cmp al, DIR_ABAJO
+        jne cd_check_arriba
+        mov mov_dy, VELOCIDAD
+        jmp cd_fin
+
+cd_check_arriba:
+        cmp al, DIR_ARRIBA
+        jne cd_check_izquierda
+        mov mov_dy, - VELOCIDAD
+        jmp cd_fin
+
+cd_check_izquierda:
+        cmp al, DIR_IZQUIERDA
+        jne cd_check_derecha
+        mov mov_dx, - VELOCIDAD
+        jmp cd_fin
+
+cd_check_derecha:
+        cmp al, DIR_DERECHA
+        jne cd_fin
+        mov mov_dx, VELOCIDAD
+
+cd_fin:
+        pop ax
+        ret
+        continuar_deslizamiento ENDP
+
+        actualizar_estado_superficie PROC
+        push ax
+        push bx
+        push dx
+
+        call obtener_tile_bajo_jugador
+        mov bl, al
+        cmp bl, TILE_HIELO
+        jne aes_no_hielo
+
+        mov ax, mov_dx
+        or ax, mov_dy
+        jne aes_deslizando
+
+        mov byte ptr [jugador_resbalando], 0
+        jmp aes_fin
+
+aes_deslizando:
+        mov byte ptr [jugador_resbalando], 1
+        jmp aes_fin
+
+aes_no_hielo:
+        mov byte ptr [jugador_resbalando], 0
+
+aes_fin:
+        pop dx
+        pop bx
+        pop ax
+        ret
+        actualizar_estado_superficie ENDP
+
+        obtener_tile_bajo_jugador PROC
+        push bx
+        push dx
+
+        mov ax, jugador_py
+        add ax, 7
+        shr ax, 4
+        mov dx, ax
+
+        mov ax, jugador_px
+        shr ax, 4
+        mov bx, ax
+
+        mov ax, dx
+        shl ax, 1
+        mov ax, [mul100_table + ax]
+        add ax, bx
+        mov al, [mapa_datos + ax]
+        xor ah, ah
+
+        pop dx
+        pop bx
+        ret
+        obtener_tile_bajo_jugador ENDP
 	
 	resolver_colisiones_y_mover PROC
 	push ax
