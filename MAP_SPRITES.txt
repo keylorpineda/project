@@ -15,3 +15,4 @@ B (11)  SPRITES/SWMTREE.TXT         Árbol muerto: obstáculo marchito del panta
 C (12)  SPRITES/GRSCESP.TXT         Pradera vibrante: césped transitable con flores y plumas verdes.
 D (13)  SPRITES/GRSTOTM.TXT         Tótem aviario: santuario de aves que bloquea el paso.
 E (14)  SPRITES/GRSPOOL.TXT         Estanque de aves: charca brillante no transitable.
+F (15)  SPRITES/HOUSE_ROOF.TXT      Techo modular de casa: se combina para formar viviendas grandes.
