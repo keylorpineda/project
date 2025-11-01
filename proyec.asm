@@ -121,13 +121,13 @@
         cm_valor_actual dw 0
         cm_digito_temp db 0
 	
-        jugador_px dw 776
-        jugador_py dw 760
+        jugador_px dw 1100
+        jugador_py dw 1100
 	jugador_dir db DIR_ABAJO
 	jugador_frame db 0
 	
-        jugador_px_old dw 776
-        jugador_py_old dw 760
+        jugador_px_old dw 1100
+        jugador_py_old dw 1100
 	frame_old db 0
 	
 	moviendo db 0
@@ -2912,6 +2912,7 @@ dvt_mapa_ok:
 	mov cx, ax
 	
 	mov ax, [jugador_py]
+	add ax, 8
 	shr ax, 4
 	mov dx, ax
 	
