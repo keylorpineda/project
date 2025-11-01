@@ -589,11 +589,6 @@ fin_juego:
 	push cx
 	push dx
 	
-				cmp jugador_estado, 1
-				jne pmc_pmc_continue
-				jmp NEAR PTR pmc_fin_sin_mov_cerca
-		pmc_pmc_continue:
-	
 	mov mov_dx, 0
 	mov mov_dy, 0
 	mov moviendo, 0
@@ -1649,65 +1644,6 @@ caj_fin:
 obtener_sprite_jugador PROC
 	push ax
 	push bx
-	
-	cmp jugador_estado, 1
-	jne osj_normal
-
-	mov ax, [jugador_estado_timer]
-	test ax, 00000100b
-	jnz osj_normal
-	
-	mov al, jugador_dir
-	mov bl, jugador_frame
-	
-	cmp al, DIR_ABAJO
-	jne osj_hurt_arr
-	test bl, bl
-	jz osj_hurt_down_a
-	mov di, OFFSET jugador_hurt_down_b
-	mov si, OFFSET jugador_hurt_down_b_mask
-	jmp osj_fin
-osj_hurt_down_a:
-	mov di, OFFSET jugador_hurt_down_a
-	mov si, OFFSET jugador_hurt_down_a_mask
-	jmp osj_fin
-	
-osj_hurt_arr:
-	cmp al, DIR_ARRIBA
-	jne osj_hurt_izq
-	test bl, bl
-	jz osj_hurt_up_a
-	mov di, OFFSET jugador_hurt_up_b
-	mov si, OFFSET jugador_hurt_up_b_mask
-	jmp osj_fin
-osj_hurt_up_a:
-	mov di, OFFSET jugador_hurt_up_a
-	mov si, OFFSET jugador_hurt_up_a_mask
-	jmp osj_fin
-	
-osj_hurt_izq:
-	cmp al, DIR_IZQUIERDA
-	jne osj_hurt_der
-	test bl, bl
-	jz osj_hurt_izq_a
-	mov di, OFFSET jugador_hurt_izq_b
-	mov si, OFFSET jugador_hurt_izq_b_mask
-	jmp osj_fin
-osj_hurt_izq_a:
-	mov di, OFFSET jugador_hurt_izq_a
-	mov si, OFFSET jugador_hurt_izq_a_mask
-	jmp osj_fin
-	
-osj_hurt_der:
-	test bl, bl
-	jz osj_hurt_der_a
-	mov di, OFFSET jugador_hurt_der_b
-	mov si, OFFSET jugador_hurt_der_b_mask
-	jmp osj_fin
-osj_hurt_der_a:
-	mov di, OFFSET jugador_hurt_der_a
-	mov si, OFFSET jugador_hurt_der_a_mask
-	jmp osj_fin
 
 osj_normal:
 	mov al, jugador_dir
@@ -2942,163 +2878,30 @@ gtup_fin:
 get_tile_under_player ENDP
 
 actualizar_estado_jugador PROC
-    push ax
-    push bx
+	push ax
+	push bx
 
-    cmp [jugador_invencible_timer], 0
-    je aes_check_estado_timer
-    dec [jugador_invencible_timer]
-    
-aes_check_estado_timer:
-    cmp [jugador_estado_timer], 0
-    je aes_check_tile
-    
-    dec [jugador_estado_timer]
-    jnz aes_check_poison_tick
-    
-    mov [jugador_estado], 0
-    jmp aes_check_tile
-    
-aes_check_poison_tick:
-    cmp [jugador_estado], 2
-    jne aes_fin
-    call aplicar_dano_tick_veneno
-    jmp aes_fin
-    
-aes_check_tile:
-    cmp [jugador_estado], 0
-    je aes_do_check
-    cmp [jugador_estado], 3
-    je aes_do_check
-    jmp aes_fin
-    
-aes_do_check:
-    call get_tile_under_player
-    
-    cmp al, TILE_LAVA
-    je aes_on_lava
-    
-    cmp al, TILE_AGUA_TOXICA
-    je aes_on_toxic
-    
-    cmp al, TILE_HIELO
-    je aes_on_ice
-    
-    jmp aes_on_safe_ground
+	call get_tile_under_player
 
-aes_on_lava:
-    call aplicar_dano_fuego
-    jmp aes_fin
-    
-aes_on_toxic:
-    call aplicar_dano_veneno
-    jmp aes_fin
+	cmp al, TILE_HIELO
+	je aes_on_ice
+
+	cmp jugador_estado, 3
+	jne aes_fin
+
+	mov [jugador_estado], 0
+	mov [desliz_dx], 0
+	mov [desliz_dy], 0
+	jmp aes_fin
 
 aes_on_ice:
-    mov [jugador_estado], 3
-    jmp aes_fin
-
-aes_on_safe_ground:
-    cmp jugador_estado, 3
-    jne aes_fin
-    
-    mov [jugador_estado], 0
-    mov [desliz_dx], 0
-    mov [desliz_dy], 0
+	mov [jugador_estado], 3
 
 aes_fin:
-    pop bx
-    pop ax
-    ret
+	pop bx
+	pop ax
+	ret
 actualizar_estado_jugador ENDP
-
-aplicar_dano_fuego PROC
-	push ax
-	
-	cmp [jugador_invencible_timer], 0
-	jne adf_fin
-	
-	mov [jugador_estado], 1
-	mov [jugador_estado_timer], 20
-	mov [jugador_invencible_timer], 60
-	
-	mov ax, [jugador_vida]
-	sub ax, 25
-	jge adf_ok
-	xor ax, ax
-adf_ok:
-	mov [jugador_vida], ax
-	
-	test ax, ax
-	jnz adf_fin
-	call jugador_muere
-
-adf_fin:
-	pop ax
-	ret
-aplicar_dano_fuego ENDP
-
-aplicar_dano_veneno PROC
-	push ax
-	
-	cmp [jugador_estado], 2
-	je adv_fin
-	
-	cmp [jugador_invencible_timer], 0
-	jne adv_fin 
-	
-	mov [jugador_estado], 2
-	mov [jugador_estado_timer], 180
-	
-adv_fin:
-	pop ax
-	ret
-aplicar_dano_veneno ENDP
-
-aplicar_dano_tick_veneno PROC
-	push ax
-	
-	cmp [jugador_invencible_timer], 0
-	jne adtv_fin
-	
-	mov [jugador_invencible_timer], 30
-	
-	mov ax, [jugador_vida]
-	sub ax, 5
-	jge adtv_ok
-	xor ax, ax
-adtv_ok:
-	mov [jugador_vida], ax
-	
-	test ax, ax
-	jnz adtv_fin
-	call jugador_muere
-	
-adtv_fin:
-	pop ax
-	ret
-aplicar_dano_tick_veneno ENDP
-
-jugador_muere PROC
-	push ax
-	push dx
-	
-	mov ax, 3
-	int 10h
-	mov dx, OFFSET msg_muerto
-	mov ah, 9
-	int 21h
-	
-	mov ah, 0
-	int 16h
-	
-	mov ax, 4C00h
-	int 21h
-	
-	pop dx
-	pop ax
-	ret
-jugador_muere ENDP
 
 	INCLUDE OPTCODE.INC
 	INCLUDE INVCODE.INC
