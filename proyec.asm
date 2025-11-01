@@ -117,13 +117,13 @@
 	
 	buffer_temp db 300 dup(0)
 	
-	jugador_px dw 208
-	jugador_py dw 192
+        jugador_px dw 776
+        jugador_py dw 760
 	jugador_dir db DIR_ABAJO
 	jugador_frame db 0
 	
-	jugador_px_old dw 192
-	jugador_py_old dw 192
+        jugador_px_old dw 776
+        jugador_py_old dw 760
 	frame_old db 0
 	
 	moviendo db 0
