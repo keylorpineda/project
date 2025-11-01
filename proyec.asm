@@ -796,47 +796,39 @@ pmc_right_set:
 	mov jugador_dir, DIR_DERECHA
 	mov moviendo, 1
 	
-pmc_default:a
+pmc_default:
         cmp moviendo, 1
         je pmc_fin_movimiento
         jmp NEAR PTR pmc_fin_sin_mov
 
 pmc_fin_movimiento:
-	; INICIO: Logica de deslizamiento
-	cmp moviendo, 1              ; Se presiono tecla este frame?
-	jne pmc_check_sliding        ; No, chequear si estabamos deslizando
-	
-	; Si, se presiono tecla. Verificar si estamos en hielo para INICIAR desliz
+	cmp moviendo, 1 
+	jne pmc_check_sliding 
+
         call get_tile_under_player
         cmp al, TILE_HIELO
         jne pmc_no_guardar_desliz
 
-        ; Solo iniciar desliz si hay movimiento real
         mov ax, mov_dx
         or ax, mov_dy
         jz pmc_no_guardar_desliz
 
-        ; En hielo y presionando, guardar velocidad para el proximo frame
         mov ax, mov_dx
         mov deslizando_dx, ax
         mov ax, mov_dy
 	mov deslizando_dy, ax
 	mov deslizando, 1
-	jmp pmc_llamar_resolver      ; Saltar a mover
+	jmp pmc_llamar_resolver
 	
 pmc_no_guardar_desliz:
-	; No en hielo, asegurarse que no deslizamos
 	mov deslizando, 0
 	mov deslizando_dx, 0
 	mov deslizando_dy, 0
-	jmp pmc_llamar_resolver      ; Saltar a mover
+	jmp pmc_llamar_resolver
 	
 pmc_check_sliding:
-	; No se presiono tecla. Estamos deslizando?
 	cmp deslizando, 0
-	je pmc_fin_sin_mov           ; No, fin.
-	
-        ; Si, estabamos deslizando. Chequear si seguimos en hielo
+	je pmc_fin_sin_mov
         call get_tile_under_player
         cmp al, TILE_HIELO
         jne pmc_parar_desliz
@@ -845,8 +837,6 @@ pmc_check_sliding:
         mov bx, ax
         or ax, deslizando_dy
         jz pmc_parar_desliz
-
-        ; En hielo, continuar con la velocidad guardada
         mov mov_dx, bx
         mov ax, deslizando_dy
         mov mov_dy, ax
@@ -874,15 +864,14 @@ pmc_slide_dir_arriba:
         mov jugador_dir, DIR_ARRIBA
 
 pmc_slide_dir_done:
-        mov moviendo, 1              ; Forzar movimiento para que se llame resolver_colisiones
+        mov moviendo, 1
         jmp pmc_llamar_resolver
 	
 pmc_parar_desliz:
-	; Ya no estamos en hielo, parar
 	mov deslizando, 0
 	mov deslizando_dx, 0
 	mov deslizando_dy, 0
-	jmp pmc_fin_sin_mov          ; Fin
+	jmp pmc_fin_sin_mov
 	
 pmc_llamar_resolver:
 	call resolver_colisiones_y_mover
