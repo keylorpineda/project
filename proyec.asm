@@ -857,6 +857,12 @@ rcm_x_snap_der:
 	
 rcm_x_col_fin:
 	mov mov_dx, 0
+	
+	cmp jugador_estado, 3
+	jne rcm_x_col_fin_no_slide
+	mov [desliz_dx], 0
+rcm_x_col_fin_no_slide:
+	
 	jmp rcm_fase_y
 	
 rcm_x_sin_colision:
@@ -939,6 +945,12 @@ rcm_y_snap_abajo:
 	
 rcm_y_col_fin:
 	mov mov_dy, 0
+	
+	cmp jugador_estado, 3
+	jne rcm_y_col_fin_no_slide
+	mov [desliz_dy], 0
+rcm_y_col_fin_no_slide:
+	
 	jmp rcm_fin
 	
 rcm_y_sin_colision:
@@ -952,7 +964,6 @@ rcm_fin:
 	pop ax
 	ret
 	resolver_colisiones_y_mover ENDP
-	
 	
 	limpiar_pagina_actual PROC
 	push ax
