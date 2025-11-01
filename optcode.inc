@@ -2016,4 +2016,4 @@ ccs_y_ok:
 	pop bx
 	pop ax
 	ret
-	centrar_camara_suave ENDP
+centrar_camara_suave ENDP
