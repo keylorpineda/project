@@ -130,7 +130,6 @@ rr_tipo2:
     jmp rr_actualizar
 
 rr_tipo3:
-
     cmp bl, 3
     jne rr_actualizar
     inc recursos_tipo3
@@ -176,14 +175,13 @@ ais_loop:
     test al, al
     jz ais_asignar
     
-    cmp al, dl ; <- Comprobar si ya existe el item
-    jne ais_next_slot ; Si no es, buscar siguiente slot
+    cmp al, dl
+    jne ais_next_slot
     
-    ; Si ya existe, incrementar cantidad
     mov al, [di]
     inc al
     mov [di], al
-    jmp ais_fin ; Terminar
+    jmp ais_fin
 
 ais_next_slot:
     inc si
@@ -535,18 +533,17 @@ dsi_dibujar:
     pop dx
     pop cx
     
-    ; --- Dibujar cantidad ---
     mov bx, OFFSET inventario_cantidades
     add bx, si
     mov al, [bx]
-    cmp al, 1  ; No dibujar '1'
+    cmp al, 1
     jbe dsi_next 
     
     xor ah, ah
     push si
     
-    mov cx, ax ; Guardar Coordenada X del slot
-    mov dx, ax ; Guardar Coordenada Y del slot
+    mov cx, ax
+    mov dx, ax
     
     mov ax, si
     xor dx, dx
@@ -577,7 +574,6 @@ dsi_dibujar:
     call dibujar_numero
     
     pop si
-    ; --- Fin dibujar cantidad ---
 
 dsi_next:
     inc si
@@ -996,15 +992,8 @@ dce_exit:
     ret
 dibujar_caracter_8x8 ENDP
 
-
-
-
-
 dcb_color db 0
 dcb_glyph_ptr dw 0
-
-
-
 
 dibujar_caracter_buffer_8x8 PROC
     push ax
@@ -1585,7 +1574,7 @@ dhh_no_select:
     mul bx
     add ax, HUD_HOTBAR_X
     add ax, ITEM_ICON_OFFSET
-    add ax, 4 ;<-- Mover 4px a la derecha
+    add ax, 4
     mov cx, ax
 
     mov dx, HUD_HOTBAR_Y
@@ -1617,11 +1606,10 @@ dhh_dibujar:
     call dibujar_sprite_planar_16x16_opt
     pop si
     
-    ; --- Dibujar cantidad ---
     mov bx, OFFSET inventario_cantidades
     add bx, si
     mov al, [bx]
-    cmp al, 1  ; No dibujar '1'
+    cmp al, 1
     jbe dhh_next 
     
     xor ah, ah
@@ -1646,7 +1634,6 @@ dhh_dibujar:
     call dibujar_numero
     
     pop si
-    ; --- Fin dibujar cantidad ---
 
 dhh_next:
     inc si
@@ -1856,7 +1843,6 @@ pantalla_victoria PROC
     jmp pv_limpiar
 
 pv_render_p0:
-
     mov temp_offset, 0
 
 pv_limpiar:
@@ -1886,3 +1872,50 @@ pv_wait_esc:
     pop ax
     ret
 pantalla_victoria ENDP
+
+dibujar_hud_vida PROC
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
+	push di
+
+	mov cx, 128
+	mov dx, 435
+	mov si, OFFSET msg_vida
+	mov al, COLOR_TEXTO
+	call dibujar_texto_buffer
+
+	mov ax, [jugador_vida]
+	mov bx, 100
+	mul bx
+	mov bx, [jugador_vida_maxima]
+	div bx
+	
+	mov bx, ax
+
+	mov cx, 168
+	mov dx, 435
+	push bx
+	mov ax, 100
+	mov bx, 8
+	mov si, COLOR_BARRA_VACIA
+	call dibujar_rectangulo_lleno
+	
+	pop bx
+	mov cx, 168
+	mov dx, 435
+	mov ax, bx
+	mov bx, 8
+	mov si, COLOR_BARRA_LLENA
+	call dibujar_rectangulo_lleno
+
+	pop di
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+dibujar_hud_vida ENDP

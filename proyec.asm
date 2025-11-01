@@ -3243,51 +3243,6 @@ jugador_muere PROC
 	ret
 jugador_muere ENDP
 
-dibujar_hud_vida PROC
-	push ax
-	push bx
-	push cx
-	push dx
-	push si
-	push di
-
-	mov cx, 128
-	mov dx, 435
-	mov si, OFFSET msg_vida
-	mov al, COLOR_TEXTO
-	call dibujar_texto_opt
-
-	mov ax, [jugador_vida]
-	mov bx, 100
-	mul bx
-	mov bx, [jugador_vida_maxima]
-	div bx
-	mov bx, ax
-	
-	mov cx, 168
-	mov dx, 435
-	push bx
-	mov bx, 100
-	mov si, 8
-	mov al, COLOR_BARRA_VACIA
-	call dibujar_rectangulo_lleno_opt
-	
-	pop bx
-	mov cx, 168
-	mov dx, 435
-	mov si, 8
-	mov al, COLOR_BARRA_LLENA
-	call dibujar_rectangulo_lleno_opt
-
-	pop di
-	pop si
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	ret
-dibujar_hud_vida ENDP
-
 	INCLUDE OPTCODE.INC
 	INCLUDE INVCODE.INC
 	INCLUDE MENU.INC
