@@ -797,9 +797,10 @@ pmc_right_set:
 	mov moviendo, 1
 	
 pmc_default:
-	cmp moviendo, 1
-		jne pmc_fin_sin_mov
-	
+        cmp moviendo, 1
+        je pmc_fin_movimiento
+        jmp NEAR PTR pmc_fin_sin_mov
+
 pmc_fin_movimiento:
 	; INICIO: Logica de deslizamiento
 	cmp moviendo, 1              ; Se presiono tecla este frame?
