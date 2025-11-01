@@ -708,8 +708,10 @@ fin_juego:
 	push cx
 	push dx
 	
-        cmp jugador_estado, 1
-        je pmc_fin_sin_mov_cerca
+				cmp jugador_estado, 1
+				jne pmc_pmc_continue
+				jmp NEAR PTR pmc_fin_sin_mov_cerca
+		pmc_pmc_continue:
 	
 	mov mov_dx, 0
 	mov mov_dy, 0
