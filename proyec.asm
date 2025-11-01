@@ -593,9 +593,10 @@ fin_juego:
 	mov mov_dy, 0
 	mov moviendo, 0
 	
-	mov ah, 1
-	int 16h
-	jz pmc_no_key_pressed
+        mov ah, 1
+        int 16h
+        jnz pmc_tiene_tecla
+        jmp NEAR PTR pmc_no_key_pressed
 
 pmc_tiene_tecla:
 	mov ah, 0
@@ -798,11 +799,14 @@ pmc_default:
 pmc_no_key_pressed:
 	mov tecla_e_presionada, 0
 	
-	cmp deslizando, 0
-	je pmc_fin_frame
+        cmp deslizando, 0
+        jne pmc_deslizando_activo
+        jmp NEAR PTR pmc_fin_frame
 
-	call get_tile_under_player
-	cmp al, TILE_HIELO
+pmc_deslizando_activo:
+
+        call get_tile_under_player
+        cmp al, TILE_HIELO
 	jne pmc_parar_desliz
 
 	mov ax, deslizando_dx
