@@ -1881,8 +1881,8 @@ dibujar_hud_vida PROC
 	push si
 	push di
 
-	mov cx, 128
-	mov dx, 435
+	mov cx, 8
+	mov dx, 340
 	mov si, OFFSET msg_vida
 	mov al, COLOR_TEXTO
 	call dibujar_texto_buffer
@@ -1895,8 +1895,8 @@ dibujar_hud_vida PROC
 	
 	mov bx, ax
 
-	mov cx, 168
-	mov dx, 435
+	mov cx, 48
+	mov dx, 340
 	push bx
 	mov ax, 100
 	mov bx, 8
@@ -1904,8 +1904,8 @@ dibujar_hud_vida PROC
 	call dibujar_rectangulo_lleno
 	
 	pop bx
-	mov cx, 168
-	mov dx, 435
+	mov cx, 48
+	mov dx, 340
 	mov ax, bx
 	mov bx, 8
 	mov si, COLOR_BARRA_LLENA

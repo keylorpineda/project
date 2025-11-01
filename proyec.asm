@@ -117,7 +117,7 @@
 	
 	buffer_temp db 300 dup(0)
 	
-	jugador_px dw 192
+	jugador_px dw 208
 	jugador_py dw 192
 	jugador_dir db DIR_ABAJO
 	jugador_frame db 0
@@ -192,6 +192,65 @@
 	archivo_cristal db 'SPRITES\CRYSTAL.TXT', 0
 	archivo_gema db 'SPRITES\GEM.TXT', 0
 	archivo_moneda db 'SPRITES\COIN.TXT', 0
+	COLOR_FONDO EQU 0
+	COLOR_MARCO EQU 7
+	COLOR_TEXTO EQU 14
+	COLOR_BARRA_VACIA EQU 8
+	COLOR_BARRA_LLENA EQU 10
+	COLOR_ITEM_SLOT EQU 1
+	
+msg_vida db 'VIDA:', 0
+	msg_muerto db 'HAS MUERTO. Presiona tecla...$'
+	msg_inventario db 'INVENTARIO', 0
+	msg_recursos db 'RECURSOS', 0
+msg_cristales db 'CRISTALES:', 0
+msg_gemas db 'GEMAS:', 0
+msg_monedas db 'MONEDAS:', 0
+msg_objetivo db 'OBJETIVO:', 0
+msg_progreso db 'PROGRESO:', 0
+	msg_completado db 'COMPLETADO!', 0
+	msg_slash db ' / ', 0
+	
+	jugador_vida dw 100
+	jugador_vida_maxima dw 100
+	jugador_estado db 0
+	jugador_estado_timer dw 0
+	jugador_invencible_timer dw 0
+	
+	desliz_dx dw 0
+	desliz_dy dw 0
+	
+	INV_X EQU 80
+	INV_Y EQU 40
+	INV_WIDTH EQU 480
+	INV_HEIGHT EQU 270
+	
+	
+	ZONA_PLAYER_X EQU 100
+	ZONA_PLAYER_Y EQU 80
+	ZONA_PLAYER_W EQU 64
+	
+	ZONA_ITEMS_X EQU 180
+	ZONA_ITEMS_Y EQU 70
+	ITEM_SIZE EQU 40
+	ITEM_SPACING EQU 8
+	ITEM_TOTAL EQU 48
+	ITEM_ICON_OFFSET EQU 12
+	ITEM_COUNT_OFFSET_X EQU 28
+	ITEM_COUNT_OFFSET_Y EQU 28
+	
+	ZONA_STATS_X EQU 420
+	ZONA_STATS_Y EQU 70
+	ZONA_STATS_W EQU 120
+	
+	STAT_VAL_OFFSET EQU 88
+	STAT_SLASH_OFFSET EQU 104
+	STAT_META_OFFSET EQU 112
+	
+	anim_recoger_activa db 0
+	anim_recoger_frame db 0
+	anim_recoger_x dw 0
+	anim_recoger_y dw 0
 	texto_color_actual db 0
 	font_base_x_temp dw 0
 	font_base_y_temp dw 0
