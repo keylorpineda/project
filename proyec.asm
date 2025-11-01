@@ -121,13 +121,13 @@
         cm_valor_actual dw 0
         cm_digito_temp db 0
 	
-        jugador_px dw 1100
-        jugador_py dw 1100
+        jugador_px dw 1000
+        jugador_py dw 800
 	jugador_dir db DIR_ABAJO
 	jugador_frame db 0
 	
-        jugador_px_old dw 1100
-        jugador_py_old dw 1100
+        jugador_px_old dw 1000
+        jugador_py_old dw 800
 	frame_old db 0
 	
 	moviendo db 0
