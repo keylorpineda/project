@@ -587,6 +587,7 @@ fin_juego:
 	push bx
 	push cx
 	push dx
+	push si
 	
 	mov mov_dx, 0
 	mov mov_dy, 0
@@ -594,14 +595,9 @@ fin_juego:
 	
 	mov ah, 1
 	int 16h
-	jnz pmc_tiene_tecla
-	
-	mov tecla_e_presionada, 0
-	jmp NEAR PTR pmc_fin_movimiento
-	
+	jz pmc_no_key_pressed
+
 pmc_tiene_tecla:
-	mov deslizando, 0            ; Presionar tecla para el deslizamiento
-	
 	mov ah, 0
 	int 16h
 	
@@ -636,27 +632,24 @@ pmc_verificar:
 	jne pmc_verificar_movimiento
 	cmp tecla_e_presionada, 1
 	jne pmc_toggle_e
-	jmp NEAR PTR pmc_fin_sin_mov
-	
-pmc_fin_sin_mov_cerca:
-	jmp NEAR PTR pmc_fin_sin_mov
+	jmp NEAR PTR pmc_fin_frame
 	
 pmc_toggle_e:
 	mov tecla_e_presionada, 1
 	xor inventario_abierto, 1
 	mov requiere_redibujar, 2
-	jmp NEAR PTR pmc_fin_sin_mov
+	jmp NEAR PTR pmc_fin_frame
 	
 pmc_verificar_movimiento:
 	cmp inventario_abierto, 1
 	jne pmc_verificar_teclas
-	jmp NEAR PTR pmc_fin_sin_mov
+	jmp NEAR PTR pmc_fin_frame
 	
 pmc_verificar_teclas:
-        mov dl, al                   ; Guardar tecla presionada antes de consultar el tile
-        call get_tile_under_player   ; Obtener tile para ajustar velocidad
-        mov bl, al                   ; Guardar tile en BL
-        mov al, dl                   ; Restaurar tecla para las comparaciones
+	mov dl, al
+	call get_tile_under_player
+	mov bl, al
+	mov al, dl
 	
 	cmp al, '1'
 	jb pmc_check_w_keys
@@ -666,12 +659,12 @@ pmc_verificar_teclas:
 	sub al, '1'
 	mov hud_slot_seleccionado, al
 	mov requiere_redibujar, 2
-	jmp NEAR PTR pmc_fin_sin_mov
+	jmp NEAR PTR pmc_fin_frame
 	
 pmc_check_w_keys:
 	cmp al, 48h
 	jne pmc_check_w
-	; UP ARROW
+	
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_up_lento
@@ -682,7 +675,7 @@ pmc_check_w_keys:
 pmc_check_w:
 	cmp al, 'W'
 	jne pmc_check_down
-	; W KEY
+	
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_up_lento
@@ -703,7 +696,7 @@ pmc_up_set:
 pmc_check_down:
 	cmp al, 50h
 	jne pmc_check_s
-	; DOWN ARROW
+	
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_down_lento
@@ -714,7 +707,7 @@ pmc_check_down:
 pmc_check_s:
 	cmp al, 'S'
 	jne pmc_check_left
-	; S KEY
+	
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_down_lento
@@ -735,7 +728,7 @@ pmc_down_set:
 pmc_check_left:
 	cmp al, 4Bh
 	jne pmc_check_a
-	; LEFT ARROW
+	
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_left_lento
@@ -746,7 +739,7 @@ pmc_check_left:
 pmc_check_a:
 	cmp al, 'A'
 	jne pmc_check_right
-	; A KEY
+	
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_left_lento
@@ -767,7 +760,7 @@ pmc_left_set:
 pmc_check_right:
 	cmp al, 4Dh
 	jne pmc_check_d
-	; RIGHT ARROW
+	
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_right_lento
@@ -778,7 +771,7 @@ pmc_check_right:
 pmc_check_d:
 	cmp al, 'D'
 	jne pmc_default
-	; D KEY
+	
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_right_lento
@@ -797,86 +790,92 @@ pmc_right_set:
 	mov moviendo, 1
 	
 pmc_default:
-        cmp moviendo, 1
-        je pmc_fin_movimiento
-        jmp NEAR PTR pmc_fin_sin_mov
-
-pmc_fin_movimiento:
-	cmp moviendo, 1 
-	jne pmc_check_sliding 
-
-        call get_tile_under_player
-        cmp al, TILE_HIELO
-        jne pmc_no_guardar_desliz
-
-        mov ax, mov_dx
-        or ax, mov_dy
-        jz pmc_no_guardar_desliz
-
-        mov ax, mov_dx
-        mov deslizando_dx, ax
-        mov ax, mov_dy
-	mov deslizando_dy, ax
-	mov deslizando, 1
-	jmp pmc_llamar_resolver
+	cmp moviendo, 1
+	je pmc_llamar_resolver
 	
-pmc_no_guardar_desliz:
-	mov deslizando, 0
-	mov deslizando_dx, 0
-	mov deslizando_dy, 0
-	jmp pmc_llamar_resolver
+	jmp pmc_fin_frame 
+
+pmc_no_key_pressed:
+	mov tecla_e_presionada, 0
 	
-pmc_check_sliding:
 	cmp deslizando, 0
-	je pmc_fin_sin_mov
-        call get_tile_under_player
-        cmp al, TILE_HIELO
-        jne pmc_parar_desliz
+	je pmc_fin_frame
 
-        mov ax, deslizando_dx
-        mov bx, ax
-        or ax, deslizando_dy
-        jz pmc_parar_desliz
-        mov mov_dx, bx
-        mov ax, deslizando_dy
-        mov mov_dy, ax
+	call get_tile_under_player
+	cmp al, TILE_HIELO
+	jne pmc_parar_desliz
 
-        mov ax, mov_dx
-        cmp ax, 0
-        je pmc_slide_check_y
-        js pmc_slide_dir_izq
-        mov jugador_dir, DIR_DERECHA
-        jmp pmc_slide_dir_done
+	mov ax, deslizando_dx
+	mov bx, ax
+	or ax, deslizando_dy
+	jz pmc_parar_desliz
+	
+	mov mov_dx, bx
+	mov ax, deslizando_dy
+	mov mov_dy, ax
+	
+	mov ax, mov_dx
+	cmp ax, 0
+	je pmc_slide_check_y
+	js pmc_slide_dir_izq
+	mov jugador_dir, DIR_DERECHA
+	jmp pmc_slide_dir_done
 
 pmc_slide_dir_izq:
-        mov jugador_dir, DIR_IZQUIERDA
-        jmp pmc_slide_dir_done
+	mov jugador_dir, DIR_IZQUIERDA
+	jmp pmc_slide_dir_done
 
 pmc_slide_check_y:
-        mov ax, mov_dy
-        cmp ax, 0
-        je pmc_slide_dir_done
-        js pmc_slide_dir_arriba
-        mov jugador_dir, DIR_ABAJO
-        jmp pmc_slide_dir_done
+	mov ax, mov_dy
+	cmp ax, 0
+	je pmc_slide_dir_done
+	js pmc_slide_dir_arriba
+	mov jugador_dir, DIR_ABAJO
+	jmp pmc_slide_dir_done
 
 pmc_slide_dir_arriba:
-        mov jugador_dir, DIR_ARRIBA
+	mov jugador_dir, DIR_ARRIBA
 
 pmc_slide_dir_done:
-        mov moviendo, 1
-        jmp pmc_llamar_resolver
-	
+	mov moviendo, 1
+	jmp pmc_llamar_resolver
+
 pmc_parar_desliz:
 	mov deslizando, 0
 	mov deslizando_dx, 0
 	mov deslizando_dy, 0
-	jmp pmc_fin_sin_mov
-	
+	jmp pmc_fin_frame
+
 pmc_llamar_resolver:
-	call resolver_colisiones_y_mover
+	call get_tile_under_player
+	cmp al, TILE_HIELO
+	jne pmc_resolver_no_hielo
+
+	mov ax, mov_dx
+	or ax, mov_dy
+	jz pmc_resolver
 	
-pmc_fin_sin_mov:
+	mov ax, mov_dx
+	mov deslizando_dx, ax
+	mov ax, mov_dy
+	mov deslizando_dy, ax
+	mov deslizando, 1
+	jmp pmc_resolver
+	
+pmc_resolver_no_hielo:
+	mov deslizando, 0
+	mov deslizando_dx, 0
+	mov deslizando_dy, 0
+
+pmc_resolver:
+	mov ax, mov_dx
+	or ax, mov_dy
+	jz pmc_fin_frame
+	
+	call resolver_colisiones_y_mover
+
+pmc_fin_frame:
+	pop si
 	pop dx
 	pop cx
 	pop bx
@@ -884,6 +883,7 @@ pmc_fin_sin_mov:
 	ret
 	
 pmc_salir:
+	pop si
 	pop dx
 	pop cx
 	pop bx
