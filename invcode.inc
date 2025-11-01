@@ -1416,7 +1416,7 @@ verificar_victoria ENDP
 dibujar_hud PROC
     push ax
 
-    call dibujar_hud_corazones
+    call dibujar_hud_vida
 
     cmp inventario_abierto, 1
     je dh_fin
@@ -1428,72 +1428,6 @@ dh_fin:
     pop ax
     ret
 dibujar_hud ENDP
-
-dibujar_hud_corazones PROC
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-    push bp
-
-    xor si, si
-
-dhc_loop_hearts:
-    mov bl, jugador_vida_max
-    xor bh, bh
-    cmp si, bx
-    jb dhc_continue
-    jmp dhc_fin
-
-dhc_continue:
-    mov ax, si
-    mov bx, HUD_HEART_SPACING
-    mul bx
-    add ax, HUD_HEART_X
-    mov cx, ax
-
-    mov dx, HUD_HEART_Y
-
-    push si
-
-    mov al, byte ptr jugador_vida_actual
-    xor ah, ah
-    cmp si, ax
-    jb dhc_draw_full
-    
-    mov di, OFFSET sprite_heart_empty
-    mov si, OFFSET sprite_heart_empty_mask
-    jmp dhc_draw
-
-dhc_draw_full:
-    mov di, OFFSET sprite_heart_full
-    mov si, OFFSET sprite_heart_full_mask
-
-dhc_draw:
-    ;--- ESTA ES LA CORRECCION ---
-    push bx
-    call dibujar_sprite_planar_16x16_opt
-    pop bx
-    ;--- FIN DE LA CORRECCION ---
-    
-    pop si
-
-dhc_next_heart:
-    inc si
-    jmp dhc_loop_hearts
-
-dhc_fin:
-    pop bp
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-dibujar_hud_corazones ENDP
 
 dibujar_hud_progreso PROC
     push ax
