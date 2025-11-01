@@ -63,6 +63,18 @@ ilt_loop_video:
         je vtt_no_transitable
         cmp al, 14
         je vtt_no_transitable
+        cmp al, 15
+        je vtt_no_transitable
+        cmp al, 16
+        je vtt_no_transitable
+        cmp al, 17
+        je vtt_no_transitable
+        cmp al, 18
+        je vtt_no_transitable
+        cmp al, 19
+        je vtt_no_transitable
+        cmp al, 20
+        je vtt_no_transitable
 	
 	pop dx
 	pop bx
@@ -491,11 +503,41 @@ csp32o_fin:
         mov si, OFFSET sprite_totem_aves
         mov di, OFFSET sprite_totem_aves_mask
         call calcular_mascara_16x16
-	
-	
-	mov si, OFFSET sprite_cristal
-	mov di, OFFSET sprite_cristal_mask
-	call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_casa_techo_izq
+        mov di, OFFSET sprite_casa_techo_izq_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_casa_techo_cen
+        mov di, OFFSET sprite_casa_techo_cen_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_casa_techo_der
+        mov di, OFFSET sprite_casa_techo_der_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_casa_pared
+        mov di, OFFSET sprite_casa_pared_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_casa_ventana
+        mov di, OFFSET sprite_casa_ventana_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_casa_puerta
+        mov di, OFFSET sprite_casa_puerta_mask
+        call calcular_mascara_16x16
+
+
+        mov si, OFFSET sprite_cristal
+        mov di, OFFSET sprite_cristal_mask
+        call calcular_mascara_16x16
 	
 	mov si, OFFSET sprite_gema
 	mov di, OFFSET sprite_gema_mask
