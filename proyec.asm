@@ -593,10 +593,10 @@ fin_juego:
 	mov mov_dy, 0
 	mov moviendo, 0
 	
-        mov ah, 1
-        int 16h
-        jnz pmc_tiene_tecla
-        jmp NEAR PTR pmc_no_key_pressed
+	mov ah, 1
+	int 16h
+	jnz pmc_tiene_tecla
+	jmp NEAR PTR pmc_no_key_pressed
 
 pmc_tiene_tecla:
 	mov ah, 0
@@ -665,7 +665,6 @@ pmc_verificar_teclas:
 pmc_check_w_keys:
 	cmp al, 48h
 	jne pmc_check_w
-	
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_up_lento
@@ -676,7 +675,6 @@ pmc_check_w_keys:
 pmc_check_w:
 	cmp al, 'W'
 	jne pmc_check_down
-	
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_up_lento
@@ -693,11 +691,11 @@ pmc_up_set:
 	mov mov_dy, ax
 	mov jugador_dir, DIR_ARRIBA
 	mov moviendo, 1
+	jmp pmc_llamar_resolver  ; ← FIX: Saltar a resolver
 	
 pmc_check_down:
 	cmp al, 50h
 	jne pmc_check_s
-	
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_down_lento
@@ -708,7 +706,6 @@ pmc_check_down:
 pmc_check_s:
 	cmp al, 'S'
 	jne pmc_check_left
-	
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_down_lento
@@ -725,11 +722,11 @@ pmc_down_set:
 	mov mov_dy, ax
 	mov jugador_dir, DIR_ABAJO
 	mov moviendo, 1
+	jmp pmc_llamar_resolver  ; ← FIX: Saltar a resolver
 	
 pmc_check_left:
 	cmp al, 4Bh
 	jne pmc_check_a
-	
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_left_lento
@@ -740,7 +737,6 @@ pmc_check_left:
 pmc_check_a:
 	cmp al, 'A'
 	jne pmc_check_right
-	
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_left_lento
@@ -757,11 +753,11 @@ pmc_left_set:
 	mov mov_dx, ax
 	mov jugador_dir, DIR_IZQUIERDA
 	mov moviendo, 1
+	jmp pmc_llamar_resolver  ; ← FIX: Saltar a resolver
 	
 pmc_check_right:
 	cmp al, 4Dh
 	jne pmc_check_d
-	
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_right_lento
@@ -772,7 +768,6 @@ pmc_check_right:
 pmc_check_d:
 	cmp al, 'D'
 	jne pmc_default
-	
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_right_lento
@@ -789,24 +784,21 @@ pmc_right_set:
 	mov mov_dx, ax
 	mov jugador_dir, DIR_DERECHA
 	mov moviendo, 1
+	jmp pmc_llamar_resolver  ; ← FIX: Saltar a resolver
 	
 pmc_default:
-	cmp moviendo, 1
-	je pmc_llamar_resolver
-	
 	jmp pmc_fin_frame 
 
 pmc_no_key_pressed:
 	mov tecla_e_presionada, 0
 	
-        cmp deslizando, 0
-        jne pmc_deslizando_activo
-        jmp NEAR PTR pmc_fin_frame
+	cmp deslizando, 0
+	jne pmc_deslizando_activo
+	jmp NEAR PTR pmc_fin_frame
 
 pmc_deslizando_activo:
-
-        call get_tile_under_player
-        cmp al, TILE_HIELO
+	call get_tile_under_player
+	cmp al, TILE_HIELO
 	jne pmc_parar_desliz
 
 	mov ax, deslizando_dx
@@ -851,27 +843,30 @@ pmc_parar_desliz:
 	jmp pmc_fin_frame
 
 pmc_llamar_resolver:
+	; ← FIX: Nuevo label para resolver colisiones
 	call get_tile_under_player
 	cmp al, TILE_HIELO
 	jne pmc_resolver_no_hielo
 
+	; Si estamos en hielo y hay movimiento, activar deslizamiento
 	mov ax, mov_dx
 	or ax, mov_dy
-	jz pmc_resolver
+	jz pmc_resolver_continuar  ; ← FIX: Sin movimiento, solo resolver
 	
 	mov ax, mov_dx
 	mov deslizando_dx, ax
 	mov ax, mov_dy
 	mov deslizando_dy, ax
 	mov deslizando, 1
-	jmp pmc_resolver
-	
+	jmp pmc_resolver_continuar
+
 pmc_resolver_no_hielo:
+	; No estamos en hielo, detener deslizamiento
 	mov deslizando, 0
 	mov deslizando_dx, 0
 	mov deslizando_dy, 0
 
-pmc_resolver:
+pmc_resolver_continuar:
 	mov ax, mov_dx
 	or ax, mov_dy
 	jz pmc_fin_frame
