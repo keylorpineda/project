@@ -708,8 +708,8 @@ fin_juego:
 	push cx
 	push dx
 	
-	cmp jugador_estado, 1
-	je pmc_fin_sin_mov
+        cmp jugador_estado, 1
+        je pmc_fin_sin_mov_cerca
 	
 	mov mov_dx, 0
 	mov mov_dy, 0
@@ -733,12 +733,15 @@ pmc_check_desliz:
 	test ax, ax
 	jnz pmc_set_moviendo
 	mov ax, [desliz_dx]
-	test ax, ax
-	jz pmc_fin_movimiento
+        test ax, ax
+        jz pmc_fin_movimiento_cerca
 	
 pmc_set_moviendo:
 	mov moviendo, 1
-	jmp pmc_fin_movimiento
+        jmp pmc_fin_movimiento
+
+pmc_fin_movimiento_cerca:
+        jmp pmc_fin_movimiento
 	
 pmc_tiene_tecla:
 	mov ah, 0
@@ -775,7 +778,10 @@ pmc_verificar:
 	jne pmc_verificar_movimiento
 	cmp tecla_e_presionada, 1
 	jne pmc_toggle_e
-	jmp pmc_fin_sin_mov
+        jmp pmc_fin_sin_mov
+
+pmc_fin_sin_mov_cerca:
+        jmp pmc_fin_sin_mov
 	
 pmc_toggle_e:
 	mov tecla_e_presionada, 1
