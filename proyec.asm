@@ -64,12 +64,12 @@
 	archivo_player_der_b db 'SPRITES\PLAYER\RIGHT2.TXT', 0
 	archivo_player_hurt_up_a db 'SPRITES\PLAYER\HURT_UP1.TXT', 0
 	archivo_player_hurt_up_b db 'SPRITES\PLAYER\HURT_UP2.TXT', 0
-	archivo_player_hurt_down_a db 'SPRITES\PLAYER\HURT_DOWN1.TXT', 0
-	archivo_player_hurt_down_b db 'SPRITES\PLAYER\HURT_DOWN2.TXT', 0
-	archivo_player_hurt_izq_a db 'SPRITES\PLAYER\HURT_LEFT1.TXT', 0
-	archivo_player_hurt_izq_b db 'SPRITES\PLAYER\HURT_LEFT2.TXT', 0
-	archivo_player_hurt_der_a db 'SPRITES\PLAYER\HURT_RIGHT1.TXT', 0
-	archivo_player_hurt_der_b db 'SPRITES\PLAYER\HURT_RIGHT2.TXT', 0
+        archivo_player_hurt_down_a db 'SPRITES\PLAYER\HURTDWN1.TXT', 0
+        archivo_player_hurt_down_b db 'SPRITES\PLAYER\HURTDWN2.TXT', 0
+        archivo_player_hurt_izq_a db 'SPRITES\PLAYER\HURTLFT1.TXT', 0
+        archivo_player_hurt_izq_b db 'SPRITES\PLAYER\HURTLFT2.TXT', 0
+        archivo_player_hurt_der_a db 'SPRITES\PLAYER\HURTRGT1.TXT', 0
+        archivo_player_hurt_der_b db 'SPRITES\PLAYER\HURTRGT2.TXT', 0
 	
 	mapa_datos db 10000 dup(0)
 	
