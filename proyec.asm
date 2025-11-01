@@ -123,13 +123,13 @@
 	cm_valor_actual dw 0
 	cm_digito_temp db 0
 	
-	jugador_px dw 1000
-	jugador_py dw 800
+        jugador_px dw 808
+        jugador_py dw 536
 	jugador_dir db DIR_ABAJO
 	jugador_frame db 0
 	
-	jugador_px_old dw 1000
-	jugador_py_old dw 800
+        jugador_px_old dw 808
+        jugador_py_old dw 536
 	frame_old db 0
 	
 	moviendo db 0
@@ -804,14 +804,19 @@ pmc_fin_movimiento:
 	jne pmc_check_sliding        ; No, chequear si estabamos deslizando
 	
 	; Si, se presiono tecla. Verificar si estamos en hielo para INICIAR desliz
-	call get_tile_under_player
-	cmp al, TILE_HIELO
-	jne pmc_no_guardar_desliz
-	
-	; En hielo y presionando, guardar velocidad para el proximo frame
-	mov ax, mov_dx
-	mov deslizando_dx, ax
-	mov ax, mov_dy
+        call get_tile_under_player
+        cmp al, TILE_HIELO
+        jne pmc_no_guardar_desliz
+
+        ; Solo iniciar desliz si hay movimiento real
+        mov ax, mov_dx
+        or ax, mov_dy
+        jz pmc_no_guardar_desliz
+
+        ; En hielo y presionando, guardar velocidad para el proximo frame
+        mov ax, mov_dx
+        mov deslizando_dx, ax
+        mov ax, mov_dy
 	mov deslizando_dy, ax
 	mov deslizando, 1
 	jmp pmc_llamar_resolver      ; Saltar a mover
@@ -828,18 +833,46 @@ pmc_check_sliding:
 	cmp deslizando, 0
 	je pmc_fin_sin_mov           ; No, fin.
 	
-	; Si, estabamos deslizando. Chequear si seguimos en hielo
-	call get_tile_under_player
-	cmp al, TILE_HIELO
-	jne pmc_parar_desliz
-	
-	; En hielo, continuar con la velocidad guardada
-	mov ax, deslizando_dx
-	mov mov_dx, ax
-	mov ax, deslizando_dy
-	mov mov_dy, ax
-	mov moviendo, 1              ; Forzar movimiento para que se llame resolver_colisiones
-	jmp pmc_llamar_resolver
+        ; Si, estabamos deslizando. Chequear si seguimos en hielo
+        call get_tile_under_player
+        cmp al, TILE_HIELO
+        jne pmc_parar_desliz
+
+        mov ax, deslizando_dx
+        mov bx, ax
+        or ax, deslizando_dy
+        jz pmc_parar_desliz
+
+        ; En hielo, continuar con la velocidad guardada
+        mov mov_dx, bx
+        mov ax, deslizando_dy
+        mov mov_dy, ax
+
+        mov ax, mov_dx
+        cmp ax, 0
+        je pmc_slide_check_y
+        js pmc_slide_dir_izq
+        mov jugador_dir, DIR_DERECHA
+        jmp pmc_slide_dir_done
+
+pmc_slide_dir_izq:
+        mov jugador_dir, DIR_IZQUIERDA
+        jmp pmc_slide_dir_done
+
+pmc_slide_check_y:
+        mov ax, mov_dy
+        cmp ax, 0
+        je pmc_slide_dir_done
+        js pmc_slide_dir_arriba
+        mov jugador_dir, DIR_ABAJO
+        jmp pmc_slide_dir_done
+
+pmc_slide_dir_arriba:
+        mov jugador_dir, DIR_ARRIBA
+
+pmc_slide_dir_done:
+        mov moviendo, 1              ; Forzar movimiento para que se llame resolver_colisiones
+        jmp pmc_llamar_resolver
 	
 pmc_parar_desliz:
 	; Ya no estamos en hielo, parar
