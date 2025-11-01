@@ -2913,33 +2913,31 @@ actualizar_estado_jugador PROC
 
 	call get_tile_under_player
 
-        cmp al, TILE_HIELO
-        je aes_on_ice
+	cmp al, TILE_HIELO
+	je aes_on_ice_tile
 
-        cmp al, TILE_AGUA_CONGELADA
-        je aes_on_ice
+	cmp al, TILE_AGUA_CONGELADA
+	je aes_on_ice_tile
 
-        cmp jugador_estado, 3
-        jne aes_no_ice_momentum
+	mov [jugador_estado], 0
+	jmp aes_handle_momentum
 
-        mov [jugador_estado], 0
+aes_on_ice_tile:
+	mov [jugador_estado], 3
 
-aes_no_ice_momentum:
-        mov al, desliz_frames
-        cmp al, 0
-        je aes_fin
-        dec al
-        mov desliz_frames, al
-        cmp al, 0
-        jne aes_fin
-        mov [desliz_dx], 0
-        mov [desliz_dy], 0
-        jmp aes_fin
-
-aes_on_ice:
-        mov [jugador_estado], 3
-        mov al, DESLIZ_DURACION_MAX
-        mov desliz_frames, al
+aes_handle_momentum:
+	mov al, desliz_frames
+	cmp al, 0
+	je aes_fin
+	
+	dec al
+	mov desliz_frames, al
+	
+	cmp al, 0
+	jne aes_fin
+	
+	mov [desliz_dx], 0
+	mov [desliz_dy], 0
 
 aes_fin:
 	pop bx
