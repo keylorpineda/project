@@ -23,7 +23,9 @@
 	TILE_CASA_PUERTA EQU 20
 	TILE_SIZE EQU 16
 	VIDEO_SEG EQU 0A000h
-        VELOCIDAD EQU 4
+	VELOCIDAD EQU 4
+	VELOCIDAD_LENTA EQU 2
+	VELOCIDAD_RAPIDA EQU 6
 	
 	DIR_ABAJO EQU 0
 	DIR_ARRIBA EQU 1
@@ -64,12 +66,12 @@
 	archivo_player_der_b db 'SPRITES\PLAYER\RIGHT2.TXT', 0
 	archivo_player_hurt_up_a db 'SPRITES\PLAYER\HURT_UP1.TXT', 0
 	archivo_player_hurt_up_b db 'SPRITES\PLAYER\HURT_UP2.TXT', 0
-        archivo_player_hurt_down_a db 'SPRITES\PLAYER\HURTDWN1.TXT', 0
-        archivo_player_hurt_down_b db 'SPRITES\PLAYER\HURTDWN2.TXT', 0
-        archivo_player_hurt_izq_a db 'SPRITES\PLAYER\HURTLFT1.TXT', 0
-        archivo_player_hurt_izq_b db 'SPRITES\PLAYER\HURTLFT2.TXT', 0
-        archivo_player_hurt_der_a db 'SPRITES\PLAYER\HURTRGT1.TXT', 0
-        archivo_player_hurt_der_b db 'SPRITES\PLAYER\HURTRGT2.TXT', 0
+	archivo_player_hurt_down_a db 'SPRITES\PLAYER\HURTDWN1.TXT', 0
+	archivo_player_hurt_down_b db 'SPRITES\PLAYER\HURTDWN2.TXT', 0
+	archivo_player_hurt_izq_a db 'SPRITES\PLAYER\HURTLFT1.TXT', 0
+	archivo_player_hurt_izq_b db 'SPRITES\PLAYER\HURTLFT2.TXT', 0
+	archivo_player_hurt_der_a db 'SPRITES\PLAYER\HURTRGT1.TXT', 0
+	archivo_player_hurt_der_b db 'SPRITES\PLAYER\HURTRGT2.TXT', 0
 	
 	mapa_datos db 10000 dup(0)
 	
@@ -115,19 +117,19 @@
 	jugador_hurt_der_a db 512 dup(0)
 	jugador_hurt_der_b db 512 dup(0)
 	
-        buffer_temp db 300 dup(0)
-
-        cm_acumulando db 0
-        cm_valor_actual dw 0
-        cm_digito_temp db 0
+	buffer_temp db 300 dup(0)
 	
-        jugador_px dw 1000
-        jugador_py dw 800
+	cm_acumulando db 0
+	cm_valor_actual dw 0
+	cm_digito_temp db 0
+	
+	jugador_px dw 1000
+	jugador_py dw 800
 	jugador_dir db DIR_ABAJO
 	jugador_frame db 0
 	
-        jugador_px_old dw 1000
-        jugador_py_old dw 800
+	jugador_px_old dw 1000
+	jugador_py_old dw 800
 	frame_old db 0
 	
 	moviendo db 0
@@ -177,6 +179,9 @@
 	
 	mov_dx dw 0
 	mov_dy dw 0
+	deslizando db 0
+	deslizando_dx dw 0
+	deslizando_dy dw 0
 	col_tile_x dw 0
 	col_tile_y dw 0
 	
@@ -217,7 +222,7 @@ msg_progreso db 'PROGRESO:', 0
 	
 	jugador_vida dw 100
 	jugador_vida_maxima dw 100
-        jugador_invencible_timer dw 0
+	jugador_invencible_timer dw 0
 	
 	INV_X EQU 80
 	INV_Y EQU 40
@@ -476,7 +481,7 @@ continuar_juego:
 	mov pagina_visible, 0
 	mov pagina_dibujo, 1
 bucle_juego:
-        call verificar_colision_recursos
+	call verificar_colision_recursos
 	call actualizar_animacion_recoger
 	call procesar_movimiento_continuo
 	call actualizar_animacion
@@ -587,14 +592,16 @@ fin_juego:
 	mov mov_dy, 0
 	mov moviendo, 0
 	
-        mov ah, 1
-        int 16h
-        jnz pmc_tiene_tecla
-
-        mov tecla_e_presionada, 0
-        jmp NEAR PTR pmc_fin_movimiento
+	mov ah, 1
+	int 16h
+	jnz pmc_tiene_tecla
+	
+	mov tecla_e_presionada, 0
+	jmp NEAR PTR pmc_fin_movimiento
 	
 pmc_tiene_tecla:
+	mov deslizando, 0            ; Presionar tecla para el deslizamiento
+	
 	mov ah, 0
 	int 16h
 	
@@ -629,10 +636,10 @@ pmc_verificar:
 	jne pmc_verificar_movimiento
 	cmp tecla_e_presionada, 1
 	jne pmc_toggle_e
-        jmp NEAR PTR pmc_fin_sin_mov
-
+	jmp NEAR PTR pmc_fin_sin_mov
+	
 pmc_fin_sin_mov_cerca:
-        jmp NEAR PTR pmc_fin_sin_mov
+	jmp NEAR PTR pmc_fin_sin_mov
 	
 pmc_toggle_e:
 	mov tecla_e_presionada, 1
@@ -646,6 +653,9 @@ pmc_verificar_movimiento:
 	jmp NEAR PTR pmc_fin_sin_mov
 	
 pmc_verificar_teclas:
+	call get_tile_under_player   ; Obtener tile para ajustar velocidad
+	mov bl, al                   ; Guardar tile en BL
+	
 	cmp al, '1'
 	jb pmc_check_w_keys
 	cmp al, '8'
@@ -659,67 +669,187 @@ pmc_verificar_teclas:
 pmc_check_w_keys:
 	cmp al, 48h
 	jne pmc_check_w
-	mov mov_dy, - VELOCIDAD
-	mov jugador_dir, DIR_ARRIBA
-	mov moviendo, 1
+	; UP ARROW
+	mov ax, - VELOCIDAD
+	cmp bl, TILE_NIEVE
+	je pmc_up_lento
+	cmp bl, TILE_HIELO
+	je pmc_up_rapido
+	jmp pmc_up_set
 	
 pmc_check_w:
 	cmp al, 'W'
 	jne pmc_check_down
-	mov mov_dy, - VELOCIDAD
+	; W KEY
+	mov ax, - VELOCIDAD
+	cmp bl, TILE_NIEVE
+	je pmc_up_lento
+	cmp bl, TILE_HIELO
+	je pmc_up_rapido
+	jmp pmc_up_set
+	
+pmc_up_lento:
+	mov ax, - VELOCIDAD_LENTA
+	jmp pmc_up_set
+pmc_up_rapido:
+	mov ax, - VELOCIDAD_RAPIDA
+pmc_up_set:
+	mov mov_dy, ax
 	mov jugador_dir, DIR_ARRIBA
 	mov moviendo, 1
 	
 pmc_check_down:
 	cmp al, 50h
 	jne pmc_check_s
-	mov mov_dy, VELOCIDAD
-	mov jugador_dir, DIR_ABAJO
-	mov moviendo, 1
+	; DOWN ARROW
+	mov ax, VELOCIDAD
+	cmp bl, TILE_NIEVE
+	je pmc_down_lento
+	cmp bl, TILE_HIELO
+	je pmc_down_rapido
+	jmp pmc_down_set
 	
 pmc_check_s:
 	cmp al, 'S'
 	jne pmc_check_left
-	mov mov_dy, VELOCIDAD
+	; S KEY
+	mov ax, VELOCIDAD
+	cmp bl, TILE_NIEVE
+	je pmc_down_lento
+	cmp bl, TILE_HIELO
+	je pmc_down_rapido
+	jmp pmc_down_set
+	
+pmc_down_lento:
+	mov ax, VELOCIDAD_LENTA
+	jmp pmc_down_set
+pmc_down_rapido:
+	mov ax, VELOCIDAD_RAPIDA
+pmc_down_set:
+	mov mov_dy, ax
 	mov jugador_dir, DIR_ABAJO
 	mov moviendo, 1
 	
 pmc_check_left:
 	cmp al, 4Bh
 	jne pmc_check_a
-	mov mov_dx, - VELOCIDAD
-	mov jugador_dir, DIR_IZQUIERDA
-	mov moviendo, 1
+	; LEFT ARROW
+	mov ax, - VELOCIDAD
+	cmp bl, TILE_NIEVE
+	je pmc_left_lento
+	cmp bl, TILE_HIELO
+	je pmc_left_rapido
+	jmp pmc_left_set
 	
 pmc_check_a:
 	cmp al, 'A'
 	jne pmc_check_right
-	mov mov_dx, - VELOCIDAD
+	; A KEY
+	mov ax, - VELOCIDAD
+	cmp bl, TILE_NIEVE
+	je pmc_left_lento
+	cmp bl, TILE_HIELO
+	je pmc_left_rapido
+	jmp pmc_left_set
+	
+pmc_left_lento:
+	mov ax, - VELOCIDAD_LENTA
+	jmp pmc_left_set
+pmc_left_rapido:
+	mov ax, - VELOCIDAD_RAPIDA
+pmc_left_set:
+	mov mov_dx, ax
 	mov jugador_dir, DIR_IZQUIERDA
 	mov moviendo, 1
 	
 pmc_check_right:
 	cmp al, 4Dh
 	jne pmc_check_d
-	mov mov_dx, VELOCIDAD
-	mov jugador_dir, DIR_DERECHA
-	mov moviendo, 1
+	; RIGHT ARROW
+	mov ax, VELOCIDAD
+	cmp bl, TILE_NIEVE
+	je pmc_right_lento
+	cmp bl, TILE_HIELO
+	je pmc_right_rapido
+	jmp pmc_right_set
 	
 pmc_check_d:
 	cmp al, 'D'
 	jne pmc_default
-	mov mov_dx, VELOCIDAD
+	; D KEY
+	mov ax, VELOCIDAD
+	cmp bl, TILE_NIEVE
+	je pmc_right_lento
+	cmp bl, TILE_HIELO
+	je pmc_right_rapido
+	jmp pmc_right_set
+	
+pmc_right_lento:
+	mov ax, VELOCIDAD_LENTA
+	jmp pmc_right_set
+pmc_right_rapido:
+	mov ax, VELOCIDAD_RAPIDA
+pmc_right_set:
+	mov mov_dx, ax
 	mov jugador_dir, DIR_DERECHA
 	mov moviendo, 1
 	
 pmc_default:
-        cmp moviendo, 1
-        jne pmc_fin_sin_mov
-
+	cmp moviendo, 1
+	jne pmc_fin_sin_mov
+	
 pmc_fin_movimiento:
-        cmp moviendo, 1
-        jne pmc_fin_sin_mov
-        call resolver_colisiones_y_mover
+	; INICIO: Logica de deslizamiento
+	cmp moviendo, 1              ; Se presiono tecla este frame?
+	jne pmc_check_sliding        ; No, chequear si estabamos deslizando
+	
+	; Si, se presiono tecla. Verificar si estamos en hielo para INICIAR desliz
+	call get_tile_under_player
+	cmp al, TILE_HIELO
+	jne pmc_no_guardar_desliz
+	
+	; En hielo y presionando, guardar velocidad para el proximo frame
+	mov ax, mov_dx
+	mov deslizando_dx, ax
+	mov ax, mov_dy
+	mov deslizando_dy, ax
+	mov deslizando, 1
+	jmp pmc_llamar_resolver      ; Saltar a mover
+	
+pmc_no_guardar_desliz:
+	; No en hielo, asegurarse que no deslizamos
+	mov deslizando, 0
+	mov deslizando_dx, 0
+	mov deslizando_dy, 0
+	jmp pmc_llamar_resolver      ; Saltar a mover
+	
+pmc_check_sliding:
+	; No se presiono tecla. Estamos deslizando?
+	cmp deslizando, 0
+	je pmc_fin_sin_mov           ; No, fin.
+	
+	; Si, estabamos deslizando. Chequear si seguimos en hielo
+	call get_tile_under_player
+	cmp al, TILE_HIELO
+	jne pmc_parar_desliz
+	
+	; En hielo, continuar con la velocidad guardada
+	mov ax, deslizando_dx
+	mov mov_dx, ax
+	mov ax, deslizando_dy
+	mov mov_dy, ax
+	mov moviendo, 1              ; Forzar movimiento para que se llame resolver_colisiones
+	jmp pmc_llamar_resolver
+	
+pmc_parar_desliz:
+	; Ya no estamos en hielo, parar
+	mov deslizando, 0
+	mov deslizando_dx, 0
+	mov deslizando_dy, 0
+	jmp pmc_fin_sin_mov          ; Fin
+	
+pmc_llamar_resolver:
+	call resolver_colisiones_y_mover
 	
 pmc_fin_sin_mov:
 	pop dx
@@ -821,9 +951,11 @@ rcm_x_snap_der:
 	mov jugador_px, ax
 	
 rcm_x_col_fin:
-        mov mov_dx, 0
-
-        jmp rcm_fase_y
+	mov mov_dx, 0
+	mov deslizando, 0            ; Chocar detiene el deslizamiento
+	mov deslizando_dx, 0
+	
+	jmp rcm_fase_y
 	
 rcm_x_sin_colision:
 	mov jugador_px, bx
@@ -904,9 +1036,11 @@ rcm_y_snap_abajo:
 	mov jugador_py, ax
 	
 rcm_y_col_fin:
-        mov mov_dy, 0
-
-        jmp rcm_fin
+	mov mov_dy, 0
+	mov deslizando, 0            ; Chocar detiene el deslizamiento
+	mov deslizando_dy, 0
+	
+	jmp rcm_fin
 	
 rcm_y_sin_colision:
 	mov jugador_py, bx
@@ -1607,10 +1741,10 @@ caj_fin:
 	ret
 	cargar_animaciones_jugador ENDP
 	
-obtener_sprite_jugador PROC
+	obtener_sprite_jugador PROC
 	push ax
 	push bx
-
+	
 osj_normal:
 	mov al, jugador_dir
 	mov bl, jugador_frame
@@ -1667,7 +1801,7 @@ osj_fin:
 	pop bx
 	pop ax
 	ret
-obtener_sprite_jugador ENDP
+	obtener_sprite_jugador ENDP
 	
 	renderizar_en_pagina_0 PROC
 	push ax
@@ -2105,131 +2239,131 @@ er_wait_start:
 	
 	mov ax, 3D00h
 	mov dx, OFFSET archivo_mapa
-        int 21h
-        jnc cm_archivo_abierto
-        jmp cm_error
-
+	int 21h
+	jnc cm_archivo_abierto
+	jmp cm_error
+	
 cm_archivo_abierto:
 	
 	mov bx, ax
 	call saltar_linea
 	
-        mov di, OFFSET mapa_datos
-        xor bp, bp
-        mov byte ptr cm_acumulando, 0
-        mov word ptr cm_valor_actual, 0
-
+	mov di, OFFSET mapa_datos
+	xor bp, bp
+	mov byte ptr cm_acumulando, 0
+	mov word ptr cm_valor_actual, 0
+	
 cm_leer:
-        mov ah, 3Fh
-        mov cx, 200
-        mov dx, OFFSET buffer_temp
-        int 21h
-
-        cmp ax, 0
-        jne cm_buffer_tiene_datos
-        jmp cm_fin_buffer
-
+	mov ah, 3Fh
+	mov cx, 200
+	mov dx, OFFSET buffer_temp
+	int 21h
+	
+	cmp ax, 0
+	jne cm_buffer_tiene_datos
+	jmp cm_fin_buffer
+	
 cm_buffer_tiene_datos:
-
-        mov cx, ax
-        xor si, si
-
+	
+	mov cx, ax
+	xor si, si
+	
 cm_proc:
-        cmp si, cx
-        jae cm_leer
-
-        mov al, [buffer_temp + si]
-        inc si
-
-        cmp al, ' '
-        je cm_delimitador
-        cmp al, 13
-        je cm_delimitador
-        cmp al, 10
-        je cm_delimitador
-        cmp al, 9
-        je cm_delimitador
-
-        cmp al, '0'
-        jb cm_chk_letra
-        cmp al, '9'
-        ja cm_chk_letra
-
-        cmp byte ptr cm_acumulando, 0
-        jne cm_digito_cont
-        mov byte ptr cm_acumulando, 1
-        mov word ptr cm_valor_actual, 0
-
+	cmp si, cx
+	jae cm_leer
+	
+	mov al, [buffer_temp + si]
+	inc si
+	
+	cmp al, ' '
+	je cm_delimitador
+	cmp al, 13
+	je cm_delimitador
+	cmp al, 10
+	je cm_delimitador
+	cmp al, 9
+	je cm_delimitador
+	
+	cmp al, '0'
+	jb cm_chk_letra
+	cmp al, '9'
+	ja cm_chk_letra
+	
+	cmp byte ptr cm_acumulando, 0
+	jne cm_digito_cont
+	mov byte ptr cm_acumulando, 1
+	mov word ptr cm_valor_actual, 0
+	
 cm_digito_cont:
-        sub al, '0'
-        mov byte ptr cm_digito_temp, al
-        mov ax, cm_valor_actual
-        mov dx, ax
-        shl ax, 1
-        shl dx, 3
-        add ax, dx
-        mov dl, byte ptr cm_digito_temp
-        xor dh, dh
-        add ax, dx
-        mov cm_valor_actual, ax
-        jmp cm_proc
-
+	sub al, '0'
+	mov byte ptr cm_digito_temp, al
+	mov ax, cm_valor_actual
+	mov dx, ax
+	shl ax, 1
+	shl dx, 3
+	add ax, dx
+	mov dl, byte ptr cm_digito_temp
+	xor dh, dh
+	add ax, dx
+	mov cm_valor_actual, ax
+	jmp cm_proc
+	
 cm_chk_letra:
-        cmp al, 'A'
-        jb cm_chk_lower
-        cmp al, 'F'
-        ja cm_chk_lower
-        sub al, 'A'
-        add al, 10
-        jmp cm_store_letra
-
+	cmp al, 'A'
+	jb cm_chk_lower
+	cmp al, 'F'
+	ja cm_chk_lower
+	sub al, 'A'
+	add al, 10
+	jmp cm_store_letra
+	
 cm_chk_lower:
-        cmp al, 'a'
-        jb cm_proc
-        cmp al, 'f'
-        ja cm_proc
-        sub al, 'a'
-        add al, 10
-
+	cmp al, 'a'
+	jb cm_proc
+	cmp al, 'f'
+	ja cm_proc
+	sub al, 'a'
+	add al, 10
+	
 cm_store_letra:
-        mov byte ptr cm_acumulando, 0
-        mov [di], al
-        inc di
-        inc bp
-        cmp bp, 10000
-        jae cm_cerrar
-        jmp cm_proc
-
+	mov byte ptr cm_acumulando, 0
+	mov [di], al
+	inc di
+	inc bp
+	cmp bp, 10000
+	jae cm_cerrar
+	jmp cm_proc
+	
 cm_delimitador:
-        cmp byte ptr cm_acumulando, 0
-        jne cm_delimitador_store
-        jmp cm_proc
-
+	cmp byte ptr cm_acumulando, 0
+	jne cm_delimitador_store
+	jmp cm_proc
+	
 cm_delimitador_store:
-        mov al, byte ptr cm_valor_actual
-        mov byte ptr cm_acumulando, 0
-        mov [di], al
-        inc di
-        inc bp
-        cmp bp, 10000
-        jae cm_cerrar
-        jmp cm_proc
-
+	mov al, byte ptr cm_valor_actual
+	mov byte ptr cm_acumulando, 0
+	mov [di], al
+	inc di
+	inc bp
+	cmp bp, 10000
+	jae cm_cerrar
+	jmp cm_proc
+	
 cm_fin_buffer:
-        cmp byte ptr cm_acumulando, 0
-        je cm_cerrar
-        mov al, byte ptr cm_valor_actual
-        mov byte ptr cm_acumulando, 0
-        mov [di], al
-        inc di
-        inc bp
-        cmp bp, 10000
-        jb cm_cerrar
-        
+	cmp byte ptr cm_acumulando, 0
+	je cm_cerrar
+	mov al, byte ptr cm_valor_actual
+	mov byte ptr cm_acumulando, 0
+	mov [di], al
+	inc di
+	inc bp
+	cmp bp, 10000
+	jb cm_cerrar
+	
 cm_cerrar:
-        mov ah, 3Eh
-        int 21h
-        clc
+	mov ah, 3Eh
+	int 21h
+	clc
 	jmp cm_fin
 	
 cm_error:
@@ -2802,7 +2936,7 @@ dvt_mapa_ok:
 	pop ax
 	ret
 	debug_verificar_todo ENDP
-
+	
 	get_tile_under_player PROC
 	push ax
 	push bx
@@ -2841,9 +2975,9 @@ gtup_fin:
 	pop bx
 	pop ax
 	ret
-get_tile_under_player ENDP
-
-        INCLUDE OPTCODE.INC
-        INCLUDE INVCODE.INC
+	get_tile_under_player ENDP
+	
+	INCLUDE OPTCODE.INC
+	INCLUDE INVCODE.INC
 	
 	END inicio
