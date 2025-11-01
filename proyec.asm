@@ -2908,41 +2908,57 @@ gtup_fin:
 get_tile_under_player ENDP
 
 actualizar_estado_jugador PROC
-	push ax
-	push bx
+    push ax
+    push bx
 
-	call get_tile_under_player
+    call get_tile_under_player
 
-	cmp al, TILE_HIELO
-	je aes_on_ice_tile
+    cmp al, TILE_HIELO
+    je aes_on_ice_tile
 
-	cmp al, TILE_AGUA_CONGELADA
-	je aes_on_ice_tile
+    cmp al, TILE_AGUA_CONGELADA
+    je aes_on_ice_tile
 
-	mov [jugador_estado], 0
-	jmp aes_handle_momentum
+    cmp [jugador_estado], 3
+    jne aes_handle_momentum
+    
+    mov [jugador_estado], 0
+    jmp aes_handle_momentum
 
 aes_on_ice_tile:
-	mov [jugador_estado], 3
+    cmp [jugador_estado], 3
+    je aes_handle_momentum
+    
+    mov [jugador_estado], 3
+    
+    cmp [moviendo], 1
+    jne aes_handle_momentum
+    
+    mov ax, [mov_dx]
+    mov [desliz_dx], ax
+    mov ax, [mov_dy]
+    mov [desliz_dy], ax
+    mov al, DESLIZ_DURACION_MAX
+    mov desliz_frames, al
 
 aes_handle_momentum:
-	mov al, desliz_frames
-	cmp al, 0
-	je aes_fin
-	
-	dec al
-	mov desliz_frames, al
-	
-	cmp al, 0
-	jne aes_fin
-	
-	mov [desliz_dx], 0
-	mov [desliz_dy], 0
+    mov al, desliz_frames
+    cmp al, 0
+    je aes_fin
+    
+    dec al
+    mov desliz_frames, al
+    
+    cmp al, 0
+    jne aes_fin
+    
+    mov [desliz_dx], 0
+    mov [desliz_dy], 0
 
 aes_fin:
-	pop bx
-	pop ax
-	ret
+    pop bx
+    pop ax
+    ret
 actualizar_estado_jugador ENDP
 
 	INCLUDE OPTCODE.INC
