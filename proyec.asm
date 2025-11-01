@@ -24,7 +24,6 @@
 	TILE_SIZE EQU 16
 	VIDEO_SEG EQU 0A000h
         VELOCIDAD EQU 4
-        DESLIZ_DURACION_MAX EQU 20
 	
 	DIR_ABAJO EQU 0
 	DIR_ARRIBA EQU 1
@@ -218,13 +217,7 @@ msg_progreso db 'PROGRESO:', 0
 	
 	jugador_vida dw 100
 	jugador_vida_maxima dw 100
-	jugador_estado db 0
-	jugador_estado_timer dw 0
-	jugador_invencible_timer dw 0
-	
-        desliz_dx dw 0
-        desliz_dy dw 0
-        desliz_frames db 0
+        jugador_invencible_timer dw 0
 	
 	INV_X EQU 80
 	INV_Y EQU 40
@@ -483,8 +476,7 @@ continuar_juego:
 	mov pagina_visible, 0
 	mov pagina_dibujo, 1
 bucle_juego:
-	call actualizar_estado_jugador
-	call verificar_colision_recursos
+        call verificar_colision_recursos
 	call actualizar_animacion_recoger
 	call procesar_movimiento_continuo
 	call actualizar_animacion
@@ -595,47 +587,11 @@ fin_juego:
 	mov mov_dy, 0
 	mov moviendo, 0
 	
-	mov ah, 1
-	int 16h
-	jnz pmc_tiene_tecla
-	
-	mov tecla_e_presionada, 0
+        mov ah, 1
+        int 16h
+        jnz pmc_tiene_tecla
 
-        cmp jugador_estado, 3
-        je pmc_desliz_activo
-        mov al, desliz_frames
-        cmp al, 0
-        jne pmc_desliz_activo
-        jmp NEAR PTR pmc_fin_movimiento
-
-pmc_desliz_activo:
-        mov ax, [desliz_dx]
-        mov [mov_dx], ax
-        mov ax, [desliz_dy]
-        mov [mov_dy], ax
-
-        mov ax, [mov_dx]
-        mov bx, [mov_dy]
-        or ax, bx
-        jnz pmc_desliz_tiene_velocidad
-
-pmc_fin_movimiento_cerca:
-        mov desliz_frames, 0
-        jmp NEAR PTR pmc_fin_movimiento
-
-pmc_desliz_tiene_velocidad:
-        cmp jugador_estado, 3
-        je pmc_set_moviendo
-
-        mov al, desliz_frames
-        cmp al, 0
-        jne pmc_set_moviendo
-        mov [desliz_dx], 0
-        mov [desliz_dy], 0
-        jmp pmc_fin_movimiento_cerca
-
-pmc_set_moviendo:
-        mov moviendo, 1
+        mov tecla_e_presionada, 0
         jmp NEAR PTR pmc_fin_movimiento
 	
 pmc_tiene_tecla:
@@ -757,23 +713,13 @@ pmc_check_d:
 	mov moviendo, 1
 	
 pmc_default:
-	cmp moviendo, 1
-	jne pmc_fin_sin_mov
-	
-        cmp jugador_estado, 3
-        jne pmc_fin_movimiento
-
-        mov ax, mov_dx
-        mov [desliz_dx], ax
-        mov ax, mov_dy
-        mov [desliz_dy], ax
-        mov al, DESLIZ_DURACION_MAX
-        mov desliz_frames, al
+        cmp moviendo, 1
+        jne pmc_fin_sin_mov
 
 pmc_fin_movimiento:
-	cmp moviendo, 1
-	jne pmc_fin_sin_mov
-	call resolver_colisiones_y_mover
+        cmp moviendo, 1
+        jne pmc_fin_sin_mov
+        call resolver_colisiones_y_mover
 	
 pmc_fin_sin_mov:
 	pop dx
@@ -875,14 +821,9 @@ rcm_x_snap_der:
 	mov jugador_px, ax
 	
 rcm_x_col_fin:
-	mov mov_dx, 0
-	
-	cmp jugador_estado, 3
-	jne rcm_x_col_fin_no_slide
-	mov [desliz_dx], 0
-rcm_x_col_fin_no_slide:
-	
-	jmp rcm_fase_y
+        mov mov_dx, 0
+
+        jmp rcm_fase_y
 	
 rcm_x_sin_colision:
 	mov jugador_px, bx
@@ -963,14 +904,9 @@ rcm_y_snap_abajo:
 	mov jugador_py, ax
 	
 rcm_y_col_fin:
-	mov mov_dy, 0
-	
-	cmp jugador_estado, 3
-	jne rcm_y_col_fin_no_slide
-	mov [desliz_dy], 0
-rcm_y_col_fin_no_slide:
-	
-	jmp rcm_fin
+        mov mov_dy, 0
+
+        jmp rcm_fin
 	
 rcm_y_sin_colision:
 	mov jugador_py, bx
@@ -2907,61 +2843,7 @@ gtup_fin:
 	ret
 get_tile_under_player ENDP
 
-actualizar_estado_jugador PROC
-    push ax
-    push bx
-
-    call get_tile_under_player
-
-    cmp al, TILE_HIELO
-    je aes_on_ice_tile
-
-    cmp al, TILE_AGUA_CONGELADA
-    je aes_on_ice_tile
-
-    cmp [jugador_estado], 3
-    jne aes_handle_momentum
-    
-    mov [jugador_estado], 0
-    jmp aes_handle_momentum
-
-aes_on_ice_tile:
-    cmp [jugador_estado], 3
-    je aes_handle_momentum
-    
-    mov [jugador_estado], 3
-    
-    cmp [moviendo], 1
-    jne aes_handle_momentum
-    
-    mov ax, [mov_dx]
-    mov [desliz_dx], ax
-    mov ax, [mov_dy]
-    mov [desliz_dy], ax
-    mov al, DESLIZ_DURACION_MAX
-    mov desliz_frames, al
-
-aes_handle_momentum:
-    mov al, desliz_frames
-    cmp al, 0
-    je aes_fin
-    
-    dec al
-    mov desliz_frames, al
-    
-    cmp al, 0
-    jne aes_fin
-    
-    mov [desliz_dx], 0
-    mov [desliz_dy], 0
-
-aes_fin:
-    pop bx
-    pop ax
-    ret
-actualizar_estado_jugador ENDP
-
-	INCLUDE OPTCODE.INC
-	INCLUDE INVCODE.INC
+        INCLUDE OPTCODE.INC
+        INCLUDE INVCODE.INC
 	
 	END inicio
