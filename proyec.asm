@@ -2884,72 +2884,74 @@ gtup_fin:
 get_tile_under_player ENDP
 
 actualizar_estado_jugador PROC
-	push ax
-	push bx
+    push ax
+    push bx
 
-	cmp [jugador_invencible_timer], 0
-	je aes_check_estado_timer
-	dec [jugador_invencible_timer]
-	
+    cmp [jugador_invencible_timer], 0
+    je aes_check_estado_timer
+    dec [jugador_invencible_timer]
+    
 aes_check_estado_timer:
-	cmp [jugador_estado_timer], 0
-	je aes_check_tile
-	
-	dec [jugador_estado_timer]
-	jnz aes_check_poison_tick
-	
-	mov [jugador_estado], 0
-	jmp aes_check_tile
-	
+    cmp [jugador_estado_timer], 0
+    je aes_check_tile
+    
+    dec [jugador_estado_timer]
+    jnz aes_check_poison_tick
+    
+    mov [jugador_estado], 0
+    jmp aes_check_tile
+    
 aes_check_poison_tick:
-	cmp [jugador_estado], 2
-	jne aes_fin
-	call aplicar_dano_tick_veneno
-	jmp aes_fin
-	
+    cmp [jugador_estado], 2
+    jne aes_fin
+    call aplicar_dano_tick_veneno
+    jmp aes_fin
+    
 aes_check_tile:
-	cmp [jugador_estado], 0
-	je aes_do_check
-	cmp [jugador_estado], 3
-	je aes_do_check
-	jmp aes_fin
-	
+    cmp [jugador_estado], 0
+    je aes_do_check
+    cmp [jugador_estado], 3
+    je aes_do_check
+    jmp aes_fin
+    
 aes_do_check:
-	call get_tile_under_player
-	
-	cmp al, TILE_LAVA
-	je aes_on_lava
-	
-	cmp al, TILE_AGUA_TOXICA
-	je aes_on_toxic
-	
-	cmp al, TILE_HIELO
-	je aes_on_ice
-	
-aes_on_safe_ground:
-	cmp jugador_estado, 3
-	jne aes_fin
-	
-	mov [jugador_estado], 0
-	mov [desliz_dx], 0
-	mov [desliz_dy], 0
-	jmp aes_fin
+    call get_tile_under_player
+    
+    cmp al, TILE_LAVA
+    je aes_on_lava
+    
+    cmp al, TILE_AGUA_TOXICA
+    je aes_on_toxic
+    
+    cmp al, TILE_HIELO
+    je aes_on_ice
+    
+    jmp aes_on_safe_ground
 
 aes_on_lava:
-	call aplicar_dano_fuego
-	jmp aes_fin
-	
+    call aplicar_dano_fuego
+    jmp aes_fin
+    
 aes_on_toxic:
-	call aplicar_dano_veneno
-	jmp aes_fin
+    call aplicar_dano_veneno
+    jmp aes_fin
 
 aes_on_ice:
-	mov [jugador_estado], 3
+    mov [jugador_estado], 3
+    jmp aes_fin
+
+aes_on_safe_ground:
+    cmp jugador_estado, 3
+    jne aes_fin
+    
+    mov [jugador_estado], 0
+    mov [desliz_dx], 0
+    mov [desliz_dy], 0
 
 aes_fin:
-	pop bx
-	pop ax
-	ret
+    pop bx
+    pop ax
+    ret
 actualizar_estado_jugador ENDP
 
 aplicar_dano_fuego PROC
