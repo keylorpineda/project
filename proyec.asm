@@ -653,8 +653,10 @@ pmc_verificar_movimiento:
 	jmp NEAR PTR pmc_fin_sin_mov
 	
 pmc_verificar_teclas:
-	call get_tile_under_player   ; Obtener tile para ajustar velocidad
-	mov bl, al                   ; Guardar tile en BL
+        mov dl, al                   ; Guardar tecla presionada antes de consultar el tile
+        call get_tile_under_player   ; Obtener tile para ajustar velocidad
+        mov bl, al                   ; Guardar tile en BL
+        mov al, dl                   ; Restaurar tecla para las comparaciones
 	
 	cmp al, '1'
 	jb pmc_check_w_keys
