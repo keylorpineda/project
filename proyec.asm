@@ -723,7 +723,7 @@ fin_juego:
 
 	cmp jugador_estado, 3
 	je pmc_check_desliz
-	jmp pmc_fin_movimiento
+	jmp NEAR PTR pmc_fin_movimiento
 	
 pmc_check_desliz:
 	mov ax, [desliz_dx]
@@ -738,10 +738,10 @@ pmc_check_desliz:
 	
 pmc_set_moviendo:
 	mov moviendo, 1
-        jmp pmc_fin_movimiento
+        jmp NEAR PTR pmc_fin_movimiento
 
 pmc_fin_movimiento_cerca:
-        jmp pmc_fin_movimiento
+        jmp NEAR PTR pmc_fin_movimiento
 	
 pmc_tiene_tecla:
 	mov ah, 0
@@ -778,21 +778,21 @@ pmc_verificar:
 	jne pmc_verificar_movimiento
 	cmp tecla_e_presionada, 1
 	jne pmc_toggle_e
-        jmp pmc_fin_sin_mov
+        jmp NEAR PTR pmc_fin_sin_mov
 
 pmc_fin_sin_mov_cerca:
-        jmp pmc_fin_sin_mov
+        jmp NEAR PTR pmc_fin_sin_mov
 	
 pmc_toggle_e:
 	mov tecla_e_presionada, 1
 	xor inventario_abierto, 1
 	mov requiere_redibujar, 2
-	jmp pmc_fin_sin_mov
+	jmp NEAR PTR pmc_fin_sin_mov
 	
 pmc_verificar_movimiento:
 	cmp inventario_abierto, 1
 	jne pmc_verificar_teclas
-	jmp pmc_fin_sin_mov
+	jmp NEAR PTR pmc_fin_sin_mov
 	
 pmc_verificar_teclas:
 	cmp al, '1'
@@ -803,7 +803,7 @@ pmc_verificar_teclas:
 	sub al, '1'
 	mov hud_slot_seleccionado, al
 	mov requiere_redibujar, 2
-	jmp pmc_fin_sin_mov
+	jmp NEAR PTR pmc_fin_sin_mov
 	
 pmc_check_w_keys:
 	cmp al, 48h
