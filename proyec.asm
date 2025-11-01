@@ -115,7 +115,11 @@
 	jugador_hurt_der_a db 512 dup(0)
 	jugador_hurt_der_b db 512 dup(0)
 	
-	buffer_temp db 300 dup(0)
+        buffer_temp db 300 dup(0)
+
+        cm_acumulando db 0
+        cm_valor_actual dw 0
+        cm_digito_temp db 0
 	
         jugador_px dw 776
         jugador_py dw 760
@@ -2205,72 +2209,116 @@ er_wait_start:
 	mov bx, ax
 	call saltar_linea
 	
-	mov di, OFFSET mapa_datos
-	xor bp, bp
-	
+        mov di, OFFSET mapa_datos
+        xor bp, bp
+        mov byte ptr cm_acumulando, 0
+        mov word ptr cm_valor_actual, 0
+
 cm_leer:
-	mov ah, 3Fh
-	mov cx, 200
-	mov dx, OFFSET buffer_temp
-	int 21h
-	
-	cmp ax, 0
-	je cm_cerrar
-	
-	mov cx, ax
-	xor si, si
-	
+        mov ah, 3Fh
+        mov cx, 200
+        mov dx, OFFSET buffer_temp
+        int 21h
+
+        cmp ax, 0
+        je cm_fin_buffer
+
+        mov cx, ax
+        xor si, si
+
 cm_proc:
-	cmp si, cx
-	jae cm_leer
-	
-	mov al, [buffer_temp + si]
-	inc si
-	
-	cmp al, ' '
-	je cm_proc
-	cmp al, 13
-	je cm_proc
-	cmp al, 10
-	je cm_proc
-	cmp al, 9
-	je cm_proc
-	
-	cmp al, '0'
-	jb cm_chk_upper
-	cmp al, '9'
-	ja cm_chk_upper
-	sub al, '0'
-	jmp cm_store
-	
-cm_chk_upper:
-	cmp al, 'A'
-	jb cm_chk_lower
-	cmp al, 'F'
-	ja cm_chk_lower
-	sub al, 'A'
-	add al, 10
-	jmp cm_store
-	
+        cmp si, cx
+        jae cm_leer
+
+        mov al, [buffer_temp + si]
+        inc si
+
+        cmp al, ' '
+        je cm_delimitador
+        cmp al, 13
+        je cm_delimitador
+        cmp al, 10
+        je cm_delimitador
+        cmp al, 9
+        je cm_delimitador
+
+        cmp al, '0'
+        jb cm_chk_letra
+        cmp al, '9'
+        ja cm_chk_letra
+
+        cmp byte ptr cm_acumulando, 0
+        jne cm_digito_cont
+        mov byte ptr cm_acumulando, 1
+        mov word ptr cm_valor_actual, 0
+
+cm_digito_cont:
+        sub al, '0'
+        mov byte ptr cm_digito_temp, al
+        mov ax, cm_valor_actual
+        mov dx, ax
+        shl ax, 1
+        shl dx, 3
+        add ax, dx
+        mov dl, byte ptr cm_digito_temp
+        xor dh, dh
+        add ax, dx
+        mov cm_valor_actual, ax
+        jmp cm_proc
+
+cm_chk_letra:
+        cmp al, 'A'
+        jb cm_chk_lower
+        cmp al, 'F'
+        ja cm_chk_lower
+        sub al, 'A'
+        add al, 10
+        jmp cm_store_letra
+
 cm_chk_lower:
-	cmp al, 'a'
-	jb cm_proc
-	cmp al, 'f'
-	ja cm_proc
-	sub al, 'a'
-	add al, 10
-	
-cm_store:
-	mov [di], al
-	inc di
-	inc bp
-	cmp bp, 10000
-	jb cm_proc
-	
+        cmp al, 'a'
+        jb cm_proc
+        cmp al, 'f'
+        ja cm_proc
+        sub al, 'a'
+        add al, 10
+
+cm_store_letra:
+        mov byte ptr cm_acumulando, 0
+        mov [di], al
+        inc di
+        inc bp
+        cmp bp, 10000
+        jb cm_proc
+        jmp cm_cerrar
+
+cm_delimitador:
+        cmp byte ptr cm_acumulando, 0
+        je cm_proc
+        mov al, byte ptr cm_valor_actual
+        mov byte ptr cm_acumulando, 0
+        mov [di], al
+        inc di
+        inc bp
+        cmp bp, 10000
+        jb cm_proc
+        jmp cm_cerrar
+
+cm_fin_buffer:
+        cmp byte ptr cm_acumulando, 0
+        je cm_cerrar
+        mov al, byte ptr cm_valor_actual
+        mov byte ptr cm_acumulando, 0
+        mov [di], al
+        inc di
+        inc bp
+        cmp bp, 10000
+        jb cm_cerrar
+        
 cm_cerrar:
-	mov ah, 3Eh
-	int 21h
-	clc
+        mov ah, 3Eh
+        int 21h
+        clc
 	jmp cm_fin
 	
 cm_error:
