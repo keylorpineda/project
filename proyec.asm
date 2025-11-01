@@ -2300,7 +2300,10 @@ cm_store_letra:
 
 cm_delimitador:
         cmp byte ptr cm_acumulando, 0
-        je cm_proc
+        jne cm_delimitador_store
+        jmp cm_proc
+
+cm_delimitador_store:
         mov al, byte ptr cm_valor_actual
         mov byte ptr cm_acumulando, 0
         mov [di], al
