@@ -1779,6 +1779,137 @@ reproducir_sonido_victoria PROC
     ret
 reproducir_sonido_victoria ENDP
 
+dibujar_caracter_zoom_2x_buffer PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+    push es
+
+    mov ax, VIDEO_SEG
+    mov es, ax
+
+    call obtener_ptr_glifo
+    jnc dcz_continue
+    jmp dcz_exit
+
+dcz_continue:
+    mov bp, si
+    xor di, di
+
+dcz_row_loop:
+    cmp di, 8
+    jae dcz_exit
+
+    mov al, [bp + di]
+    mov font_row_mask, al
+    
+    mov si, 8
+    xor bx, bx
+
+dcz_bit_loop:
+    test si, si
+    jz dcz_next_row
+
+    mov al, font_row_mask
+    test al, 80h
+    jz dcz_skip_pixel
+
+    push bp
+    push si
+    push di
+    push bx
+    
+    mov ax, bx
+    shl ax, 1
+    add ax, cx
+    push ax
+
+    mov bx, di
+    shl bx, 1
+    add bx, dx
+    push bx
+    
+    pop dx
+    pop cx
+    mov ax, 2
+    mov bx, 2
+    mov si, word ptr [texto_color_actual]
+    
+    call dibujar_rectangulo_lleno
+    
+    pop bx
+    pop di
+    pop si
+    pop bp
+
+dcz_skip_pixel:
+    mov al, font_row_mask
+    shl al, 1
+    mov font_row_mask, al
+    inc bx
+    dec si
+    jmp dcz_bit_loop
+
+dcz_next_row:
+    inc di
+    jmp dcz_row_loop
+
+dcz_exit:
+    pop es
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_caracter_zoom_2x_buffer ENDP
+
+dibujar_texto_zoom_2x_buffer PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov texto_color_actual, al
+
+dtzb_loop:
+    lodsb
+    test al, al
+    jz dtzb_fin
+
+    cmp al, ' '
+    je dtzb_space
+
+    push cx
+    push dx
+    push si
+    call dibujar_caracter_zoom_2x_buffer
+    pop si
+    pop dx
+    pop cx
+
+dtzb_space:
+    add cx, 16
+    jmp dtzb_loop
+
+dtzb_fin:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_texto_zoom_2x_buffer ENDP
+
 pantalla_victoria PROC
     push ax
     push cx
@@ -1797,11 +1928,12 @@ pv_render_p0:
 pv_limpiar:
     call limpiar_pagina_actual
     call reproducir_sonido_victoria
-    mov cx, 284
-    mov dx, 171
+    
+    mov cx, 256
+    mov dx, 167
     mov si, OFFSET msg_victoria
     mov al, COLOR_TEXTO
-    call dibujar_texto_buffer
+    call dibujar_texto_zoom_2x_buffer
 
     mov ah, 5
     mov al, pagina_dibujo
