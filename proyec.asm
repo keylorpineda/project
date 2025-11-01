@@ -2203,8 +2203,11 @@ er_wait_start:
 	
 	mov ax, 3D00h
 	mov dx, OFFSET archivo_mapa
-	int 21h
-	jc cm_error
+        int 21h
+        jnc cm_archivo_abierto
+        jmp cm_error
+
+cm_archivo_abierto:
 	
 	mov bx, ax
 	call saltar_linea
@@ -2221,7 +2224,10 @@ cm_leer:
         int 21h
 
         cmp ax, 0
-        je cm_fin_buffer
+        jne cm_buffer_tiene_datos
+        jmp cm_fin_buffer
+
+cm_buffer_tiene_datos:
 
         mov cx, ax
         xor si, si
@@ -2289,8 +2295,8 @@ cm_store_letra:
         inc di
         inc bp
         cmp bp, 10000
-        jb cm_proc
-        jmp cm_cerrar
+        jae cm_cerrar
+        jmp cm_proc
 
 cm_delimitador:
         cmp byte ptr cm_acumulando, 0
@@ -2301,8 +2307,8 @@ cm_delimitador:
         inc di
         inc bp
         cmp bp, 10000
-        jb cm_proc
-        jmp cm_cerrar
+        jae cm_cerrar
+        jmp cm_proc
 
 cm_fin_buffer:
         cmp byte ptr cm_acumulando, 0
