@@ -796,7 +796,7 @@ pmc_right_set:
 	mov jugador_dir, DIR_DERECHA
 	mov moviendo, 1
 	
-pmc_default:
+pmc_default:a
         cmp moviendo, 1
         je pmc_fin_movimiento
         jmp NEAR PTR pmc_fin_sin_mov
