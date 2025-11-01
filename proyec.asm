@@ -23,7 +23,8 @@
 	TILE_CASA_PUERTA EQU 20
 	TILE_SIZE EQU 16
 	VIDEO_SEG EQU 0A000h
-	VELOCIDAD EQU 4
+        VELOCIDAD EQU 4
+        DESLIZ_DURACION_MAX EQU 20
 	
 	DIR_ABAJO EQU 0
 	DIR_ARRIBA EQU 1
@@ -221,8 +222,9 @@ msg_progreso db 'PROGRESO:', 0
 	jugador_estado_timer dw 0
 	jugador_invencible_timer dw 0
 	
-	desliz_dx dw 0
-	desliz_dy dw 0
+        desliz_dx dw 0
+        desliz_dy dw 0
+        desliz_frames db 0
 	
 	INV_X EQU 80
 	INV_Y EQU 40
@@ -599,26 +601,41 @@ fin_juego:
 	
 	mov tecla_e_presionada, 0
 
-	cmp jugador_estado, 3
-	je pmc_check_desliz
-	jmp NEAR PTR pmc_fin_movimiento
-	
-pmc_check_desliz:
-	mov ax, [desliz_dx]
-	mov [mov_dx], ax
-	mov ax, [desliz_dy]
-	mov [mov_dy], ax
-	test ax, ax
-	jnz pmc_set_moviendo
-	mov ax, [desliz_dx]
-        test ax, ax
-        jz pmc_fin_movimiento_cerca
-	
-pmc_set_moviendo:
-	mov moviendo, 1
+        cmp jugador_estado, 3
+        je pmc_desliz_activo
+        mov al, desliz_frames
+        cmp al, 0
+        jne pmc_desliz_activo
         jmp NEAR PTR pmc_fin_movimiento
 
+pmc_desliz_activo:
+        mov ax, [desliz_dx]
+        mov [mov_dx], ax
+        mov ax, [desliz_dy]
+        mov [mov_dy], ax
+
+        mov ax, [mov_dx]
+        mov bx, [mov_dy]
+        or ax, bx
+        jnz pmc_desliz_tiene_velocidad
+
 pmc_fin_movimiento_cerca:
+        mov desliz_frames, 0
+        jmp NEAR PTR pmc_fin_movimiento
+
+pmc_desliz_tiene_velocidad:
+        cmp jugador_estado, 3
+        je pmc_set_moviendo
+
+        mov al, desliz_frames
+        cmp al, 0
+        jne pmc_set_moviendo
+        mov [desliz_dx], 0
+        mov [desliz_dy], 0
+        jmp pmc_fin_movimiento_cerca
+
+pmc_set_moviendo:
+        mov moviendo, 1
         jmp NEAR PTR pmc_fin_movimiento
 	
 pmc_tiene_tecla:
@@ -743,13 +760,15 @@ pmc_default:
 	cmp moviendo, 1
 	jne pmc_fin_sin_mov
 	
-	cmp jugador_estado, 3
-	jne pmc_fin_movimiento
-	
-	mov ax, mov_dx
-	mov [desliz_dx], ax
-	mov ax, mov_dy
-	mov [desliz_dy], ax
+        cmp jugador_estado, 3
+        jne pmc_fin_movimiento
+
+        mov ax, mov_dx
+        mov [desliz_dx], ax
+        mov ax, mov_dy
+        mov [desliz_dy], ax
+        mov al, DESLIZ_DURACION_MAX
+        mov desliz_frames, al
 
 pmc_fin_movimiento:
 	cmp moviendo, 1
@@ -2894,19 +2913,33 @@ actualizar_estado_jugador PROC
 
 	call get_tile_under_player
 
-	cmp al, TILE_HIELO
-	je aes_on_ice
+        cmp al, TILE_HIELO
+        je aes_on_ice
 
-	cmp jugador_estado, 3
-	jne aes_fin
+        cmp al, TILE_AGUA_CONGELADA
+        je aes_on_ice
 
-	mov [jugador_estado], 0
-	mov [desliz_dx], 0
-	mov [desliz_dy], 0
-	jmp aes_fin
+        cmp jugador_estado, 3
+        jne aes_no_ice_momentum
+
+        mov [jugador_estado], 0
+
+aes_no_ice_momentum:
+        mov al, desliz_frames
+        cmp al, 0
+        je aes_fin
+        dec al
+        mov desliz_frames, al
+        cmp al, 0
+        jne aes_fin
+        mov [desliz_dx], 0
+        mov [desliz_dy], 0
+        jmp aes_fin
 
 aes_on_ice:
-	mov [jugador_estado], 3
+        mov [jugador_estado], 3
+        mov al, DESLIZ_DURACION_MAX
+        mov desliz_frames, al
 
 aes_fin:
 	pop bx
