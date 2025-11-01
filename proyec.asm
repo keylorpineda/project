@@ -722,8 +722,10 @@ fin_juego:
 	mov tecla_e_presionada, 0
 
 	cmp jugador_estado, 3
-	jne pmc_fin_movimiento
+	je pmc_check_desliz
+	jmp pmc_fin_movimiento
 	
+pmc_check_desliz:
 	mov ax, [desliz_dx]
 	mov [mov_dx], ax
 	mov ax, [desliz_dy]
@@ -2630,7 +2632,7 @@ crm_continuar_lectura:
 	jmp crm_loop
 	
 crm_no_comentario:
-	cmp al, '                    ;'
+	cmp al, ';'
 	jne crm_no_puntoycoma
 	mov carga_recursos_comentario, 1
 	jmp crm_loop
@@ -3069,7 +3071,8 @@ dvt_mapa_ok:
 	
 	mov ax, dx
 	shl ax, 1
-	mov bx, [mul100_table + ax]
+	mov bx, ax
+	mov bx, [mul100_table + bx]
 	add bx, cx
 	
 	mov al, [mapa_datos + bx]
