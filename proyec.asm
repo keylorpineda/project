@@ -798,7 +798,7 @@ pmc_right_set:
 	
 pmc_default:
 	cmp moviendo, 1
-        jne pmc_fin_sin_mov_cerca
+		jne pmc_fin_sin_mov
 	
 pmc_fin_movimiento:
 	; INICIO: Logica de deslizamiento
