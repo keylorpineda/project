@@ -1802,43 +1802,67 @@ caj_fin:
 	ret
 	cargar_animaciones_jugador ENDP
 	
-	obtener_sprite_jugador PROC
-	push ax
-	push bx
-	
-	cmp jugador_invencible_timer, 0
-	je osj_normal
-	
-	mov al, jugador_dir
-	
-	cmp al, DIR_ABAJO
-	jne osj_hurt_arr
-	mov di, OFFSET jugador_hurt_down_a
-	mov si, OFFSET jugador_hurt_down_a_mask
-	jmp osj_fin
+obtener_sprite_jugador PROC
+        push ax
+        push bx
+
+        mov bl, jugador_frame
+        cmp jugador_invencible_timer, 0
+        je osj_normal
+
+        mov al, jugador_dir
+
+        cmp al, DIR_ABAJO
+        jne osj_hurt_arr
+        test bl, bl
+        jz osj_hurt_down_a
+        mov di, OFFSET jugador_hurt_down_b
+        mov si, OFFSET jugador_hurt_down_b_mask
+        jmp osj_fin
+osj_hurt_down_a:
+        mov di, OFFSET jugador_hurt_down_a
+        mov si, OFFSET jugador_hurt_down_a_mask
+        jmp osj_fin
 
 osj_hurt_arr:
-	cmp al, DIR_ARRIBA
-	jne osj_hurt_izq
-	mov di, OFFSET jugador_hurt_up_a
-	mov si, OFFSET jugador_hurt_up_a_mask
-	jmp osj_fin
+        cmp al, DIR_ARRIBA
+        jne osj_hurt_izq
+        test bl, bl
+        jz osj_hurt_up_a
+        mov di, OFFSET jugador_hurt_up_b
+        mov si, OFFSET jugador_hurt_up_b_mask
+        jmp osj_fin
+osj_hurt_up_a:
+        mov di, OFFSET jugador_hurt_up_a
+        mov si, OFFSET jugador_hurt_up_a_mask
+        jmp osj_fin
 
 osj_hurt_izq:
-	cmp al, DIR_IZQUIERDA
-	jne osj_hurt_der
-	mov di, OFFSET jugador_hurt_izq_a
-	mov si, OFFSET jugador_hurt_izq_a_mask
-	jmp osj_fin
+        cmp al, DIR_IZQUIERDA
+        jne osj_hurt_der
+        test bl, bl
+        jz osj_hurt_izq_a
+        mov di, OFFSET jugador_hurt_izq_b
+        mov si, OFFSET jugador_hurt_izq_b_mask
+        jmp osj_fin
+osj_hurt_izq_a:
+        mov di, OFFSET jugador_hurt_izq_a
+        mov si, OFFSET jugador_hurt_izq_a_mask
+        jmp osj_fin
 
 osj_hurt_der:
-	mov di, OFFSET jugador_hurt_der_a
-	mov si, OFFSET jugador_hurt_der_a_mask
-	jmp osj_fin
-	
+        test bl, bl
+        jz osj_hurt_der_a
+        mov di, OFFSET jugador_hurt_der_b
+        mov si, OFFSET jugador_hurt_der_b_mask
+        jmp osj_fin
+osj_hurt_der_a:
+        mov di, OFFSET jugador_hurt_der_a
+        mov si, OFFSET jugador_hurt_der_a_mask
+        jmp osj_fin
+
 osj_normal:
-	mov al, jugador_dir
-	mov bl, jugador_frame
+        mov al, jugador_dir
 	
 	cmp al, DIR_ABAJO
 	jne osj_arr
@@ -2181,28 +2205,18 @@ ost_fin:
 	ret
 	obtener_sprite_tile ENDP
 	
-	dibujar_jugador_en_offset PROC
-	push ax
-	push cx
-	push dx
-	push si
-	push di
-	
-	mov ax, jugador_invencible_timer
-	test ax, ax
-	jz djo_no_invencible
-	
-	test ax, 2
-	jnz djo_no_invencible
-	
-	jmp djo_fin
-	
-djo_no_invencible:
-	mov ax, jugador_px
-	sub ax, camara_px
-	add ax, viewport_x
-	sub ax, 16
-	mov cx, ax
+dibujar_jugador_en_offset PROC
+        push ax
+        push cx
+        push dx
+        push si
+        push di
+
+        mov ax, jugador_px
+        sub ax, camara_px
+        add ax, viewport_x
+        sub ax, 16
+        mov cx, ax
 	
 	mov ax, jugador_py
 	sub ax, camara_py

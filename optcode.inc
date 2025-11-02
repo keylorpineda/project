@@ -616,9 +616,41 @@ cm16_loop:
 	mov di, OFFSET jugador_der_a_mask
 	call calcular_mascara_32x32
 	
-	mov si, OFFSET jugador_der_b
-	mov di, OFFSET jugador_der_b_mask
-	call calcular_mascara_32x32
+        mov si, OFFSET jugador_der_b
+        mov di, OFFSET jugador_der_b_mask
+        call calcular_mascara_32x32
+
+        mov si, OFFSET jugador_hurt_up_a
+        mov di, OFFSET jugador_hurt_up_a_mask
+        call calcular_mascara_32x32
+
+        mov si, OFFSET jugador_hurt_up_b
+        mov di, OFFSET jugador_hurt_up_b_mask
+        call calcular_mascara_32x32
+
+        mov si, OFFSET jugador_hurt_down_a
+        mov di, OFFSET jugador_hurt_down_a_mask
+        call calcular_mascara_32x32
+
+        mov si, OFFSET jugador_hurt_down_b
+        mov di, OFFSET jugador_hurt_down_b_mask
+        call calcular_mascara_32x32
+
+        mov si, OFFSET jugador_hurt_izq_a
+        mov di, OFFSET jugador_hurt_izq_a_mask
+        call calcular_mascara_32x32
+
+        mov si, OFFSET jugador_hurt_izq_b
+        mov di, OFFSET jugador_hurt_izq_b_mask
+        call calcular_mascara_32x32
+
+        mov si, OFFSET jugador_hurt_der_a
+        mov di, OFFSET jugador_hurt_der_a_mask
+        call calcular_mascara_32x32
+
+        mov si, OFFSET jugador_hurt_der_b
+        mov di, OFFSET jugador_hurt_der_b_mask
+        call calcular_mascara_32x32
 	
 	pop di
 	pop si
