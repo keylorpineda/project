@@ -495,8 +495,10 @@ continuar_juego:
 	mov pagina_dibujo, 1
 bucle_juego:
 	call actualizar_estado_jugador
-	cmp jugador_muerto, 1
-	je pantalla_game_over
+        cmp jugador_muerto, 1
+        jne bg_sigue_vivo
+        jmp pantalla_game_over
+bg_sigue_vivo:
 	
 	call verificar_colision_recursos
 	call actualizar_animacion_recoger
@@ -510,8 +512,10 @@ bucle_juego:
 	jmp fin_juego
 	
 bg_continuar:
-	cmp jugador_muerto, 1
-	je pantalla_game_over
+        cmp jugador_muerto, 1
+        jne bg_continuar_sigue
+        jmp pantalla_game_over
+bg_continuar_sigue:
 
 	mov ax, jugador_px
 	cmp ax, jugador_px_old
@@ -2631,7 +2635,7 @@ crm_continuar_lectura:
 	jmp crm_loop
 	
 crm_no_comentario:
-	cmp al, '                    ;'
+        cmp al, ';'
 	jne crm_no_puntoycoma
 	mov carga_recursos_comentario, 1
 	jmp crm_loop
