@@ -1843,30 +1843,119 @@ dcb2x_continue:
     mov cx, 8
 dcb2x_p0:
     push cx
-    
+    call dcb2x_p0_iter
+    pop cx
+    loop dcb2x_p0
+
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+
+    mov cx, 8
+dcb2x_p1:
+    push cx
+    call dcb2x_p1_iter
+    pop cx
+    loop dcb2x_p1
+
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+
+    mov cx, 8
+dcb2x_p2:
+    push cx
+    call dcb2x_p2_iter
+    pop cx
+    loop dcb2x_p2
+
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 3
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 8
+    out dx, al
+
+    mov cx, 8
+dcb2x_p3:
+    push cx
+    call dcb2x_p3_iter
+    pop cx
+    loop dcb2x_p3
+
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    xor al, al
+    out dx, al
+
+dcb2x_exit:
+    pop es
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+  dibujar_caracter_buffer_2x ENDP
+
+dcb2x_p0_iter PROC NEAR
     mov ax, 8
     sub al, cl
-    
+
     mov di, ax
     mov dx, ax
     shl di, 7
     shl dx, 5
     add di, dx
     add di, bp
-    
+
     mov si, word ptr [dcb_glyph_ptr]
     add si, ax
     mov ah, [si]
-    
+
     mov al, ah
     shr al, 4
     and ah, 0Fh
-    
+
     push ax
     xlat
     mov dh, al
     pop ax
-    
+
     mov al, ah
     xlat
     mov dl, al
@@ -1897,49 +1986,33 @@ dcb2x_p0_s2:
     mov es:[di + 1], al
     mov es:[di + 81], al
 
-    pop cx
-    loop dcb2x_p0
+    ret
+dcb2x_p0_iter ENDP
 
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 1
-    out dx, al
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-
-    mov cx, 8
-dcb2x_p1:
-    push cx
-    
+dcb2x_p1_iter PROC NEAR
     mov ax, 8
     sub al, cl
-    
+
     mov di, ax
     mov dx, ax
     shl di, 7
     shl dx, 5
     add di, dx
     add di, bp
-    
+
     mov si, word ptr [dcb_glyph_ptr]
     add si, ax
     mov ah, [si]
-    
+
     mov al, ah
     shr al, 4
     and ah, 0Fh
-    
+
     push ax
     xlat
     mov dh, al
     pop ax
-    
+
     mov al, ah
     xlat
     mov dl, al
@@ -1970,49 +2043,33 @@ dcb2x_p1_s2:
     mov es:[di + 1], al
     mov es:[di + 81], al
 
-    pop cx
-    loop dcb2x_p1
+    ret
+dcb2x_p1_iter ENDP
 
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 2
-    out dx, al
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 4
-    out dx, al
-
-    mov cx, 8
-dcb2x_p2:
-    push cx
-    
+dcb2x_p2_iter PROC NEAR
     mov ax, 8
     sub al, cl
-    
+
     mov di, ax
     mov dx, ax
     shl di, 7
     shl dx, 5
     add di, dx
     add di, bp
-    
+
     mov si, word ptr [dcb_glyph_ptr]
     add si, ax
     mov ah, [si]
-    
+
     mov al, ah
     shr al, 4
     and ah, 0Fh
-    
+
     push ax
     xlat
     mov dh, al
     pop ax
-    
+
     mov al, ah
     xlat
     mov dl, al
@@ -2043,49 +2100,33 @@ dcb2x_p2_s2:
     mov es:[di + 1], al
     mov es:[di + 81], al
 
-    pop cx
-    loop dcb2x_p2
+    ret
+dcb2x_p2_iter ENDP
 
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    mov al, 3
-    out dx, al
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 8
-    out dx, al
-
-    mov cx, 8
-dcb2x_p3:
-    push cx
-    
+dcb2x_p3_iter PROC NEAR
     mov ax, 8
     sub al, cl
-    
+
     mov di, ax
     mov dx, ax
     shl di, 7
     shl dx, 5
     add di, dx
     add di, bp
-    
+
     mov si, word ptr [dcb_glyph_ptr]
     add si, ax
     mov ah, [si]
-    
+
     mov al, ah
     shr al, 4
     and ah, 0Fh
-    
+
     push ax
     xlat
     mov dh, al
     pop ax
-    
+
     mov al, ah
     xlat
     mov dl, al
@@ -2116,35 +2157,10 @@ dcb2x_p3_s2:
     mov es:[di + 1], al
     mov es:[di + 81], al
 
-    pop cx
-    loop dcb2x_p3
-
-    mov dx, 3C4h
-    mov al, 2
-    out dx, al
-    inc dx
-    mov al, 0Fh
-    out dx, al
-    mov dx, 3CEh
-    mov al, 4
-    out dx, al
-    inc dx
-    xor al, al
-    out dx, al
-
-dcb2x_exit:
-    pop es
-    pop bp
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
     ret
-dibujar_caracter_buffer_2x ENDP
+dcb2x_p3_iter ENDP
 
-dibujar_texto_buffer_2x PROC
+  dibujar_texto_buffer_2x PROC
     push ax
     push bx
     push cx
