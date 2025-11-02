@@ -2251,24 +2251,11 @@ pv_limpiar:
     call limpiar_pagina_actual
     call reproducir_sonido_victoria
     
-    mov cx, 160
-    mov dx, 120
-    mov ax, 320
-    mov bx, 110
-    mov si, COLOR_MARCO
-    call dibujar_rectangulo_vacio
-    
     mov cx, 248
     mov dx, 160
     mov si, OFFSET msg_victoria
     mov al, COLOR_TEXTO
     call dibujar_texto_buffer_2x
-
-    mov cx, 260
-    mov dx, 200
-    mov si, OFFSET msg_victoria_sub
-    mov al, COLOR_TEXTO
-    call dibujar_texto_buffer
 
     mov ah, 5
     mov al, pagina_dibujo
@@ -2290,9 +2277,6 @@ pv_wait_key:
     mov ah, 0
     int 16h
     
-    cmp ah, 01h
-    jne pv_wait_key
-    
     pop si
     pop dx
     pop cx
@@ -2301,96 +2285,316 @@ pv_wait_key:
     ret
 pantalla_victoria ENDP
 
+dibujar_barra_vida_color PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push es
+    push bp
+
+    mov bp, ax
+    mov di, bx
+
+    mov ax, VIDEO_SEG
+    mov es, ax
+
+dbvc_fila:
+    test di, di
+    jz dbvc_fin
+
+    push cx
+    push dx
+
+    mov bx, dx
+    shl bx, 1
+    mov ax, [video_offsets + bx]
+    mov bx, cx
+    shr bx, 3
+    add ax, bx
+    add ax, temp_offset
+    mov bx, ax
+
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+
+    mov ax, si
+    and ax, 0FFh
+
+    mov cx, bp
+    add cx, 7
+    shr cx, 3
+
+dbvc_pixel:
+    mov es:[bx], al
+    inc bx
+    loop dbvc_pixel
+
+    pop dx
+    pop cx
+
+    inc dx
+    dec di
+    jmp dbvc_fila
+
+dbvc_fin:
+    pop bp
+    pop es
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_barra_vida_color ENDP
+
 dibujar_hud_vida PROC
-	push ax
-	push bx
-	push cx
-	push dx
-	push si
-	push di
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
 
-	mov cx, 8
-	mov dx, 10
-	mov si, OFFSET msg_vida
-	mov al, COLOR_TEXTO
-	call dibujar_texto_buffer
+    mov cx, 8
+    mov dx, 10
+    mov si, OFFSET msg_vida
+    mov al, 15
+    call dibujar_texto_buffer
 
-	mov ax, [jugador_vida]
-	mov bx, 100
-	mul bx
-	mov bx, [jugador_vida_maxima]
-	div bx
-	
-	mov bx, ax
+    mov ax, [jugador_vida]
+    mov bx, 100
+    mul bx
+    mov bx, [jugador_vida_maxima]
+    div bx
+    
+    mov di, ax
 
-	mov cx, 48
-	mov dx, 10
-	push bx
-	mov ax, 100
-	mov bx, 8
-	mov si, COLOR_BARRA_VACIA
-	call dibujar_rectangulo_lleno
-	
-	pop bx
-	mov cx, 48
-	mov dx, 10
-	mov ax, bx
-	mov bx, 8
-	mov si, COLOR_BARRA_LLENA
-	call dibujar_rectangulo_lleno
+    mov cx, 50
+    mov dx, 10
+    mov ax, 98
+    mov bx, 8
+    mov si, 0
+    call dibujar_barra_vida_fondo
 
-	pop di
-	pop si
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	ret
+    mov ax, di
+    cmp ax, 60
+    jae dhv_vida_alta
+    cmp ax, 30
+    jae dhv_vida_media
+    mov si, 12
+    jmp dhv_calc_ancho
+
+dhv_vida_alta:
+    mov si, 10
+    jmp dhv_calc_ancho
+
+dhv_vida_media:
+    mov si, 14
+
+dhv_calc_ancho:
+    mov ax, di
+    mov bx, 98
+    mul bx
+    mov bx, 100
+    div bx
+    
+    test ax, ax
+    jz dhv_fin
+    
+    push si
+    mov bx, ax
+    mov cx, 50
+    mov dx, 10
+    mov ax, bx
+    mov bx, 8
+    pop si
+    call dibujar_barra_vida_llena
+
+    mov ax, di
+    mov bx, 98
+    mul bx
+    mov bx, 100
+    div bx
+    
+    test ax, ax
+    jz dhv_fin
+    
+    mov bx, ax
+    mov cx, 50
+    mov dx, 10
+    mov ax, bx
+    mov bx, 2
+    mov si, 15
+    call dibujar_barra_vida_llena
+
+dhv_fin:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
 dibujar_hud_vida ENDP
 
-reproducir_sonido_daño PROC
-	push ax
-	push bx
-	push cx
-	push dx
-	
-	in al, 61h
-	mov bl, al
-	or al, 3
-	out 61h, al
+dibujar_barra_vida_fondo PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push es
+    push bp
 
-	mov ax, 3977
-	
-rsd_loop:
-	cmp ax, 7954
-	jae rsd_fin
-	
-	mov al, 0B6h
-	out 43h, al
-	
-	push ax
-	out 42h, al
-	mov al, ah
-	out 42h, al
-	pop ax
-	
-	mov cx, 150
-rsd_delay:
-	loop rsd_delay
-	
-	add ax, 400
-	jmp rsd_loop
-	
-rsd_fin:
-	mov al, bl
-	out 61h, al
-	
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	ret
-reproducir_sonido_daño ENDP
+    mov bp, sp
+    sub sp, 8
+    
+    mov [bp-2], ax
+    mov [bp-4], bx
+    mov [bp-6], cx
+    mov [bp-8], dx
+
+    mov ax, VIDEO_SEG
+    mov es, ax
+
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+
+    mov di, [bp-8]
+dbvf_loop:
+    mov ax, [bp-8]
+    add ax, [bp-4]
+    cmp di, ax
+    jae dbvf_fin
+
+    push di
+    mov bx, di
+    shl bx, 1
+    mov si, [video_offsets + bx]
+    mov ax, [bp-6]
+    shr ax, 3
+    add si, ax
+    add si, temp_offset
+
+    mov cx, [bp-2]
+    add cx, 7
+    shr cx, 3
+    
+    mov al, 0
+dbvf_pixels:
+    mov es:[si], al
+    inc si
+    loop dbvf_pixels
+
+    pop di
+    inc di
+    jmp dbvf_loop
+
+dbvf_fin:
+    add sp, 8
+    pop bp
+    pop es
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_barra_vida_fondo ENDP
+
+dibujar_barra_vida_llena PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push es
+    push bp
+
+    mov bp, sp
+    sub sp, 10
+    
+    mov [bp-2], ax
+    mov [bp-4], bx
+    mov [bp-6], cx
+    mov [bp-8], dx
+    mov [bp-10], si
+
+    mov ax, VIDEO_SEG
+    mov es, ax
+
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, byte ptr [bp-10]
+    and al, 0Fh
+    out dx, al
+
+    mov di, [bp-8]
+dbvl_loop:
+    mov ax, [bp-8]
+    add ax, [bp-4]
+    cmp di, ax
+    jae dbvl_fin
+
+    push di
+    mov bx, di
+    shl bx, 1
+    mov si, [video_offsets + bx]
+    mov ax, [bp-6]
+    shr ax, 3
+    add si, ax
+    add si, temp_offset
+
+    mov cx, [bp-2]
+    add cx, 7
+    shr cx, 3
+    
+    mov al, 0FFh
+dbvl_pixels:
+    mov es:[si], al
+    inc si
+    loop dbvl_pixels
+
+    pop di
+    inc di
+    jmp dbvl_loop
+
+dbvl_fin:
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+
+    add sp, 10
+    pop bp
+    pop es
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_barra_vida_llena ENDP
 
 aplicar_daño PROC
 	push ax
@@ -2403,7 +2607,7 @@ aplicar_daño PROC
 	mov ax, jugador_vida
 	sub ax, bx
 	
-	jge ad_no_muerto
+	jg ad_no_muerto
 	xor ax, ax
 	mov jugador_muerto, 1
 	
@@ -2489,44 +2693,74 @@ aej_fin:
 	ret
 actualizar_estado_jugador ENDP
 
+reproducir_sonido_daño PROC
+	push ax
+	push bx
+	push cx
+	push dx
+	
+	in al, 61h
+	mov bl, al
+	or al, 3
+	out 61h, al
+
+	mov ax, 6000
+rsd_loop:
+	cmp ax, 10000
+	jae rsd_fin
+	
+	mov al, 0B6h
+	out 43h, al
+	
+	push ax
+	out 42h, al
+	mov al, ah
+	out 42h, al
+	pop ax
+	
+	mov cx, 1500
+rsd_delay:
+	loop rsd_delay
+	
+	add ax, 400
+	jmp rsd_loop
+	
+rsd_fin:
+	mov al, bl
+	out 61h, al
+	
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+reproducir_sonido_daño ENDP
+
 reproducir_sonido_game_over PROC
     push ax
     push cx
     
-    mov     ax, 2280
+    mov     ax, 3044
     call    PlayNote
-    call    SoundDurationDelay
-    call    SoundDurationDelay
-    mov     ax, 2048
-    call    PlayNote
-    call    SoundDurationDelay
-    call    SoundDurationDelay
-    mov     ax, 1820
-    call    PlayNote
-    call    SoundDurationDelay
-    call    SoundDurationDelay
-    call    SoundDurationDelay
-    call    SoundDurationDelay
-    call    SpeakerOff
     call    SoundDurationDelay
     call    SoundDurationDelay
     
-    mov     ax, 1522
+    mov     ax, 3836
     call    PlayNote
     call    SoundDurationDelay
-    call    SoundDurationDelay
-    mov     ax, 1432
-    call    PlayNote
-    call    SoundDurationDelay
-    call    SoundDurationDelay
-    mov     ax, 1275
-    call    PlayNote
-    call    SoundDurationDelay
-    call    SoundDurationDelay
-    call    SpeakerOff
     call    SoundDurationDelay
 
-    mov     ax, 1136
+    mov     ax, 4560
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+
+    mov     ax, 6088
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    
+    mov     ax, 9120
     call    PlayNote
     call    SoundDurationDelay
     call    SoundDurationDelay
@@ -2536,6 +2770,7 @@ reproducir_sonido_game_over PROC
     call    SoundDurationDelay
     call    SoundDurationDelay
     call    SoundDurationDelay
+
     call    SpeakerOff
     
     pop cx
@@ -2550,46 +2785,46 @@ pantalla_game_over PROC
     push dx
     push si
 
-        mov inventario_abierto, 0
-        mov requiere_redibujar, 0
+    mov inventario_abierto, 0
+    mov requiere_redibujar, 0
 
-        mov al, pagina_dibujo
-        mov ah, al
-        test al, 1
-        jz pm_target_p0
-        mov temp_offset, 8000h
-        jmp pm_target_done
+    mov al, pagina_dibujo
+    mov ah, al
+    test al, 1
+    jz pm_target_p0
+    mov temp_offset, 8000h
+    jmp pm_target_done
 
 pm_target_p0:
-        mov temp_offset, 0
+    mov temp_offset, 0
 
 pm_target_done:
-        call limpiar_pagina_actual
+    call limpiar_pagina_actual
 
-        mov al, ah
-        xor al, 1
-        test al, 1
-        jz pm_other_p0
-        mov temp_offset, 8000h
-        jmp pm_other_done
+    mov al, ah
+    xor al, 1
+    test al, 1
+    jz pm_other_p0
+    mov temp_offset, 8000h
+    jmp pm_other_done
 
 pm_other_p0:
-        mov temp_offset, 0
+    mov temp_offset, 0
 
 pm_other_done:
-        call limpiar_pagina_actual
+    call limpiar_pagina_actual
 
-        mov al, ah
-        test al, 1
-        jz pm_restore_p0
-        mov temp_offset, 8000h
-        jmp pm_after_restore
+    mov al, ah
+    test al, 1
+    jz pm_restore_p0
+    mov temp_offset, 8000h
+    jmp pm_after_restore
 
 pm_restore_p0:
-        mov temp_offset, 0
+    mov temp_offset, 0
 
 pm_after_restore:
-        call reproducir_sonido_game_over
+    call reproducir_sonido_game_over
 
     mov cx, 240
     mov dx, 160
@@ -2597,9 +2832,9 @@ pm_after_restore:
     mov al, COLOR_TEXTO
     call dibujar_texto_buffer_2x
 
-        mov ah, 5
-        mov al, pagina_dibujo
-        int 10h
+    mov ah, 5
+    mov al, pagina_dibujo
+    int 10h
 
 pm_clear_buffer:
     mov ah, 1
@@ -2613,11 +2848,6 @@ pm_wait_key:
 	mov ah, 0
 	int 16h
 	
-    cmp ah, 01h
-    je pm_exit
-	
-	jmp pm_wait_key
-
 pm_exit:
 	pop si
 	pop dx
