@@ -1827,7 +1827,6 @@ dcb2x_continue:
 
     mov bx, OFFSET zoom_lookup_table
 
-    ; --- PLANO 0 ---
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -1842,40 +1841,35 @@ dcb2x_continue:
     out dx, al
 
     mov cx, 8
-    xor bx, bx
-    mov si, word ptr [dcb_glyph_ptr]
 dcb2x_p0:
     push cx
-    call dcb2x_p0_body
-    pop cx
-    loop dcb2x_p0
-    jmp dcb2x_after_p0
-
-dcb2x_p0_body:
-    mov di, bx
-    shl di, 7   ; di = bx * 128
-    mov ax, bx
-    shl ax, 5   ; ax = bx * 32
-    add di, ax  ; di = bx * 160
-    add di, bp  ; di = base_offset + (row * 160)
-
+    
+    mov ax, 8
+    sub al, cl
+    
+    mov di, ax
+    mov dx, ax
+    shl di, 7
+    shl dx, 5
+    add di, dx
+    add di, bp
+    
+    mov si, word ptr [dcb_glyph_ptr]
+    add si, ax
     mov ah, [si]
+    
     mov al, ah
     shr al, 4
     and ah, 0Fh
-
+    
     push ax
-    push bx
     xlat
     mov dh, al
-    pop bx
     pop ax
-
+    
     mov al, ah
-    push bx
     xlat
     mov dl, al
-    pop bx
 
     mov ah, dh
     mov al, ah
@@ -1903,13 +1897,9 @@ dcb2x_p0_s2:
     mov es:[di + 1], al
     mov es:[di + 81], al
 
-    inc si
-    inc bx
-    ret
+    pop cx
+    loop dcb2x_p0
 
-dcb2x_after_p0:
-
-    ; --- PLANO 1 ---
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -1924,40 +1914,35 @@ dcb2x_after_p0:
     out dx, al
 
     mov cx, 8
-    xor bx, bx
-    mov si, word ptr [dcb_glyph_ptr]
 dcb2x_p1:
     push cx
-    call dcb2x_p1_body
-    pop cx
-    loop dcb2x_p1
-    jmp dcb2x_after_p1
-
-dcb2x_p1_body:
-    mov di, bx
+    
+    mov ax, 8
+    sub al, cl
+    
+    mov di, ax
+    mov dx, ax
     shl di, 7
-    mov ax, bx
-    shl ax, 5
-    add di, ax
+    shl dx, 5
+    add di, dx
     add di, bp
-
+    
+    mov si, word ptr [dcb_glyph_ptr]
+    add si, ax
     mov ah, [si]
+    
     mov al, ah
     shr al, 4
     and ah, 0Fh
-
+    
     push ax
-    push bx
     xlat
     mov dh, al
-    pop bx
     pop ax
-
+    
     mov al, ah
-    push bx
     xlat
     mov dl, al
-    pop bx
 
     mov ah, dh
     mov al, ah
@@ -1985,13 +1970,9 @@ dcb2x_p1_s2:
     mov es:[di + 1], al
     mov es:[di + 81], al
 
-    inc si
-    inc bx
-    ret
+    pop cx
+    loop dcb2x_p1
 
-dcb2x_after_p1:
-
-    ; --- PLANO 2 ---
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -2006,40 +1987,35 @@ dcb2x_after_p1:
     out dx, al
 
     mov cx, 8
-    xor bx, bx
-    mov si, word ptr [dcb_glyph_ptr]
 dcb2x_p2:
     push cx
-    call dcb2x_p2_body
-    pop cx
-    loop dcb2x_p2
-    jmp dcb2x_after_p2
-
-dcb2x_p2_body:
-    mov di, bx
+    
+    mov ax, 8
+    sub al, cl
+    
+    mov di, ax
+    mov dx, ax
     shl di, 7
-    mov ax, bx
-    shl ax, 5
-    add di, ax
+    shl dx, 5
+    add di, dx
     add di, bp
-
+    
+    mov si, word ptr [dcb_glyph_ptr]
+    add si, ax
     mov ah, [si]
+    
     mov al, ah
     shr al, 4
     and ah, 0Fh
-
+    
     push ax
-    push bx
     xlat
     mov dh, al
-    pop bx
     pop ax
-
+    
     mov al, ah
-    push bx
     xlat
     mov dl, al
-    pop bx
 
     mov ah, dh
     mov al, ah
@@ -2067,13 +2043,9 @@ dcb2x_p2_s2:
     mov es:[di + 1], al
     mov es:[di + 81], al
 
-    inc si
-    inc bx
-    ret
+    pop cx
+    loop dcb2x_p2
 
-dcb2x_after_p2:
-
-    ; --- PLANO 3 ---
     mov dx, 3CEh
     mov al, 4
     out dx, al
@@ -2088,40 +2060,35 @@ dcb2x_after_p2:
     out dx, al
 
     mov cx, 8
-    xor bx, bx
-    mov si, word ptr [dcb_glyph_ptr]
 dcb2x_p3:
     push cx
-    call dcb2x_p3_body
-    pop cx
-    loop dcb2x_p3
-    jmp dcb2x_after_p3
-
-dcb2x_p3_body:
-    mov di, bx
+    
+    mov ax, 8
+    sub al, cl
+    
+    mov di, ax
+    mov dx, ax
     shl di, 7
-    mov ax, bx
-    shl ax, 5
-    add di, ax
+    shl dx, 5
+    add di, dx
     add di, bp
-
+    
+    mov si, word ptr [dcb_glyph_ptr]
+    add si, ax
     mov ah, [si]
+    
     mov al, ah
     shr al, 4
     and ah, 0Fh
-
+    
     push ax
-    push bx
     xlat
     mov dh, al
-    pop bx
     pop ax
-
+    
     mov al, ah
-    push bx
     xlat
     mov dl, al
-    pop bx
 
     mov ah, dh
     mov al, ah
@@ -2149,13 +2116,9 @@ dcb2x_p3_s2:
     mov es:[di + 1], al
     mov es:[di + 81], al
 
-    inc si
-    inc bx
-    ret
+    pop cx
+    loop dcb2x_p3
 
-dcb2x_after_p3:
-
-    ; --- RESET ---
     mov dx, 3C4h
     mov al, 2
     out dx, al
@@ -2246,7 +2209,6 @@ pv_limpiar:
     call limpiar_pagina_actual
     call reproducir_sonido_victoria
     
-    ; --- DIBUJAR MARCO ---
     mov cx, 160
     mov dx, 120
     mov ax, 320
@@ -2254,21 +2216,18 @@ pv_limpiar:
     mov si, COLOR_MARCO
     call dibujar_rectangulo_vacio
     
-    ; --- DIBUJAR TEXTO VICTORIA (GRANDE) ---
-    mov cx, 248  ; Ajustado para centrar 'VICTORIA!'
+    mov cx, 248
     mov dx, 160
     mov si, OFFSET msg_victoria
     mov al, COLOR_TEXTO
     call dibujar_texto_buffer_2x
 
-    ; --- DIBUJAR SUBTEXTO (PEQUEÑO) ---
-    mov cx, 260  ; Ajustado para centrar 'Presiona tecla...'
+    mov cx, 260
     mov dx, 200
     mov si, OFFSET msg_victoria_sub
     mov al, COLOR_TEXTO
     call dibujar_texto_buffer
 
-    ; --- MOSTRAR PAGINA ---
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
