@@ -2479,6 +2479,8 @@ aej_lava:
 	jmp aej_fin
 
 aej_lodo:
+	cmp jugador_veneno_timer, 0
+	jne aej_fin
 	mov jugador_veneno_timer, VENENO_DURACION
 	
 aej_fin:

@@ -3195,7 +3195,6 @@ dvm_ok:
 	ret
 	debug_verificar_mapa ENDP
 	
-	
 	debug_verificar_todo PROC
 	push ax
 	push bx
