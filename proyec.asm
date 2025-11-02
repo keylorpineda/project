@@ -68,20 +68,20 @@
 	archivo_player_hurt_up_b db 'SPRITES\PLAYER\HURT_UP2.TXT', 0
 	archivo_player_hurt_down_a db 'SPRITES\PLAYER\HURTDWN1.TXT', 0
 	archivo_player_hurt_down_b db 'SPRITES\PLAYER\HURTDWN2.TXT', 0
-        archivo_player_hurt_izq_a db 'SPRITES\PLAYER\HURTLFT1.TXT', 0
-        archivo_player_hurt_izq_b db 'SPRITES\PLAYER\HURTLFT2.TXT', 0
-        archivo_player_hurt_der_a db 'SPRITES\PLAYER\HURTRGT1.TXT', 0
-        archivo_player_hurt_der_b db 'SPRITES\PLAYER\HURTRGT2.TXT', 0
-        archivo_player_poison_up_a db 'SPRITES\PLAYER\POIUP1.TXT', 0
-        archivo_player_poison_up_b db 'SPRITES\PLAYER\POIUP2.TXT', 0
-        archivo_player_poison_down_a db 'SPRITES\PLAYER\POIDN1.TXT', 0
-        archivo_player_poison_down_b db 'SPRITES\PLAYER\POIDN2.TXT', 0
-        archivo_player_poison_izq_a db 'SPRITES\PLAYER\POILF1.TXT', 0
-        archivo_player_poison_izq_b db 'SPRITES\PLAYER\POILF2.TXT', 0
-        archivo_player_poison_der_a db 'SPRITES\PLAYER\POIRT1.TXT', 0
-        archivo_player_poison_der_b db 'SPRITES\PLAYER\POIRT2.TXT', 0
-
-        mapa_datos db 10000 dup(0)
+	archivo_player_hurt_izq_a db 'SPRITES\PLAYER\HURTLFT1.TXT', 0
+	archivo_player_hurt_izq_b db 'SPRITES\PLAYER\HURTLFT2.TXT', 0
+	archivo_player_hurt_der_a db 'SPRITES\PLAYER\HURTRGT1.TXT', 0
+	archivo_player_hurt_der_b db 'SPRITES\PLAYER\HURTRGT2.TXT', 0
+	archivo_player_poison_up_a db 'SPRITES\PLAYER\POIUP1.TXT', 0
+	archivo_player_poison_up_b db 'SPRITES\PLAYER\POIUP2.TXT', 0
+	archivo_player_poison_down_a db 'SPRITES\PLAYER\POIDN1.TXT', 0
+	archivo_player_poison_down_b db 'SPRITES\PLAYER\POIDN2.TXT', 0
+	archivo_player_poison_izq_a db 'SPRITES\PLAYER\POILF1.TXT', 0
+	archivo_player_poison_izq_b db 'SPRITES\PLAYER\POILF2.TXT', 0
+	archivo_player_poison_der_a db 'SPRITES\PLAYER\POIRT1.TXT', 0
+	archivo_player_poison_der_b db 'SPRITES\PLAYER\POIRT2.TXT', 0
+	
+	mapa_datos db 10000 dup(0)
 	
 	sprite_buffer_16 db 256 dup(0)
 	sprite_buffer_32 db 1024 dup(0)
@@ -118,22 +118,22 @@
 	jugador_der_b db 512 dup(0)
 	jugador_hurt_up_a db 512 dup(0)
 	jugador_hurt_up_b db 512 dup(0)
-        jugador_hurt_down_a db 512 dup(0)
-        jugador_hurt_down_b db 512 dup(0)
-        jugador_hurt_izq_a db 512 dup(0)
-        jugador_hurt_izq_b db 512 dup(0)
-        jugador_hurt_der_a db 512 dup(0)
-        jugador_hurt_der_b db 512 dup(0)
-        jugador_poison_up_a db 512 dup(0)
-        jugador_poison_up_b db 512 dup(0)
-        jugador_poison_down_a db 512 dup(0)
-        jugador_poison_down_b db 512 dup(0)
-        jugador_poison_izq_a db 512 dup(0)
-        jugador_poison_izq_b db 512 dup(0)
-        jugador_poison_der_a db 512 dup(0)
-        jugador_poison_der_b db 512 dup(0)
-
-        buffer_temp db 300 dup(0)
+	jugador_hurt_down_a db 512 dup(0)
+	jugador_hurt_down_b db 512 dup(0)
+	jugador_hurt_izq_a db 512 dup(0)
+	jugador_hurt_izq_b db 512 dup(0)
+	jugador_hurt_der_a db 512 dup(0)
+	jugador_hurt_der_b db 512 dup(0)
+	jugador_poison_up_a db 512 dup(0)
+	jugador_poison_up_b db 512 dup(0)
+	jugador_poison_down_a db 512 dup(0)
+	jugador_poison_down_b db 512 dup(0)
+	jugador_poison_izq_a db 512 dup(0)
+	jugador_poison_izq_b db 512 dup(0)
+	jugador_poison_der_a db 512 dup(0)
+	jugador_poison_der_b db 512 dup(0)
+	
+	buffer_temp db 300 dup(0)
 	
 	cm_acumulando db 0
 	cm_valor_actual dw 0
@@ -239,18 +239,18 @@ msg_progreso db 'PROGRESO:', 0
 	msg_completado db 'COMPLETADO!', 0
 	msg_slash db ' / ', 0
 	
-        jugador_vida dw 200
-        jugador_vida_maxima dw 200
-        jugador_invencible_timer dw 0
-        jugador_veneno_timer dw 0
-        jugador_poison_flash_timer dw 0
-        jugador_muerto db 0
-
-        VENENO_DURACION EQU 73
-        INVENCIBLE_DURACION EQU 30
-        LAVA_DAÑO EQU 10
-        VENENO_DAÑO EQU 2
-        VENENO_FLASH_DURACION EQU 10
+	jugador_vida dw 200
+	jugador_vida_maxima dw 200
+	jugador_invencible_timer dw 0
+	jugador_veneno_timer dw 0
+	jugador_poison_flash_timer dw 0
+	jugador_muerto db 0
+	
+	VENENO_DURACION EQU 73
+	INVENCIBLE_DURACION EQU 30
+	LAVA_DAÑO EQU 10
+	VENENO_DAÑO EQU 2
+	VENENO_FLASH_DURACION EQU 10
 	
 	INV_X EQU 80
 	
@@ -513,10 +513,10 @@ continuar_juego:
 	mov pagina_visible, 0
 	mov pagina_dibujo, 1
 bucle_juego:
-        call actualizar_estado_jugador
-        cmp jugador_muerto, 1
-        jne bg_continuar_check
-        jmp pantalla_game_over
+	call actualizar_estado_jugador
+	cmp jugador_muerto, 1
+	jne bg_continuar_check
+	jmp pantalla_game_over
 bg_continuar_check:
 	
 	call verificar_colision_recursos
@@ -548,17 +548,11 @@ bg_continuar:
 	
 	call esperar_retrace
 	
-        cmp jugador_muerto, 1
-        jne bg_esperar_continuar
-        jmp pantalla_game_over
 bg_esperar_continuar:
 	
 	jmp bucle_juego
 	
 bg_hay_cambio:
-        cmp jugador_muerto, 1
-        jne bg_cambio_continuar
-        jmp pantalla_game_over
 bg_cambio_continuar:
 
 	mov ax, jugador_px
@@ -718,6 +712,8 @@ pmc_check_w_keys:
 	je pmc_up_lento
 	cmp bl, TILE_LAVA
 	je pmc_up_lento
+	cmp bl, TILE_AGUA_TOXICA
+	je pmc_up_lento
 	cmp bl, TILE_HIELO
 	je pmc_up_rapido
 	jmp pmc_up_set
@@ -729,6 +725,8 @@ pmc_check_w:
 	cmp bl, TILE_NIEVE
 	je pmc_up_lento
 	cmp bl, TILE_LAVA
+	je pmc_up_lento
+	cmp bl, TILE_AGUA_TOXICA
 	je pmc_up_lento
 	cmp bl, TILE_HIELO
 	je pmc_up_rapido
@@ -753,6 +751,8 @@ pmc_check_down:
 	je pmc_down_lento
 	cmp bl, TILE_LAVA
 	je pmc_down_lento
+	cmp bl, TILE_AGUA_TOXICA
+	je pmc_down_lento
 	cmp bl, TILE_HIELO
 	je pmc_down_rapido
 	jmp pmc_down_set
@@ -764,6 +764,8 @@ pmc_check_s:
 	cmp bl, TILE_NIEVE
 	je pmc_down_lento
 	cmp bl, TILE_LAVA
+	je pmc_down_lento
+	cmp bl, TILE_AGUA_TOXICA
 	je pmc_down_lento
 	cmp bl, TILE_HIELO
 	je pmc_down_rapido
@@ -788,6 +790,8 @@ pmc_check_left:
 	je pmc_left_lento
 	cmp bl, TILE_LAVA
 	je pmc_left_lento
+	cmp bl, TILE_AGUA_TOXICA
+	je pmc_left_lento
 	cmp bl, TILE_HIELO
 	je pmc_left_rapido
 	jmp pmc_left_set
@@ -799,6 +803,8 @@ pmc_check_a:
 	cmp bl, TILE_NIEVE
 	je pmc_left_lento
 	cmp bl, TILE_LAVA
+	je pmc_left_lento
+	cmp bl, TILE_AGUA_TOXICA
 	je pmc_left_lento
 	cmp bl, TILE_HIELO
 	je pmc_left_rapido
@@ -823,6 +829,8 @@ pmc_check_right:
 	je pmc_right_lento
 	cmp bl, TILE_LAVA
 	je pmc_right_lento
+	cmp bl, TILE_AGUA_TOXICA
+	je pmc_right_lento
 	cmp bl, TILE_HIELO
 	je pmc_right_rapido
 	jmp pmc_right_set
@@ -834,6 +842,8 @@ pmc_check_d:
 	cmp bl, TILE_NIEVE
 	je pmc_right_lento
 	cmp bl, TILE_LAVA
+	je pmc_right_lento
+	cmp bl, TILE_AGUA_TOXICA
 	je pmc_right_lento
 	cmp bl, TILE_HIELO
 	je pmc_right_rapido
@@ -1292,7 +1302,7 @@ rsp_silencio:
 	pop dx
 	pop ax
 	ret
-SetSpeakerFreq ENDP
+	SetSpeakerFreq ENDP
 	
 	SoundDurationDelay PROC
 	push cx
@@ -1809,98 +1819,98 @@ caj_ok_hurt_der_a:
 	jmp caj_error
 caj_ok_hurt_der_b:
 	mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_hurt_der_b
-        mov bp, OFFSET jugador_hurt_der_b_mask
-        call convertir_sprite_32x32_a_planar_opt
-        mov dx, OFFSET archivo_player_poison_up_a
-        mov di, OFFSET sprite_buffer_32
-        call cargar_sprite_32x32
-        jnc caj_ok_poison_up_a
-        jmp caj_error
+	mov di, OFFSET jugador_hurt_der_b
+	mov bp, OFFSET jugador_hurt_der_b_mask
+	call convertir_sprite_32x32_a_planar_opt
+	mov dx, OFFSET archivo_player_poison_up_a
+	mov di, OFFSET sprite_buffer_32
+	call cargar_sprite_32x32
+	jnc caj_ok_poison_up_a
+	jmp caj_error
 caj_ok_poison_up_a:
-        mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_poison_up_a
-        mov bp, OFFSET jugador_poison_up_a_mask
-        call convertir_sprite_32x32_a_planar_opt
-
-        mov dx, OFFSET archivo_player_poison_up_b
-        mov di, OFFSET sprite_buffer_32
-        call cargar_sprite_32x32
-        jnc caj_ok_poison_up_b
-        jmp caj_error
+	mov si, OFFSET sprite_buffer_32
+	mov di, OFFSET jugador_poison_up_a
+	mov bp, OFFSET jugador_poison_up_a_mask
+	call convertir_sprite_32x32_a_planar_opt
+	
+	mov dx, OFFSET archivo_player_poison_up_b
+	mov di, OFFSET sprite_buffer_32
+	call cargar_sprite_32x32
+	jnc caj_ok_poison_up_b
+	jmp caj_error
 caj_ok_poison_up_b:
-        mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_poison_up_b
-        mov bp, OFFSET jugador_poison_up_b_mask
-        call convertir_sprite_32x32_a_planar_opt
-
-        mov dx, OFFSET archivo_player_poison_down_a
-        mov di, OFFSET sprite_buffer_32
-        call cargar_sprite_32x32
-        jnc caj_ok_poison_down_a
-        jmp caj_error
+	mov si, OFFSET sprite_buffer_32
+	mov di, OFFSET jugador_poison_up_b
+	mov bp, OFFSET jugador_poison_up_b_mask
+	call convertir_sprite_32x32_a_planar_opt
+	
+	mov dx, OFFSET archivo_player_poison_down_a
+	mov di, OFFSET sprite_buffer_32
+	call cargar_sprite_32x32
+	jnc caj_ok_poison_down_a
+	jmp caj_error
 caj_ok_poison_down_a:
-        mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_poison_down_a
-        mov bp, OFFSET jugador_poison_down_a_mask
-        call convertir_sprite_32x32_a_planar_opt
-
-        mov dx, OFFSET archivo_player_poison_down_b
-        mov di, OFFSET sprite_buffer_32
-        call cargar_sprite_32x32
-        jnc caj_ok_poison_down_b
-        jmp caj_error
+	mov si, OFFSET sprite_buffer_32
+	mov di, OFFSET jugador_poison_down_a
+	mov bp, OFFSET jugador_poison_down_a_mask
+	call convertir_sprite_32x32_a_planar_opt
+	
+	mov dx, OFFSET archivo_player_poison_down_b
+	mov di, OFFSET sprite_buffer_32
+	call cargar_sprite_32x32
+	jnc caj_ok_poison_down_b
+	jmp caj_error
 caj_ok_poison_down_b:
-        mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_poison_down_b
-        mov bp, OFFSET jugador_poison_down_b_mask
-        call convertir_sprite_32x32_a_planar_opt
-
-        mov dx, OFFSET archivo_player_poison_izq_a
-        mov di, OFFSET sprite_buffer_32
-        call cargar_sprite_32x32
-        jnc caj_ok_poison_izq_a
-        jmp caj_error
+	mov si, OFFSET sprite_buffer_32
+	mov di, OFFSET jugador_poison_down_b
+	mov bp, OFFSET jugador_poison_down_b_mask
+	call convertir_sprite_32x32_a_planar_opt
+	
+	mov dx, OFFSET archivo_player_poison_izq_a
+	mov di, OFFSET sprite_buffer_32
+	call cargar_sprite_32x32
+	jnc caj_ok_poison_izq_a
+	jmp caj_error
 caj_ok_poison_izq_a:
-        mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_poison_izq_a
-        mov bp, OFFSET jugador_poison_izq_a_mask
-        call convertir_sprite_32x32_a_planar_opt
-
-        mov dx, OFFSET archivo_player_poison_izq_b
-        mov di, OFFSET sprite_buffer_32
-        call cargar_sprite_32x32
-        jnc caj_ok_poison_izq_b
-        jmp caj_error
+	mov si, OFFSET sprite_buffer_32
+	mov di, OFFSET jugador_poison_izq_a
+	mov bp, OFFSET jugador_poison_izq_a_mask
+	call convertir_sprite_32x32_a_planar_opt
+	
+	mov dx, OFFSET archivo_player_poison_izq_b
+	mov di, OFFSET sprite_buffer_32
+	call cargar_sprite_32x32
+	jnc caj_ok_poison_izq_b
+	jmp caj_error
 caj_ok_poison_izq_b:
-        mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_poison_izq_b
-        mov bp, OFFSET jugador_poison_izq_b_mask
-        call convertir_sprite_32x32_a_planar_opt
-
-        mov dx, OFFSET archivo_player_poison_der_a
-        mov di, OFFSET sprite_buffer_32
-        call cargar_sprite_32x32
-        jnc caj_ok_poison_der_a
-        jmp caj_error
+	mov si, OFFSET sprite_buffer_32
+	mov di, OFFSET jugador_poison_izq_b
+	mov bp, OFFSET jugador_poison_izq_b_mask
+	call convertir_sprite_32x32_a_planar_opt
+	
+	mov dx, OFFSET archivo_player_poison_der_a
+	mov di, OFFSET sprite_buffer_32
+	call cargar_sprite_32x32
+	jnc caj_ok_poison_der_a
+	jmp caj_error
 caj_ok_poison_der_a:
-        mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_poison_der_a
-        mov bp, OFFSET jugador_poison_der_a_mask
-        call convertir_sprite_32x32_a_planar_opt
-
-        mov dx, OFFSET archivo_player_poison_der_b
-        mov di, OFFSET sprite_buffer_32
-        call cargar_sprite_32x32
-        jnc caj_ok_poison_der_b
-        jmp caj_error
+	mov si, OFFSET sprite_buffer_32
+	mov di, OFFSET jugador_poison_der_a
+	mov bp, OFFSET jugador_poison_der_a_mask
+	call convertir_sprite_32x32_a_planar_opt
+	
+	mov dx, OFFSET archivo_player_poison_der_b
+	mov di, OFFSET sprite_buffer_32
+	call cargar_sprite_32x32
+	jnc caj_ok_poison_der_b
+	jmp caj_error
 caj_ok_poison_der_b:
-        mov si, OFFSET sprite_buffer_32
-        mov di, OFFSET jugador_poison_der_b
-        mov bp, OFFSET jugador_poison_der_b_mask
-        call convertir_sprite_32x32_a_planar_opt
-        clc
-        jmp caj_fin
+	mov si, OFFSET sprite_buffer_32
+	mov di, OFFSET jugador_poison_der_b
+	mov bp, OFFSET jugador_poison_der_b_mask
+	call convertir_sprite_32x32_a_planar_opt
+	clc
+	jmp caj_fin
 	
 caj_error:
 	stc
@@ -1917,115 +1927,115 @@ caj_fin:
 	push ax
 	push bx
 	
-        mov bl, jugador_frame
-        cmp jugador_poison_flash_timer, 0
-        je osj_check_invencible
-
-        mov al, jugador_dir
-
-        cmp al, DIR_ABAJO
-        jne osj_poison_arr
-        test bl, bl
-        jz osj_poison_down_a
-        mov di, OFFSET jugador_poison_down_b
-        mov si, OFFSET jugador_poison_down_b_mask
-        jmp osj_fin
+	mov bl, jugador_frame
+	cmp jugador_poison_flash_timer, 0
+	je osj_check_invencible
+	
+	mov al, jugador_dir
+	
+	cmp al, DIR_ABAJO
+	jne osj_poison_arr
+	test bl, bl
+	jz osj_poison_down_a
+	mov di, OFFSET jugador_poison_down_b
+	mov si, OFFSET jugador_poison_down_b_mask
+	jmp osj_fin
 osj_poison_down_a:
-        mov di, OFFSET jugador_poison_down_a
-        mov si, OFFSET jugador_poison_down_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_poison_down_a
+	mov si, OFFSET jugador_poison_down_a_mask
+	jmp osj_fin
+	
 osj_poison_arr:
-        cmp al, DIR_ARRIBA
-        jne osj_poison_izq
-        test bl, bl
-        jz osj_poison_up_a
-        mov di, OFFSET jugador_poison_up_b
-        mov si, OFFSET jugador_poison_up_b_mask
-        jmp osj_fin
+	cmp al, DIR_ARRIBA
+	jne osj_poison_izq
+	test bl, bl
+	jz osj_poison_up_a
+	mov di, OFFSET jugador_poison_up_b
+	mov si, OFFSET jugador_poison_up_b_mask
+	jmp osj_fin
 osj_poison_up_a:
-        mov di, OFFSET jugador_poison_up_a
-        mov si, OFFSET jugador_poison_up_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_poison_up_a
+	mov si, OFFSET jugador_poison_up_a_mask
+	jmp osj_fin
+	
 osj_poison_izq:
-        cmp al, DIR_IZQUIERDA
-        jne osj_poison_der
-        test bl, bl
-        jz osj_poison_izq_a
-        mov di, OFFSET jugador_poison_izq_b
-        mov si, OFFSET jugador_poison_izq_b_mask
-        jmp osj_fin
+	cmp al, DIR_IZQUIERDA
+	jne osj_poison_der
+	test bl, bl
+	jz osj_poison_izq_a
+	mov di, OFFSET jugador_poison_izq_b
+	mov si, OFFSET jugador_poison_izq_b_mask
+	jmp osj_fin
 osj_poison_izq_a:
-        mov di, OFFSET jugador_poison_izq_a
-        mov si, OFFSET jugador_poison_izq_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_poison_izq_a
+	mov si, OFFSET jugador_poison_izq_a_mask
+	jmp osj_fin
+	
 osj_poison_der:
-        test bl, bl
-        jz osj_poison_der_a
-        mov di, OFFSET jugador_poison_der_b
-        mov si, OFFSET jugador_poison_der_b_mask
-        jmp osj_fin
+	test bl, bl
+	jz osj_poison_der_a
+	mov di, OFFSET jugador_poison_der_b
+	mov si, OFFSET jugador_poison_der_b_mask
+	jmp osj_fin
 osj_poison_der_a:
-        mov di, OFFSET jugador_poison_der_a
-        mov si, OFFSET jugador_poison_der_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_poison_der_a
+	mov si, OFFSET jugador_poison_der_a_mask
+	jmp osj_fin
+	
 osj_check_invencible:
-        cmp jugador_invencible_timer, 0
-        je osj_normal
-
-        mov al, jugador_dir
-
-        cmp al, DIR_ABAJO
-        jne osj_hurt_arr
-        test bl, bl
-        jz osj_hurt_down_a
-        mov di, OFFSET jugador_hurt_down_b
-        mov si, OFFSET jugador_hurt_down_b_mask
-        jmp osj_fin
+	cmp jugador_invencible_timer, 0
+	je osj_normal
+	
+	mov al, jugador_dir
+	
+	cmp al, DIR_ABAJO
+	jne osj_hurt_arr
+	test bl, bl
+	jz osj_hurt_down_a
+	mov di, OFFSET jugador_hurt_down_b
+	mov si, OFFSET jugador_hurt_down_b_mask
+	jmp osj_fin
 osj_hurt_down_a:
-        mov di, OFFSET jugador_hurt_down_a
-        mov si, OFFSET jugador_hurt_down_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_hurt_down_a
+	mov si, OFFSET jugador_hurt_down_a_mask
+	jmp osj_fin
+	
 osj_hurt_arr:
-        cmp al, DIR_ARRIBA
-        jne osj_hurt_izq
-        test bl, bl
-        jz osj_hurt_up_a
-        mov di, OFFSET jugador_hurt_up_b
-        mov si, OFFSET jugador_hurt_up_b_mask
-        jmp osj_fin
+	cmp al, DIR_ARRIBA
+	jne osj_hurt_izq
+	test bl, bl
+	jz osj_hurt_up_a
+	mov di, OFFSET jugador_hurt_up_b
+	mov si, OFFSET jugador_hurt_up_b_mask
+	jmp osj_fin
 osj_hurt_up_a:
-        mov di, OFFSET jugador_hurt_up_a
-        mov si, OFFSET jugador_hurt_up_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_hurt_up_a
+	mov si, OFFSET jugador_hurt_up_a_mask
+	jmp osj_fin
+	
 osj_hurt_izq:
-        cmp al, DIR_IZQUIERDA
-        jne osj_hurt_der
-        test bl, bl
-        jz osj_hurt_izq_a
-        mov di, OFFSET jugador_hurt_izq_b
-        mov si, OFFSET jugador_hurt_izq_b_mask
-        jmp osj_fin
+	cmp al, DIR_IZQUIERDA
+	jne osj_hurt_der
+	test bl, bl
+	jz osj_hurt_izq_a
+	mov di, OFFSET jugador_hurt_izq_b
+	mov si, OFFSET jugador_hurt_izq_b_mask
+	jmp osj_fin
 osj_hurt_izq_a:
-        mov di, OFFSET jugador_hurt_izq_a
-        mov si, OFFSET jugador_hurt_izq_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_hurt_izq_a
+	mov si, OFFSET jugador_hurt_izq_a_mask
+	jmp osj_fin
+	
 osj_hurt_der:
-        test bl, bl
-        jz osj_hurt_der_a
-        mov di, OFFSET jugador_hurt_der_b
-        mov si, OFFSET jugador_hurt_der_b_mask
-        jmp osj_fin
+	test bl, bl
+	jz osj_hurt_der_a
+	mov di, OFFSET jugador_hurt_der_b
+	mov si, OFFSET jugador_hurt_der_b_mask
+	jmp osj_fin
 osj_hurt_der_a:
-        mov di, OFFSET jugador_hurt_der_a
-        mov si, OFFSET jugador_hurt_der_a_mask
-        jmp osj_fin
+	mov di, OFFSET jugador_hurt_der_a
+	mov si, OFFSET jugador_hurt_der_a_mask
+	jmp osj_fin
 	
 osj_normal:
 	mov al, jugador_dir
@@ -2771,7 +2781,7 @@ crln_fin:
 	mov cx, MAX_ITEMS
 	mov al, 0
 	rep stosb
-
+	
 	mov inventario_slots_ocupados, 0
 	
 	mov carga_recursos_estado, 0
@@ -2803,7 +2813,7 @@ crm_continuar_lectura:
 	jmp crm_loop
 	
 crm_no_comentario:
-        cmp al, ';'
+	cmp al, ';'
 	jne crm_no_puntoycoma
 	mov carga_recursos_comentario, 1
 	jmp crm_loop

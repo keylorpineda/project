@@ -47,32 +47,30 @@ ilt_loop_video:
 	add ax, bx
 	mov bx, ax
 	mov al, [mapa_datos + bx]
-        cmp al, 3
-        je vtt_no_transitable
-        cmp al, 6
-        je vtt_no_transitable
-        cmp al, 7
-        je vtt_no_transitable
-        cmp al, 9
-        je vtt_no_transitable
-        cmp al, 11
-        je vtt_no_transitable
-        cmp al, 13
-        je vtt_no_transitable
-        cmp al, 14
-        je vtt_no_transitable
-        cmp al, 15
-        je vtt_no_transitable
-        cmp al, 16
-        je vtt_no_transitable
-        cmp al, 17
-        je vtt_no_transitable
-        cmp al, 18
-        je vtt_no_transitable
-        cmp al, 19
-        je vtt_no_transitable
-        cmp al, 20
-        je vtt_no_transitable
+	cmp al, 3
+	je vtt_no_transitable
+	cmp al, 6
+	je vtt_no_transitable
+	cmp al, 7
+	je vtt_no_transitable
+	cmp al, 11
+	je vtt_no_transitable
+	cmp al, 13
+	je vtt_no_transitable
+	cmp al, 14
+	je vtt_no_transitable
+	cmp al, 15
+	je vtt_no_transitable
+	cmp al, 16
+	je vtt_no_transitable
+	cmp al, 17
+	je vtt_no_transitable
+	cmp al, 18
+	je vtt_no_transitable
+	cmp al, 19
+	je vtt_no_transitable
+	cmp al, 20
+	je vtt_no_transitable
 	
 	pop dx
 	pop bx
@@ -86,7 +84,7 @@ vtt_no_transitable:
 	pop ax
 	clc
 	ret
-	verificar_tile_transitable_opt ENDP
+verificar_tile_transitable_opt ENDP
 	
 	convertir_sprite_a_planar_opt PROC
 	push ax
