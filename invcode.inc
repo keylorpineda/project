@@ -2288,10 +2288,11 @@ pv_init_loop:
 pv_inicializar_particulas ENDP
 
 pv_crear_explosion PROC NEAR
-	push ax
-	push bx
-	push cx
-	push si
+        push ax
+        push bx
+        push cx
+        push si
+        push di
 	
 	mov cx, 25
 pv_spawn_loop:
@@ -2305,8 +2306,10 @@ pv_find_dead:
 	jmp pv_spawn_exit
 
 pv_found_dead:
-	mov [particulas_x + si*2], 320
-	mov [particulas_y + si*2], 175
+        mov di, si
+        shl di, 1
+        mov word ptr [particulas_x + di], 320
+        mov word ptr [particulas_y + di], 175
 	
 	call pv_obtener_random
 	and ax, 1Fh
@@ -2326,51 +2329,55 @@ pv_color_ok:
 	mov bx, ax
 	and ax, 1Fh
 	sub ax, 16
-	mov [particulas_vx + si*2], ax
+        mov [particulas_vx + di], ax
 
 	mov ax, bx
 	shr ax, 4
 	and ax, 1Fh
 	sub ax, 20
-	mov [particulas_vy + si*2], ax
+        mov [particulas_vy + di], ax
 	
 	dec cx
 	jnz pv_spawn_loop
 	
 pv_spawn_exit:
-	pop si
-	pop cx
-	pop bx
-	pop ax
-	ret
+        pop di
+        pop si
+        pop cx
+        pop bx
+        pop ax
+        ret
 pv_crear_explosion ENDP
 
 pv_actualizar_y_dibujar_particulas PROC NEAR
-	push ax
-	push bx
-	push cx
-	push dx
-	push si
+        push ax
+        push bx
+        push cx
+        push dx
+        push si
+        push di
 	
 	mov si, 0
 	mov cx, MAX_PARTICULAS
 pv_update_loop:
-	mov al, [particulas_vida + si]
-	test al, al
-	jz pv_particle_dead
-	
-	dec al
-	mov [particulas_vida + si], al
-	
-	mov bx, [particulas_x + si*2]
-	add bx, [particulas_vx + si*2]
-	mov [particulas_x + si*2], bx
-	
-	mov ax, [particulas_y + si*2]
-	add ax, [particulas_vy + si*2]
-	mov [particulas_y + si*2], ax
-	
-	inc word ptr [particulas_vy + si*2]
+        mov al, [particulas_vida + si]
+        test al, al
+        jz pv_particle_dead
+
+        dec al
+        mov [particulas_vida + si], al
+
+        mov di, si
+        shl di, 1
+        mov bx, [particulas_x + di]
+        add bx, [particulas_vx + di]
+        mov [particulas_x + di], bx
+
+        mov ax, [particulas_y + di]
+        add ax, [particulas_vy + di]
+        mov [particulas_y + di], ax
+
+        inc word ptr [particulas_vy + di]
 	
 	push ax
 	push cx
@@ -2383,15 +2390,16 @@ pv_update_loop:
 	pop ax
 	
 pv_particle_dead:
-	inc si
-	loop pv_update_loop
-	
-	pop si
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	ret
+        inc si
+        loop pv_update_loop
+
+        pop di
+        pop si
+        pop dx
+        pop cx
+        pop bx
+        pop ax
+        ret
 pv_actualizar_y_dibujar_particulas ENDP
 
 pantalla_victoria PROC
