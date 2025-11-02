@@ -1846,25 +1846,31 @@ dcb2x_continue:
     mov si, word ptr [dcb_glyph_ptr]
 dcb2x_p0:
     push cx
+    call dcb2x_p0_body
+    pop cx
+    loop dcb2x_p0
+    jmp dcb2x_after_p0
+
+dcb2x_p0_body:
     mov di, bx
     shl di, 7   ; di = bx * 128
     mov ax, bx
     shl ax, 5   ; ax = bx * 32
     add di, ax  ; di = bx * 160
     add di, bp  ; di = base_offset + (row * 160)
-    
+
     mov ah, [si]
     mov al, ah
     shr al, 4
     and ah, 0Fh
-    
+
     push ax
     push bx
     xlat
     mov dh, al
     pop bx
     pop ax
-    
+
     mov al, ah
     push bx
     xlat
@@ -1899,8 +1905,9 @@ dcb2x_p0_s2:
 
     inc si
     inc bx
-    pop cx
-    loop dcb2x_p0
+    ret
+
+dcb2x_after_p0:
 
     ; --- PLANO 1 ---
     mov dx, 3CEh
@@ -1921,25 +1928,31 @@ dcb2x_p0_s2:
     mov si, word ptr [dcb_glyph_ptr]
 dcb2x_p1:
     push cx
+    call dcb2x_p1_body
+    pop cx
+    loop dcb2x_p1
+    jmp dcb2x_after_p1
+
+dcb2x_p1_body:
     mov di, bx
     shl di, 7
     mov ax, bx
     shl ax, 5
     add di, ax
     add di, bp
-    
+
     mov ah, [si]
     mov al, ah
     shr al, 4
     and ah, 0Fh
-    
+
     push ax
     push bx
     xlat
     mov dh, al
     pop bx
     pop ax
-    
+
     mov al, ah
     push bx
     xlat
@@ -1974,8 +1987,9 @@ dcb2x_p1_s2:
 
     inc si
     inc bx
-    pop cx
-    loop dcb2x_p1
+    ret
+
+dcb2x_after_p1:
 
     ; --- PLANO 2 ---
     mov dx, 3CEh
@@ -1996,25 +2010,31 @@ dcb2x_p1_s2:
     mov si, word ptr [dcb_glyph_ptr]
 dcb2x_p2:
     push cx
+    call dcb2x_p2_body
+    pop cx
+    loop dcb2x_p2
+    jmp dcb2x_after_p2
+
+dcb2x_p2_body:
     mov di, bx
     shl di, 7
     mov ax, bx
     shl ax, 5
     add di, ax
     add di, bp
-    
+
     mov ah, [si]
     mov al, ah
     shr al, 4
     and ah, 0Fh
-    
+
     push ax
     push bx
     xlat
     mov dh, al
     pop bx
     pop ax
-    
+
     mov al, ah
     push bx
     xlat
@@ -2049,8 +2069,9 @@ dcb2x_p2_s2:
 
     inc si
     inc bx
-    pop cx
-    loop dcb2x_p2
+    ret
+
+dcb2x_after_p2:
 
     ; --- PLANO 3 ---
     mov dx, 3CEh
@@ -2071,25 +2092,31 @@ dcb2x_p2_s2:
     mov si, word ptr [dcb_glyph_ptr]
 dcb2x_p3:
     push cx
+    call dcb2x_p3_body
+    pop cx
+    loop dcb2x_p3
+    jmp dcb2x_after_p3
+
+dcb2x_p3_body:
     mov di, bx
     shl di, 7
     mov ax, bx
     shl ax, 5
     add di, ax
     add di, bp
-    
+
     mov ah, [si]
     mov al, ah
     shr al, 4
     and ah, 0Fh
-    
+
     push ax
     push bx
     xlat
     mov dh, al
     pop bx
     pop ax
-    
+
     mov al, ah
     push bx
     xlat
@@ -2124,8 +2151,9 @@ dcb2x_p3_s2:
 
     inc si
     inc bx
-    pop cx
-    loop dcb2x_p3
+    ret
+
+dcb2x_after_p3:
 
     ; --- RESET ---
     mov dx, 3C4h
