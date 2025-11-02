@@ -1947,231 +1947,243 @@ dcb2x_exit:
   dibujar_caracter_buffer_2x ENDP
 
 dcb2x_p0_iter PROC NEAR
-    mov ax, 8
-    sub al, cl
+	push bp
+	mov ax, 8
+	sub al, cl
+	
+	mov di, ax
+	mov bp, ax
+	shl di, 7
+	shl bp, 5
+	add di, bp
+	
+	pop bp
+	add di, bp
 
-    mov di, ax
-    mov dx, ax
-    shl di, 7
-    shl dx, 5
-    add di, dx
-    add di, bp
+	mov si, word ptr [dcb_glyph_ptr]
+	add si, ax
+	mov ah, [si]
 
-    mov si, word ptr [dcb_glyph_ptr]
-    add si, ax
-    mov ah, [si]
+	mov al, ah
+	shr al, 4
+	and ah, 0Fh
 
-    mov al, ah
-    shr al, 4
-    and ah, 0Fh
+	push ax
+	xlat
+	mov dh, al
+	pop ax
 
-    push ax
-    xlat
-    mov dh, al
-    pop ax
+	mov al, ah
+	xlat
+	mov dl, al
 
-    mov al, ah
-    xlat
-    mov dl, al
-
-    mov ah, dh
-    mov al, ah
-    not al
-    and al, es:[di]
-    mov ch, byte ptr [dcb_color]
-    test ch, 1
-    jz dcb2x_p0_s1
-    and ah, 0FFh
-    or al, ah
+	mov ah, dh
+	mov al, ah
+	not al
+	and al, es:[di]
+	mov ch, byte ptr [dcb_color]
+	test ch, 1
+	jz dcb2x_p0_s1
+	and ah, 0FFh
+	or al, ah
 dcb2x_p0_s1:
-    mov es:[di], al
-    mov es:[di+80], al
+	mov es:[di], al
+	mov es:[di+80], al
 
-    mov ah, dl
-    mov al, ah
-    not al
-    and al, es:[di + 1]
-    mov ch, byte ptr [dcb_color]
-    test ch, 1
-    jz dcb2x_p0_s2
-    and ah, 0FFh
-    or al, ah
+	mov ah, dl
+	mov al, ah
+	not al
+	and al, es:[di + 1]
+	mov ch, byte ptr [dcb_color]
+	test ch, 1
+	jz dcb2x_p0_s2
+	and ah, 0FFh
+	or al, ah
 dcb2x_p0_s2:
-    mov es:[di + 1], al
-    mov es:[di + 81], al
+	mov es:[di + 1], al
+	mov es:[di + 81], al
 
-    ret
+	ret
 dcb2x_p0_iter ENDP
 
 dcb2x_p1_iter PROC NEAR
-    mov ax, 8
-    sub al, cl
+	push bp
+	mov ax, 8
+	sub al, cl
 
-    mov di, ax
-    mov dx, ax
-    shl di, 7
-    shl dx, 5
-    add di, dx
-    add di, bp
+	mov di, ax
+	mov bp, ax
+	shl di, 7
+	shl bp, 5
+	add di, bp
+	
+	pop bp
+	add di, bp
 
-    mov si, word ptr [dcb_glyph_ptr]
-    add si, ax
-    mov ah, [si]
+	mov si, word ptr [dcb_glyph_ptr]
+	add si, ax
+	mov ah, [si]
 
-    mov al, ah
-    shr al, 4
-    and ah, 0Fh
+	mov al, ah
+	shr al, 4
+	and ah, 0Fh
 
-    push ax
-    xlat
-    mov dh, al
-    pop ax
+	push ax
+	xlat
+	mov dh, al
+	pop ax
 
-    mov al, ah
-    xlat
-    mov dl, al
+	mov al, ah
+	xlat
+	mov dl, al
 
-    mov ah, dh
-    mov al, ah
-    not al
-    and al, es:[di]
-    mov ch, byte ptr [dcb_color]
-    test ch, 2
-    jz dcb2x_p1_s1
-    and ah, 0FFh
-    or al, ah
+	mov ah, dh
+	mov al, ah
+	not al
+	and al, es:[di]
+	mov ch, byte ptr [dcb_color]
+	test ch, 2
+	jz dcb2x_p1_s1
+	and ah, 0FFh
+	or al, ah
 dcb2x_p1_s1:
-    mov es:[di], al
-    mov es:[di+80], al
+	mov es:[di], al
+	mov es:[di+80], al
 
-    mov ah, dl
-    mov al, ah
-    not al
-    and al, es:[di + 1]
-    mov ch, byte ptr [dcb_color]
-    test ch, 2
-    jz dcb2x_p1_s2
-    and ah, 0FFh
-    or al, ah
+	mov ah, dl
+	mov al, ah
+	not al
+	and al, es:[di + 1]
+	mov ch, byte ptr [dcb_color]
+	test ch, 2
+	jz dcb2x_p1_s2
+	and ah, 0FFh
+	or al, ah
 dcb2x_p1_s2:
-    mov es:[di + 1], al
-    mov es:[di + 81], al
+	mov es:[di + 1], al
+	mov es:[di + 81], al
 
-    ret
+	ret
 dcb2x_p1_iter ENDP
 
 dcb2x_p2_iter PROC NEAR
-    mov ax, 8
-    sub al, cl
+	push bp
+	mov ax, 8
+	sub al, cl
 
-    mov di, ax
-    mov dx, ax
-    shl di, 7
-    shl dx, 5
-    add di, dx
-    add di, bp
+	mov di, ax
+	mov bp, ax
+	shl di, 7
+	shl bp, 5
+	add di, bp
+	
+	pop bp
+	add di, bp
 
-    mov si, word ptr [dcb_glyph_ptr]
-    add si, ax
-    mov ah, [si]
+	mov si, word ptr [dcb_glyph_ptr]
+	add si, ax
+	mov ah, [si]
 
-    mov al, ah
-    shr al, 4
-    and ah, 0Fh
+	mov al, ah
+	shr al, 4
+	and ah, 0Fh
 
-    push ax
-    xlat
-    mov dh, al
-    pop ax
+	push ax
+	xlat
+	mov dh, al
+	pop ax
 
-    mov al, ah
-    xlat
-    mov dl, al
+	mov al, ah
+	xlat
+	mov dl, al
 
-    mov ah, dh
-    mov al, ah
-    not al
-    and al, es:[di]
-    mov ch, byte ptr [dcb_color]
-    test ch, 4
-    jz dcb2x_p2_s1
-    and ah, 0FFh
-    or al, ah
+	mov ah, dh
+	mov al, ah
+	not al
+	and al, es:[di]
+	mov ch, byte ptr [dcb_color]
+	test ch, 4
+	jz dcb2x_p2_s1
+	and ah, 0FFh
+	or al, ah
 dcb2x_p2_s1:
-    mov es:[di], al
-    mov es:[di+80], al
+	mov es:[di], al
+	mov es:[di+80], al
 
-    mov ah, dl
-    mov al, ah
-    not al
-    and al, es:[di + 1]
-    mov ch, byte ptr [dcb_color]
-    test ch, 4
-    jz dcb2x_p2_s2
-    and ah, 0FFh
-    or al, ah
+	mov ah, dl
+	mov al, ah
+	not al
+	and al, es:[di + 1]
+	mov ch, byte ptr [dcb_color]
+	test ch, 4
+	jz dcb2x_p2_s2
+	and ah, 0FFh
+	or al, ah
 dcb2x_p2_s2:
-    mov es:[di + 1], al
-    mov es:[di + 81], al
+	mov es:[di + 1], al
+	mov es:[di + 81], al
 
-    ret
+	ret
 dcb2x_p2_iter ENDP
 
 dcb2x_p3_iter PROC NEAR
-    mov ax, 8
-    sub al, cl
+	push bp
+	mov ax, 8
+	sub al, cl
 
-    mov di, ax
-    mov dx, ax
-    shl di, 7
-    shl dx, 5
-    add di, dx
-    add di, bp
+	mov di, ax
+	mov bp, ax
+	shl di, 7
+	shl bp, 5
+	add di, bp
+	
+	pop bp
+	add di, bp
 
-    mov si, word ptr [dcb_glyph_ptr]
-    add si, ax
-    mov ah, [si]
+	mov si, word ptr [dcb_glyph_ptr]
+	add si, ax
+	mov ah, [si]
 
-    mov al, ah
-    shr al, 4
-    and ah, 0Fh
+	mov al, ah
+	shr al, 4
+	and ah, 0Fh
 
-    push ax
-    xlat
-    mov dh, al
-    pop ax
+	push ax
+	xlat
+	mov dh, al
+	pop ax
 
-    mov al, ah
-    xlat
-    mov dl, al
+	mov al, ah
+	xlat
+	mov dl, al
 
-    mov ah, dh
-    mov al, ah
-    not al
-    and al, es:[di]
-    mov ch, byte ptr [dcb_color]
-    test ch, 8
-    jz dcb2x_p3_s1
-    and ah, 0FFh
-    or al, ah
+	mov ah, dh
+	mov al, ah
+	not al
+	and al, es:[di]
+	mov ch, byte ptr [dcb_color]
+	test ch, 8
+	jz dcb2x_p3_s1
+	and ah, 0FFh
+	or al, ah
 dcb2x_p3_s1:
-    mov es:[di], al
-    mov es:[di+80], al
+	mov es:[di], al
+	mov es:[di+80], al
 
-    mov ah, dl
-    mov al, ah
-    not al
-    and al, es:[di + 1]
-    mov ch, byte ptr [dcb_color]
-    test ch, 8
-    jz dcb2x_p3_s2
-    and ah, 0FFh
-    or al, ah
+	mov ah, dl
+	mov al, ah
+	not al
+	and al, es:[di + 1]
+	mov ch, byte ptr [dcb_color]
+	test ch, 8
+	jz dcb2x_p3_s2
+	and ah, 0FFh
+	or al, ah
 dcb2x_p3_s2:
-    mov es:[di + 1], al
-    mov es:[di + 81], al
+	mov es:[di + 1], al
+	mov es:[di + 81], al
 
-    ret
+	ret
 dcb2x_p3_iter ENDP
 
   dibujar_texto_buffer_2x PROC
