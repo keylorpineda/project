@@ -246,7 +246,7 @@ msg_progreso db 'PROGRESO:', 0
 	jugador_poison_flash_timer dw 0
 	jugador_muerto db 0
 	
-	VENENO_DURACION EQU 73
+        VENENO_DURACION EQU 4 * 18      ; 4 segundos con 18 ticks por segundo
 	INVENCIBLE_DURACION EQU 30
 	LAVA_DAÑO EQU 10
 	VENENO_DAÑO EQU 2
@@ -1927,60 +1927,60 @@ caj_fin:
 	push ax
 	push bx
 	
-	mov bl, jugador_frame
-	cmp jugador_poison_flash_timer, 0
-	je osj_check_invencible
+        mov bl, jugador_frame
+        cmp jugador_veneno_timer, 0
+        je osj_check_invencible
 	
 	mov al, jugador_dir
 	
 	cmp al, DIR_ABAJO
 	jne osj_poison_arr
-	test bl, bl
-	jz osj_poison_down_a
-	mov di, OFFSET jugador_poison_down_b
-	mov si, OFFSET jugador_poison_down_b_mask
-	jmp osj_fin
+        test bl, bl
+        jz osj_poison_down_a
+        mov di, OFFSET jugador_poison_down_b
+        mov si, OFFSET jugador_down_b_mask
+        jmp osj_fin
 osj_poison_down_a:
-	mov di, OFFSET jugador_poison_down_a
-	mov si, OFFSET jugador_poison_down_a_mask
-	jmp osj_fin
-	
+        mov di, OFFSET jugador_poison_down_a
+        mov si, OFFSET jugador_down_a_mask
+        jmp osj_fin
+
 osj_poison_arr:
-	cmp al, DIR_ARRIBA
-	jne osj_poison_izq
-	test bl, bl
-	jz osj_poison_up_a
-	mov di, OFFSET jugador_poison_up_b
-	mov si, OFFSET jugador_poison_up_b_mask
-	jmp osj_fin
+        cmp al, DIR_ARRIBA
+        jne osj_poison_izq
+        test bl, bl
+        jz osj_poison_up_a
+        mov di, OFFSET jugador_poison_up_b
+        mov si, OFFSET jugador_up_b_mask
+        jmp osj_fin
 osj_poison_up_a:
-	mov di, OFFSET jugador_poison_up_a
-	mov si, OFFSET jugador_poison_up_a_mask
-	jmp osj_fin
-	
+        mov di, OFFSET jugador_poison_up_a
+        mov si, OFFSET jugador_up_a_mask
+        jmp osj_fin
+
 osj_poison_izq:
-	cmp al, DIR_IZQUIERDA
-	jne osj_poison_der
-	test bl, bl
-	jz osj_poison_izq_a
-	mov di, OFFSET jugador_poison_izq_b
-	mov si, OFFSET jugador_poison_izq_b_mask
-	jmp osj_fin
+        cmp al, DIR_IZQUIERDA
+        jne osj_poison_der
+        test bl, bl
+        jz osj_poison_izq_a
+        mov di, OFFSET jugador_poison_izq_b
+        mov si, OFFSET jugador_izq_b_mask
+        jmp osj_fin
 osj_poison_izq_a:
-	mov di, OFFSET jugador_poison_izq_a
-	mov si, OFFSET jugador_poison_izq_a_mask
-	jmp osj_fin
-	
+        mov di, OFFSET jugador_poison_izq_a
+        mov si, OFFSET jugador_izq_a_mask
+        jmp osj_fin
+
 osj_poison_der:
-	test bl, bl
-	jz osj_poison_der_a
-	mov di, OFFSET jugador_poison_der_b
-	mov si, OFFSET jugador_poison_der_b_mask
-	jmp osj_fin
+        test bl, bl
+        jz osj_poison_der_a
+        mov di, OFFSET jugador_poison_der_b
+        mov si, OFFSET jugador_der_b_mask
+        jmp osj_fin
 osj_poison_der_a:
-	mov di, OFFSET jugador_poison_der_a
-	mov si, OFFSET jugador_poison_der_a_mask
-	jmp osj_fin
+        mov di, OFFSET jugador_poison_der_a
+        mov si, OFFSET jugador_der_a_mask
+        jmp osj_fin
 	
 osj_check_invencible:
 	cmp jugador_invencible_timer, 0
