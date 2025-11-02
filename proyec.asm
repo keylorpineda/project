@@ -495,9 +495,11 @@ continuar_juego:
 	mov pagina_visible, 0
 	mov pagina_dibujo, 1
 bucle_juego:
-	call actualizar_estado_jugador
-	cmp jugador_muerto, 1
-	je pantalla_game_over
+        call actualizar_estado_jugador
+        cmp jugador_muerto, 1
+        jne bg_continuar_check
+        jmp pantalla_game_over
+bg_continuar_check:
 	
 	call verificar_colision_recursos
 	call actualizar_animacion_recoger
@@ -528,14 +530,18 @@ bg_continuar:
 	
 	call esperar_retrace
 	
-	cmp jugador_muerto, 1
-	je pantalla_game_over
+        cmp jugador_muerto, 1
+        jne bg_esperar_continuar
+        jmp pantalla_game_over
+bg_esperar_continuar:
 	
 	jmp bucle_juego
 	
 bg_hay_cambio:
-	cmp jugador_muerto, 1
-	je pantalla_game_over
+        cmp jugador_muerto, 1
+        jne bg_cambio_continuar
+        jmp pantalla_game_over
+bg_cambio_continuar:
 
 	mov ax, jugador_px
 	mov jugador_px_old, ax
