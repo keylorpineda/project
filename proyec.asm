@@ -123,13 +123,13 @@
 	cm_valor_actual dw 0
 	cm_digito_temp db 0
 	
-        jugador_px dw 808
-        jugador_py dw 536
+	jugador_px dw 808
+	jugador_py dw 536
 	jugador_dir db DIR_ABAJO
 	jugador_frame db 0
 	
-        jugador_px_old dw 808
-        jugador_py_old dw 536
+	jugador_px_old dw 808
+	jugador_py_old dw 536
 	frame_old db 0
 	
 	moviendo db 0
@@ -220,8 +220,8 @@ msg_progreso db 'PROGRESO:', 0
 	msg_completado db 'COMPLETADO!', 0
 	msg_slash db ' / ', 0
 	
-	jugador_vida dw 100
-	jugador_vida_maxima dw 100
+	jugador_vida dw 200
+	jugador_vida_maxima dw 200
 	jugador_invencible_timer dw 0
 	
 	INV_X EQU 80
@@ -597,7 +597,7 @@ fin_juego:
 	int 16h
 	jnz pmc_tiene_tecla
 	jmp NEAR PTR pmc_no_key_pressed
-
+	
 pmc_tiene_tecla:
 	mov ah, 0
 	int 16h
@@ -691,7 +691,7 @@ pmc_up_set:
 	mov mov_dy, ax
 	mov jugador_dir, DIR_ARRIBA
 	mov moviendo, 1
-	jmp pmc_llamar_resolver  ; ← FIX: Saltar a resolver
+	jmp pmc_llamar_resolver      ; ← FIX: Saltar a resolver
 	
 pmc_check_down:
 	cmp al, 50h
@@ -722,7 +722,7 @@ pmc_down_set:
 	mov mov_dy, ax
 	mov jugador_dir, DIR_ABAJO
 	mov moviendo, 1
-	jmp pmc_llamar_resolver  ; ← FIX: Saltar a resolver
+	jmp pmc_llamar_resolver      ; ← FIX: Saltar a resolver
 	
 pmc_check_left:
 	cmp al, 4Bh
@@ -753,7 +753,7 @@ pmc_left_set:
 	mov mov_dx, ax
 	mov jugador_dir, DIR_IZQUIERDA
 	mov moviendo, 1
-	jmp pmc_llamar_resolver  ; ← FIX: Saltar a resolver
+	jmp pmc_llamar_resolver      ; ← FIX: Saltar a resolver
 	
 pmc_check_right:
 	cmp al, 4Dh
@@ -784,23 +784,23 @@ pmc_right_set:
 	mov mov_dx, ax
 	mov jugador_dir, DIR_DERECHA
 	mov moviendo, 1
-	jmp pmc_llamar_resolver  ; ← FIX: Saltar a resolver
+	jmp pmc_llamar_resolver      ; ← FIX: Saltar a resolver
 	
 pmc_default:
-	jmp pmc_fin_frame 
-
+	jmp pmc_fin_frame
+	
 pmc_no_key_pressed:
 	mov tecla_e_presionada, 0
 	
 	cmp deslizando, 0
 	jne pmc_deslizando_activo
 	jmp NEAR PTR pmc_fin_frame
-
+	
 pmc_deslizando_activo:
 	call get_tile_under_player
 	cmp al, TILE_HIELO
 	jne pmc_parar_desliz
-
+	
 	mov ax, deslizando_dx
 	mov bx, ax
 	or ax, deslizando_dy
@@ -816,11 +816,11 @@ pmc_deslizando_activo:
 	js pmc_slide_dir_izq
 	mov jugador_dir, DIR_DERECHA
 	jmp pmc_slide_dir_done
-
+	
 pmc_slide_dir_izq:
 	mov jugador_dir, DIR_IZQUIERDA
 	jmp pmc_slide_dir_done
-
+	
 pmc_slide_check_y:
 	mov ax, mov_dy
 	cmp ax, 0
@@ -828,30 +828,30 @@ pmc_slide_check_y:
 	js pmc_slide_dir_arriba
 	mov jugador_dir, DIR_ABAJO
 	jmp pmc_slide_dir_done
-
+	
 pmc_slide_dir_arriba:
 	mov jugador_dir, DIR_ARRIBA
-
+	
 pmc_slide_dir_done:
 	mov moviendo, 1
 	jmp pmc_llamar_resolver
-
+	
 pmc_parar_desliz:
 	mov deslizando, 0
 	mov deslizando_dx, 0
 	mov deslizando_dy, 0
 	jmp pmc_fin_frame
-
+	
 pmc_llamar_resolver:
 	; ← FIX: Nuevo label para resolver colisiones
 	call get_tile_under_player
 	cmp al, TILE_HIELO
 	jne pmc_resolver_no_hielo
-
+	
 	; Si estamos en hielo y hay movimiento, activar deslizamiento
 	mov ax, mov_dx
 	or ax, mov_dy
-	jz pmc_resolver_continuar  ; ← FIX: Sin movimiento, solo resolver
+	jz pmc_resolver_continuar    ; ← FIX: Sin movimiento, solo resolver
 	
 	mov ax, mov_dx
 	mov deslizando_dx, ax
@@ -859,20 +859,20 @@ pmc_llamar_resolver:
 	mov deslizando_dy, ax
 	mov deslizando, 1
 	jmp pmc_resolver_continuar
-
+	
 pmc_resolver_no_hielo:
 	; No estamos en hielo, detener deslizamiento
 	mov deslizando, 0
 	mov deslizando_dx, 0
 	mov deslizando_dy, 0
-
+	
 pmc_resolver_continuar:
 	mov ax, mov_dx
 	or ax, mov_dy
 	jz pmc_fin_frame
 	
 	call resolver_colisiones_y_mover
-
+	
 pmc_fin_frame:
 	pop si
 	pop dx
@@ -2999,7 +2999,7 @@ gtup_fin:
 	pop cx
 	pop bx
 	ret
-get_tile_under_player ENDP
+	get_tile_under_player ENDP
 	
 	INCLUDE OPTCODE.INC
 	INCLUDE INVCODE.INC

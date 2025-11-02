@@ -175,13 +175,7 @@ ais_loop:
     test al, al
     jz ais_asignar
     
-    cmp al, dl
-    jne ais_next_slot
-    
-    mov al, [di]
-    inc al
-    mov [di], al
-    jmp ais_fin
+    jmp ais_next_slot
 
 ais_next_slot:
     inc si
@@ -192,6 +186,7 @@ ais_next_slot:
 ais_asignar:
     mov [si], dl
     mov byte ptr [di], 1
+    jmp ais_fin
 
 ais_fin:
     pop di
@@ -471,6 +466,7 @@ dsi_continuar:
     call dibujar_rectangulo_lleno
     pop si
     pop dx
+    
     pop cx
 
 dsi_draw_slot_border:
@@ -493,6 +489,7 @@ dsi_draw_slot_border:
     mov si, COLOR_ITEM_SLOT
     call dibujar_rectangulo_vacio
     pop si
+   
     pop dx
     pop cx
 
@@ -517,6 +514,7 @@ dsi_tipo2:
     cmp al, 2
     jne dsi_tipo3
     mov di, OFFSET sprite_gema
+ 
     push si
     mov si, OFFSET sprite_gema_mask
     jmp dsi_dibujar
@@ -1426,7 +1424,7 @@ dibujar_hud_progreso PROC
     push si
     push di
 
-    mov dx, 15
+    mov dx, 35
 
     mov cx, 530
     mov si, OFFSET msg_objetivo
@@ -1435,6 +1433,7 @@ dibujar_hud_progreso PROC
     add dx, 12
 
     mov di, OFFSET sprite_cristal
+  
     mov si, OFFSET sprite_cristal_mask
     mov cx, 530
     call dibujar_sprite_planar_16x16_opt
@@ -1455,6 +1454,7 @@ dibujar_hud_progreso PROC
     mov al, META_POR_TIPO
     xor ah, ah
     call dibujar_numero
+    
     sub dx, 4
 
     add dx, 20
@@ -1476,6 +1476,7 @@ dibujar_hud_progreso PROC
 
     mov cx, 574
     mov al, META_POR_TIPO
+  
     xor ah, ah
     call dibujar_numero
     sub dx, 4
@@ -1497,6 +1498,7 @@ dibujar_hud_progreso PROC
     mov al, COLOR_TEXTO
     call dibujar_texto_buffer
 
+ 
     mov cx, 574
     mov al, META_POR_TIPO
     xor ah, ah
@@ -1523,6 +1525,7 @@ dibujar_hud_hotbar PROC
     xor si, si
 
 dhh_loop_slots:
+ 
     cmp si, MAX_ITEMS
     jb dhh_continue
     jmp dhh_fin
@@ -1569,6 +1572,7 @@ dhh_no_select:
 
     push ax
 
+  
     mov ax, si
     mov bx, ITEM_TOTAL
     mul bx
@@ -1591,6 +1595,7 @@ dhh_no_select:
 
 dhh_tipo2:
     cmp al, 2
+   
     jne dhh_tipo3
     mov di, OFFSET sprite_gema
     push si
@@ -1604,35 +1609,6 @@ dhh_tipo3:
 
 dhh_dibujar:
     call dibujar_sprite_planar_16x16_opt
-    pop si
-    
-    mov bx, OFFSET inventario_cantidades
-    add bx, si
-    mov al, [bx]
-    cmp al, 1
-    jbe dhh_next 
-    
-    xor ah, ah
-    push si
-    
-    mov ax, si
-    mov bx, ITEM_TOTAL
-    mul bx
-    add ax, HUD_HOTBAR_X
-    mov cx, ax
-
-    mov dx, HUD_HOTBAR_Y
-    
-    add cx, ITEM_COUNT_OFFSET_X
-    add dx, ITEM_COUNT_OFFSET_Y
-    
-    mov bx, OFFSET inventario_cantidades
-    add bx, si
-    mov al, [bx]
-    xor ah, ah
-    
-    call dibujar_numero
-    
     pop si
 
 dhh_next:
@@ -1882,7 +1858,7 @@ dibujar_hud_vida PROC
 	push di
 
 	mov cx, 8
-	mov dx, 340
+	mov dx, 10
 	mov si, OFFSET msg_vida
 	mov al, COLOR_TEXTO
 	call dibujar_texto_buffer
@@ -1896,7 +1872,7 @@ dibujar_hud_vida PROC
 	mov bx, ax
 
 	mov cx, 48
-	mov dx, 340
+	mov dx, 10
 	push bx
 	mov ax, 100
 	mov bx, 8
@@ -1905,7 +1881,7 @@ dibujar_hud_vida PROC
 	
 	pop bx
 	mov cx, 48
-	mov dx, 340
+	mov dx, 10
 	mov ax, bx
 	mov bx, 8
 	mov si, COLOR_BARRA_LLENA
