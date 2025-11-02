@@ -1793,60 +1793,35 @@ caj_fin:
 	push ax
 	push bx
 	
-	cmp jugador_invencible_timer, 0
-	je osj_normal
-	
-	mov al, jugador_dir
-	mov bl, jugador_frame
-	
-	cmp al, DIR_ABAJO
-	jne osj_hurt_arr
-	test bl, bl
-	jz osj_hurt_down_a
-	mov di, OFFSET jugador_hurt_down_b
-	mov si, OFFSET jugador_hurt_down_b_mask
-	jmp osj_fin
-osj_hurt_down_a:
-	mov di, OFFSET jugador_hurt_down_a
-	mov si, OFFSET jugador_hurt_down_a_mask
-	jmp osj_fin
+        cmp jugador_invencible_timer, 0
+        je osj_normal
+
+        mov al, jugador_dir
+
+        cmp al, DIR_ABAJO
+        jne osj_hurt_arr
+        mov di, OFFSET jugador_hurt_down_a
+        mov si, OFFSET jugador_hurt_down_a_mask
+        jmp osj_fin
 
 osj_hurt_arr:
-	cmp al, DIR_ARRIBA
-	jne osj_hurt_izq
-	test bl, bl
-	jz osj_hurt_up_a
-	mov di, OFFSET jugador_hurt_up_b
-	mov si, OFFSET jugador_hurt_up_b_mask
-	jmp osj_fin
-osj_hurt_up_a:
-	mov di, OFFSET jugador_hurt_up_a
-	mov si, OFFSET jugador_hurt_up_a_mask
-	jmp osj_fin
+        cmp al, DIR_ARRIBA
+        jne osj_hurt_izq
+        mov di, OFFSET jugador_hurt_up_a
+        mov si, OFFSET jugador_hurt_up_a_mask
+        jmp osj_fin
 
 osj_hurt_izq:
-	cmp al, DIR_IZQUIERDA
-	jne osj_hurt_der
-	test bl, bl
-	jz osj_hurt_izq_a
-	mov di, OFFSET jugador_hurt_izq_b
-	mov si, OFFSET jugador_hurt_izq_b_mask
-	jmp osj_fin
-osj_hurt_izq_a:
-	mov di, OFFSET jugador_hurt_izq_a
-	mov si, OFFSET jugador_hurt_izq_a_mask
-	jmp osj_fin
+        cmp al, DIR_IZQUIERDA
+        jne osj_hurt_der
+        mov di, OFFSET jugador_hurt_izq_a
+        mov si, OFFSET jugador_hurt_izq_a_mask
+        jmp osj_fin
 
 osj_hurt_der:
-	test bl, bl
-	jz osj_hurt_der_a
-	mov di, OFFSET jugador_hurt_der_b
-	mov si, OFFSET jugador_hurt_der_b_mask
-	jmp osj_fin
-osj_hurt_der_a:
-	mov di, OFFSET jugador_hurt_der_a
-	mov si, OFFSET jugador_hurt_der_a_mask
-	jmp osj_fin
+        mov di, OFFSET jugador_hurt_der_a
+        mov si, OFFSET jugador_hurt_der_a_mask
+        jmp osj_fin
 	
 osj_normal:
 	mov al, jugador_dir
