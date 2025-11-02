@@ -2419,18 +2419,23 @@ ad_fin:
 aplicar_daño ENDP
 
 actualizar_estado_jugador PROC
-	push ax
-	push bx
+        push ax
+        push bx
 
-	cmp jugador_muerto, 1
-	je aej_fin
-	
-	cmp jugador_invencible_timer, 0
-	jne aej_dec_inv
-	jmp aej_check_poison
+        cmp jugador_poison_flash_timer, 0
+        je aej_check_dead
+        dec jugador_poison_flash_timer
+
+aej_check_dead:
+        cmp jugador_muerto, 1
+        je aej_fin
+
+        cmp jugador_invencible_timer, 0
+        jne aej_dec_inv
+        jmp aej_check_poison
 aej_dec_inv:
-	dec jugador_invencible_timer
-	
+        dec jugador_invencible_timer
+
 aej_check_poison:
 	cmp jugador_veneno_timer, 0
 	jne aej_dec_poison
@@ -2448,9 +2453,10 @@ aej_dec_poison:
 	cmp dx, 0
 	jne aej_check_tile
 	
-	mov ax, VENENO_DAÑO
-	call aplicar_daño
-	mov jugador_invencible_timer, 10
+        mov ax, VENENO_DAÑO
+        call aplicar_daño
+        mov jugador_invencible_timer, VENENO_FLASH_DURACION
+        mov jugador_poison_flash_timer, VENENO_FLASH_DURACION
 	
 aej_check_tile:
 	call get_tile_under_player
@@ -2541,42 +2547,57 @@ pantalla_game_over PROC
     push cx
     push dx
     push si
-	
-	mov al, pagina_dibujo
-	test al, 1
-	jz pm_render_p0
-	mov temp_offset, 8000h
-	jmp pm_limpiar
 
-pm_render_p0:
-	mov temp_offset, 0
+        mov inventario_abierto, 0
+        mov requiere_redibujar, 0
 
-pm_limpiar:
-	call limpiar_pagina_actual
-	call reproducir_sonido_game_over
+        mov al, pagina_dibujo
+        mov ah, al
+        test al, 1
+        jz pm_target_p0
+        mov temp_offset, 8000h
+        jmp pm_target_done
 
-    mov cx, 160
-    mov dx, 120
-    mov ax, 320
-    mov bx, 110
-    mov si, COLOR_MARCO
-    call dibujar_rectangulo_vacio
-    
+pm_target_p0:
+        mov temp_offset, 0
+
+pm_target_done:
+        call limpiar_pagina_actual
+
+        mov al, ah
+        xor al, 1
+        test al, 1
+        jz pm_other_p0
+        mov temp_offset, 8000h
+        jmp pm_other_done
+
+pm_other_p0:
+        mov temp_offset, 0
+
+pm_other_done:
+        call limpiar_pagina_actual
+
+        mov al, ah
+        test al, 1
+        jz pm_restore_p0
+        mov temp_offset, 8000h
+        jmp pm_after_restore
+
+pm_restore_p0:
+        mov temp_offset, 0
+
+pm_after_restore:
+        call reproducir_sonido_game_over
+
     mov cx, 240
     mov dx, 160
     mov si, OFFSET msg_game_over
     mov al, COLOR_TEXTO
     call dibujar_texto_buffer_2x
 
-    mov cx, 260
-    mov dx, 200
-    mov si, OFFSET msg_game_over_sub
-    mov al, COLOR_TEXTO
-    call dibujar_texto_buffer
-	
-	mov ah, 5
-	mov al, pagina_dibujo
-	int 10h
+        mov ah, 5
+        mov al, pagina_dibujo
+        int 10h
 
 pm_clear_buffer:
     mov ah, 1
