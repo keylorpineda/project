@@ -246,7 +246,7 @@ msg_progreso db 'PROGRESO:', 0
 	jugador_poison_flash_timer dw 0
 	jugador_muerto db 0
 	
-	VENENO_DURACION EQU 73
+        VENENO_DURACION EQU 4 * 18      ; 4 segundos con 18 ticks por segundo
 	INVENCIBLE_DURACION EQU 30
 	LAVA_DAÑO EQU 10
 	VENENO_DAÑO EQU 2
@@ -1927,9 +1927,9 @@ caj_fin:
 	push ax
 	push bx
 	
-	mov bl, jugador_frame
-	cmp jugador_poison_flash_timer, 0
-	je osj_check_invencible
+        mov bl, jugador_frame
+        cmp jugador_veneno_timer, 0
+        je osj_check_invencible
 	
 	mov al, jugador_dir
 	
