@@ -210,6 +210,8 @@
 	
 msg_vida db 'VIDA:', 0
 	msg_muerto db 'HAS MUERTO. Presiona tecla...$'
+	msg_game_over db 'GAME OVER$'
+	msg_game_over_sub db 'Presiona tecla...$'
 	msg_inventario db 'INVENTARIO', 0
 	msg_recursos db 'RECURSOS', 0
 msg_cristales db 'CRISTALES:', 0
@@ -493,11 +495,8 @@ continuar_juego:
 	mov pagina_dibujo, 1
 bucle_juego:
 	call actualizar_estado_jugador
-        cmp jugador_muerto, 1
-        jne bg_continuar_juego
-        jmp pantalla_muerte
-
-bg_continuar_juego:
+	cmp jugador_muerto, 1
+	je pantalla_game_over
 	
 	call verificar_colision_recursos
 	call actualizar_animacion_recoger
@@ -511,11 +510,8 @@ bg_continuar_juego:
 	jmp fin_juego
 	
 bg_continuar:
-        cmp jugador_muerto, 1
-        jne bg_revision_cambios
-        jmp pantalla_muerte
-
-bg_revision_cambios:
+	cmp jugador_muerto, 1
+	je pantalla_game_over
 
 	mov ax, jugador_px
 	cmp ax, jugador_px_old
@@ -1802,67 +1798,67 @@ caj_fin:
 	ret
 	cargar_animaciones_jugador ENDP
 	
-obtener_sprite_jugador PROC
-        push ax
-        push bx
-
-        mov bl, jugador_frame
-        cmp jugador_invencible_timer, 0
-        je osj_normal
-
-        mov al, jugador_dir
-
-        cmp al, DIR_ABAJO
-        jne osj_hurt_arr
-        test bl, bl
-        jz osj_hurt_down_a
-        mov di, OFFSET jugador_hurt_down_b
-        mov si, OFFSET jugador_hurt_down_b_mask
-        jmp osj_fin
+	obtener_sprite_jugador PROC
+	push ax
+	push bx
+	
+	mov bl, jugador_frame
+	cmp jugador_invencible_timer, 0
+	je osj_normal
+	
+	mov al, jugador_dir
+	
+	cmp al, DIR_ABAJO
+	jne osj_hurt_arr
+	test bl, bl
+	jz osj_hurt_down_a
+	mov di, OFFSET jugador_hurt_down_b
+	mov si, OFFSET jugador_hurt_down_b_mask
+	jmp osj_fin
 osj_hurt_down_a:
-        mov di, OFFSET jugador_hurt_down_a
-        mov si, OFFSET jugador_hurt_down_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_hurt_down_a
+	mov si, OFFSET jugador_hurt_down_a_mask
+	jmp osj_fin
+	
 osj_hurt_arr:
-        cmp al, DIR_ARRIBA
-        jne osj_hurt_izq
-        test bl, bl
-        jz osj_hurt_up_a
-        mov di, OFFSET jugador_hurt_up_b
-        mov si, OFFSET jugador_hurt_up_b_mask
-        jmp osj_fin
+	cmp al, DIR_ARRIBA
+	jne osj_hurt_izq
+	test bl, bl
+	jz osj_hurt_up_a
+	mov di, OFFSET jugador_hurt_up_b
+	mov si, OFFSET jugador_hurt_up_b_mask
+	jmp osj_fin
 osj_hurt_up_a:
-        mov di, OFFSET jugador_hurt_up_a
-        mov si, OFFSET jugador_hurt_up_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_hurt_up_a
+	mov si, OFFSET jugador_hurt_up_a_mask
+	jmp osj_fin
+	
 osj_hurt_izq:
-        cmp al, DIR_IZQUIERDA
-        jne osj_hurt_der
-        test bl, bl
-        jz osj_hurt_izq_a
-        mov di, OFFSET jugador_hurt_izq_b
-        mov si, OFFSET jugador_hurt_izq_b_mask
-        jmp osj_fin
+	cmp al, DIR_IZQUIERDA
+	jne osj_hurt_der
+	test bl, bl
+	jz osj_hurt_izq_a
+	mov di, OFFSET jugador_hurt_izq_b
+	mov si, OFFSET jugador_hurt_izq_b_mask
+	jmp osj_fin
 osj_hurt_izq_a:
-        mov di, OFFSET jugador_hurt_izq_a
-        mov si, OFFSET jugador_hurt_izq_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_hurt_izq_a
+	mov si, OFFSET jugador_hurt_izq_a_mask
+	jmp osj_fin
+	
 osj_hurt_der:
-        test bl, bl
-        jz osj_hurt_der_a
-        mov di, OFFSET jugador_hurt_der_b
-        mov si, OFFSET jugador_hurt_der_b_mask
-        jmp osj_fin
+	test bl, bl
+	jz osj_hurt_der_a
+	mov di, OFFSET jugador_hurt_der_b
+	mov si, OFFSET jugador_hurt_der_b_mask
+	jmp osj_fin
 osj_hurt_der_a:
-        mov di, OFFSET jugador_hurt_der_a
-        mov si, OFFSET jugador_hurt_der_a_mask
-        jmp osj_fin
-
+	mov di, OFFSET jugador_hurt_der_a
+	mov si, OFFSET jugador_hurt_der_a_mask
+	jmp osj_fin
+	
 osj_normal:
-        mov al, jugador_dir
+	mov al, jugador_dir
 	
 	cmp al, DIR_ABAJO
 	jne osj_arr
@@ -2205,18 +2201,18 @@ ost_fin:
 	ret
 	obtener_sprite_tile ENDP
 	
-dibujar_jugador_en_offset PROC
-        push ax
-        push cx
-        push dx
-        push si
-        push di
-
-        mov ax, jugador_px
-        sub ax, camara_px
-        add ax, viewport_x
-        sub ax, 16
-        mov cx, ax
+	dibujar_jugador_en_offset PROC
+	push ax
+	push cx
+	push dx
+	push si
+	push di
+	
+	mov ax, jugador_px
+	sub ax, camara_px
+	add ax, viewport_x
+	sub ax, 16
+	mov cx, ax
 	
 	mov ax, jugador_py
 	sub ax, camara_py
@@ -2635,7 +2631,7 @@ crm_continuar_lectura:
 	jmp crm_loop
 	
 crm_no_comentario:
-	cmp al, ';'
+	cmp al, '                    ;'
 	jne crm_no_puntoycoma
 	mov carga_recursos_comentario, 1
 	jmp crm_loop

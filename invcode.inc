@@ -168,14 +168,20 @@ actualizar_inventario_slots PROC
     mov di, OFFSET inventario_cantidades
 
 ais_loop:
-    test cx, cx
-    jz ais_fin
+    cmp cx, 0
+    je ais_fin
 
     mov al, [si]
     test al, al
     jz ais_asignar
     
-    jmp ais_next_slot
+    cmp al, dl
+    jne ais_next_slot
+    
+    mov al, [di]
+    inc al
+    mov [di], al
+    jmp ais_exit_normal
 
 ais_next_slot:
     inc si
@@ -186,9 +192,15 @@ ais_next_slot:
 ais_asignar:
     mov [si], dl
     mov byte ptr [di], 1
-    jmp ais_fin
+    jmp ais_exit_normal
 
 ais_fin:
+    call verificar_victoria
+    jc ais_exit_normal
+    
+    mov jugador_muerto, 1
+
+ais_exit_normal:
     pop di
     pop si
     pop dx
@@ -2328,23 +2340,34 @@ reproducir_sonido_daño PROC
 	push cx
 	push dx
 	
-	mov al, 0B6h
-	out 43h, al
-	
-	mov ax, 3030
-	out 42h, al
-	mov al, ah
-	out 42h, al
-	
 	in al, 61h
 	mov bl, al
 	or al, 3
 	out 61h, al
+
+	mov ax, 3977
 	
-	mov cx, 1500
+rsd_loop:
+	cmp ax, 7954
+	jae rsd_fin
+	
+	mov al, 0B6h
+	out 43h, al
+	
+	push ax
+	out 42h, al
+	mov al, ah
+	out 42h, al
+	pop ax
+	
+	mov cx, 150
 rsd_delay:
 	loop rsd_delay
 	
+	add ax, 400
+	jmp rsd_loop
+	
+rsd_fin:
 	mov al, bl
 	out 61h, al
 	
@@ -2444,7 +2467,61 @@ aej_fin:
 	ret
 actualizar_estado_jugador ENDP
 
-pantalla_muerte PROC
+reproducir_sonido_game_over PROC
+    push ax
+    push cx
+    
+    mov     ax, 2280
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    mov     ax, 2048
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    mov     ax, 1820
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SpeakerOff
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    
+    mov     ax, 1522
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    mov     ax, 1432
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    mov     ax, 1275
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SpeakerOff
+    call    SoundDurationDelay
+
+    mov     ax, 1136
+    call    PlayNote
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SoundDurationDelay
+    call    SpeakerOff
+    
+    pop cx
+    pop ax
+    ret
+reproducir_sonido_game_over ENDP
+
+pantalla_game_over PROC
     push ax
     push bx
     push cx
@@ -2462,12 +2539,26 @@ pm_render_p0:
 
 pm_limpiar:
 	call limpiar_pagina_actual
-	
-	mov cx, 240
-	mov dx, 175
-	mov si, OFFSET msg_muerto
-	mov al, COLOR_TEXTO
-	call dibujar_texto_buffer
+	call reproducir_sonido_game_over
+
+    mov cx, 160
+    mov dx, 120
+    mov ax, 320
+    mov bx, 110
+    mov si, COLOR_MARCO
+    call dibujar_rectangulo_vacio
+    
+    mov cx, 240
+    mov dx, 160
+    mov si, OFFSET msg_game_over
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer_2x
+
+    mov cx, 260
+    mov dx, 200
+    mov si, OFFSET msg_game_over_sub
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
 	
 	mov ah, 5
 	mov al, pagina_dibujo
@@ -2497,4 +2588,4 @@ pm_exit:
 	pop bx
 	pop ax
 	jmp fin_juego
-pantalla_muerte ENDP
+pantalla_game_over ENDP
