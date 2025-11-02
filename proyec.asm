@@ -493,8 +493,11 @@ continuar_juego:
 	mov pagina_dibujo, 1
 bucle_juego:
 	call actualizar_estado_jugador
-	cmp jugador_muerto, 1
-	je pantalla_muerte
+        cmp jugador_muerto, 1
+        jne bg_continuar_juego
+        jmp pantalla_muerte
+
+bg_continuar_juego:
 	
 	call verificar_colision_recursos
 	call actualizar_animacion_recoger
@@ -508,8 +511,11 @@ bucle_juego:
 	jmp fin_juego
 	
 bg_continuar:
-	cmp jugador_muerto, 1
-	je pantalla_muerte
+        cmp jugador_muerto, 1
+        jne bg_revision_cambios
+        jmp pantalla_muerte
+
+bg_revision_cambios:
 
 	mov ax, jugador_px
 	cmp ax, jugador_px_old
