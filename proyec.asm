@@ -260,6 +260,17 @@ msg_progreso db 'PROGRESO:', 0
 	font_base_y_temp dw 0
 	font_row_mask db 0
 	numero_buffer db 6 dup(0)
+
+	pv_anim_frame db 0
+	pv_random_seed dw 1234
+	
+	MAX_PARTICULAS EQU 50
+	particulas_x dw MAX_PARTICULAS dup(0)
+	particulas_y dw MAX_PARTICULAS dup(0)
+	particulas_vx dw MAX_PARTICULAS dup(0)
+	particulas_vy dw MAX_PARTICULAS dup(0)
+	particulas_color db MAX_PARTICULAS dup(0)
+	particulas_vida db MAX_PARTICULAS dup(0)
 	
 	FONT_LETTER_OFFSET EQU 10
 	FONT_COLON_INDEX EQU 36
