@@ -1793,11 +1793,418 @@ dtzb_fin:
     ret
 dibujar_texto_zoom_2x_buffer ENDP
 
-pantalla_victoria PROC
+dibujar_caracter_buffer_2x PROC
     push ax
+    push bx
     push cx
     push dx
     push si
+    push di
+    push bp
+    push es
+
+    call obtener_ptr_glifo
+    jnc dcb2x_continue
+    jmp dcb2x_exit
+
+dcb2x_continue:
+    mov ax, VIDEO_SEG
+    mov es, ax
+
+    mov bx, dx
+    shl bx, 1
+    mov bp, [video_offsets + bx]
+    mov ax, cx
+    shr ax, 3
+    add bp, ax
+    add bp, temp_offset
+
+    mov word ptr [dcb_glyph_ptr], si
+
+    mov al, texto_color_actual
+    and al, 0Fh
+    mov byte ptr [dcb_color], al
+
+    mov bx, OFFSET zoom_lookup_table
+
+    ; --- PLANO 0 ---
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    xor al, al
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+
+    mov cx, 8
+    xor bx, bx
+    mov si, word ptr [dcb_glyph_ptr]
+dcb2x_p0:
+    push cx
+    mov di, bx
+    shl di, 7   ; di = bx * 128
+    mov ax, bx
+    shl ax, 5   ; ax = bx * 32
+    add di, ax  ; di = bx * 160
+    add di, bp  ; di = base_offset + (row * 160)
+    
+    mov ah, [si]
+    mov al, ah
+    shr al, 4
+    and ah, 0Fh
+    
+    push ax
+    push bx
+    xlat
+    mov dh, al
+    pop bx
+    pop ax
+    
+    mov al, ah
+    push bx
+    xlat
+    mov dl, al
+    pop bx
+
+    mov ah, dh
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov ch, byte ptr [dcb_color]
+    test ch, 1
+    jz dcb2x_p0_s1
+    and ah, 0FFh
+    or al, ah
+dcb2x_p0_s1:
+    mov es:[di], al
+    mov es:[di+80], al
+
+    mov ah, dl
+    mov al, ah
+    not al
+    and al, es:[di + 1]
+    mov ch, byte ptr [dcb_color]
+    test ch, 1
+    jz dcb2x_p0_s2
+    and ah, 0FFh
+    or al, ah
+dcb2x_p0_s2:
+    mov es:[di + 1], al
+    mov es:[di + 81], al
+
+    inc si
+    inc bx
+    pop cx
+    loop dcb2x_p0
+
+    ; --- PLANO 1 ---
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 1
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+
+    mov cx, 8
+    xor bx, bx
+    mov si, word ptr [dcb_glyph_ptr]
+dcb2x_p1:
+    push cx
+    mov di, bx
+    shl di, 7
+    mov ax, bx
+    shl ax, 5
+    add di, ax
+    add di, bp
+    
+    mov ah, [si]
+    mov al, ah
+    shr al, 4
+    and ah, 0Fh
+    
+    push ax
+    push bx
+    xlat
+    mov dh, al
+    pop bx
+    pop ax
+    
+    mov al, ah
+    push bx
+    xlat
+    mov dl, al
+    pop bx
+
+    mov ah, dh
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov ch, byte ptr [dcb_color]
+    test ch, 2
+    jz dcb2x_p1_s1
+    and ah, 0FFh
+    or al, ah
+dcb2x_p1_s1:
+    mov es:[di], al
+    mov es:[di+80], al
+
+    mov ah, dl
+    mov al, ah
+    not al
+    and al, es:[di + 1]
+    mov ch, byte ptr [dcb_color]
+    test ch, 2
+    jz dcb2x_p1_s2
+    and ah, 0FFh
+    or al, ah
+dcb2x_p1_s2:
+    mov es:[di + 1], al
+    mov es:[di + 81], al
+
+    inc si
+    inc bx
+    pop cx
+    loop dcb2x_p1
+
+    ; --- PLANO 2 ---
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 2
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 4
+    out dx, al
+
+    mov cx, 8
+    xor bx, bx
+    mov si, word ptr [dcb_glyph_ptr]
+dcb2x_p2:
+    push cx
+    mov di, bx
+    shl di, 7
+    mov ax, bx
+    shl ax, 5
+    add di, ax
+    add di, bp
+    
+    mov ah, [si]
+    mov al, ah
+    shr al, 4
+    and ah, 0Fh
+    
+    push ax
+    push bx
+    xlat
+    mov dh, al
+    pop bx
+    pop ax
+    
+    mov al, ah
+    push bx
+    xlat
+    mov dl, al
+    pop bx
+
+    mov ah, dh
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov ch, byte ptr [dcb_color]
+    test ch, 4
+    jz dcb2x_p2_s1
+    and ah, 0FFh
+    or al, ah
+dcb2x_p2_s1:
+    mov es:[di], al
+    mov es:[di+80], al
+
+    mov ah, dl
+    mov al, ah
+    not al
+    and al, es:[di + 1]
+    mov ch, byte ptr [dcb_color]
+    test ch, 4
+    jz dcb2x_p2_s2
+    and ah, 0FFh
+    or al, ah
+dcb2x_p2_s2:
+    mov es:[di + 1], al
+    mov es:[di + 81], al
+
+    inc si
+    inc bx
+    pop cx
+    loop dcb2x_p2
+
+    ; --- PLANO 3 ---
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    mov al, 3
+    out dx, al
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 8
+    out dx, al
+
+    mov cx, 8
+    xor bx, bx
+    mov si, word ptr [dcb_glyph_ptr]
+dcb2x_p3:
+    push cx
+    mov di, bx
+    shl di, 7
+    mov ax, bx
+    shl ax, 5
+    add di, ax
+    add di, bp
+    
+    mov ah, [si]
+    mov al, ah
+    shr al, 4
+    and ah, 0Fh
+    
+    push ax
+    push bx
+    xlat
+    mov dh, al
+    pop bx
+    pop ax
+    
+    mov al, ah
+    push bx
+    xlat
+    mov dl, al
+    pop bx
+
+    mov ah, dh
+    mov al, ah
+    not al
+    and al, es:[di]
+    mov ch, byte ptr [dcb_color]
+    test ch, 8
+    jz dcb2x_p3_s1
+    and ah, 0FFh
+    or al, ah
+dcb2x_p3_s1:
+    mov es:[di], al
+    mov es:[di+80], al
+
+    mov ah, dl
+    mov al, ah
+    not al
+    and al, es:[di + 1]
+    mov ch, byte ptr [dcb_color]
+    test ch, 8
+    jz dcb2x_p3_s2
+    and ah, 0FFh
+    or al, ah
+dcb2x_p3_s2:
+    mov es:[di + 1], al
+    mov es:[di + 81], al
+
+    inc si
+    inc bx
+    pop cx
+    loop dcb2x_p3
+
+    ; --- RESET ---
+    mov dx, 3C4h
+    mov al, 2
+    out dx, al
+    inc dx
+    mov al, 0Fh
+    out dx, al
+    mov dx, 3CEh
+    mov al, 4
+    out dx, al
+    inc dx
+    xor al, al
+    out dx, al
+
+dcb2x_exit:
+    pop es
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_caracter_buffer_2x ENDP
+
+dibujar_texto_buffer_2x PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push es
+
+    mov texto_color_actual, al
+
+    mov ax, VIDEO_SEG
+    mov es, ax
+
+dtb2x_loop:
+    lodsb
+    test al, al
+    jz dtb2x_fin
+
+    cmp al, ' '
+    je dtb2x_space
+
+    push cx
+    push dx
+    push si
+    call dibujar_caracter_buffer_2x
+    pop si
+    pop dx
+    pop cx
+
+dtb2x_space:
+    add cx, 16
+    jmp dtb2x_loop
+
+dtb2x_fin:
+    pop es
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+dibujar_texto_buffer_2x ENDP
+
+pantalla_victoria PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    
     mov al, pagina_dibujo
     test al, 1
     jz pv_render_p0
@@ -1811,15 +2218,33 @@ pv_limpiar:
     call limpiar_pagina_actual
     call reproducir_sonido_victoria
     
-    mov cx, 256
-    mov dx, 167
+    ; --- DIBUJAR MARCO ---
+    mov cx, 160
+    mov dx, 120
+    mov ax, 320
+    mov bx, 110
+    mov si, COLOR_MARCO
+    call dibujar_rectangulo_vacio
+    
+    ; --- DIBUJAR TEXTO VICTORIA (GRANDE) ---
+    mov cx, 248  ; Ajustado para centrar 'VICTORIA!'
+    mov dx, 160
     mov si, OFFSET msg_victoria
     mov al, COLOR_TEXTO
-    call dibujar_texto_zoom_2x_buffer
+    call dibujar_texto_buffer_2x
 
+    ; --- DIBUJAR SUBTEXTO (PEQUEÑO) ---
+    mov cx, 260  ; Ajustado para centrar 'Presiona tecla...'
+    mov dx, 200
+    mov si, OFFSET msg_victoria_sub
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
+
+    ; --- MOSTRAR PAGINA ---
     mov ah, 5
     mov al, pagina_dibujo
     int 10h
+    
 pv_wait_esc:
     mov ah, 1
     int 16h

@@ -346,6 +346,7 @@ msg_progreso db 'PROGRESO:', 0
 	
 	db 00011000b, 00011000b, 00011000b, 00011000b, 00011000b, 00000000b, 00011000b, 00000000b
 	
+	zoom_lookup_table db 00h, 03h, 0Ch, 0Fh, 30h, 33h, 3Ch, 3Fh, 0C0h, 0C3h, 0CCh, 0CFh, 0F0h, 0F3h, 0FCh, 0FFh
 	INCLUDE OPTDATA.INC
 	
 	msg_titulo db 'JUEGO EGA - Universidad Nacional', 13, 10, '$'
@@ -359,6 +360,7 @@ msg_tablas db 'Lookup tables: $'
 	msg_error db 'ERROR', 13, 10, '$'
 	msg_controles db 13, 10, 'WASD = Mover, ESC = Salir', 13, 10
 	msg_victoria db 'VICTORIA!', 0
+	msg_victoria_sub db 'Presiona tecla...$'
 	db 'Presiona tecla...$'
 	
 	.CODE
