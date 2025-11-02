@@ -449,38 +449,6 @@ dsi_continuar:
     add ax, ZONA_ITEMS_Y
     mov dx, ax
 
-    mov bx, OFFSET inventario_slots
-    add bx, si
-    mov al, [bx]
-    mov bh, al
-
-    test al, al
-    jnz dsi_draw_slot_border
-
-    push cx
-    push dx
-    push si
-    mov ax, ITEM_SIZE
-    mov bx, ITEM_SIZE
-    mov si, COLOR_FONDO
-    call dibujar_rectangulo_lleno
-    pop si
-    pop dx
-    
-    pop cx
-
-dsi_draw_slot_border:
-    push cx
-    push dx
-    push si
-    mov ax, ITEM_SIZE
-    mov bx, ITEM_SIZE
-    mov si, COLOR_FONDO
-    call dibujar_rectangulo_lleno
-    pop si
-    pop dx
-    pop cx
-
     push cx
     push dx
     push si
@@ -489,12 +457,16 @@ dsi_draw_slot_border:
     mov si, COLOR_ITEM_SLOT
     call dibujar_rectangulo_vacio
     pop si
-   
     pop dx
     pop cx
 
-    test bh, bh
+    mov bx, OFFSET inventario_slots
+    add bx, si
+    mov al, [bx]
+    test al, al
     jz dsi_next
+
+    mov bh, al
 
     push cx
     push dx
@@ -514,7 +486,6 @@ dsi_tipo2:
     cmp al, 2
     jne dsi_tipo3
     mov di, OFFSET sprite_gema
- 
     push si
     mov si, OFFSET sprite_gema_mask
     jmp dsi_dibujar
@@ -531,17 +502,18 @@ dsi_dibujar:
     pop dx
     pop cx
     
+    ; --- Dibujar cantidad ---
     mov bx, OFFSET inventario_cantidades
     add bx, si
     mov al, [bx]
-    cmp al, 1
+    cmp al, 1  ; No dibujar '1'
     jbe dsi_next 
     
     xor ah, ah
     push si
     
-    mov cx, ax
-    mov dx, ax
+    mov cx, ax ; Guardar Coordenada X del slot
+    mov dx, ax ; Guardar Coordenada Y del slot
     
     mov ax, si
     xor dx, dx
@@ -572,6 +544,7 @@ dsi_dibujar:
     call dibujar_numero
     
     pop si
+    ; --- Fin dibujar cantidad ---
 
 dsi_next:
     inc si
