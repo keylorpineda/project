@@ -732,9 +732,9 @@ drl_fila:
     pop ax
 
     mov cx, bp
-    shr cx, 1
-    shr cx, 1
-    shr cx, 1
+    
+    add cx, 7
+    shr cx, 3
 
 drl_pixel:
     mov es:[bx], al
@@ -1693,23 +1693,36 @@ dcz_bit_loop:
     push di
     push bx
     
-    mov ax, bx
-    shl ax, 1
-    add ax, cx
-    push ax
+    mov ah, 0Ch
+    mov al, [texto_color_actual]
+    mov bh, 0
+    
+    mov bp, bx
+    shl bp, 1
+    add bp, cx
+    
+    mov si, di
+    shl si, 1
+    add si, dx
+    
+    push cx
+    push dx
+    
+    mov cx, bp
+    mov dx, si
+    int 10h
+    
+    inc cx
+    int 10h
+    
+    inc dx
+    int 10h
 
-    mov bx, di
-    shl bx, 1
-    add bx, dx
-    push bx
+    dec cx
+    int 10h
     
     pop dx
     pop cx
-    mov ax, 2
-    mov bx, 2
-    mov si, word ptr [texto_color_actual]
-    
-    call dibujar_rectangulo_lleno
     
     pop bx
     pop di
