@@ -2205,284 +2205,74 @@ dtb2x_fin:
     ret
 dibujar_texto_buffer_2x ENDP
 
-pv_obtener_random PROC NEAR
-	push dx
-	mov ax, 2053
-	mul [pv_random_seed]
-	add ax, 13849
-	mov [pv_random_seed], ax
-	pop dx
-	ret
-pv_obtener_random ENDP
-
-dibujar_pixel_buffer PROC NEAR
-	push ax
-	push bx
-	push cx
-	push dx
-	push es
-	push di
-
-	mov di, dx
-	shl di, 1
-	mov bx, [video_offsets + di]
-	mov di, cx
-	shr di, 3
-	add bx, di
-	add bx, temp_offset
-	
-	mov ax, VIDEO_SEG
-	mov es, ax
-	
-	mov di, cx
-	and di, 7
-	mov ah, 1
-	shl ah, cl
-
-	mov dx, 3CEh
-	mov al, 8
-	out dx, al
-	inc dx
-	mov al, ah
-	out dx, al
-
-	mov dx, 3C4h
-	mov al, 2
-	out dx, al
-	inc dx
-	mov al, 0Fh
-	out dx, al
-
-	mov al, [texto_color_actual]
-	mov ah, es:[bx] 
-	mov es:[bx], al 
-
-	mov dx, 3CEh
-	mov al, 8
-	out dx, al
-	inc dx
-	mov al, 0FFh
-	out dx, al
-	
-	pop di
-	pop es
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	ret
-dibujar_pixel_buffer ENDP
-
-pv_inicializar_particulas PROC NEAR
-	push cx
-	push di
-	mov cx, MAX_PARTICULAS
-	mov di, 0
-pv_init_loop:
-	mov byte ptr [particulas_vida + di], 0
-	inc di
-	loop pv_init_loop
-	pop di
-	pop cx
-	ret
-pv_inicializar_particulas ENDP
-
-pv_crear_explosion PROC NEAR
-        push ax
-        push bx
-        push cx
-        push si
-        push di
-	
-	mov cx, 25
-pv_spawn_loop:
-	mov si, 0
-pv_find_dead:
-	cmp [particulas_vida + si], 0
-	je pv_found_dead
-	inc si
-	cmp si, MAX_PARTICULAS
-	jb pv_find_dead
-	jmp pv_spawn_exit
-
-pv_found_dead:
-        mov di, si
-        shl di, 1
-        mov word ptr [particulas_x + di], 320
-        mov word ptr [particulas_y + di], 175
-	
-	call pv_obtener_random
-	and ax, 1Fh
-	add ax, 20
-	mov [particulas_vida + si], al
-	
-	call pv_obtener_random
-	and ax, 03h
-	add ax, 10
-	cmp ax, 11
-	jne pv_color_ok
-	mov ax, 14
-pv_color_ok:
-	mov [particulas_color + si], al
-	
-	call pv_obtener_random
-	mov bx, ax
-	and ax, 1Fh
-	sub ax, 16
-        mov [particulas_vx + di], ax
-
-	mov ax, bx
-	shr ax, 4
-	and ax, 1Fh
-	sub ax, 20
-        mov [particulas_vy + di], ax
-	
-	dec cx
-	jnz pv_spawn_loop
-	
-pv_spawn_exit:
-        pop di
-        pop si
-        pop cx
-        pop bx
-        pop ax
-        ret
-pv_crear_explosion ENDP
-
-pv_actualizar_y_dibujar_particulas PROC NEAR
-        push ax
-        push bx
-        push cx
-        push dx
-        push si
-        push di
-	
-	mov si, 0
-	mov cx, MAX_PARTICULAS
-pv_update_loop:
-        mov al, [particulas_vida + si]
-        test al, al
-        jz pv_particle_dead
-
-        dec al
-        mov [particulas_vida + si], al
-
-        mov di, si
-        shl di, 1
-        mov bx, [particulas_x + di]
-        add bx, [particulas_vx + di]
-        mov [particulas_x + di], bx
-
-        mov ax, [particulas_y + di]
-        add ax, [particulas_vy + di]
-        mov [particulas_y + di], ax
-
-        inc word ptr [particulas_vy + di]
-	
-	push ax
-	push cx
-	mov cx, bx
-	mov dx, ax
-	mov al, [particulas_color + si]
-	mov [texto_color_actual], al
-	call dibujar_pixel_buffer
-	pop cx
-	pop ax
-	
-pv_particle_dead:
-        inc si
-        loop pv_update_loop
-
-        pop di
-        pop si
-        pop dx
-        pop cx
-        pop bx
-        pop ax
-        ret
-pv_actualizar_y_dibujar_particulas ENDP
-
 pantalla_victoria PROC
-	push ax
-	push bx
-	push cx
-	push dx
-	push si
-	
-	call reproducir_sonido_victoria
-	call pv_inicializar_particulas
-	call pv_crear_explosion
-	mov byte ptr [pv_anim_frame], 0
-
-pv_anim_loop:
-	call esperar_retrace
-	
-	mov al, pagina_dibujo
-	test al, 1
-	jz pv_render_p0
-	mov temp_offset, 8000h
-	jmp pv_limpiar
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    
+    mov al, pagina_dibujo
+    test al, 1
+    jz pv_render_p0
+    mov temp_offset, 8000h
+    jmp pv_limpiar
 
 pv_render_p0:
-	mov temp_offset, 0
+    mov temp_offset, 0
 
 pv_limpiar:
-	call limpiar_pagina_actual
-	
-	mov cx, 160
-	mov dx, 120
-	mov ax, 320
-	mov bx, 110
-	mov si, COLOR_MARCO
-	call dibujar_rectangulo_vacio
-	
-	mov cx, 248
-	mov dx, 160
-	mov si, OFFSET msg_victoria
-	mov al, COLOR_TEXTO
-	call dibujar_texto_buffer_2x
-	
-	call pv_actualizar_y_dibujar_particulas
-	
-	inc byte ptr [pv_anim_frame]
-	mov al, [pv_anim_frame]
-	cmp al, 30
-	jne pv_no_new_explosion
-	call pv_crear_explosion
-	mov byte ptr [pv_anim_frame], 0
-pv_no_new_explosion:
+    call limpiar_pagina_actual
+    call reproducir_sonido_victoria
+    
+    mov cx, 160
+    mov dx, 120
+    mov ax, 320
+    mov bx, 110
+    mov si, COLOR_MARCO
+    call dibujar_rectangulo_vacio
+    
+    mov cx, 248
+    mov dx, 160
+    mov si, OFFSET msg_victoria
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer_2x
 
-	mov al, [pv_anim_frame]
-	and al, 10h
-	jz pv_dibuja_subtexto
-	jmp pv_no_dibuja_subtexto
+    mov cx, 260
+    mov dx, 200
+    mov si, OFFSET msg_victoria_sub
+    mov al, COLOR_TEXTO
+    call dibujar_texto_buffer
 
-pv_dibuja_subtexto:
-	mov cx, 260
-	mov dx, 200
-	mov si, OFFSET msg_victoria_sub
-	mov al, COLOR_TEXTO
-	call dibujar_texto_buffer
+    mov ah, 5
+    mov al, pagina_dibujo
+    int 10h
+    
+pv_clear_buffer:
+    mov ah, 1
+    int 16h
+    jz pv_wait_key
+    mov ah, 0
+    int 16h
+    jmp pv_clear_buffer
 
-pv_no_dibuja_subtexto:
-	mov ah, 5
-	mov al, pagina_dibujo
-	int 10h
-	
-	xor pagina_dibujo, 1
-	
-	mov ah, 1
-	int 16h
-	jz pv_anim_loop
-	
-	mov ah, 0
-	int 16h
-	
-	pop si
-	pop dx
-	pop cx
-	pop ax
-	ret
+pv_wait_key:
+    mov ah, 1
+    int 16h
+    jz pv_wait_key
+
+    mov ah, 0
+    int 16h
+    
+    cmp ah, 01h
+    jne pv_wait_key
+    
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
 pantalla_victoria ENDP
 
 dibujar_hud_vida PROC
