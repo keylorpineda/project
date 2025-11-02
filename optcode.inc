@@ -47,11 +47,8 @@ ilt_loop_video:
 	add ax, bx
 	mov bx, ax
 	mov al, [mapa_datos + bx]
-        cmp al, 1
-        je vtt_no_transitable
         cmp al, 3
- 
-       je vtt_no_transitable
+        je vtt_no_transitable
         cmp al, 6
         je vtt_no_transitable
         cmp al, 7
@@ -61,8 +58,7 @@ ilt_loop_video:
         cmp al, 11
         je vtt_no_transitable
         cmp al, 13
-      
-         je vtt_no_transitable
+        je vtt_no_transitable
         cmp al, 14
         je vtt_no_transitable
         cmp al, 15
@@ -73,7 +69,6 @@ ilt_loop_video:
         je vtt_no_transitable
         cmp al, 18
         je vtt_no_transitable
-  
         cmp al, 19
         je vtt_no_transitable
         cmp al, 20

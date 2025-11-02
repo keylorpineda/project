@@ -692,6 +692,8 @@ pmc_check_w_keys:
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
 	je pmc_up_lento
+	cmp bl, TILE_LAVA
+	je pmc_up_lento
 	cmp bl, TILE_HIELO
 	je pmc_up_rapido
 	jmp pmc_up_set
@@ -701,6 +703,8 @@ pmc_check_w:
 	jne pmc_check_down
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
+	je pmc_up_lento
+	cmp bl, TILE_LAVA
 	je pmc_up_lento
 	cmp bl, TILE_HIELO
 	je pmc_up_rapido
@@ -715,13 +719,15 @@ pmc_up_set:
 	mov mov_dy, ax
 	mov jugador_dir, DIR_ARRIBA
 	mov moviendo, 1
-	jmp pmc_llamar_resolver      ; ← FIX: Saltar a resolver
+	jmp pmc_llamar_resolver
 	
 pmc_check_down:
 	cmp al, 50h
 	jne pmc_check_s
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
+	je pmc_down_lento
+	cmp bl, TILE_LAVA
 	je pmc_down_lento
 	cmp bl, TILE_HIELO
 	je pmc_down_rapido
@@ -732,6 +738,8 @@ pmc_check_s:
 	jne pmc_check_left
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
+	je pmc_down_lento
+	cmp bl, TILE_LAVA
 	je pmc_down_lento
 	cmp bl, TILE_HIELO
 	je pmc_down_rapido
@@ -746,13 +754,15 @@ pmc_down_set:
 	mov mov_dy, ax
 	mov jugador_dir, DIR_ABAJO
 	mov moviendo, 1
-	jmp pmc_llamar_resolver      ; ← FIX: Saltar a resolver
+	jmp pmc_llamar_resolver
 	
 pmc_check_left:
 	cmp al, 4Bh
 	jne pmc_check_a
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
+	je pmc_left_lento
+	cmp bl, TILE_LAVA
 	je pmc_left_lento
 	cmp bl, TILE_HIELO
 	je pmc_left_rapido
@@ -763,6 +773,8 @@ pmc_check_a:
 	jne pmc_check_right
 	mov ax, - VELOCIDAD
 	cmp bl, TILE_NIEVE
+	je pmc_left_lento
+	cmp bl, TILE_LAVA
 	je pmc_left_lento
 	cmp bl, TILE_HIELO
 	je pmc_left_rapido
@@ -777,13 +789,15 @@ pmc_left_set:
 	mov mov_dx, ax
 	mov jugador_dir, DIR_IZQUIERDA
 	mov moviendo, 1
-	jmp pmc_llamar_resolver      ; ← FIX: Saltar a resolver
+	jmp pmc_llamar_resolver
 	
 pmc_check_right:
 	cmp al, 4Dh
 	jne pmc_check_d
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
+	je pmc_right_lento
+	cmp bl, TILE_LAVA
 	je pmc_right_lento
 	cmp bl, TILE_HIELO
 	je pmc_right_rapido
@@ -794,6 +808,8 @@ pmc_check_d:
 	jne pmc_default
 	mov ax, VELOCIDAD
 	cmp bl, TILE_NIEVE
+	je pmc_right_lento
+	cmp bl, TILE_LAVA
 	je pmc_right_lento
 	cmp bl, TILE_HIELO
 	je pmc_right_rapido
@@ -808,7 +824,7 @@ pmc_right_set:
 	mov mov_dx, ax
 	mov jugador_dir, DIR_DERECHA
 	mov moviendo, 1
-	jmp pmc_llamar_resolver      ; ← FIX: Saltar a resolver
+	jmp pmc_llamar_resolver
 	
 pmc_default:
 	jmp pmc_fin_frame
@@ -867,15 +883,13 @@ pmc_parar_desliz:
 	jmp pmc_fin_frame
 	
 pmc_llamar_resolver:
-	; ← FIX: Nuevo label para resolver colisiones
 	call get_tile_under_player
 	cmp al, TILE_HIELO
 	jne pmc_resolver_no_hielo
 	
-	; Si estamos en hielo y hay movimiento, activar deslizamiento
 	mov ax, mov_dx
 	or ax, mov_dy
-	jz pmc_resolver_continuar    ; ← FIX: Sin movimiento, solo resolver
+	jz pmc_resolver_continuar
 	
 	mov ax, mov_dx
 	mov deslizando_dx, ax
@@ -885,7 +899,6 @@ pmc_llamar_resolver:
 	jmp pmc_resolver_continuar
 	
 pmc_resolver_no_hielo:
-	; No estamos en hielo, detener deslizamiento
 	mov deslizando, 0
 	mov deslizando_dx, 0
 	mov deslizando_dy, 0
@@ -1793,35 +1806,35 @@ caj_fin:
 	push ax
 	push bx
 	
-        cmp jugador_invencible_timer, 0
-        je osj_normal
-
-        mov al, jugador_dir
-
-        cmp al, DIR_ABAJO
-        jne osj_hurt_arr
-        mov di, OFFSET jugador_hurt_down_a
-        mov si, OFFSET jugador_hurt_down_a_mask
-        jmp osj_fin
+	cmp jugador_invencible_timer, 0
+	je osj_normal
+	
+	mov al, jugador_dir
+	
+	cmp al, DIR_ABAJO
+	jne osj_hurt_arr
+	mov di, OFFSET jugador_hurt_down_a
+	mov si, OFFSET jugador_hurt_down_a_mask
+	jmp osj_fin
 
 osj_hurt_arr:
-        cmp al, DIR_ARRIBA
-        jne osj_hurt_izq
-        mov di, OFFSET jugador_hurt_up_a
-        mov si, OFFSET jugador_hurt_up_a_mask
-        jmp osj_fin
+	cmp al, DIR_ARRIBA
+	jne osj_hurt_izq
+	mov di, OFFSET jugador_hurt_up_a
+	mov si, OFFSET jugador_hurt_up_a_mask
+	jmp osj_fin
 
 osj_hurt_izq:
-        cmp al, DIR_IZQUIERDA
-        jne osj_hurt_der
-        mov di, OFFSET jugador_hurt_izq_a
-        mov si, OFFSET jugador_hurt_izq_a_mask
-        jmp osj_fin
+	cmp al, DIR_IZQUIERDA
+	jne osj_hurt_der
+	mov di, OFFSET jugador_hurt_izq_a
+	mov si, OFFSET jugador_hurt_izq_a_mask
+	jmp osj_fin
 
 osj_hurt_der:
-        mov di, OFFSET jugador_hurt_der_a
-        mov si, OFFSET jugador_hurt_der_a_mask
-        jmp osj_fin
+	mov di, OFFSET jugador_hurt_der_a
+	mov si, OFFSET jugador_hurt_der_a_mask
+	jmp osj_fin
 	
 osj_normal:
 	mov al, jugador_dir
@@ -2175,6 +2188,16 @@ ost_fin:
 	push si
 	push di
 	
+	mov ax, jugador_invencible_timer
+	test ax, ax
+	jz djo_no_invencible
+	
+	test ax, 2
+	jnz djo_no_invencible
+	
+	jmp djo_fin
+	
+djo_no_invencible:
 	mov ax, jugador_px
 	sub ax, camara_px
 	add ax, viewport_x
@@ -2192,6 +2215,7 @@ ost_fin:
 	call dibujar_item_sostenido
 	call dibujar_animacion_recoger
 	
+djo_fin:
 	pop di
 	pop si
 	pop dx
