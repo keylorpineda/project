@@ -2962,7 +2962,6 @@ dvt_mapa_ok:
 	debug_verificar_todo ENDP
 	
 	get_tile_under_player PROC
-	push ax
 	push bx
 	push cx
 	push dx
@@ -2988,18 +2987,19 @@ dvt_mapa_ok:
 	add bx, cx
 	
 	mov al, [mapa_datos + bx]
+	mov ah, 0
 	jmp gtup_fin
 	
 gtup_invalid:
 	mov al, TILE_ROCA_VOLCANICA
+	mov ah, 0
 	
 gtup_fin:
 	pop dx
 	pop cx
 	pop bx
-	pop ax
 	ret
-	get_tile_under_player ENDP
+get_tile_under_player ENDP
 	
 	INCLUDE OPTCODE.INC
 	INCLUDE INVCODE.INC
