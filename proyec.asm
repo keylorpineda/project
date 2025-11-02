@@ -171,6 +171,7 @@
 	num_recursos_cargados db 0
 	inventario_slots db MAX_ITEMS dup(0)
 	inventario_cantidades db MAX_ITEMS dup(0)
+	inventario_slots_ocupados db 0
 	
 	player_left_temp dw 0
 	player_right_temp dw 0
@@ -495,10 +496,8 @@ continuar_juego:
 	mov pagina_dibujo, 1
 bucle_juego:
 	call actualizar_estado_jugador
-        cmp jugador_muerto, 1
-        jne bg_sigue_vivo
-        jmp pantalla_game_over
-bg_sigue_vivo:
+	cmp jugador_muerto, 1
+	je pantalla_game_over
 	
 	call verificar_colision_recursos
 	call actualizar_animacion_recoger
@@ -512,11 +511,6 @@ bg_sigue_vivo:
 	jmp fin_juego
 	
 bg_continuar:
-        cmp jugador_muerto, 1
-        jne bg_continuar_sigue
-        jmp pantalla_game_over
-bg_continuar_sigue:
-
 	mov ax, jugador_px
 	cmp ax, jugador_px_old
 	jne bg_hay_cambio
@@ -532,11 +526,17 @@ bg_continuar_sigue:
 	cmp requiere_redibujar, 0
 	jne bg_hay_cambio
 	
-	
 	call esperar_retrace
+	
+	cmp jugador_muerto, 1
+	je pantalla_game_over
+	
 	jmp bucle_juego
 	
 bg_hay_cambio:
+	cmp jugador_muerto, 1
+	je pantalla_game_over
+
 	mov ax, jugador_px
 	mov jugador_px_old, ax
 	mov ax, jugador_py
@@ -1258,17 +1258,17 @@ rsp_silencio:
 	mov al, 182
 	out 43h, al
 	
-	pop dx
-	push ax
+	pop ax
+	push dx
 	
 	out 42h, al
 	mov al, ah
 	out 42h, al
 	
-	pop ax
 	pop dx
+	pop ax
 	ret
-	SetSpeakerFreq ENDP
+SetSpeakerFreq ENDP
 	
 	SoundDurationDelay PROC
 	push cx
@@ -2605,6 +2605,8 @@ crln_fin:
 	mov cx, MAX_ITEMS
 	mov al, 0
 	rep stosb
+
+	mov inventario_slots_ocupados, 0
 	
 	mov carga_recursos_estado, 0
 	mov carga_recursos_guardar, 0

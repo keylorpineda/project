@@ -169,20 +169,12 @@ actualizar_inventario_slots PROC
 
 ais_loop:
     cmp cx, 0
-    je ais_fin
+    je ais_fin_lleno
 
     mov al, [si]
     test al, al
     jz ais_asignar
     
-    cmp al, dl
-    jne ais_next_slot
-    
-    mov al, [di]
-    inc al
-    mov [di], al
-    jmp ais_exit_normal
-
 ais_next_slot:
     inc si
     inc di
@@ -192,9 +184,19 @@ ais_next_slot:
 ais_asignar:
     mov [si], dl
     mov byte ptr [di], 1
+    inc inventario_slots_ocupados
+    
+    mov al, inventario_slots_ocupados
+    cmp al, MAX_ITEMS
+    jne ais_exit_normal
+    
+    call verificar_victoria
+    jc ais_exit_normal
+    
+    mov jugador_muerto, 1
     jmp ais_exit_normal
 
-ais_fin:
+ais_fin_lleno:
     call verificar_victoria
     jc ais_exit_normal
     
