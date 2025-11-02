@@ -223,6 +223,15 @@ msg_progreso db 'PROGRESO:', 0
 	jugador_vida dw 200
 	jugador_vida_maxima dw 200
 	jugador_invencible_timer dw 0
+	jugador_veneno_timer dw 0
+	jugador_muerto db 0
+	
+	VENENO_DURACION EQU 73
+	INVENCIBLE_DURACION EQU 30
+	LAVA_DAÑO EQU 10
+	VENENO_DAÑO EQU 2
+	
+	INV_X EQU 80
 	
 	INV_X EQU 80
 	INV_Y EQU 40
@@ -483,6 +492,10 @@ continuar_juego:
 	mov pagina_visible, 0
 	mov pagina_dibujo, 1
 bucle_juego:
+	call actualizar_estado_jugador
+	cmp jugador_muerto, 1
+	je pantalla_muerte
+	
 	call verificar_colision_recursos
 	call actualizar_animacion_recoger
 	call procesar_movimiento_continuo
@@ -490,11 +503,14 @@ bucle_juego:
 	call centrar_camara_suave
 	call verificar_victoria
 	jnc bg_continuar
+	
 	call pantalla_victoria
 	jmp fin_juego
 	
 bg_continuar:
-	
+	cmp jugador_muerto, 1
+	je pantalla_muerte
+
 	mov ax, jugador_px
 	cmp ax, jugador_px_old
 	jne bg_hay_cambio
@@ -1770,6 +1786,61 @@ caj_fin:
 	obtener_sprite_jugador PROC
 	push ax
 	push bx
+	
+	cmp jugador_invencible_timer, 0
+	je osj_normal
+	
+	mov al, jugador_dir
+	mov bl, jugador_frame
+	
+	cmp al, DIR_ABAJO
+	jne osj_hurt_arr
+	test bl, bl
+	jz osj_hurt_down_a
+	mov di, OFFSET jugador_hurt_down_b
+	mov si, OFFSET jugador_hurt_down_b_mask
+	jmp osj_fin
+osj_hurt_down_a:
+	mov di, OFFSET jugador_hurt_down_a
+	mov si, OFFSET jugador_hurt_down_a_mask
+	jmp osj_fin
+
+osj_hurt_arr:
+	cmp al, DIR_ARRIBA
+	jne osj_hurt_izq
+	test bl, bl
+	jz osj_hurt_up_a
+	mov di, OFFSET jugador_hurt_up_b
+	mov si, OFFSET jugador_hurt_up_b_mask
+	jmp osj_fin
+osj_hurt_up_a:
+	mov di, OFFSET jugador_hurt_up_a
+	mov si, OFFSET jugador_hurt_up_a_mask
+	jmp osj_fin
+
+osj_hurt_izq:
+	cmp al, DIR_IZQUIERDA
+	jne osj_hurt_der
+	test bl, bl
+	jz osj_hurt_izq_a
+	mov di, OFFSET jugador_hurt_izq_b
+	mov si, OFFSET jugador_hurt_izq_b_mask
+	jmp osj_fin
+osj_hurt_izq_a:
+	mov di, OFFSET jugador_hurt_izq_a
+	mov si, OFFSET jugador_hurt_izq_a_mask
+	jmp osj_fin
+
+osj_hurt_der:
+	test bl, bl
+	jz osj_hurt_der_a
+	mov di, OFFSET jugador_hurt_der_b
+	mov si, OFFSET jugador_hurt_der_b_mask
+	jmp osj_fin
+osj_hurt_der_a:
+	mov di, OFFSET jugador_hurt_der_a
+	mov si, OFFSET jugador_hurt_der_a_mask
+	jmp osj_fin
 	
 osj_normal:
 	mov al, jugador_dir

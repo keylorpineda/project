@@ -2321,3 +2321,180 @@ dibujar_hud_vida PROC
 	pop ax
 	ret
 dibujar_hud_vida ENDP
+
+reproducir_sonido_daño PROC
+	push ax
+	push bx
+	push cx
+	push dx
+	
+	mov al, 0B6h
+	out 43h, al
+	
+	mov ax, 3030
+	out 42h, al
+	mov al, ah
+	out 42h, al
+	
+	in al, 61h
+	mov bl, al
+	or al, 3
+	out 61h, al
+	
+	mov cx, 1500
+rsd_delay:
+	loop rsd_delay
+	
+	mov al, bl
+	out 61h, al
+	
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+reproducir_sonido_daño ENDP
+
+aplicar_daño PROC
+	push ax
+	push bx
+
+	cmp jugador_vida, 0
+	je ad_fin
+	
+	mov bx, ax
+	mov ax, jugador_vida
+	sub ax, bx
+	
+	jge ad_no_muerto
+	xor ax, ax
+	mov jugador_muerto, 1
+	
+ad_no_muerto:
+	mov jugador_vida, ax
+	mov requiere_redibujar, 2
+	call reproducir_sonido_daño
+
+ad_fin:
+	pop bx
+	pop ax
+	ret
+aplicar_daño ENDP
+
+actualizar_estado_jugador PROC
+	push ax
+	push bx
+
+	cmp jugador_muerto, 1
+	je aej_fin
+	
+	cmp jugador_invencible_timer, 0
+	jne aej_dec_inv
+	jmp aej_check_poison
+aej_dec_inv:
+	dec jugador_invencible_timer
+	
+aej_check_poison:
+	cmp jugador_veneno_timer, 0
+	jne aej_dec_poison
+	jmp aej_check_tile
+aej_dec_poison:
+	dec jugador_veneno_timer
+	
+	cmp jugador_invencible_timer, 0
+	jne aej_check_tile
+	
+	mov ax, jugador_veneno_timer
+	mov bl, 18
+	xor dx, dx
+	div bl
+	cmp dx, 0
+	jne aej_check_tile
+	
+	mov ax, VENENO_DAÑO
+	call aplicar_daño
+	mov jugador_invencible_timer, 10
+	
+aej_check_tile:
+	call get_tile_under_player
+	
+	cmp al, TILE_LAVA
+	je aej_lava
+	
+	cmp al, TILE_LODO
+	je aej_lodo
+	
+	jmp aej_fin
+	
+aej_lava:
+	cmp jugador_invencible_timer, 0
+	jne aej_fin
+	
+	mov ax, LAVA_DAÑO
+	call aplicar_daño
+	mov jugador_invencible_timer, INVENCIBLE_DURACION
+	jmp aej_fin
+
+aej_lodo:
+	mov jugador_veneno_timer, VENENO_DURACION
+	
+aej_fin:
+	pop bx
+	pop ax
+	ret
+actualizar_estado_jugador ENDP
+
+pantalla_muerte PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+	
+	mov al, pagina_dibujo
+	test al, 1
+	jz pm_render_p0
+	mov temp_offset, 8000h
+	jmp pm_limpiar
+
+pm_render_p0:
+	mov temp_offset, 0
+
+pm_limpiar:
+	call limpiar_pagina_actual
+	
+	mov cx, 240
+	mov dx, 175
+	mov si, OFFSET msg_muerto
+	mov al, COLOR_TEXTO
+	call dibujar_texto_buffer
+	
+	mov ah, 5
+	mov al, pagina_dibujo
+	int 10h
+
+pm_clear_buffer:
+    mov ah, 1
+    int 16h
+    jz pm_wait_key
+    mov ah, 0
+    int 16h
+    jmp pm_clear_buffer
+
+pm_wait_key:
+	mov ah, 0
+	int 16h
+	
+    cmp ah, 01h
+    je pm_exit
+	
+	jmp pm_wait_key
+
+pm_exit:
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	jmp fin_juego
+pantalla_muerte ENDP
