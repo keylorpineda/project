@@ -246,7 +246,7 @@ msg_progreso db 'PROGRESO:', 0
 	jugador_poison_flash_timer dw 0
 	jugador_muerto db 0
 	
-	VENENO_DURACION EQU 6 * 18   ; 6 segundos con 18 ticks por segundo
+	VENENO_DURACION EQU 6 * 18
 	INVENCIBLE_DURACION EQU 30
 	LAVA_DAÑO EQU 10
 	VENENO_DAÑO EQU 3
@@ -465,6 +465,7 @@ continuar_juego:
 	mov ax, 10h
 	int 10h
 	call inicializar_paleta_ega
+	call ejecutar_intro
 	mov dx, 3C4h
 	mov al, 2
 	out dx, al
@@ -3275,5 +3276,6 @@ gtup_fin:
 	
 	INCLUDE OPTCODE.INC
 	INCLUDE INVCODE.INC
+	INCLUDE INTRO.INC
 	
 	END inicio
