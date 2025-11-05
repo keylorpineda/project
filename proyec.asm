@@ -25,7 +25,7 @@
 	VIDEO_SEG EQU 0A000h
 	VELOCIDAD EQU 4
 	VELOCIDAD_LENTA EQU 2
-	VELOCIDAD_RAPIDA EQU 6
+	VELOCIDAD_RAPIDA EQU 8
 	
 	DIR_ABAJO EQU 0
 	DIR_ARRIBA EQU 1
@@ -246,10 +246,10 @@ msg_progreso db 'PROGRESO:', 0
 	jugador_poison_flash_timer dw 0
 	jugador_muerto db 0
 	
-	VENENO_DURACION EQU 4 * 18   ; 4 segundos con 18 ticks por segundo
+	VENENO_DURACION EQU 6 * 18   ; 6 segundos con 18 ticks por segundo
 	INVENCIBLE_DURACION EQU 30
 	LAVA_DAÑO EQU 10
-	VENENO_DAÑO EQU 2
+	VENENO_DAÑO EQU 3
 	VENENO_FLASH_DURACION EQU 10
 	
 	INV_X EQU 80
@@ -1151,7 +1151,7 @@ rcm_fin:
 	pop bx
 	pop ax
 	ret
-	resolver_colisiones_y_mover ENDP
+resolver_colisiones_y_mover ENDP
 	
 	limpiar_pagina_actual PROC
 	push ax
@@ -2395,13 +2395,13 @@ ost_fin:
 	mov ax, jugador_px
 	sub ax, camara_px
 	add ax, viewport_x
-	sub ax, 16
+	sub ax, 14
 	mov cx, ax
 	
 	mov ax, jugador_py
 	sub ax, camara_py
 	add ax, viewport_y
-	sub ax, 16
+	sub ax, 20
 	mov dx, ax
 	
 	call obtener_sprite_jugador
@@ -3244,7 +3244,6 @@ dvt_mapa_ok:
 	mov cx, ax
 	
 	mov ax, [jugador_py]
-	add ax, 8
 	shr ax, 4
 	mov dx, ax
 	

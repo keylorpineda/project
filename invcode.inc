@@ -16,19 +16,19 @@ verificar_colision_recursos PROC
     push bp
 
     mov ax, jugador_px
-    sub ax, 16
+    sub ax, 8
     mov player_left_temp, ax
     
     mov ax, jugador_px
-    add ax, 15
+    add ax, 7
     mov player_right_temp, ax
 
     mov ax, jugador_py
-    sub ax, 16
+    sub ax, 8
     mov player_top_temp, ax
 
     mov ax, jugador_py
-    add ax, 15
+    add ax, 7
     mov player_bottom_temp, ax
 
     xor si, si
@@ -2632,13 +2632,19 @@ actualizar_estado_jugador PROC
 
 aej_check_dead:
         cmp jugador_muerto, 1
-        je aej_fin
+        jne aej_continuar
+        jmp aej_fin
 
+aej_continuar:
         cmp jugador_invencible_timer, 0
         jne aej_dec_inv
         jmp aej_check_poison
 aej_dec_inv:
         dec jugador_invencible_timer
+	; Si invencible acaba de terminar, forzar redibujo
+	cmp jugador_invencible_timer, 0
+	jne aej_check_poison
+	mov requiere_redibujar, 2
 
 aej_check_poison:
 	cmp jugador_veneno_timer, 0
@@ -2647,6 +2653,12 @@ aej_check_poison:
 aej_dec_poison:
 	dec jugador_veneno_timer
 	
+	; Si el veneno acaba de terminar, forzar redibujo
+	cmp jugador_veneno_timer, 0
+	jne aej_poison_continua
+	mov requiere_redibujar, 2
+	
+aej_poison_continua:
 	cmp jugador_invencible_timer, 0
 	jne aej_check_tile
 	
@@ -2671,6 +2683,9 @@ aej_check_tile:
 	cmp al, TILE_LODO
 	je aej_lodo
 	
+	cmp al, TILE_AGUA_TOXICA
+	je aej_agua_toxica
+	
 	jmp aej_fin
 	
 aej_lava:
@@ -2683,14 +2698,18 @@ aej_lava:
 	jmp aej_fin
 
 aej_lodo:
-	cmp jugador_veneno_timer, 0
-	jne aej_fin
+	; El lodo aplica veneno que persiste
 	mov jugador_veneno_timer, VENENO_DURACION
+	jmp aej_fin
 	
+aej_agua_toxica:
+	; El agua tóxica también aplica veneno que persiste
+	mov jugador_veneno_timer, VENENO_DURACION
+
 aej_fin:
-	pop bx
-	pop ax
-	ret
+    pop bx
+    pop ax
+    ret
 actualizar_estado_jugador ENDP
 
 reproducir_sonido_daño PROC
@@ -2704,9 +2723,23 @@ reproducir_sonido_daño PROC
 	or al, 3
 	out 61h, al
 
-	mov ax, 6000
+	; Primer golpe agudo (sonido de impacto)
+	mov ax, 2000
+	mov al, 0B6h
+	out 43h, al
+	push ax
+	out 42h, al
+	mov al, ah
+	out 42h, al
+	pop ax
+	mov cx, 800
+rsd_delay1:
+	loop rsd_delay1
+	
+	; Descenso rápido y doloroso
+	mov ax, 3000
 rsd_loop:
-	cmp ax, 10000
+	cmp ax, 8000
 	jae rsd_fin
 	
 	mov al, 0B6h
@@ -2718,11 +2751,11 @@ rsd_loop:
 	out 42h, al
 	pop ax
 	
-	mov cx, 1500
+	mov cx, 600
 rsd_delay:
 	loop rsd_delay
 	
-	add ax, 400
+	add ax, 800
 	jmp rsd_loop
 	
 rsd_fin:
