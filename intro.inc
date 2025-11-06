@@ -60,8 +60,8 @@ intro_p4_l1 db 'Tu travesia sera un infierno.', 0
 intro_p4_l2 db 'Lucharas contra el calor extremo, el hielo', 0
 intro_p4_l3 db 'traicionero y los lagos de veneno.', 0
 intro_p4_l4 db 'Cuando asegures los seis Catalizadores,', 0
-intro_p4_l5 db 'regresa a la Sala del Generador.', 0
-intro_p4_l6 db 'Has comprado mas tiempo para la humanidad.', 0
+intro_p4_l5 db 'la mision se completa de inmediato.', 0
+intro_p4_l6 db 'No necesitas volver a ningun lugar.', 0
 
 intro_p4_l_final db 'INICIANDO PROTOCOLO...', 0
 

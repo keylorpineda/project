@@ -381,11 +381,11 @@ msg_progreso db 'PROGRESO:', 0
 	
 	msg_titulo db 'JUEGO EGA - Universidad Nacional', 13, 10, '$'
 	msg_cargando db 'Cargando archivos...', 13, 10, '$'
-msg_mapa db 'Mapa: $'
-msg_sprites db 'Sprites terreno: $'
-msg_anim db 'Sprites jugador: $'
+    msg_mapa db 'Mapa: $'
+    msg_sprites db 'Sprites terreno: $'
+    msg_anim db 'Sprites jugador: $'
 	msg_convert db 'Generando mascaras...$'
-msg_tablas db 'Lookup tables: $'
+    msg_tablas db 'Lookup tables: $'
 	msg_ok db 'OK', 13, 10, '$'
 	msg_error db 'ERROR', 13, 10, '$'
 	msg_controles db 13, 10, 'WASD = Mover, ESC = Salir', 13, 10
@@ -393,6 +393,9 @@ msg_tablas db 'Lookup tables: $'
 	msg_victoria_sub db 'Presiona tecla...$'
 	db 'Presiona tecla...$'
 	
+	; ================================
+	; MODULO: ARRANQUE Y BUCLE PRINCIPAL
+	; ================================
 	.CODE
 inicio:
 	mov ax, @data
@@ -559,7 +562,7 @@ bg_esperar_continuar:
 	
 bg_hay_cambio:
 bg_cambio_continuar:
-
+	
 	mov ax, jugador_px
 	mov jugador_px_old, ax
 	mov ax, jugador_py
@@ -608,7 +611,7 @@ bg_cambiar_pagina:
 	xor pagina_visible, 1
 	
 	jmp bucle_juego
-
+	
 error_carga:
 	mov dx, OFFSET msg_error
 	mov ah, 9
@@ -622,6 +625,9 @@ fin_juego:
 	mov ax, 4C00h
 	int 21h
 	
+	; ================================
+	; MODULO: VIDEO / PALETA
+	; ================================
 	inicializar_paleta_ega PROC
 	mov dx, 3C0h
 	mov al, 20h
@@ -629,6 +635,11 @@ fin_juego:
 	ret
 	inicializar_paleta_ega ENDP
 	
+	; ================================
+	; MODULO: ENTRADA Y MOVIMIENTO
+	; - Lectura de teclado, control de deslizamiento
+	; - Resolucion de colisiones por ejes
+	; ================================
 	procesar_movimiento_continuo PROC
 	push ax
 	push bx
@@ -969,6 +980,9 @@ pmc_salir:
 	int 21h
 	procesar_movimiento_continuo ENDP
 	
+	; - - - - - - - - - - - - - - - - 
+	; Colisiones + movimiento
+	; - - - - - - - - - - - - - - - - 
 	resolver_colisiones_y_mover PROC
 	push ax
 	push bx
@@ -1052,7 +1066,7 @@ rcm_x_snap_der:
 	
 rcm_x_col_fin:
 	mov mov_dx, 0
-	mov deslizando, 0            ; Chocar detiene el deslizamiento
+	mov deslizando, 0
 	mov deslizando_dx, 0
 	
 	jmp rcm_fase_y
@@ -1137,7 +1151,7 @@ rcm_y_snap_abajo:
 	
 rcm_y_col_fin:
 	mov mov_dy, 0
-	mov deslizando, 0            ; Chocar detiene el deslizamiento
+	mov deslizando, 0
 	mov deslizando_dy, 0
 	
 	jmp rcm_fin
@@ -1152,8 +1166,11 @@ rcm_fin:
 	pop bx
 	pop ax
 	ret
-resolver_colisiones_y_mover ENDP
+	resolver_colisiones_y_mover ENDP
 	
+	; ================================
+	; MODULO: FRAMEBUFFER / LIMPIEZA
+	; ================================
 	limpiar_pagina_actual PROC
 	push ax
 	push cx
@@ -1187,6 +1204,9 @@ resolver_colisiones_y_mover ENDP
 	ret
 	limpiar_pagina_actual ENDP
 	
+	; ================================
+	; MODULO: ANIMACIONES / PASOS
+	; ================================
 	actualizar_animacion PROC
 	push ax
 	
@@ -1207,6 +1227,9 @@ aa_fin:
 	ret
 	actualizar_animacion ENDP
 	
+	; ================================
+	; MODULO: AUDIO / PC SPEAKER
+	; ================================
 	reproducir_sonido_paso PROC
 	push ax
 	push bx
@@ -1327,6 +1350,9 @@ rsp_silencio:
 	ret
 	SoundDurationDelay ENDP
 	
+	; ================================
+	; MODULO: CAMARA
+	; ================================
 	centrar_camara PROC
 	push ax
 	push bx
@@ -1363,6 +1389,9 @@ cc_y_ok:
 	ret
 	verificar_tile_transitable ENDP
 	
+	; ================================
+	; MODULO: CARGA DE SPRITES (TERRENO 16x16)
+	; ================================
 	
 	cargar_sprites_terreno PROC
 	push dx
@@ -1647,6 +1676,9 @@ cst_fin:
 	ret
 	cargar_sprites_terreno ENDP
 	
+	; ================================
+	; MODULO: CARGA DE SPRITES (JUGADOR 32x32)
+	; ================================
 	cargar_animaciones_jugador PROC
 	push dx
 	push di
@@ -1928,6 +1960,9 @@ caj_fin:
 	ret
 	cargar_animaciones_jugador ENDP
 	
+	; ================================
+	; MODULO: SELECCION DE SPRITES DEL JUGADOR
+	; ================================
 	obtener_sprite_jugador PROC
 	push ax
 	push bx
@@ -2099,6 +2134,9 @@ osj_fin:
 	ret
 	obtener_sprite_jugador ENDP
 	
+	; ================================
+	; MODULO: RENDER (DOBLE BUFFER / DIBUJO)
+	; ================================
 	renderizar_en_pagina_0 PROC
 	push ax
 	push es
@@ -2502,6 +2540,9 @@ dis_fin:
 	ret
 	dibujar_item_sostenido ENDP
 	
+	; ================================
+	; MODULO: VBL / SINCRONIZACION
+	; ================================
 	esperar_retrace PROC
 	push ax
 	push dx
@@ -2525,6 +2566,9 @@ er_wait_start:
 	ret
 	esperar_retrace ENDP
 	
+	; ================================
+	; MODULO: MAPA (LECTURA) Y RECURSOS
+	; ================================
 	cargar_mapa PROC
 	push ax
 	push bx
@@ -3146,60 +3190,9 @@ sl_fin:
 	ret
 	saltar_linea ENDP
 	
-	debug_mostrar_tile PROC
-	push ax
-	push bx
-	push cx
-	push dx
-	
-	
-	mov bx, 19
-	shl bx, 1
-	mov ax, [mul100_table + bx]
-	add ax, 15
-	mov bx, ax
-	
-	mov al, [mapa_datos + bx]
-	
-	
-	add al, '0'
-	mov [msg_error], al
-	mov dx, OFFSET msg_error
-	mov ah, 9
-	int 21h
-	
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	ret
-	debug_mostrar_tile ENDP
-	
-	debug_verificar_mapa PROC
-	push ax
-	push bx
-	mov bx, 25
-	shl bx, 1
-	mov ax, [mul100_table + bx]
-	add ax, 25
-	mov bx, ax
-	mov al, [mapa_datos + bx]
-	test al, al
-	jnz dvm_ok
-	mov ax, 3
-	int 10h
-	mov dx, OFFSET msg_error
-	mov ah, 9
-	int 21h
-	mov ah, 0
-	int 16h
-	
-dvm_ok:
-	pop bx
-	pop ax
-	ret
-	debug_verificar_mapa ENDP
-	
+	; ================================
+	; MODULO: DEBUG BÁSICO
+	; ================================
 	debug_verificar_todo PROC
 	push ax
 	push bx
@@ -3235,6 +3228,9 @@ dvt_mapa_ok:
 	ret
 	debug_verificar_todo ENDP
 	
+	; ================================
+	; MODULO: UTILIDADES
+	; ================================
 	get_tile_under_player PROC
 	push bx
 	push cx
@@ -3275,7 +3271,7 @@ gtup_fin:
 	get_tile_under_player ENDP
 	
 	INCLUDE OPTCODE.INC
-	INCLUDE INVCODE.INC
+	INCLUDE HUDINV.INC
 	INCLUDE INTRO.INC
 	
 	END inicio
